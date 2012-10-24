@@ -29,6 +29,7 @@ html, body {
 }
 
 
+#borderContainer { width:100%; height:100% }
 
 #helpAction, #helpScope{
 width:12px; height:12px; }
@@ -132,36 +133,61 @@ h1 {
     font-weight:normal;
 }
 
-    textarea{
+
+
+
+form {
+    margin-left:10px;
+}
+
+form textarea{
     font-size: 13px;
     font-family: Arial;
-    width:200px;}
+    width:170px;}
+
+
+
+form div{
+    padding:5px 0px 10px 0px;  
+}
+
+form h2{
+    padding:5px 0px;
+}
+
+
+.dijitValidationTextBoxLabel, .dijitInputField {
+    width:170px;
+    text-align: left;
+
+}
+
+
+.iconAlign{
+    vertical-align: middle;
+}
+/*dijit specific styles*/
+
+.ErrorCell{
+background:rgb(255, 0, 0)
+}
+
+.Warning{
+background:rgb(239, 252, 164)
+}
 
 .showDescription{
     padding:10px;
     height:100px;   
 }
 
-.toolbar{
-    height:25px;
-    margin:10px 0px;
-    padding:10px;
-    border: dashed 1px #666;
-}
 
-.WuDetailsTabContainer .dijitSelect .dijitButtonContents{
 
-    width:200px;
-}
-
-.iconAlign{
-    vertical-align: middle;
-}
-
-.bold{
+/* CAN WE MOVE AND REPLACE Prompt with this instead?.bold{
 
     font-weight:bold;
 }
+*/
 
 .Prompt{
     font-weight:bold;
