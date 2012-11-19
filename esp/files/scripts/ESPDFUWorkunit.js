@@ -97,31 +97,84 @@ define([
                 }
             });
         },
+        fetchStructure: function (format, onFetchStructure) {
+            var request = {
+                Name: this.logicalName,
+                Format: format,
+                rawxml_: true
+            };
+
+            var context = this;
+            xhr.post({
+                url: this.getBaseURL("FileSpray") + "/DFUWUFile",
+                handleAs: "text",
+                content: request,
+                load: function (response) {
+                    onFetchStructure(response);
+                },
+                error: function (e) {
+                }
+            });
+        },
+        
+        fetchDEF: function (onFetchXML) {
+            this.fetchStructure("def", onFetchXML);
+        },
+        
+        fetchXML: function (onFetchXML) {
+            var request = {                
+                Wuid: this.Wuid
+            };
+
+            var context = this;
+            xhr.post({
+                url: this.getBaseURL("FileSpray") + "/DFUWUFile",
+                handleAs: "text",
+                content: request,
+                load: function (response) {
+                    onFetchXML(response);
+                },
+                error: function (e) {
+                    var d = 0;
+                }
+            });
+        },
+
         create: function (ecl) {
         },
+        
         update: function (request, appData, callback) {
         },
+        
         submit: function (target) {
         },
+        
         _resubmit: function (clone, resetWorkflow, callback) {
         },
+        
         clone: function (callback) {
             this._resubmit(true, false, callback);
         },
+        
         resubmit: function (callback) {
             this._resubmit(false, false, callback);
         },
+        
         restart: function (callback) {
             this._resubmit(false, true, callback);
         },
+        
         _action: function (action, callback) {
         },
+        
         abort: function (callback) {
             this._action("Abort", callback);
         },
+        
         doDelete: function (callback) {
             this._action("Delete", callback);
         },
+        
         getInfo: function (args) {
             var request = {
             	wuid: this.Wuid

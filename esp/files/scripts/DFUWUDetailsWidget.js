@@ -29,6 +29,7 @@ define([
     "dijit/TitlePane",
     "dijit/registry",
     "dijit/ProgressBar",
+    
 
     "hpcc/ECLSourceWidget",
     "hpcc/TargetSelectWidget",
@@ -82,14 +83,53 @@ define([
 
             var context = this;
             this.tabContainer.watch("selectedChildWidget", function (name, oval, nval) {
-                if (nval.id == context.id + "Legacy" && !context.legacyPaneLoaded) {
+                if (nval.id == context.id + "Content" && !context.resultWidgetLoaded) {
+                    context.resultWidgetLoaded = true;
+                    context.resultWidget.init({
+                        result: context.logicalFile.result
+                    });
+                } else if (nval.id == context.id + "Source" && !context.sourceWidgetLoaded) {
+                    context.sourceWidgetLoaded = true;
+                    context.sourceWidget.init({
+                        ECL: context.logicalFile.DFUInfoResponse.Ecl
+                    });
+                } else if (nval.id == context.id + "DEF" && !context.defWidgetLoaded) {
+                    context.logicalFile.fetchDEF(function (response) {
+                        context.defWidgetLoaded = true;
+                        context.defWidget.init({
+                            ECL: response
+                        });
+                    });
+                } else if (nval.id == context.id + "XML" && !context.xmlWidgetLoaded) {
+                    context.wu.fetchXML(function (response) {
+                        context.xmlWidgetLoaded = true;
+                        context.xmlWidget.init({
+                            ECL: response
+                        });
+                    });
+                } else if (nval.id == context.id + "FileParts" && !context.filePartsWidgetLoaded) {
+                    context.filePartsWidgetLoaded = true;
+                    context.filePartsWidget.init({
+                        fileParts: lang.exists("logicalFile.DFUInfoResponse.DFUFileParts.DFUPart", context) ? context.logicalFile.DFUInfoResponse.DFUFileParts.DFUPart : []
+                    });
+                } else if (nval.id == context.id + "Workunit" && !context.workunitWidgetLoaded) {
+                    context.workunitWidgetLoaded = true;
+                    context.workunitWidget.init({
+                        Wuid: context.logicalFile.DFUInfoResponse.Wuid
+                    });
+                } else if (nval.id == context.id + "DFUWorkunit" && !context.workunitWidgetLoaded) {
+                    context.dfuWorkunitWidgetLoaded = true;
+                    context.dfuWorkunitWidget.init({
+                        Wuid: context.logicalFile.DFUInfoResponse.Wuid
+                    });
+                } else if (nval.id == context.id + "Legacy" && !context.legacyPaneLoaded) {
                     context.legacyPaneLoaded = true;
                     context.legacyPane.set("content", dojo.create("iframe", {
                         src: "/FileSpray/GetDFUWorkunit?wuid=" + context.wu.Wuid,
                         style: "border: 0; width: 100%; height: 100%"
                     }));
                 }
-            });        
+            });       
         },
 
         startup: function (args) {
@@ -97,20 +137,20 @@ define([
 
             
         },
-        
-        //TODO
-        showProgress: function(){
+    //TODO
+
+        /*showProgress: function(event){
+            alert(response.PercentDone);
             numParts = Math.floor(100/10);
+            
             jsProgressBar.update({maximum:numParts, progress:response.PercentDone});
 
-            for (var i=response.PercentDone;i <= numParts; i++){
+            for (var i = response.PercentDone; i <= numParts; i++){                
                 timer = setTimeout(
-                    "jsProgressBar.update({progress: " + i + "})", (i+1)*1000 //1000ms of 1
+                "jsProgressBar.update({progress: " + i + "})", (i+1)*1000 //1000ms of 1
                 )
-
-            }
-
-        },
+            }        
+        },*/
 
         resize: function (args) {
             this.inherited(arguments);
@@ -181,6 +221,7 @@ define([
                 }
             });
         },
+
         _onAbort: function (event) {
             var context = this;
             this.wu.abort({
@@ -208,20 +249,21 @@ define([
 
         monitorDFUWorkunit: function (response) {
             if (!this.loaded) {                
-                registry.byId(this.id + "Save").set("disabled", !this.wu.isComplete());            
-                registry.byId(this.id + "Delete").set("disabled", !this.wu.isComplete());
-                registry.byId(this.id + "Abort").set("disabled", this.wu.isComplete());            
-                registry.byId(this.id + "Resubmit").set("disabled", !this.wu.isComplete());
-                registry.byId(this.id + "Modify").set("disabled", !this.wu.isComplete());
-                registry.byId(this.id + "Protected").set("readOnly", !this.wu.isComplete());
+                 registry.byId(this.id + "Save").set("disabled", !this.wu.isComplete());            
+                 registry.byId(this.id + "Delete").set("disabled", !this.wu.isComplete());
+                 registry.byId(this.id + "Abort").set("disabled", this.wu.isComplete());            
+                 registry.byId(this.id + "Resubmit").set("disabled", !this.wu.isComplete());
+                 registry.byId(this.id + "Modify").set("disabled", !this.wu.isComplete());
+                 registry.byId(this.id + "Protected").set("readOnly", !this.wu.isComplete());
                  
                  dom.byId(this.id + "ID").innerHTML = response.ID;
                  dom.byId(this.id + "JobName").value = response.JobName;
                  dom.byId(this.id + "Queue").innerHTML = response.Queue;
                  dom.byId(this.id + "Command").innerHTML = response.Command;
                  dom.byId(this.id + "TimeStarted").innerHTML = response.TimeStarted;
-                 dom.byId(this.id + "TimeStopped").innerHTML = response.TimeStopped;
-                 //dom.byId(this.id + "PercentDone").innerHTML = response.PercentDone + "%";
+                 dom.byId(this.id + "TimeStopped").innerHTML = response.TimeStopped;                             
+                 dom.byId(this.id + "ProgressBar").value = response.PercentDone;
+
                  dom.byId(this.id + "ProgressMessage").innerHTML = response.ProgressMessage;
                  dom.byId(this.id + "SummaryMessage").innerHTML = response.SummaryMessage;
                  dom.byId(this.id + "SourceLogicalName").innerHTML = response.SourceLogicalName;
@@ -236,7 +278,7 @@ define([
                  dom.byId(this.id + "Compress").innerHTML = response.Compress;
                  dom.byId(this.id + "AutoRefresh").innerHTML = response.AutoRefresh;
 
-                
+                 
                 this.loaded = true;
             }
 
@@ -262,7 +304,7 @@ define([
                     },
 
                     onGetAll: function (response) {
-                        //dom.byId(context.id + "WUInfoResponse").innerHTML = context.objectToText(response);
+                        
 
                     }
                 });

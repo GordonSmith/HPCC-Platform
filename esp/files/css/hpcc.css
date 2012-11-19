@@ -60,6 +60,8 @@ h1 {
 .rounded{
 border-radius: 5px;
 -moz-border-radius:10px;
+-webkit-border-radius:10px;
+-khtml-border-radius:10px;
 box-shadow: inset 0 2px 0 #fff;
 background:rgb(244,244,244);
 padding:10px;
@@ -73,12 +75,22 @@ form {
     width:100%;
 }
 
+#longList label{
+    float: left;
+    width: 14%;
+    margin: 0 15px 0 0;
+    text-align: right;
+    padding-top: 4px;
+    font-weight:bold;
+    height:20px;
+
+}
 
 form label{
     float: left;
     width: 14%;
     margin: 0 15px 0 0;
-    text-align: right;
+    text-align: left;
     padding-top: 4px;
     font-weight:bold;
     height:20px;
