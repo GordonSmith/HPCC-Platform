@@ -51,6 +51,19 @@ h1 {
     font-size: 1.5em;
 }
 
+/*Use this when creating a small popup form*/
+.smallForm label{
+  float: left;
+    width: 26%;
+    margin: 0 15px 0 0;
+    text-align: left;
+    padding-top: 4px;
+    font-weight:bold;
+    height:20px;
+
+}
+
+
 form {
     margin:0;
     padding:0;
@@ -66,6 +79,8 @@ form label{
     font-weight:bold;
     height:20px;
 }
+
+
 
 form textarea{
     font-size: 13px;
@@ -160,6 +175,15 @@ form h2{
     display:none;
 }
 
+.toolTip{
+width:500px;
+}
+
+.toolTip img{
+vertical-align: middle;
+margin-left:-20px;
+}
+
 .rounded{
     border-radius: 5px;
     -moz-border-radius:10px;
@@ -204,7 +228,7 @@ form h2{
 }
 
 
-.dijitValidationTextBoxLabel, .dijitInputField {
+.dijitValidationTextBoxLabel {
     width:170px;
     text-align: left;
 

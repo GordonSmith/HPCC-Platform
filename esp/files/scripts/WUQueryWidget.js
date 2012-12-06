@@ -18,6 +18,7 @@ define([
     "dojo/dom",
     "dojo/data/ObjectStore",
     "dojo/date",
+    "dojo/on",
 
     "dijit/layout/_LayoutWidget",
     "dijit/_TemplatedMixin",
@@ -43,7 +44,7 @@ define([
     "dijit/form/Select",
     "dijit/Toolbar",
     "dijit/TooltipDialog"
-], function (declare, dom, ObjectStore, date,
+], function (declare, dom, ObjectStore, date, on,
                 _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry,
                 EnhancedGrid, Pagination, IndirectSelection,
                 WsWorkunits, WUDetailsWidget,

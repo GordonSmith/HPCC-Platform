@@ -134,24 +134,8 @@ define([
 
         startup: function (args) {
             this.inherited(arguments);
-
-            
         },
-    //TODO
-
-        showProgress: function(event){
-            alert(response.PercentDone);
-            numParts = Math.floor(100/10);
-            
-            jsProgressBar.update({maximum:numParts, progress:response.PercentDone});
-
-            for (var i = response.PercentDone; i <= numParts; i++){                
-                timer = setTimeout(
-                "jsProgressBar.update({progress: " + i + "})", (i+1)*1000 //1000ms of 1
-                )
-            }        
-        },
-
+    
         resize: function (args) {
             this.inherited(arguments);
             this.borderContainer.resize();
@@ -247,36 +231,33 @@ define([
 
         monitorDFUWorkunit: function (response) {
             if (!this.loaded) {
-
                     registry.byId(this.id + "Save").set("disabled", !this.wu.isComplete());            
                     registry.byId(this.id + "Delete").set("disabled", !this.wu.isComplete());
                     registry.byId(this.id + "Abort").set("disabled", this.wu.isComplete());            
                     registry.byId(this.id + "Resubmit").set("disabled", !this.wu.isComplete());
                     registry.byId(this.id + "Modify").set("disabled", !this.wu.isComplete());
                     registry.byId(this.id + "Protected").set("readOnly", !this.wu.isComplete());
-                   // registry.byId(this.id + "export").setClass("iconClass",this.wu.getStateIconClass());                                
-                    //registry.byId(this.id + "import").setClass("iconClass",this.wu.getStateIconClass());                                
-
+                
                     dom.byId(this.id + "ID").innerHTML = response.ID;
                     dom.byId(this.id + "ClusterName").value = response.ClusterName;
                     dom.byId(this.id + "JobName").value = response.JobName;
                     dom.byId(this.id + "Queue").innerHTML = response.Queue;                     
                     dom.byId(this.id + "TimeStarted").innerHTML = response.TimeStarted;
                     dom.byId(this.id + "TimeStopped").innerHTML = response.TimeStopped;                             
-                    dom.byId(this.id + "ProgressBar").value = response.PercentDone;
+                    //dom.byId(this.id + "ProgressBar").value = response.PercentDone;
                     dom.byId(this.id + "ProgressMessage").innerHTML = response.ProgressMessage;
-                    dom.byId(this.id + "SummaryMessage").innerHTML = response.SummaryMessage;    
-                    dom.byId(this.id + "AutoRefresh").innerHTML = response.AutoRefresh;  
+                    dom.byId(this.id + "SummaryMessage").innerHTML = response.SummaryMessage;                        
                     dom.byId(this.id + "MonitorSub").innerHTML = response.MonitorSub;
                     dom.byId(this.id + "Overwrite").innerHTML = response.Overwrite;
                     dom.byId(this.id + "Replicate").innerHTML = response.Replicate;
                     dom.byId(this.id + "Compress").innerHTML = response.Compress;
-                    dom.byId(this.id + "AutoRefresh").innerHTML = response.AutoRefresh;     
-
+                    //dom.byId(this.id + "AutoRefresh").innerHTML = response.AutoRefresh;     
+                    if(!response.AutoRefresh){
+                       dom.byId(this.id + "AutoRefresh").innerHTML = "false";
+                    }
 
                 if(response.Command == "6"){
                    domStyle.set("export", {"display" : "none"});
-
                    dom.byId(this.id + "Command").innerHTML = "Spray";                                                         
                    dom.byId(this.id + "SourceIP").innerHTML = response.SourceIP;
                    dom.byId(this.id + "SourceFilePath").innerHTML = response.SourceFilePath;
@@ -288,11 +269,9 @@ define([
                    dom.byId(this.id + "DestLogicalName").innerHTML = response.DestLogicalName;
                    dom.byId(this.id + "DestDirectory").innerHTML = response.DestDirectory;
                    dom.byId(this.id + "DestNumParts").innerHTML = response.DestNumParts;
-                          
-                   
                 }else{
                     domStyle.set("import", {"display" : "none"});
-                    domStyle.set("Cluster", {"display" : "none"});
+                    domStyle.set("cluster", {"display" : "none"});
                     dom.byId(this.id + "Command").innerHTML = "Despray";                    
                     dom.byId(this.id + "SourceLogicalName").innerHTML = response.SourceLogicalName;
                     dom.byId(this.id + "DestDirectory").innerHTML = response.DestDirectory;
@@ -303,23 +282,16 @@ define([
                     dom.byId(this.id + "MonitorSub").innerHTML = response.MonitorSub;
                     dom.byId(this.id + "Overwrite").innerHTML = response.Overwrite;
                     dom.byId(this.id + "Replicate").innerHTML = response.Replicate;
-                    dom.byId(this.id + "Compress").innerHTML = response.Compress;
-                    
-                    
-                }
+                    dom.byId(this.id + "Compress").innerHTML = response.Compress;               
+                }   
+                //start progress bar
 
-                 
-                 
-                 
-                 
-                 
-                 
-                
+
+
+
+                //end progress bar
                 this.loaded = true;
             }
-
-
-
             var context = this;
             if (this.wu.isComplete()) {
                 this.wu.getInfo({

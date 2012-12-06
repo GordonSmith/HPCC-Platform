@@ -17,14 +17,13 @@
                        <h2>
                         <img id="${id}ProtectedImage" src="img/locked.png"/>&nbsp<img id="${id}StateIdImage" src="img/workunit.png"/>&nbsp<span id="${id}Wuid" class="bold">WUID</span>
                     </h2>
-                    <form>                    
-                         <!--<div id="jsProgressBar" data-dojo-type="dijit.form.Button" data-dojo-attach-event="onClick:showProgress">go</div>-->
+                    <form>                                            
                         <ul>                           
                              <li>
                                 <label for="ID">ID:</label>
                                 <div id="${id}ID"></div>
                             </li>
-                            <li id="Cluster">
+                            <li id="cluster">
                                 <label for="Cluster Name">Cluster Name:</label>
                                 <div><input id="${id}ClusterName" data-dojo-props="trim:true" data-dojo-type="dijit.form.TextBox"/></div>
                             </li>
@@ -36,10 +35,10 @@
                                 <label for="Queue">Queue:</label>
                                 <div id="${id}Queue"></div>
                             </li>
-                             <li>
+                             <!--<li>
                                 <label for="User">User:</label>
                                 <div id="${id}User"></div>
-                            </li>
+                            </li>-->
                              <li>                 
                                 <label for="Protected">Protected:</label>
                                 <div><input id="${id}Protected" data-dojo-type="dijit.form.CheckBox"/></div>
@@ -60,7 +59,8 @@
                             <li>
                                 <label for="Percent Done">Percent Done:</label>
                                 <!-- TODO Need to write a IE8 fallback -->
-                                <div><progress id="${id}ProgressBar" max='100' style='width:197px'></progress></div>
+                                <!--<div><progress id="${id}ProgressBar" max='100' style='width:197px'></progress></div>--><div data-dojo-type="dijit/ProgressBar" style="width:190px"
+                                data-dojo-id="myProgressBar" id="downloadProgress" jsId="jsProgress" data-dojo-props="maximum:10"></div>
                                 
                             </li>
                             <li>
