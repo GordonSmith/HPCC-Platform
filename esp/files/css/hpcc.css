@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ############################################################################## */
-
+@import "/esp/files/dojox/widget/Calendar/Calendar.css";
 /*ELEMENT STYLES***************/
 html, body {
     background: white;
@@ -77,6 +77,8 @@ form label{
     height:20px;
 }
 
+
+
 form textarea{
     font-size: 13px;
     font-family: Arial;
@@ -106,6 +108,8 @@ form div{
 form h2{
     padding:5px 0;
 }
+
+
 
 /*IDs************************/
 
@@ -163,6 +167,9 @@ form h2{
     padding-left:10px;
 }
 
+
+
+
 /*CLASSES******************/
 .hidden{
     color:rgb(214, 214, 214);
@@ -171,6 +178,10 @@ form h2{
 
 .toolTip{
 width:500px;
+}
+
+.inlineField{
+
 }
 
 .toolTip img{
@@ -187,7 +198,7 @@ margin-left:-20px;
     background:rgb(244,244,244);
     padding:10px;
     margin:10px 0;
-    border:solid 1px rgb(214,214,214); 
+    border:solid 1px rgb(214,214,214);
 }
 
 .pageOverlay{
@@ -198,6 +209,17 @@ margin-left:-20px;
     display: block;
     position: absolute;
     z-index: 1001;
+}
+
+.Highlight{
+    background: #E2F1FD;
+    padding: 5px;
+    margin-bottom: 10px;
+    border:solid 1px rgb(181, 188, 199);
+}
+
+#appLayoutHighlight input[type="radio"] {
+
 }
 
 .CodeMirror {
