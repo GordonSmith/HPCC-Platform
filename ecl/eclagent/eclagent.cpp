@@ -505,8 +505,8 @@ public:
 
 //=======================================================================================
 
-EclAgent::EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bool _resetWorkflow, bool _noRetry, char const * _logname, const char *_allowedPipeProgs, IPropertyTree *queryXML, IProperties *_globals, IPropertyTree *_config)
-    : wuRead(wu), wuid(_wuid), checkVersion(_checkVersion), resetWorkflow(_resetWorkflow), noRetry(_noRetry), allowedPipeProgs(_allowedPipeProgs), globals(_globals), config(_config)
+EclAgent::EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bool _resetWorkflow, bool _noRetry, char const * _logname, const char *_allowedPipeProgs, IPropertyTree *_queryXML, IProperties *_globals, IPropertyTree *_config, ILogMsgHandler * _logMsgHandler)
+    : wuRead(wu), wuid(_wuid), checkVersion(_checkVersion), resetWorkflow(_resetWorkflow), noRetry(_noRetry), allowedPipeProgs(_allowedPipeProgs), globals(_globals), config(_config), logMsgHandler(_logMsgHandler)
 {
     isAborting = false;
     isStandAloneExe = false;
@@ -554,10 +554,10 @@ EclAgent::EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bo
         SCMStringBuffer jobName;
         debugContext->debugInitialize(wuid, wu->getJobName(jobName).str(), true);
     }
-    if (queryXML)
+    if (_queryXML)
     {
         Owned<IWorkUnit> w = updateWorkUnit();
-        w->setXmlParams(queryXML);
+        w->setXmlParams(_queryXML);
     }
     Owned<const IPropertyTree> xmlParams = wuRead->getXmlParams();
     if (xmlParams)
@@ -1061,7 +1061,7 @@ void EclAgent::getResultDictionary(size32_t & tcount, byte * * & tgt, IEngineRow
         MemoryBuffer datasetBuffer;
         MemoryBuffer2IDataVal result(datasetBuffer);
         r->getResultRaw(result, NULL, NULL);
-        rtlDictionary2RowsetX(tcount, tgt, _rowAllocator, deserializer, datasetBuffer.length(), datasetBuffer.toByteArray());
+        rtlDeserializeDictionary(tcount, tgt, _rowAllocator, deserializer, datasetBuffer.length(), datasetBuffer.toByteArray());
     );
 }
 
@@ -2010,7 +2010,11 @@ void EclAgent::doProcess()
         while (clusterNames.ordinality())
             restoreCluster();
         if (!queryResolveFilesLocally())
+        {
             w->deleteTempFiles(NULL, false, deleteJobTemps);
+            if (deleteJobTemps)
+                w->deleteTemporaries();
+        }
 
         wuRead.clear(); // have a write lock still, but don't want to leave dangling unlocked wuRead after releasing write lock
                         // or else something can delete whilst still referenced (e.g. on complete signal)
@@ -2060,7 +2064,8 @@ void EclAgent::doProcess()
 void EclAgent::runProcess(IEclProcess *process)
 {
     assertex(rowManager==NULL);
-    rowManager.setown(roxiemem::createRowManager(0, NULL, queryDummyContextLogger(), this, false)); 
+    allocatorMetaCache.setown(createRowAllocatorCache(this));
+    rowManager.setown(roxiemem::createRowManager(0, NULL, queryDummyContextLogger(), allocatorMetaCache, false));
     setHThorRowManager(rowManager.get());
     rtlSetReleaseRowHook(queryHThorRtlRowCallback());
 
@@ -2098,7 +2103,7 @@ void EclAgent::runProcess(IEclProcess *process)
 #ifdef _DEBUG_LEAKS
     rowManager.clear();//Early release of rowManager, so activity IDs of leaked blocks are available
 #endif
-    allAllocators.kill();//release meta before libraries unloaded
+    allocatorMetaCache.clear(); //release meta before libraries unloaded
     queryLibraries.kill();
 
     if (debugContext)
@@ -2262,7 +2267,7 @@ void EclAgentWorkflowMachine::doExecutePersistItem(IRuntimeWorkflowItem & item)
     if(!persist)
     {
         StringBuffer errmsg;
-        errmsg.append("Internal error in generated code: for wfid ").append(wfid).append(", persist CRC wfid ").append(item.queryPersistWfid()).append(" did not call returnPersitVersion");
+        errmsg.append("Internal error in generated code: for wfid ").append(wfid).append(", persist CRC wfid ").append(item.queryPersistWfid()).append(" did not call returnPersistVersion");
         throw MakeStringException(0, "%s", errmsg.str());
     }
     if(strcmp(name.str(), persist->logicalName.get()) != 0)
@@ -3108,12 +3113,13 @@ extern int HTHOR_API eclagent_main(int argc, const char *argv[], StringBuffer * 
 
     //Build log file specification
     StringBuffer logfilespec;
+    ILogMsgHandler * logMsgHandler = NULL;
     if (!standAloneExe)
     {
         Owned<IComponentLogFileCreator> lf = createComponentLogFileCreator(agentTopology, "eclagent");
         lf->setMsgFields(MSGFIELD_timeDate | MSGFIELD_msgID | MSGFIELD_process | MSGFIELD_thread | MSGFIELD_code);
         lf->setCreateAliasFile(false);
-        lf->beginLogging();
+        logMsgHandler = lf->beginLogging();
         PROGLOG("Logging to %s", lf->queryLogFileSpec());
         logfilespec.set(lf->queryLogFileSpec());
     }
@@ -3246,7 +3252,7 @@ extern int HTHOR_API eclagent_main(int argc, const char *argv[], StringBuffer * 
             {
                 MTIME_SECTION(timer, "SDS_Initialize");
                 Owned<IGroup> serverGroup = createIGroup(daliServers.str(), DALI_SERVER_PORT);
-                initClientProcess(serverGroup, DCR_EclAgent, 0, NULL, NULL, MP_WAIT_FOREVER, false);
+                initClientProcess(serverGroup, DCR_EclAgent, 0, NULL, NULL, MP_WAIT_FOREVER);
             }
 #ifdef MONITOR_ECLAGENT_STATUS  
             serverstatus = new CSDSServerStatus("ECLagent");
@@ -3323,7 +3329,7 @@ extern int HTHOR_API eclagent_main(int argc, const char *argv[], StringBuffer * 
 
             if (w)
             {
-                EclAgent agent(w, wuid.str(), globals->getPropInt("IGNOREVERSION", 0)==0, globals->getPropBool("WFRESET", false), globals->getPropBool("NORETRY", false), logfilespec.str(), globals->queryProp("allowedPipePrograms"), query.getClear(), globals, agentTopology);
+                EclAgent agent(w, wuid.str(), globals->getPropInt("IGNOREVERSION", 0)==0, globals->getPropBool("WFRESET", false), globals->getPropBool("NORETRY", false), logfilespec.str(), globals->queryProp("allowedPipePrograms"), query.getClear(), globals, agentTopology, logMsgHandler);
                 const bool isRemoteWorkunit = (daliServers.length() != 0);
                 const bool resolveFilesLocally = !isRemoteWorkunit || globals->getPropBool("USELOCALFILES", false);
                 const bool writeResultsToStdout = !isRemoteWorkunit || globals->getPropBool("RESULTSTOSTDOUT", false);
@@ -3407,6 +3413,7 @@ void usage(const char * exeName)
 
 int STARTQUERY_API start_query(int argc, const char *argv[])
 {
+    EnableSEHtoExceptionMapping();
     InitModuleObjects();
 
     for (int idx = 1; idx < argc; idx++)

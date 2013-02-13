@@ -121,7 +121,7 @@ void ensureWsWorkunitAccess(IEspContext& context, const char* wuid, SecAccessFla
     Owned<IWorkUnitFactory> wf = getWorkUnitFactory(context.querySecManager(), context.queryUser());
     Owned<IConstWorkUnit> cw = wf->openWorkUnit(wuid, false);
     if (!cw)
-        throw MakeStringException(ECLWATCH_ECL_WU_ACCESS_DENIED, "Failed to open workunit %s when ensuring workunit access", wuid);
+        throw MakeStringException(ECLWATCH_CANNOT_OPEN_WORKUNIT, "Failed to open workunit %s when ensuring workunit access", wuid);
     ensureWsWorkunitAccess(context, *cw, minAccess);
 }
 
@@ -1018,7 +1018,9 @@ unsigned WsWuInfo::getWorkunitThorLogInfo(IArrayOf<IEspECLHelpFile>& helpers, IE
         StringBuffer logDir;
         Owned<IEnvironmentFactory> envFactory = getEnvironmentFactory();
         Owned<IConstEnvironment> constEnv = envFactory->openEnvironmentByFile();
-        constEnv->getPTree().getProp("EnvSettings/log", logDir);
+        Owned<IPropertyTree> logTree = &constEnv->getPTree();
+        if (logTree)
+             logTree->getProp("EnvSettings/log", logDir);
         if (logDir.length() > 0)
         {
             Owned<IStringIterator> debugs = cw->getLogs("Thor");
@@ -1872,7 +1874,7 @@ void WsWuInfo::getWorkunitXml(const char* plainText, MemoryBuffer& buf)
         header = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><?xml-stylesheet href=\"../esp/xslt/xmlformatter.xsl\" type=\"text/xsl\"?>";
 
     SCMStringBuffer xml;
-    exportWorkUnitToXML(cw, xml);
+    exportWorkUnitToXML(cw, xml, true);
 
     buf.append(strlen(header), header);
     buf.append(xml.length(), xml.str());

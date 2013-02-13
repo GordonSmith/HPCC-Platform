@@ -137,6 +137,7 @@ typedef memsize_t rowsize_t;
 #define LoadSucceeded(h)           ((unsigned)h >= 32)
 #define GetSharedObjectError()     GetLastError()
 #define strtok_r(a,b,c)             j_strtok_r(a,b,c)
+#define __thread __declspec(thread)
 
 typedef unsigned __int64 off64_t;
 typedef int socklen_t;
@@ -439,6 +440,7 @@ typedef int socklen_t;
 
 #define strtok(a,b)   j_strtok_deprecated(a,b)  // will disappear at some point
 
+typedef unsigned __int64 hash64_t;
 typedef unsigned __int64 __uint64;
 typedef __uint64 offset_t;
 typedef unsigned char byte;

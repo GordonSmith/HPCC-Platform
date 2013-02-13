@@ -181,6 +181,8 @@ bool doDeploy(EclCmdWithEclTarget &cmd, IClientWsWorkunits *client, const char *
         req->setResultLimit(cmd.optResultLimit);
     if (cmd.optAttributePath.length())
         req->setQueryMainDefinition(cmd.optAttributePath);
+    if (cmd.optSnapshot.length())
+        req->setSnapshot(cmd.optSnapshot);
     if (cmd.debugValues.length())
     {
         req->setDebugValues(cmd.debugValues);
@@ -272,11 +274,7 @@ public:
     }
     virtual int processCMD()
     {
-        Owned<IClientWsWorkunits> client = createWsWorkunitsClient();
-        VStringBuffer url("http://%s:%s/WsWorkunits", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
+        Owned<IClientWsWorkunits> client = createCmdClient(WsWorkunits, *this);
         return doDeploy(*this, client, optTargetCluster.get(), optName.get(), NULL, optNoArchive) ? 0 : 1;
     }
     virtual void usage()
@@ -337,6 +335,10 @@ public:
                 continue;
             if (iter.matchOption(optMemoryLimit, ECLOPT_MEMORY_LIMIT))
                 continue;
+            if (iter.matchOption(optPriority, ECLOPT_PRIORITY))
+                continue;
+            if (iter.matchOption(optComment, ECLOPT_COMMENT))
+                continue;
             if (iter.matchFlag(optNoActivate, ECLOPT_NO_ACTIVATE))
             {
                 activateSet=true;
@@ -371,16 +373,16 @@ public:
             fprintf(stderr, "invalid --memoryLimit value of %s.\n\n", optMemoryLimit.get());
             return false;
         }
+        if (optPriority.length() && !isValidPriorityValue(optPriority))
+        {
+            fprintf(stderr, "invalid --priority value of %s.\n\n", optPriority.get());
+            return false;
+        }
         return true;
     }
     virtual int processCMD()
     {
-        Owned<IClientWsWorkunits> client = createWsWorkunitsClient();
-        VStringBuffer url("http://%s:%s/WsWorkunits", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
-
+        Owned<IClientWsWorkunits> client = createCmdClient(WsWorkunits, *this);
         StringBuffer wuid;
         if (optObj.type==eclObjWuid)
             wuid.set(optObj.value.get());
@@ -408,6 +410,10 @@ public:
             req->setWarnTimeLimit(optWarnTimeLimit);
         if (!optMemoryLimit.isEmpty())
             req->setMemoryLimit(optMemoryLimit);
+        if (!optPriority.isEmpty())
+            req->setPriority(optPriority);
+        if (optComment.get()) //allow empty
+            req->setComment(optComment);
 
         Owned<IClientWUPublishWorkunitResponse> resp = client->WUPublishWorkunit(req);
         const char *id = resp->getQueryId();
@@ -455,6 +461,9 @@ public:
             "   --warnTimeLimit=<ms>   Value to set for query warnTimeLimit configuration\n"
             "   --memoryLimit=<mem>    Value to set for query memoryLimit configuration\n"
             "                          format <mem> as 500000B, 550K, 100M, 10G, 1T etc.\n"
+            "   --priority=<val>       set the priority for this query. Value can be LOW,\n"
+            "                          HIGH, SLA, NONE. NONE will clear current setting.\n"
+            "   --comment=<string>     Set the comment associated with this query\n"
             "   --wait=<ms>            Max time to wait in milliseconds\n",
             stdout);
         EclCmdWithEclTarget::usage();
@@ -463,6 +472,8 @@ private:
     StringAttr optName;
     StringAttr optDaliIP;
     StringAttr optMemoryLimit;
+    StringAttr optPriority;
+    StringAttr optComment;
     unsigned optMsToWait;
     unsigned optTimeLimit;
     unsigned optWarnTimeLimit;
@@ -524,12 +535,7 @@ public:
     }
     virtual int processCMD()
     {
-        Owned<IClientWsWorkunits> client = createWsWorkunitsClient();
-        VStringBuffer url("http://%s:%s/WsWorkunits", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
-
+        Owned<IClientWsWorkunits> client = createCmdClient(WsWorkunits, *this);
         Owned<IClientWURunRequest> req = client->createWURunRequest();
         req->setCloneWorkunit(true);
         req->setNoRootTag(optNoRoot);
@@ -649,12 +655,7 @@ public:
 
     virtual int processCMD()
     {
-        Owned<IClientWsWorkunits> client = createWsWorkunitsClient();
-        VStringBuffer url("http://%s:%s/WsWorkunits", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
-
+        Owned<IClientWsWorkunits> client = createCmdClient(WsWorkunits, *this);
         Owned<IClientWUQuerySetQueryActionRequest> req = client->createWUQuerysetQueryActionRequest();
         IArrayOf<IEspQuerySetQueryActionItem> queries;
         Owned<IEspQuerySetQueryActionItem> item = createQuerySetQueryActionItem();
@@ -700,12 +701,7 @@ public:
 
     virtual int processCMD()
     {
-        Owned<IClientWsWorkunits> client = createWsWorkunitsClient();
-        VStringBuffer url("http://%s:%s/WsWorkunits", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
-
+        Owned<IClientWsWorkunits> client = createCmdClient(WsWorkunits, *this);
         Owned<IClientWUQuerySetQueryActionRequest> req = client->createWUQuerysetQueryActionRequest();
 
         req->setQuerySetName(optQuerySet.get());
@@ -752,12 +748,7 @@ public:
     virtual int processCMD()
     {
         StringBuffer s;
-        Owned<IClientWsWorkunits> client = createWsWorkunitsClient();
-        VStringBuffer url("http://%s:%s/WsWorkunits", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
-
+        Owned<IClientWsWorkunits> client = createCmdClient(WsWorkunits, *this);
         Owned<IClientWUQuerySetAliasActionRequest> req = client->createWUQuerysetAliasActionRequest();
         IArrayOf<IEspQuerySetAliasActionItem> aliases;
         Owned<IEspQuerySetAliasActionItem> item = createQuerySetAliasActionItem();

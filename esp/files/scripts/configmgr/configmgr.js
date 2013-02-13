@@ -938,14 +938,9 @@ function handleConfigCellClickEvent(oArgs, caller, isComplex) {
 
     if ((record.getData('compType') == 'EspProcess' || record.getData('compType') == "DaliServerProcess") && (record.getData('params').indexOf('subType=EspBinding') != -1 || record.getData('_key') == "ldapServer") && (typeof(column.field) !== 'undefined' && (column.field == 'service' || column.field == 'value')))
     {
-      bUpdateFilesBasedn = confirm("If available, proceed with update of filesBasedn value?\n\n(If you are unsure select 'Ok')");
       if (column.field == 'service')
         refreshConfirm = false;
     }
-    else if (record.getData('compType') == 'LDAPServerProcess' && record.getData('name') == 'filesBasedn')
-      bUpdateFilesBasedn = confirm("If available, proceed with update of filesBasedn value in dependent components?\n\n(If you are unsure select 'Ok')");
-    else
-      bUpdateFilesBasedn = false;
 
     var xmlArgs = argsToXml(category, params, attrName, oldValue, newValue, recordIndex + 1, record.getData(column.key + '_onChange'));
     YAHOO.util.Connect.asyncRequest('POST', '/WsDeploy/SaveSetting', {
@@ -1067,7 +1062,7 @@ function handleConfigCellClickEvent(oArgs, caller, isComplex) {
       },
       scope: this
     },
-    top.document.navDT.getFileName(true) + 'XmlArgs=' + xmlArgs + '&bUpdateFilesBasedn='  + bUpdateFilesBasedn);
+    top.document.navDT.getFileName(true) + 'XmlArgs=' + xmlArgs);
   };
 
   if (typeof (caller.editors) === 'undefined') {
@@ -1843,7 +1838,7 @@ function createEnvXmlView(allrows, compName, subRecordIndex) {
         var record = top.document.rightDT.getRecordSet().getRecord(top.document.rightDT.getSelectedRows()[0]);
         var pp = parseParamsForXPath(record.getData('params'), "", "", false, true);
 
-        var xmlStr = "<XmlArgs><Setting operation=\"add\" params= \"" + pp + "\" attrib= \"" + (menuitem.element.outerText.trimRight() == 'Add Tag' ? name : "@" + name) + "\"/></XmlArgs>";
+        var xmlStr = "<XmlArgs><Setting operation=\"add\" params= \"" + pp + "\" attrib= \"" + (menuitem.element.outerText == 'Add Tag' ? name : "@" + name) + "\"/></XmlArgs>";
 
         YAHOO.util.Connect.asyncRequest('POST', '/WsDeploy/HandleAttributeAdd', {
           success: function(o) {
@@ -2677,7 +2672,7 @@ function onContextMenuBeforeShow(p_sType, p_aArgs) {
       "ThorClusterMaster": [
                                { text: "Add Slaves...", onclick: { fn: onMenuItemClickThorTopology} },
                                { text: "Add Spares...", onclick: { fn: onMenuItemClickThorTopology} },
-                               { text: "Swap Master",   onclick:  { fn: onMenuItemClickThorTopologySwapMaster} },
+                               { text: "Replace Master",   onclick:  { fn: onMenuItemClickThorTopologySwapMaster} },
                             ],
       "ThorClusterSlave": [
                                { text: "Add Spares...", onclick: { fn: onMenuItemClickThorTopology} }
@@ -3280,7 +3275,11 @@ function onMenuItemClickHandleComputer(p_sType, p_aArgs, p_oValue) {
     }
     
     var type =( menuItemName === "New Range..." ) ? 0 : 3;
-    top.document.navDT.promptNewRange(recSet.getRecord(i).getData('domain_extra'), recSet.getRecord(i).getData('computerType_extra'), type);
+
+    if (recSet.getRecord(i) != null)
+      top.document.navDT.promptNewRange(recSet.getRecord(i).getData('domain_extra'), recSet.getRecord(i).getData('computerType_extra'), type);
+    else
+      top.document.navDT.promptNewRange([], [], type);
     return;
   }
 

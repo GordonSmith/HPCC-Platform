@@ -900,8 +900,8 @@
             </td>
             <td>
               <form action="/WsWorkunits/WUResubmit?Wuids_i1={$wuid}" method="post">
-                <input type="submit" name="Resubmit" value="Resubmit" class="sbutton" title="Resubmit workunit">
-                  <xsl:if test="number(AccessFlag) &lt; 7 or State!='aborted' and State!='failed' and State!='completed' and State!='archived'">
+                <input type="submit" name="Recover" value="Recover" class="sbutton" title="Attempt to resume running workunit from where it stopped">
+                  <xsl:if test="number(AccessFlag) &lt; 7 or State!='aborted' and State!='failed'">
                     <xsl:attribute name="disabled">disabled</xsl:attribute>
                   </xsl:if>
                 </input>
@@ -909,7 +909,7 @@
             </td>
             <td>
               <form action="/WsWorkunits/WUResubmit?Wuids_i1={$wuid}&amp;ResetWorkflow=1" method="post">
-                <input type="submit" name="RestartWU" value="Restart" title="Clean and rerun the workunit" class="sbutton">
+                <input type="submit" name="Resubmit" value="Resubmit" title="Clean and rerun the workunit" class="sbutton">
                   <xsl:if test="number(AccessFlag) &lt; 7 or State!='aborted' and State!='failed' and State!='completed' and State!='archived'">
                     <xsl:attribute name="disabled">disabled</xsl:attribute>
                   </xsl:if>
@@ -1076,12 +1076,6 @@
               <xsl:value-of select="Value"/>
             </a>
           </td>
-          <xsl:variable name="resultname" select="Name"/>
-          <xsl:for-each select="/WUInfoResponse/ResultViews/View">
-            <td>
-              <a href="javascript:void(0);" onclick="getLink(document.getElementById('ECL_Result_{$position}'), '/WsWorkunits/WUResultView?Wuid={$wuid}&amp;ResultName={$resultname}&amp;ViewName={.}');return false;"><xsl:value-of select="."/></a>
-            </td>
-          </xsl:for-each>
           <td>
             <a href="javascript:void(0);" onclick="getLink(document.getElementById('ECL_Result_{position()}'), '/WsWorkunits/WUResultBin?Format=zip&amp;Wuid={$wuid}&amp;Sequence={Link}');return false;">.zip</a>
           </td>
@@ -1098,6 +1092,12 @@
               </a>
             </xsl:if>
           </td>
+          <xsl:variable name="resultname" select="Name"/>
+          <xsl:for-each select="/WUInfoResponse/ResultViews/View">
+            <td>
+              <a href="javascript:void(0);" onclick="getLink(document.getElementById('ECL_Result_{$position}'), '/WsWorkunits/WUResultView?Wuid={$wuid}&amp;ResultName={$resultname}&amp;ViewName={.}');return false;"><xsl:value-of select="."/></a>
+            </td>
+          </xsl:for-each>
         </xsl:when>
         <xsl:when test="number(ShowFileContent) and string-length(FileName)">
           <td>
@@ -1105,6 +1105,9 @@
               <xsl:value-of select="Value"/>
             </a>
           </td>
+          <td/>
+          <td/>
+          <td/>
           <td>
             <xsl:if test="string-length(FileName)">
               <a href="/WsDfu/DFUInfo?Name={FileName}" >
@@ -1119,26 +1122,30 @@
             <xsl:value-of select="Value"/>
             <xsl:text disable-output-escaping="yes"><![CDATA[ </span>]]></xsl:text>
          </td>
-            <td>
-              <xsl:if test="string-length(FileName)">
-                 <a href="/WsDfu/DFUInfo?Name={FileName}" >
+         <td/>
+         <td/>
+         <td/>
+         <td>
+            <xsl:if test="string-length(FileName)">
+                <a href="/WsDfu/DFUInfo?Name={FileName}" >
                     <xsl:value-of select="FileName"/>
-                 </a>
-              </xsl:if>
-            </td>
+                </a>
+            </xsl:if>
+         </td>
        </xsl:when>
        <xsl:otherwise>
-            <td/>
-            <td/>
-            <td/>
+         <td/>
+         <td/>
+         <td/>
+         <td/>
          <td><xsl:value-of select="Value"/></td>
-            <td>
-              <xsl:if test="string-length(FileName)">
-                 <a href="/WsDfu/DFUInfo?Name={FileName}" >
+         <td>
+            <xsl:if test="string-length(FileName)">
+                <a href="/WsDfu/DFUInfo?Name={FileName}" >
                     <xsl:value-of select="FileName"/>
-                 </a>
-              </xsl:if>
-            </td>
+                </a>
+            </xsl:if>
+         </td>
        </xsl:otherwise>
      </xsl:choose>
     </tr>

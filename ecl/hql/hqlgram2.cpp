@@ -831,11 +831,32 @@ IHqlExpression * HqlGram::convertToOutOfLineFunction(const ECLlocation & errpos,
     return LINK(expr);
 }
 
-IHqlExpression * HqlGram::processCppBody(const attribute & errpos, IHqlExpression * cpp)
+IHqlExpression * HqlGram::processEmbedBody(const attribute & errpos, IHqlExpression * embedText, IHqlExpression * language, IHqlExpression *attribs)
 {
     HqlExprArray args;
-    cpp->unwindList(args, no_comma);
-
+    embedText->unwindList(args, no_comma);
+    if (language)
+    {
+        IHqlScope *pluginScope = language->queryScope();
+        OwnedHqlExpr getEmbedContextFunc = pluginScope->lookupSymbol(getEmbedContextAtom, LSFpublic, lookupCtx);
+        _ATOM moduleName = language->queryName();
+        if (!moduleName)
+            moduleName = unnamedAtom;
+        if (!getEmbedContextFunc)
+            reportError(ERR_PluginNoScripting, errpos, "Module %s does not export getEmbedContext() function", moduleName->getAtomNamePtr());
+        bool isImport = queryPropertyInList(importAtom, attribs) != NULL;
+        OwnedHqlExpr checkSupport = pluginScope->lookupSymbol(isImport ? supportsImportAtom : supportsScriptAtom, LSFpublic, lookupCtx);
+        if (!matchesBoolean(checkSupport, true))
+            reportError(ERR_PluginNoScripting, errpos, "Module %s does not support %s", moduleName->getAtomNamePtr(), isImport ? "import" : "script");
+        OwnedHqlExpr syntaxCheckFunc = pluginScope->lookupSymbol(syntaxCheckAtom, LSFpublic, lookupCtx);
+        if (syntaxCheckFunc && !isImport)
+        {
+            // MORE - create an expression that calls it, and const fold it, I guess....
+        }
+        args.append(*createExprAttribute(languageAtom, getEmbedContextFunc.getClear()));
+    }
+    if (attribs)
+        attribs->unwindList(args, no_comma);
     Linked<ITypeInfo> type = current_type;
     if (!type)
         type.setown(makeVoidType());
@@ -853,21 +874,21 @@ IHqlExpression * HqlGram::processCppBody(const attribute & errpos, IHqlExpressio
         {
         case type_row:
         case type_record:
-            result.setown(createRow(no_cppbody, args));
+            result.setown(createRow(no_embedbody, args));
             break;
         case type_table:
         case type_groupedtable:
-            result.setown(createDataset(no_cppbody, args));
+            result.setown(createDataset(no_embedbody, args));
             break;
         case type_transform:
-            result.setown(createValue(no_cppbody, makeTransformType(LINK(record->queryType())), args));
+            result.setown(createValue(no_embedbody, makeTransformType(LINK(record->queryType())), args));
             break;
         default:
             throwUnexpected();
         }
     }
     else
-        result.setown(createValue(no_cppbody, LINK(type), args));
+        result.setown(createValue(no_embedbody, LINK(type), args));
 
     result.setown(createLocationAnnotation(result.getClear(), errpos.pos));
 
@@ -1480,7 +1501,8 @@ void HqlGram::doAddAssignment(IHqlExpression * transform, IHqlExpression * _fiel
         getFriendlyTypeStr(rhsType,msg).append(" to ");
         getFriendlyTypeStr(fldType,msg).append(" (field ");
         getFldName(field,msg).append(")");
-        reportError(ERR_TYPE_INCOMPATIBLE,errpos, "%s", msg.str()); 
+        reportError(ERR_TYPE_INCOMPATIBLE,errpos, "%s", msg.str());
+        rhs.setown(createNullExpr(field));
     }
 
     appendTransformAssign(transform, field, rhs, errpos);
@@ -2358,6 +2380,8 @@ void HqlGram::addDatasetField(const attribute &errpos, _ATOM name, IHqlExpressio
     if (!name)
         name = createUnnamedFieldName();
     checkFieldnameValid(errpos, name);
+    if (value && !recordTypesMatch(record, value))
+        reportError(ERR_TYPEMISMATCH_DATASET, errpos, "Dataset expression has a different record from the field");
     if (queryPropertyInList(virtualAtom, attrs))
         reportError(ERR_BAD_FIELD_ATTR, errpos, "Virtual can only be specified on a scalar field");
     if (!attrs)
@@ -2375,6 +2399,8 @@ void HqlGram::addDictionaryField(const attribute &errpos, _ATOM name, IHqlExpres
     if (!name)
         name = createUnnamedFieldName();
     checkFieldnameValid(errpos, name);
+    if (value && !recordTypesMatch(record, value))
+        reportError(ERR_TYPEMISMATCH_DATASET, errpos, "Dataset expression has a different record from the field");
     if (queryPropertyInList(virtualAtom, attrs))
         reportError(ERR_BAD_FIELD_ATTR, errpos, "Virtual can only be specified on a scalar field");
     if (!attrs)
@@ -3839,6 +3865,16 @@ IHqlExpression * HqlGram::addDatasetSelector(IHqlExpression * lhs, IHqlExpressio
     return ret;
 }
 
+bool HqlGram::isSingleValuedExpressionList(const attribute & attr)
+{
+    IHqlExpression * expr = attr.queryExpr();
+    if (expr->getOperator() == no_comma)
+        return false;
+    if (expr->isList())
+        return false;
+    return true;
+}
+
 IHqlExpression * HqlGram::createListFromExprArray(const attribute & errpos, HqlExprArray & args)
 {
     ITypeInfo * retType = promoteToSameType(args, errpos, NULL, true);
@@ -5273,7 +5309,7 @@ void expandRecord(HqlExprArray & fields, IHqlExpression * selector, IHqlExpressi
     case no_field:
         {
             OwnedHqlExpr subSelector = createSelectExpr(LINK(selector), LINK(expr));
-            if (expr->queryRecord() && !expr->isDataset())
+            if (expr->queryRecord() && !expr->isDataset() && !expr->isDictionary())
                 expandRecord(fields, subSelector, expr->queryRecord());
             else
             {
@@ -6771,9 +6807,9 @@ void HqlGram::reportIndexFieldType(IHqlExpression * expr, bool isKeyed, const at
     StringBuffer s;
     getFriendlyTypeStr(expr, s);
     if (isKeyed)
-        reportError(ERR_INDEX_BADTYPE, errpos, "INDEX does not support keyed fields of type %s", s.str());
+        reportError(ERR_INDEX_BADTYPE, errpos, "INDEX does not currently support keyed fields of type '%s'", s.str());
     else
-        reportError(ERR_INDEX_BADTYPE, errpos, "INDEX does not support fields of type %s", s.str());
+        reportError(ERR_INDEX_BADTYPE, errpos, "INDEX does not currently support fields of type '%s'", s.str());
 }
 
 void HqlGram::checkIndexFieldType(IHqlExpression * expr, bool isPayload, bool insideNestedRecord, const attribute & errpos)
@@ -9960,6 +9996,7 @@ static void getTokenText(StringBuffer & msg, int token)
     case DATASET: msg.append("DATASET"); break;
     case __DEBUG__: msg.append("__DEBUG__"); break;
     case DEDUP: msg.append("DEDUP"); break;
+    case DEFAULT: msg.append("DEFAULT"); break;
     case DEFINE: msg.append("DEFINE"); break;
     case DENORMALIZE: msg.append("DENORMALIZE"); break;
     case DEPRECATED: msg.append("DEPRECATED"); break;
@@ -9975,6 +10012,7 @@ static void getTokenText(StringBuffer & msg, int token)
     case ECLCRC: msg.append("ECLCRC"); break;
     case ELSE: msg.append("ELSE"); break;
     case ELSEIF: msg.append("ELSEIF"); break;
+    case EMBED: msg.append("EMBED"); break;
     case EMBEDDED: msg.append("EMBEDDED"); break;
     case _EMPTY_: msg.append("_EMPTY_"); break;
     case ENCODING: msg.append("ENCODING"); break;
@@ -9982,6 +10020,7 @@ static void getTokenText(StringBuffer & msg, int token)
     case ENCRYPTED: msg.append("ENCRYPTED"); break;
     case END: msg.append("END"); break;
     case ENDCPP: msg.append("ENDCPP"); break;
+    case ENDEMBED: msg.append("ENDEMBED"); break;
     case ENTH: msg.append("ENTH"); break;
     case ENUM: msg.append("ENUM"); break;
     case TOK_ERROR: msg.append("ERROR"); break;

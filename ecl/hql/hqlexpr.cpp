@@ -1303,7 +1303,7 @@ const char *getOpString(node_operator op)
     case no_id2blob: return "no_id2blob";
     case no_blob2id: return "no_blob2id";
     case no_anon: return "no_anon";
-    case no_cppbody: return "no_cppbody";
+    case no_embedbody: return "no_embedbody";
     case no_sortpartition: return "no_sortpartition";
     case no_define: return "DEFINE";
     case no_globalscope: return "GLOBAL";
@@ -1449,7 +1449,7 @@ const char *getOpString(node_operator op)
     case no_childquery: return "no_childquery";
     case no_createdictionary: return "DICTIONARY";
     case no_chooseds: return "CHOOSE";
-    case no_datasetfromdictionary: return "DICTIONARY";
+    case no_datasetfromdictionary: return "DATASET";
 
     case no_unused6:
     case no_unused13: case no_unused14: case no_unused15:
@@ -1562,7 +1562,7 @@ bool checkConstant(node_operator op)
     case no_priority:
     case no_event:
     case no_independent:
-    case no_cppbody:
+    case no_embedbody:
     case no_translated:
     case no_assertkeyed:            // not sure about this - might be better to implement in the constant folder
     case no_assertstepped:
@@ -1785,7 +1785,7 @@ childDatasetType getChildDatasetType(IHqlExpression * expr)
     case no_externalcall:                       // None in the sense it is generally used for.
     case no_alias:
     case no_id2blob:
-    case no_cppbody:
+    case no_embedbody:
     case no_datasetfromrow:
     case no_datasetfromdictionary:
     case no_createrow:
@@ -2157,8 +2157,6 @@ inline unsigned doGetNumChildTables(IHqlExpression * dataset)
     case no_graphloop:
     case no_extractresult:
     case no_filtergroup:
-    case no_deserialize:
-    case no_serialize:
     case no_forcegraph:
     case no_executewhen:
     case no_normalizegroup:
@@ -2166,6 +2164,11 @@ inline unsigned doGetNumChildTables(IHqlExpression * dataset)
     case no_dataset_alias:
     case no_ensureresult:
         return 1;
+    case no_deserialize:
+    case no_serialize:
+        if (dataset->queryChild(0)->isDataset())
+            return 1;
+        return 0;
     case no_childdataset:
     case no_left:
     case no_right:
@@ -2197,7 +2200,7 @@ inline unsigned doGetNumChildTables(IHqlExpression * dataset)
     case no_externalcall:                       // None in the sense it is generally used for.
     case no_alias:
     case no_id2blob:
-    case no_cppbody:
+    case no_embedbody:
     case no_datasetfromrow:
     case no_datasetfromdictionary:
     case no_param:
@@ -2488,7 +2491,7 @@ bool definesColumnList(IHqlExpression * dataset)
     case no_newsoapcall_ds:
     case no_alias:
     case no_id2blob:
-    case no_cppbody:
+    case no_embedbody:
     case no_externalcall:
     case no_projectrow:
     case no_datasetfromrow:
@@ -3407,6 +3410,7 @@ void CHqlExpression::updateFlagsAfterOperands()
         infoFlags = (infoFlags & ~HEFassigninheritFlags) | (queryChild(1)->getInfoFlags() & HEFassigninheritFlags);
         infoFlags2 = (infoFlags2 & ~HEF2assigninheritFlags) | (queryChild(1)->getInfoFlags2() & HEF2assigninheritFlags);
         infoFlags &= ~HEFcontainsDataset;
+        assertex(queryChild(0)->isDictionary() == queryChild(1)->isDictionary());
         break;
     case no_delayedselect:
     case no_libraryselect:
@@ -3469,7 +3473,7 @@ void CHqlExpression::updateFlagsAfterOperands()
             {
                 infoFlags2 |= HEF2containsCall;
                 IHqlExpression * bodycode = body->queryChild(0);
-                if (bodycode->getOperator() == no_cppbody)
+                if (bodycode->getOperator() == no_embedbody)
                 {
                     if (bodycode->queryProperty(actionAtom))
                         infoFlags |= HEFvolatile;
@@ -3486,7 +3490,7 @@ void CHqlExpression::updateFlagsAfterOperands()
                 infoFlags |= HEFvolatile;
             break;
         }
-    case no_cppbody:
+    case no_embedbody:
         {
             if (queryProperty(actionAtom))
                 infoFlags |= HEFvolatile;
@@ -4527,7 +4531,7 @@ IHqlExpression *CHqlExpressionWithType::clone(HqlExprArray &newkids)
     {
     case no_outofline:
         return createWrapper(op, newkids);
-    case no_cppbody:
+    case no_embedbody:
         {
             if (queryType()->getTypeCode() == type_transform)
             {
@@ -5484,7 +5488,7 @@ void CHqlField::onCreateField()
     case type_groupedtable:
         typeExpr = queryRecord();
 #ifdef _DEBUG
-        assertex(!recordRequiresSerialization(typeExpr) || hasProperty(_linkCounted_Atom));
+        assertex(!recordRequiresLinkCount(typeExpr) || hasProperty(_linkCounted_Atom));
 #endif
         break;
     }
@@ -5748,6 +5752,8 @@ CHqlDictionary *CHqlDictionary::makeDictionary(node_operator _op, ITypeInfo *typ
 CHqlDictionary::CHqlDictionary(node_operator _op, ITypeInfo *_type, HqlExprArray &_ownedOperands)
 : CHqlExpressionWithType(_op, _type, _ownedOperands)
 {
+    if (op == no_select)
+        normalized.setown(calcNormalizedSelector());
 }
 
 CHqlDictionary::~CHqlDictionary()
@@ -5758,6 +5764,17 @@ IHqlExpression *CHqlDictionary::clone(HqlExprArray &newkids)
 {
     return createDictionary(op, newkids);
 }
+
+IHqlExpression * CHqlDictionary::queryNormalizedSelector(bool skipIndex)
+{
+    if (!normalized)
+        return this;
+    if (!skipIndex)
+        return normalized;
+    return normalized->queryNormalizedSelector(skipIndex);
+}
+
+
 
 //===========================================================================
 
@@ -9997,7 +10014,7 @@ IHqlExpression *createDictionary(node_operator op, HqlExprArray & parms)
     {
         IHqlExpression * record = &parms.item(0);
         IHqlExpression * metadata = queryProperty(_metadata_Atom, parms);
-        bool linkCounted = (queryProperty(_linkCounted_Atom, parms) || recordRequiresSerialization(record));
+        bool linkCounted = (queryProperty(_linkCounted_Atom, parms) || recordRequiresLinkCount(record));
         if (!metadata)
         {
             ITypeInfo * recordType = createRecordType(record);
@@ -10012,6 +10029,33 @@ IHqlExpression *createDictionary(node_operator op, HqlExprArray & parms)
             type.setown(setLinkCountedAttr(type, true));
         break;
     }
+    case no_serialize:
+        {
+            assertex(parms.ordinality() >= 2);
+            IHqlExpression & form = parms.item(1);
+            assertex(form.isAttribute());
+            assertex(form.queryName() != diskAtom);  //It should be a dataset instead...
+            type.setown(getSerializedForm(parms.item(0).queryType(), form.queryName()));
+            break;
+        }
+    case no_deserialize:
+        {
+            assertex(parms.ordinality() >= 3);
+            IHqlExpression & record = parms.item(1);
+            IHqlExpression & form = parms.item(2);
+            assertex(form.isAttribute());
+            ITypeInfo * recordType = record.queryType();
+            OwnedITypeInfo rowType = makeRowType(LINK(recordType));
+            assertex(record.getOperator() == no_record);
+            type.setown(makeDictionaryType(LINK(rowType)));
+            type.setown(setLinkCountedAttr(type, true));
+
+    #ifdef _DEBUG
+            OwnedITypeInfo serializedType = getSerializedForm(type, form.queryName());
+            assertex(recordTypesMatch(serializedType, parms.item(0).queryType()));
+    #endif
+            break;
+        }
     case no_nofold:
     case no_nohoist:
     case no_thor:
@@ -10020,6 +10064,8 @@ IHqlExpression *createDictionary(node_operator op, HqlExprArray & parms)
     case no_translated:
     case no_catch:
     case no_colon:
+    case no_globalscope:
+    case no_thisnode:
         type.set(parms.item(0).queryType());
         break;
     default:
@@ -10954,7 +11000,7 @@ IHqlExpression *createDataset(node_operator op, HqlExprArray & parms)
             bool matchesAnyMeta =  ((op == no_null) || (op == no_fail));
             IHqlExpression * record = &parms.item(0);
             IHqlExpression * metadata = queryProperty(_metadata_Atom, parms);
-            bool linkCounted = (queryProperty(_linkCounted_Atom, parms) || recordRequiresSerialization(record));
+            bool linkCounted = (queryProperty(_linkCounted_Atom, parms) || recordRequiresLinkCount(record));
             if (!metadata)
             {
                 IHqlExpression * distributed = queryProperty(distributedAtom, parms);
@@ -10993,7 +11039,7 @@ IHqlExpression *createDataset(node_operator op, HqlExprArray & parms)
     case no_xmlproject:
     case no_temptable:
     case no_id2blob:
-    case no_cppbody:
+    case no_embedbody:
         type.setown(makeTableType(makeRowType(createRecordType(&parms.item(1))), NULL, NULL, NULL));
         if (queryProperty(_linkCounted_Atom, parms))
             type.setown(setLinkCountedAttr(type, true));
@@ -11747,11 +11793,19 @@ IHqlExpression *createDataset(node_operator op, HqlExprArray & parms)
             break;
         }
     case no_serialize:
-        type.setown(getSerializedForm(datasetType));
-        break;
+        {
+            assertex(parms.ordinality() >= 2);
+            IHqlExpression & form = parms.item(1);
+            assertex(form.isAttribute());
+            type.setown(getSerializedForm(datasetType, form.queryName()));
+            break;
+        }
     case no_deserialize:
         {
+            assertex(parms.ordinality() >= 3);
             IHqlExpression & record = parms.item(1);
+            IHqlExpression & form = parms.item(2);
+            assertex(form.isAttribute());
             ITypeInfo * recordType = record.queryType();
             OwnedITypeInfo rowType = makeRowType(LINK(recordType));
             assertex(record.getOperator() == no_record);
@@ -11768,7 +11822,7 @@ IHqlExpression *createDataset(node_operator op, HqlExprArray & parms)
             type.setown(setLinkCountedAttr(type, true));
 
 #ifdef _DEBUG
-            OwnedITypeInfo serializedType = getSerializedForm(type);
+            OwnedITypeInfo serializedType = getSerializedForm(type, form.queryName());
             assertex(recordTypesMatch(serializedType, datasetType));
 #endif
             break;
@@ -11901,7 +11955,7 @@ extern IHqlExpression *createRow(node_operator op, HqlExprArray & args)
                 type = makeRowType(LINK(fieldType));
             break;
         }
-    case no_cppbody:
+    case no_embedbody:
     case no_id2blob:
     case no_temprow:
     case no_projectrow:         // arg(1) is actually a transform
@@ -11932,18 +11986,26 @@ extern IHqlExpression *createRow(node_operator op, HqlExprArray & args)
             type = args.item(2).getType();
         break;
     case no_serialize:
-        type = getSerializedForm(args.item(0).queryType());
-        break;
+        {
+            assertex(args.ordinality() >= 2);
+            IHqlExpression & form = args.item(1);
+            assertex(form.isAttribute());
+            type = getSerializedForm(args.item(0).queryType(), form.queryName());
+            break;
+        }
     case no_deserialize:
         {
+            assertex(args.ordinality() >= 3);
             ITypeInfo * childType = args.item(0).queryType();
             IHqlExpression & record = args.item(1);
+            IHqlExpression & form = args.item(2);
+            assertex(form.isAttribute());
             assertex(record.getOperator() == no_record);
             ITypeInfo * recordType = record.queryType();
             type = makeAttributeModifier(makeRowType(LINK(recordType)), getLinkCountedAttr());
 
 #ifdef _DEBUG
-            OwnedITypeInfo serializedType = getSerializedForm(type);
+            OwnedITypeInfo serializedType = getSerializedForm(type, form.queryName());
             assertex(recordTypesMatch(serializedType, childType));
 #endif
             break;
@@ -11952,7 +12014,7 @@ extern IHqlExpression *createRow(node_operator op, HqlExprArray & args)
         {
             IHqlExpression * record = &args.item(0);
             type = makeRowType(record->getType());
-            if (recordRequiresSerialization(record))
+            if (recordRequiresLinkCount(record))
                 type = makeAttributeModifier(type, getLinkCountedAttr());
             break;
         }
@@ -12406,32 +12468,34 @@ IHqlExpression * ensureActiveRow(IHqlExpression * expr)
     return createRow(no_activerow, LINK(expr->queryNormalizedSelector()));
 }
 
-IHqlExpression * ensureSerialized(IHqlExpression * expr)
+IHqlExpression * ensureSerialized(IHqlExpression * expr, _ATOM serialForm)
 {
-    //MORE: Extend once strings and other items can be stored out of line
-    IHqlExpression * record = expr->queryRecord();
-    if (!record || !recordRequiresSerialization(record))
+    ITypeInfo * type = expr->queryType();
+    Owned<ITypeInfo> serialType = getSerializedForm(type, serialForm);
+    if (type == serialType)
         return LINK(expr);
 
-    return createWrapper(no_serialize, LINK(expr));
-}
-
-IHqlExpression * ensureDeserialized(IHqlExpression * expr, ITypeInfo * type)
-{
-    //MORE: Extend once strings and other items can be stored out of line
-    IHqlExpression * record = queryRecord(type);
-    if (!record || !recordRequiresSerialization(record))
-        return LINK(expr);
-
-    IHqlExpression * exprRecord = expr->queryRecord();
-    OwnedHqlExpr serializedRecord = getSerializedForm(record);
-    assertex(recordTypesMatch(exprRecord, serializedRecord));
-
-    //MORE: I may prefer to create a project instead of a serialize...
     HqlExprArray args;
     args.append(*LINK(expr));
-    args.append(*LINK(record));
-    return createWrapper(no_deserialize, args);
+    args.append(*createAttribute(serialForm));
+    return createWrapper(no_serialize, serialType, args);
+}
+
+IHqlExpression * ensureDeserialized(IHqlExpression * expr, ITypeInfo * type, _ATOM serialForm)
+{
+    assertex(type->getTypeCode() != type_record);
+    Owned<ITypeInfo> serialType = getSerializedForm(type, serialForm);
+    if (queryUnqualifiedType(type) == queryUnqualifiedType(serialType))
+        return LINK(expr);
+
+    assertRecordTypesMatch(expr->queryType(), serialType);
+
+    HqlExprArray args;
+    args.append(*LINK(expr));
+    args.append(*LINK(queryOriginalRecord(type)));
+    args.append(*createAttribute(serialForm));
+    //MORE: I may prefer to create a project instead of a serialize...
+    return createWrapper(no_deserialize, type, args);
 }
 
 bool isDummySerializeDeserialize(IHqlExpression * expr)
@@ -12446,6 +12510,10 @@ bool isDummySerializeDeserialize(IHqlExpression * expr)
         return false;
 
     if (op == childOp)
+        return false;
+
+    //MORE:? Need to check the serialization form?
+    if (expr->queryType() != child->queryChild(0)->queryType())
         return false;
 
     return true;
@@ -13847,7 +13915,19 @@ HQL_API StringBuffer& getFriendlyTypeStr(ITypeInfo* type, StringBuffer& s)
                 s.append("<unknown>");
             break;
         }
-
+    case type_dictionary:
+        {
+            s.append(type->queryTypeName()).append(" of ");
+            ITypeInfo * chdType = queryRecordType(type);
+            if (chdType)
+            {
+                if (!queryOriginalName(chdType, s))
+                    chdType->getECLType(s);
+            }
+            else
+                s.append("<unknown>");
+            break;
+        }
     case type_record:
         s.append("Record ");
         if (!queryOriginalName(type, s))
@@ -14088,7 +14168,7 @@ IHqlExpression * querySkipDatasetMeta(IHqlExpression * dataset)
 
 //==============================================================================================================
 
-static ITypeInfo * doGetSimplifiedType(ITypeInfo * type, bool isConditional, bool isSerialized)
+static ITypeInfo * doGetSimplifiedType(ITypeInfo * type, bool isConditional, bool isSerialized, _ATOM serialForm)
 {
     ITypeInfo * promoted = type->queryPromotedType();
     switch (type->getTypeCode())
@@ -14116,29 +14196,29 @@ static ITypeInfo * doGetSimplifiedType(ITypeInfo * type, bool isConditional, boo
     case type_bitfield:
         return LINK(promoted);
     case type_alien:
-        return getSimplifiedType(promoted, isConditional, isSerialized);
+        return getSimplifiedType(promoted, isConditional, isSerialized, serialForm);
     case type_row:
     case type_dictionary:
     case type_table:
     case type_groupedtable:
     case type_transform:
         if (isSerialized)
-            return getSerializedForm(type);
+            return getSerializedForm(type, serialForm);
         //should possibly remove some weird options
         return LINK(type);
     case type_set:
         {
             ITypeInfo * childType = type->queryChildType();
-            Owned<ITypeInfo> simpleChildType = getSimplifiedType(childType, false, isSerialized);
+            Owned<ITypeInfo> simpleChildType = getSimplifiedType(childType, false, isSerialized, serialForm);
             return makeSetType(simpleChildType.getClear());
         }
     }
     UNIMPLEMENTED;  //i.e. doesn't make any sense....
 }
 
-ITypeInfo * getSimplifiedType(ITypeInfo * type, bool isConditional, bool isSerialized)
+ITypeInfo * getSimplifiedType(ITypeInfo * type, bool isConditional, bool isSerialized, _ATOM serialForm)
 {
-    Owned<ITypeInfo> newType = doGetSimplifiedType(type, isConditional, isSerialized);
+    Owned<ITypeInfo> newType = doGetSimplifiedType(type, isConditional, isSerialized, serialForm);
     if (isSameBasicType(newType, type))
         return LINK(type);
 
@@ -14148,7 +14228,7 @@ ITypeInfo * getSimplifiedType(ITypeInfo * type, bool isConditional, bool isSeria
 }
 
 
-static void simplifyRecordTypes(HqlExprArray & fields, IHqlExpression * cur, bool isConditional, bool & needsTransform, bool isKey, unsigned & count)
+static void simplifyFileViewRecordTypes(HqlExprArray & fields, IHqlExpression * cur, bool isConditional, bool & needsTransform, bool isKey, unsigned & count)
 {
     switch (cur->getOperator())
     {
@@ -14179,7 +14259,7 @@ static void simplifyRecordTypes(HqlExprArray & fields, IHqlExpression * cur, boo
                     bool childNeedsTransform = false;
                     IHqlExpression * fieldRecord = cur->queryRecord();
                     HqlExprArray subFields;
-                    simplifyRecordTypes(subFields, fieldRecord, isConditional, childNeedsTransform, isKey, count);
+                    simplifyFileViewRecordTypes(subFields, fieldRecord, isConditional, childNeedsTransform, isKey, count);
                     if (childNeedsTransform || hasLinkCountedModifier(type))
                     {
                         OwnedHqlExpr newRecord = fieldRecord->clone(subFields);
@@ -14200,14 +14280,14 @@ static void simplifyRecordTypes(HqlExprArray & fields, IHqlExpression * cur, boo
                     break;
                 }
             case type_set:
-                targetType.setown(getSimplifiedType(type, false, true));
+                targetType.setown(getSimplifiedType(type, false, true, diskAtom));
                 break;
             case type_row:
                 {
                     bool childNeedsTransform = false;
                     IHqlExpression * fieldRecord = cur->queryRecord();
                     HqlExprArray subFields;
-                    simplifyRecordTypes(subFields, fieldRecord, isConditional, childNeedsTransform, isKey, count);
+                    simplifyFileViewRecordTypes(subFields, fieldRecord, isConditional, childNeedsTransform, isKey, count);
                     if (childNeedsTransform)
                     {
                         OwnedHqlExpr newRecord = fieldRecord->clone(subFields);
@@ -14219,7 +14299,7 @@ static void simplifyRecordTypes(HqlExprArray & fields, IHqlExpression * cur, boo
                 }
                 return;
             default:
-                targetType.setown(getSimplifiedType(type, isConditional, true));
+                targetType.setown(getSimplifiedType(type, isConditional, true, diskAtom));
                 break;
             }
 
@@ -14245,7 +14325,7 @@ static void simplifyRecordTypes(HqlExprArray & fields, IHqlExpression * cur, boo
             StringBuffer name;
             name.append("unnamed").append(++count);
             subfields.append(*createField(createIdentifierAtom(name), makeBoolType(), NULL, createAttribute(__ifblockAtom)));
-            simplifyRecordTypes(subfields, cur->queryChild(1), true, needsTransform, isKey, count);
+            simplifyFileViewRecordTypes(subfields, cur->queryChild(1), true, needsTransform, isKey, count);
 //          fields.append(*createValue(no_ifblock, makeVoidType(), createValue(no_not, makeBoolType(), createConstant(false)), createRecord(subfields)));
             fields.append(*createValue(no_ifblock, makeNullType(), createConstant(true), createRecord(subfields)));
             break;
@@ -14258,11 +14338,11 @@ static void simplifyRecordTypes(HqlExprArray & fields, IHqlExpression * cur, boo
                 if (next->getOperator() == no_record)
                 {
                     HqlExprArray subfields;
-                    simplifyRecordTypes(subfields, next, isConditional, needsTransform, isKey, count);
+                    simplifyFileViewRecordTypes(subfields, next, isConditional, needsTransform, isKey, count);
                     fields.append(*cloneOrLink(cur, subfields));
                 }
                 else
-                    simplifyRecordTypes(fields, next, isConditional, needsTransform, isKey, count);
+                    simplifyFileViewRecordTypes(fields, next, isConditional, needsTransform, isKey, count);
             }
             break;
         }
@@ -14274,21 +14354,21 @@ static void simplifyRecordTypes(HqlExprArray & fields, IHqlExpression * cur, boo
     }
 }
 
-static IHqlExpression * simplifyRecordTypes(IHqlExpression * record, bool & needsTransform, bool isKey)
+static IHqlExpression * simplifyFileViewRecordTypes(IHqlExpression * record, bool & needsTransform, bool isKey)
 {
     assertex(record->getOperator() == no_record);
     HqlExprArray fields;
     unsigned count = 0;
-    simplifyRecordTypes(fields, record, false, needsTransform, isKey, count);
+    simplifyFileViewRecordTypes(fields, record, false, needsTransform, isKey, count);
     return cloneOrLink(record, fields);
 }
 
-extern HQL_API IHqlExpression * getSimplifiedRecord(IHqlExpression * record, bool isKey)
+extern HQL_API IHqlExpression * getFileViewerRecord(IHqlExpression * record, bool isKey)
 {
     bool needsTransform = false;
     try
     {
-        OwnedHqlExpr newRecord = simplifyRecordTypes(record, needsTransform, isKey);
+        OwnedHqlExpr newRecord = simplifyFileViewRecordTypes(record, needsTransform, isKey);
         if (needsTransform)
             return newRecord.getClear();
         return NULL;
@@ -14380,7 +14460,7 @@ extern HQL_API IHqlExpression * getSimplifiedTransform(IHqlExpression * tgt, IHq
 
 extern HQL_API bool isSimplifiedRecord(IHqlExpression * expr, bool isKey)
 {
-    OwnedHqlExpr simplified = getSimplifiedRecord(expr, isKey);
+    OwnedHqlExpr simplified = getFileViewerRecord(expr, isKey);
     return !simplified || (expr == simplified);
 }
 
@@ -15334,6 +15414,15 @@ bool recordTypesMatch(ITypeInfo * left, ITypeInfo * right)
 #endif
 
     return false;
+}
+
+bool assertRecordTypesMatch(ITypeInfo * left, ITypeInfo * right)
+{
+    if (recordTypesMatch(left, right))
+        return true;
+
+    EclIR::dump_ir(left, right);
+    throwUnexpected();
 }
 
 

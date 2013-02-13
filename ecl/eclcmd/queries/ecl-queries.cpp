@@ -84,11 +84,12 @@ private:
 #define QUERYLIST_SHOW_ACTIVE               0x02
 #define QUERYLIST_SHOW_SUSPENDED            0x04
 #define QUERYLIST_SHOW_CLUSTER_SUSPENDED    0x08
+#define QUERYLIST_SHOW_INACTIVE             (QUERYLIST_SHOW_UNFLAGGED | QUERYLIST_SHOW_SUSPENDED | QUERYLIST_SHOW_CLUSTER_SUSPENDED)
 
 class EclCmdQueriesList : public EclCmdCommon
 {
 public:
-    EclCmdQueriesList() : flags(0)
+    EclCmdQueriesList() : flags(0), optInactive(false)
     {
     }
     virtual bool parseCommandLineOptions(ArgvIterator &iter)
@@ -110,6 +111,8 @@ public:
             if (iter.matchOption(optTargetCluster, ECLOPT_CLUSTER_DEPRECATED)||iter.matchOption(optTargetCluster, ECLOPT_CLUSTER_DEPRECATED_S))
                 continue;
             if (iter.matchOption(optTargetCluster, ECLOPT_TARGET)||iter.matchOption(optTargetCluster, ECLOPT_TARGET_S))
+                continue;
+            if (iter.matchFlag(optInactive, ECLOPT_INACTIVE))
                 continue;
             StringAttr temp;
             if (iter.matchOption(temp, ECLOPT_SHOW))
@@ -144,6 +147,16 @@ public:
     }
     virtual bool finalizeOptions(IProperties *globals)
     {
+        if (optInactive)
+        {
+            if (flags)
+            {
+                fputs("--show and --inactive should not be used together.\n\n", stderr);
+                return false;
+            }
+
+            flags = QUERYLIST_SHOW_INACTIVE;
+        }
         if (!EclCmdCommon::finalizeOptions(globals))
             return false;
         return true;
@@ -192,11 +205,23 @@ public:
                 line.appendN(41 - line.length(), ' ');
             line.append(' ').append(query.getWarnTimeLimit());
         }
-        if (query.getMemoryLimit())
+        if (query.getPriority())
         {
             if (line.length() < 48)
                 line.appendN(48 - line.length(), ' ');
+            line.append(' ').append(query.getPriority());
+        }
+        if (query.getMemoryLimit())
+        {
+            if (line.length() < 53)
+                line.appendN(53 - line.length(), ' ');
             line.append(' ').append(query.getMemoryLimit());
+        }
+        if (query.getComment())
+        {
+            if (line.length() < 64)
+                line.appendN(64 - line.length(), ' ');
+            line.append(' ').append(query.getComment());
         }
         fputs(line.append('\n').str(), stdout);
     }
@@ -207,9 +232,9 @@ public:
         if (qs.getQuerySetName())
             fprintf(stdout, "\nQuerySet: %s\n", qs.getQuerySetName());
         fputs("\n", stdout);
-        fputs("                                   Time   Warn   Memory\n", stdout);
-        fputs("Flags Query Id                     Limit  Limit  Limit\n", stdout);
-        fputs("----- ---------------------------- ------ ------ ----------\n", stdout);
+        fputs("                                   Time   Warn        Memory\n", stdout);
+        fputs("Flags Query Id                     Limit  Limit  Pri  Limit      Comment\n", stdout);
+        fputs("----- ---------------------------- ------ ------ ---- ---------- ------------\n", stdout);
 
         IArrayOf<IConstQuerySetQuery> &queries = qs.getQueries();
         ForEachItemIn(id, queries)
@@ -218,12 +243,7 @@ public:
 
     virtual int processCMD()
     {
-        Owned<IClientWsWorkunits> client = createWsWorkunitsClient();
-        VStringBuffer url("http://%s:%s/WsWorkunits", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
-
+        Owned<IClientWsWorkunits> client = createCmdClient(WsWorkunits, *this);
         Owned<IClientWUMultiQuerySetDetailsRequest> req = client->createWUMultiQuerysetDetailsRequest();
         req->setQuerySetName(optQuerySet.get());
         req->setClusterName(optTargetCluster.get());
@@ -254,6 +274,7 @@ public:
             "   <queryset>             name of queryset to get list of queries for\n"
             "   -t, --target=<val>     target cluster to get list of published queries for\n"
             "   --show=<flags>         show only queries with matching flags\n"
+            "   --inactive             show only queries that do not have an active alias\n"
             " Flags:\n"
             "   A                      query is active\n"
             "   S                      query is suspended in queryset\n"
@@ -267,6 +288,7 @@ private:
     StringAttr optTargetCluster;
     StringAttr optQuerySet;
     unsigned flags;
+    bool optInactive;
 };
 
 class EclCmdQueriesCopy : public EclCmdCommon
@@ -321,6 +343,10 @@ public:
                 continue;
             if (iter.matchOption(optMemoryLimit, ECLOPT_MEMORY_LIMIT))
                 continue;
+            if (iter.matchOption(optPriority, ECLOPT_PRIORITY))
+                continue;
+            if (iter.matchOption(optComment, ECLOPT_COMMENT))
+                continue;
             if (EclCmdCommon::matchCommandLineOption(iter, true)!=EclCmdOptionMatch)
                 return false;
         }
@@ -345,18 +371,18 @@ public:
             fprintf(stderr, "invalid --memoryLimit value of %s.\n\n", optMemoryLimit.get());
             return false;
         }
+        if (optPriority.length() && !isValidPriorityValue(optPriority))
+        {
+            fprintf(stderr, "invalid --priority value of %s.\n\n", optPriority.get());
+            return false;
+        }
 
         return true;
     }
 
     virtual int processCMD()
     {
-        Owned<IClientWsWorkunits> client = createWsWorkunitsClient();
-        VStringBuffer url("http://%s:%s/WsWorkunits", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
-
+        Owned<IClientWsWorkunits> client = createCmdClient(WsWorkunits, *this);
         Owned<IClientWUQuerySetCopyQueryRequest> req = client->createWUQuerysetCopyQueryRequest();
         req->setSource(optSourceQueryPath.get());
         req->setTarget(optTargetQuerySet.get());
@@ -374,6 +400,10 @@ public:
             req->setWarnTimeLimit(optWarnTimeLimit);
         if (!optMemoryLimit.isEmpty())
             req->setMemoryLimit(optMemoryLimit);
+        if (!optPriority.isEmpty())
+            req->setPriority(optPriority);
+        if (optComment.get()) //allow empty
+            req->setComment(optComment);
 
         Owned<IClientWUQuerySetCopyQueryResponse> resp = client->WUQuerysetCopyQuery(req);
         if (resp->getExceptions().ordinality())
@@ -413,6 +443,9 @@ public:
             "   --warnTimeLimit=<sec>  Value to set for query warnTimeLimit configuration\n"
             "   --memoryLimit=<mem>    Value to set for query memoryLimit configuration\n"
             "                          format <mem> as 500000B, 550K, 100M, 10G, 1T etc.\n"
+            "   --priority=<val>       set the priority for this query. Value can be LOW,\n"
+            "                          HIGH, SLA, NONE. NONE will clear current setting.\n"
+            "   --comment=<string>     Set the comment associated with this query\n"
             " Common Options:\n",
             stdout);
         EclCmdCommon::usage();
@@ -423,6 +456,8 @@ private:
     StringAttr optTargetCluster;
     StringAttr optDaliIP;
     StringAttr optMemoryLimit;
+    StringAttr optPriority;
+    StringAttr optComment;
     unsigned optMsToWait;
     unsigned optTimeLimit;
     unsigned optWarnTimeLimit;
@@ -474,6 +509,10 @@ public:
                 continue;
             if (iter.matchOption(optMemoryLimit, ECLOPT_MEMORY_LIMIT))
                 continue;
+            if (iter.matchOption(optPriority, ECLOPT_PRIORITY))
+                continue;
+            if (iter.matchOption(optComment, ECLOPT_COMMENT))
+                continue;
             if (EclCmdCommon::matchCommandLineOption(iter, true)!=EclCmdOptionMatch)
                 return false;
         }
@@ -493,17 +532,17 @@ public:
             fprintf(stderr, "invalid --memoryLimit value of %s.\n\n", optMemoryLimit.get());
             return false;
         }
+        if (optPriority.length() && !isValidPriorityValue(optPriority))
+        {
+            fprintf(stderr, "invalid --priority value of %s.\n\n", optPriority.get());
+            return false;
+        }
         return true;
     }
 
     virtual int processCMD()
     {
-        Owned<IClientWsWorkunits> client = createWsWorkunitsClient();
-        VStringBuffer url("http://%s:%s/WsWorkunits", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
-
+        Owned<IClientWsWorkunits> client = createCmdClient(WsWorkunits, *this);
         Owned<IClientWUQueryConfigRequest> req = client->createWUQueryConfigRequest();
         req->setTarget(optTargetCluster.get());
         req->setQueryId(optQueryId.get());
@@ -516,6 +555,10 @@ public:
             req->setWarnTimeLimit(optWarnTimeLimit);
         if (!optMemoryLimit.isEmpty())
             req->setMemoryLimit(optMemoryLimit);
+        if (!optPriority.isEmpty())
+            req->setPriority(optPriority);
+        if (optComment.get()) //allow empty
+            req->setComment(optComment);
 
         Owned<IClientWUQueryConfigResponse> resp = client->WUQueryConfig(req);
         if (resp->getExceptions().ordinality())
@@ -546,6 +589,9 @@ public:
             "   --warnTimeLimit=<sec>  Value to set for query warnTimeLimit configuration\n"
             "   --memoryLimit=<mem>    Value to set for query memoryLimit configuration\n"
             "                          format <mem> as 500000B, 550K, 100M, 10G, 1T etc.\n"
+            "   --priority=<val>       set the priority for this query. Value can be LOW,\n"
+            "                          HIGH, SLA, NONE. NONE will clear current setting.\n"
+            "   --comment=<string>     Set the comment associated with this query\n"
             " Common Options:\n",
             stdout);
         EclCmdCommon::usage();
@@ -554,6 +600,8 @@ private:
     StringAttr optTargetCluster;
     StringAttr optQueryId;
     StringAttr optMemoryLimit;
+    StringAttr optPriority;
+    StringAttr optComment;
     unsigned optMsToWait;
     unsigned optTimeLimit;
     unsigned optWarnTimeLimit;

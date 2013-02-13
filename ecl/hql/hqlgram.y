@@ -175,6 +175,7 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
   ECLCRC
   ELSE
   ELSEIF
+  EMBED
   EMBEDDED
   _EMPTY_
   ENCODING
@@ -182,6 +183,7 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
   ENCRYPTED
   END
   ENDCPP
+  ENDEMBED
   ENTH
   ENUM
   TOK_ERROR
@@ -910,7 +912,7 @@ goodObject
     | transform
     | complexType
     | macro
-    | cppBodyText
+    | embedBody
     | eventObject
     | compoundAttribute
     | abstractModule
@@ -1001,10 +1003,40 @@ macro
                         }
     ;
 
-cppBodyText
+embedBody
     : CPPBODY           {
-                            OwnedHqlExpr cpp = $1.getExpr();
-                            $$.setExpr(parser->processCppBody($1, cpp), $1);
+                            OwnedHqlExpr embeddedCppText = $1.getExpr();
+                            $$.setExpr(parser->processEmbedBody($1, embeddedCppText, NULL, NULL), $1);
+                        }
+    | embedPrefix CPPBODY
+                        {
+                            OwnedHqlExpr language = $1.getExpr();
+                            OwnedHqlExpr embedText = $2.getExpr();
+                            $$.setExpr(parser->processEmbedBody($2, embedText, language, NULL), $1);
+                        }
+    | EMBED '(' abstractModule ',' expression ')'
+                        {
+                            parser->normalizeExpression($5, type_stringorunicode, true);
+                            OwnedHqlExpr language = $3.getExpr();
+                            OwnedHqlExpr embedText = $5.getExpr();
+                            $$.setExpr(parser->processEmbedBody($5, embedText, language, NULL), $1);
+                        }
+    | IMPORT '(' abstractModule ',' expression attribs ')'
+                        {
+                            parser->normalizeExpression($5, type_stringorunicode, true);
+                            OwnedHqlExpr language = $3.getExpr();
+                            OwnedHqlExpr funcname = $5.getExpr();
+                            OwnedHqlExpr attribs = createComma(createAttribute(importAtom), $6.getExpr());
+                            $$.setExpr(parser->processEmbedBody($6, funcname, language, attribs), $1);
+                        }
+    
+    ;
+
+embedPrefix
+    : EMBED '(' abstractModule ')'
+                        {
+                            parser->getLexer()->enterEmbeddedMode();
+                            $$.inherit($3);
                         }
     ;
 
@@ -4233,22 +4265,12 @@ fieldDef
                             IHqlExpression * value = $5.getExpr();
                             parser->addDatasetField($2, $2.getName(), LINK(value->queryRecord()), value, $3.getExpr());
                         }
-    | DATASET dataSet
-                        {
-                            parser->reportWarning(ERR_DEPRECATED, $1.pos, "DATASET <dataset> syntax is deprecated.  Use DATASET id := <dataset> instead");
-                            IHqlExpression *value = $2.getExpr();
-                            _ATOM name = parser->createFieldNameFromExpr(value);
-                            parser->addDatasetField($1, name, LINK(queryOriginalRecord(value)), value, NULL);
-                            $$.clear();
-                        }
     | UNKNOWN_ID optFieldAttrs ASSIGN dataSet
                         {
                             IHqlExpression * value = $4.getExpr();
                             parser->addDatasetField($1, $1.getName(), LINK(value->queryRecord()), value, $2.getExpr());
                             $$.clear();
                         }
-
-
     | DICTIONARY '(' recordDef ')' knownOrUnknownId optFieldAttrs
                         {
                             $$.clear($1);
@@ -6264,6 +6286,9 @@ primexpr1
                         }
     | EXISTS '(' expressionList ')'
                         {
+                            if (parser->isSingleValuedExpressionList($3))
+                                parser->reportWarning(WRN_SILLY_EXISTS,$1.pos,"EXISTS() on a scalar expression is always true, was this intended?");
+
                             OwnedHqlExpr list = parser->createListFromExpressionList($3);
                             $$.setExpr(createValue(no_existslist, makeBoolType(), LINK(list)));
                             $$.setPosition($1);
@@ -7092,7 +7117,10 @@ simpleDictionary
                             $$.setExpr(createDictionary(no_nohoist, $3.getExpr(), NULL));
                             $$.setPosition($1);
                         }
-
+    | THISNODE '(' dictionary ')'
+                        {
+                            $$.setExpr(createDictionary(no_thisnode, $3.getExpr()), $1);
+                        }
     | DICTIONARY '(' startTopFilter ',' recordDef ')' endTopFilter
                         {
                             OwnedHqlExpr dataset = $3.getExpr();
@@ -10979,6 +11007,7 @@ sortItem
                             $$.setExpr(createValue(no_negate, makeVoidType(), e));
                             $$.setPosition($1);
                         }
+    | dictionary
     | FEW               {   $$.setExpr(createAttribute(fewAtom));   }
     | MANY              {   $$.setExpr(createAttribute(manyAtom));  }
     | MERGE             {   $$.setExpr(createAttribute(mergeAtom)); }

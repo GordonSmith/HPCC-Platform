@@ -132,6 +132,21 @@ bool isValidMemoryValue(const char *value)
     return false;
 }
 
+bool isValidPriorityValue(const char *value)
+{
+    if (!value || !*value)
+        return false;
+    if (strieq("LOW", value))
+        return true;
+    if (strieq("HIGH", value))
+        return true;
+    if (strieq("SLA", value))
+        return true;
+    if (strieq("NONE", value))
+        return true;
+    return false;
+}
+
 //=========================================================================================
 
 #define PE_OFFSET_LOCATION_IN_DOS_SECTION 0x3C
@@ -298,6 +313,8 @@ eclCmdOptionMatchIndicator EclCmdCommon::matchCommandLineOption(ArgvIterator &it
     if (iter.matchOption(optPassword, ECLOPT_PASSWORD)||iter.matchOption(optPassword, ECLOPT_PASSWORD_S))
         return EclCmdOptionMatch;
     if (iter.matchFlag(optVerbose, ECLOPT_VERBOSE) || iter.matchFlag(optVerbose, ECLOPT_VERBOSE_S))
+        return EclCmdOptionMatch;
+    if (iter.matchFlag(optSSL, ECLOPT_SSL) || iter.matchFlag(optSSL, ECLOPT_SSL_S))
         return EclCmdOptionMatch;
 
     StringAttr tempArg;
@@ -530,6 +547,8 @@ eclCmdOptionMatchIndicator EclCmdWithEclTarget::matchCommandLineOption(ArgvItera
     if (iter.matchOption(optManifest, ECLOPT_MANIFEST) || iter.matchOption(optManifest, ECLOPT_MANIFEST_DASH))
         return EclCmdOptionMatch;
     if (iter.matchOption(optAttributePath, ECLOPT_MAIN) || iter.matchOption(optAttributePath, ECLOPT_MAIN_S))
+        return EclCmdOptionMatch;
+    if (iter.matchOption(optSnapshot, ECLOPT_SNAPSHOT) || iter.matchOption(optSnapshot, ECLOPT_SNAPSHOT_S))
         return EclCmdOptionMatch;
     if (iter.matchFlag(optNoArchive, ECLOPT_ECL_ONLY))
         return EclCmdOptionMatch;

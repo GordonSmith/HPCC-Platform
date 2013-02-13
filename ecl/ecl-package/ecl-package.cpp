@@ -30,21 +30,6 @@
 
 //=========================================================================================
 
-IClientWsPackageProcess *getWsPackageSoapService(const char *server, const char *port, const char *username, const char *password)
-{
-    if(server == NULL)
-        throw MakeStringException(-1, "Server url not specified");
-
-    VStringBuffer url("http://%s:%s/WsPackageProcess", server, port);
-
-    IClientWsPackageProcess *packageProcessClient = createWsPackageProcessClient();
-    packageProcessClient->addServiceUrl(url.str());
-    packageProcessClient->setUsernameToken(username, password, NULL);
-
-    return packageProcessClient;
-}
-
-
 class EclCmdPackageActivate : public EclCmdCommon
 {
 public:
@@ -100,8 +85,7 @@ public:
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         Owned<IClientActivatePackageRequest> request = packageProcessClient->createActivatePackageRequest();
         request->setTarget(optTarget);
         request->setPackageMap(optPackageMap);
@@ -187,8 +171,7 @@ public:
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         Owned<IClientDeActivatePackageRequest> request = packageProcessClient->createDeActivatePackageRequest();
         request->setTarget(optTarget);
         request->setPackageMap(optPackageMap);
@@ -240,6 +223,8 @@ public:
                 }
                 continue;
             }
+            if (EclCmdCommon::matchCommandLineOption(iter, true)!=EclCmdOptionMatch)
+                return false;
         }
         return true;
     }
@@ -251,8 +236,7 @@ public:
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         Owned<IClientListPackageRequest> request = packageProcessClient->createListPackageRequest();
         request->setTarget(optTarget);
         request->setProcess("*");
@@ -268,8 +252,7 @@ public:
             for (unsigned i=0; i<num; i++)
             {
                 IConstPackageListMapData& req = pkgMapInfo.item(i);
-                const char *id = req.getId();
-                printf("\nPackage Name = %s\n", id);
+                printf("\nPackage Name = %s  active = %d\n", req.getId(), req.getActive());
                 IArrayOf<IConstPackageListData> &pkgInfo = req.getPkgListData();
 
                 unsigned int numPkgs = pkgInfo.ordinality();
@@ -332,6 +315,8 @@ public:
                 }
                 continue;
             }
+            if (EclCmdCommon::matchCommandLineOption(iter, true)!=EclCmdOptionMatch)
+                return false;
         }
         return true;
     }
@@ -343,8 +328,7 @@ public:
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         Owned<IClientGetPackageRequest> request = packageProcessClient->createGetPackageRequest();
         request->setTarget(optTarget);
         request->setProcess("*");
@@ -431,10 +415,9 @@ public:
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-
         fprintf(stdout, "\n ... deleting package map %s now\n\n", optPackageMap.sget());
 
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         Owned<IClientDeletePackageRequest> request = packageProcessClient->createDeletePackageRequest();
         request->setTarget(optTarget);
         request->setPackageMap(optPackageMap);
@@ -532,7 +515,7 @@ public:
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         StringBuffer pkgInfo;
         pkgInfo.loadFile(optFileName);
 

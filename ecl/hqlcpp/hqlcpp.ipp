@@ -197,7 +197,7 @@ interface IHqlCppDatasetBuilder : public IInterface
 public:
     virtual void buildDeclare(BuildCtx & ctx) = 0;
     virtual BoundRow * buildCreateRow(BuildCtx & ctx) = 0;                  //NB: Must be called within a addGroup(), or another un-ambiguous child context, may create a filter
-    virtual BoundRow * buildDeserializeRow(BuildCtx & ctx, IHqlExpression * serializedInput) = 0;
+    virtual BoundRow * buildDeserializeRow(BuildCtx & ctx, IHqlExpression * serializedInput, _ATOM serializeForm) = 0;
     virtual void finishRow(BuildCtx & ctx, BoundRow * selfCursor) = 0;
     virtual void buildFinish(BuildCtx & ctx, const CHqlBoundTarget & target) = 0;
     virtual void buildFinish(BuildCtx & ctx, CHqlBoundExpr & bound) = 0;
@@ -315,8 +315,8 @@ public:
     virtual void set(BuildCtx & ctx, IHqlExpression * expr) = 0;
     virtual void setRow(BuildCtx & ctx, IReferenceSelector * rhs) = 0;
 
-    virtual void buildDeserialize(BuildCtx & ctx, IHqlExpression * helper) = 0;
-    virtual void buildSerialize(BuildCtx & ctx, IHqlExpression * helper) = 0;
+    virtual void buildDeserialize(BuildCtx & ctx, IHqlExpression * helper, _ATOM serializeForm) = 0;
+    virtual void buildSerialize(BuildCtx & ctx, IHqlExpression * helper, _ATOM serializeForm) = 0;
 
 //managing the selection
     virtual AColumnInfo * queryColumn() = 0;
@@ -476,11 +476,14 @@ typedef CIArrayOf<BuildCtx> BuildCtxArray;
 struct GeneratedGraphInfo : public CInterface
 {
 public:
-    GeneratedGraphInfo(const char * _name, IPropertyTree * _graph) : name(_name), graph(_graph) {}
+    GeneratedGraphInfo(const char * _name, const char *_label) : name(_name), label(_label)
+    {
+        xgmml.setown(createPTree("graph"));
+    }
 
 public:
-    StringAttr name;
-    Linked<IPropertyTree> graph;
+    StringAttr name, label;
+    Owned<IPropertyTree> xgmml;
 };
 
 enum SubGraphType { SubGraphRoot, SubGraphRemote, SubGraphChild, SubGraphLoop };
@@ -713,6 +716,7 @@ struct HqlCppOptions
     bool                implicitGroupHashAggregate;  // convert aggreate(sort(x,a),{..},a,d) to aggregate(group(sort(x,a),a_,{},d))
     bool                implicitGroupHashDedup;
     bool                reportFieldUsage;
+    bool                reportFileUsage;
     bool                shuffleLocalJoinConditions;
     bool                projectNestedTables;
     bool                showSeqInGraph;
@@ -904,7 +908,7 @@ public:
     void useFunction(IHqlExpression * funcdef);
     void useLibrary(const char * libname);
     void finalizeResources();
-    void generateStatistics(const char * targetDir);
+    void generateStatistics(const char * targetDir, const char * varient);
 
             unsigned getHints()                             { return hints; }
     inline  bool checkForRowOverflow() const                { return options.checkRowOverflow; }
@@ -943,6 +947,9 @@ public:
     //Either isIndependentMaybeShared is set - which case the item inserted into the initctx can have no dependencies
     //or isIndependentMaybeShared is false, and the code that is inserted is never implicitly shared.
     bool getInvariantMemberContext(BuildCtx & ctx, BuildCtx * * declarectx, BuildCtx * * initctx, bool isIndependentMaybeShared, bool invariantEachStart);
+
+    IPropertyTree * gatherFieldUsage(const char * varient, const IPropertyTree * exclude);
+    void writeFieldUsage(const char * targetDir, IPropertyTree * xml, const char * variant);
 
 public:
     BoundRow * bindSelf(BuildCtx & ctx, IHqlExpression * dataset, const char * builder);
@@ -1004,9 +1011,9 @@ public:
     IHqlExpression * getRecordSize(IHqlExpression * dataset);
     unsigned getCsvMaxLength(IHqlExpression * csvAttr);
     IHqlExpression * createRecordInheritMaxLength(HqlExprArray & fields, IHqlExpression * donor);
-    void ensureRowSerializer(StringBuffer & serializerName, BuildCtx & ctx, IHqlExpression * record, _ATOM kind);
+    void ensureRowSerializer(StringBuffer & serializerName, BuildCtx & ctx, IHqlExpression * record, _ATOM format, _ATOM kind);
     void ensureRowPrefetcher(StringBuffer & prefetcherName, BuildCtx & ctx, IHqlExpression * record);
-    IHqlExpression * createRowSerializer(BuildCtx & ctx, IHqlExpression * record, _ATOM kind);
+    IHqlExpression * createSerializer(BuildCtx & ctx, IHqlExpression * record, _ATOM format, _ATOM kind);
 
     AliasKind buildExprInCorrectContext(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt, bool evaluateLocally);
     ParentExtract * createExtractBuilder(BuildCtx & ctx, PEtype type, IHqlExpression * graphId, IHqlExpression * expr, bool doDeclare);
@@ -1108,6 +1115,8 @@ public:
 
     bool expandFunctionPrototype(StringBuffer & s, IHqlExpression * funcdef);
     void expandFunctionPrototype(BuildCtx & ctx, IHqlExpression * funcdef);
+    void buildCppFunctionDefinition(BuildCtx &funcctx, IHqlExpression * bodycode, const char *proto);
+    void buildScriptFunctionDefinition(BuildCtx &funcctx, IHqlExpression * bodycode, const char *proto);
     void buildFunctionDefinition(IHqlExpression * funcdef);
     void assignAndCast(BuildCtx & ctx, const CHqlBoundTarget & target, CHqlBoundExpr & expr);
     void assignCastUnknownLength(BuildCtx & ctx, const CHqlBoundTarget & target, CHqlBoundExpr & pure);
@@ -1171,10 +1180,10 @@ public:
     void doBuildInCaseInfo(IHqlExpression * expr, HqlCppCaseInfo & info, IHqlExpression * normalizedValues = NULL);
     void doBuildAssignToFromUnicode(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr);
 
-    void buildAssignLinkedDataset(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr);
-    void buildAssignSerializedDataset(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr);
-    void buildLinkedDataset(BuildCtx & ctx, ITypeInfo * type, IHqlExpression * expr, CHqlBoundExpr & tgt);
-    void buildSerializedDataset(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt);
+    void buildAssignDeserializedDataset(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr, _ATOM serializeForm);
+    void buildAssignSerializedDataset(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr, _ATOM serializeForm);
+    void buildDeserializedDataset(BuildCtx & ctx, ITypeInfo * type, IHqlExpression * expr, CHqlBoundExpr & tgt, _ATOM serializeForm);
+    void buildSerializedDataset(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt, _ATOM serializeForm);
 
     void buildDatasetAssignAggregate(BuildCtx & ctx, IHqlCppDatasetBuilder * target, IHqlExpression * expr);
     void buildDatasetAssignChoose(BuildCtx & ctx, IHqlCppDatasetBuilder * target, IHqlExpression * expr);
@@ -1265,8 +1274,8 @@ public:
     void doBuildExprCountDict(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt);
     void doBuildExprCount(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt);
     void doBuildExprCounter(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt);
-    void doBuildExprCppBody(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr * tgt);
     void doBuildExprDivide(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt);
+    void doBuildExprEmbedBody(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr * tgt);
     void doBuildExprEvaluate(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt);
     void doBuildExprExists(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt);
     void doBuildExprFailCode(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt);
@@ -1581,7 +1590,7 @@ public:
     void buildConnectOrders(BuildCtx & ctx, ABoundActivity * slaveActivity, ABoundActivity * masterActivity);
     void buildDedupFilterFunction(BuildCtx & ctx, HqlExprArray & equalities, HqlExprArray & conds, IHqlExpression * dataset, IHqlExpression * selSeq);
     void buildDedupSerializeFunction(BuildCtx & ctx, const char * funcName, IHqlExpression * srcDataset, IHqlExpression * tgtDataset, HqlExprArray & srcValues, HqlExprArray & tgtValues, IHqlExpression * selSeq);
-    void buildDictionaryHashClass(IHqlExpression *record, IHqlExpression *dictionary, StringBuffer &lookupHelperName);
+    void buildDictionaryHashClass(IHqlExpression *record, StringBuffer &lookupHelperName);
     void buildDictionaryHashMember(BuildCtx & ctx, IHqlExpression *dictionary, const char * memberName);
     void buildHashClass(BuildCtx & ctx, const char * name, IHqlExpression * orderExpr, const DatasetReference & dataset);
     void buildHashOfExprsClass(BuildCtx & ctx, const char * name, IHqlExpression * cond, const DatasetReference & dataset, bool compareToSelf);
@@ -1641,8 +1650,8 @@ public:
     void buildSetXmlSerializer(StringBuffer & helper, ITypeInfo * valueType);
 
     void buildMetaMember(BuildCtx & ctx, IHqlExpression * datasetOrRecord, bool isGrouped, const char * name);
-    void buildMetaSerializerClass(BuildCtx & ctx, IHqlExpression * record, const char * serializerName);
-    void buildMetaDeserializerClass(BuildCtx & ctx, IHqlExpression * record, const char * deserializerName);
+    void buildMetaSerializerClass(BuildCtx & ctx, IHqlExpression * record, const char * serializerName, _ATOM serializeForm);
+    void buildMetaDeserializerClass(BuildCtx & ctx, IHqlExpression * record, const char * deserializerName, _ATOM serializeForm);
     bool buildMetaPrefetcherClass(BuildCtx & ctx, IHqlExpression * record, const char * prefetcherName);
 
     void buildLibraryInstanceExtract(BuildCtx & ctx, HqlCppLibraryInstance * libraryInstance);
@@ -1666,7 +1675,7 @@ public:
     void buildXmlReadTransform(IHqlExpression * dataset, StringBuffer & className, bool & usesContents);
     void doBuildXmlReadMember(ActivityInstance & instance, IHqlExpression * expr, const char * functionName, bool & usesContents);
 
-    void ensureSerialized(const CHqlBoundTarget & variable, BuildCtx & serializectx, BuildCtx & deserializectx, const char * inBufferName, const char * outBufferName);
+    void ensureSerialized(const CHqlBoundTarget & variable, BuildCtx & serializectx, BuildCtx & deserializectx, const char * inBufferName, const char * outBufferName, _ATOM serializeForm);
     void ensureRowAllocator(StringBuffer & allocatorName, BuildCtx & ctx, IHqlExpression * record, IHqlExpression * activityId);
     IHqlExpression * createRowAllocator(BuildCtx & ctx, IHqlExpression * record);
 
@@ -1706,7 +1715,7 @@ public:
     void buildLimitHelpers(BuildCtx & ctx, IHqlExpression * rowLimit, IHqlExpression * failAction, bool isSkip, IHqlExpression * filename, unique_id_t id);
 
     void doGenerateMetaDestruct(BuildCtx & ctx, IHqlExpression * selector, IHqlExpression * record);
-    void generateMetaRecordSerialize(BuildCtx & ctx, IHqlExpression * dataset, const char * serializerName, const char * deserializerName, const char * prefetcherName);
+    void generateMetaRecordSerialize(BuildCtx & ctx, IHqlExpression * record, const char * diskSerializerName, const char * diskDeserializerName, const char * internalSerializerName, const char * internalDeserializerName, const char * prefetcherName);
 
     void filterExpandAssignments(BuildCtx & ctx, TransformBuilder * builder, HqlExprArray & assigns, IHqlExpression * expr);
 
@@ -1753,8 +1762,8 @@ protected:
 
     void doFilterAssignment(BuildCtx & ctx, TransformBuilder * builder, HqlExprArray & assigns, IHqlExpression * expr);
     void doFilterAssignments(BuildCtx & ctx, TransformBuilder * builder, HqlExprArray & assigns, IHqlExpression * expr);
-    void generateSerializeAssigns(BuildCtx & ctx, IHqlExpression * record, IHqlExpression * selector, IHqlExpression * selfSelect, IHqlExpression * leftSelect, const DatasetReference & srcDataset, const DatasetReference & tgtDataset, HqlExprArray & srcSelects, HqlExprArray & tgtSelects, bool needToClear);
-    void generateSerializeFunction(BuildCtx & ctx, const char * funcName, bool serialize, const DatasetReference & srcDataset, const DatasetReference & tgtDataset, HqlExprArray & srcSelects, HqlExprArray & tgtSelects);
+    void generateSerializeAssigns(BuildCtx & ctx, IHqlExpression * record, IHqlExpression * selector, IHqlExpression * selfSelect, IHqlExpression * leftSelect, const DatasetReference & srcDataset, const DatasetReference & tgtDataset, HqlExprArray & srcSelects, HqlExprArray & tgtSelects, bool needToClear, node_operator serializeOp, _ATOM serialForm);
+    void generateSerializeFunction(BuildCtx & ctx, const char * funcName, const DatasetReference & srcDataset, const DatasetReference & tgtDataset, HqlExprArray & srcSelects, HqlExprArray & tgtSelects, node_operator serializeOp, _ATOM serialForm);
     void generateSerializeKey(BuildCtx & ctx, node_operator side, const DatasetReference & dataset, HqlExprArray & sorts, bool isGlobal, bool generateCompares, bool canReuseLeft);             //NB: sorts are ats.xyz
     void generateSortCompare(BuildCtx & nestedctx, BuildCtx & ctx, node_operator index, const DatasetReference & dataset, HqlExprArray & sorts, bool canRemoveSort, IHqlExpression * noSortAttr, bool canReuseLeft, bool isLightweight, bool isLocal);
     void addSchemaField(IHqlExpression *field, MemoryBuffer &schema, IHqlExpression *selector);
@@ -1833,7 +1842,6 @@ protected:
     void initOptions();
     void postProcessOptions();
     SourceFieldUsage * querySourceFieldUsage(IHqlExpression * expr);
-    void reportFieldUsage(const char * filename);
     void noteAllFieldsUsed(IHqlExpression * expr);
 
 public:
@@ -1842,7 +1850,7 @@ public:
     //MORE: At some point the global getUniqueId() should be killed so there are only local references.
     inline unsigned __int64 getUniqueId() { return ::getUniqueId(); } //{ return ++nextUid; }
     inline StringBuffer & getUniqueId(StringBuffer & target) { return appendUniqueId(target, getUniqueId()); }
-    inline unsigned curGraphSequence() const { return activeGraphName ? graphSeqNumber : 0; }
+    inline unsigned curGraphSequence() const { return activeGraph ? graphSeqNumber : 0; }
 
 public:
     void traceExpression(const char * title, IHqlExpression * expr, unsigned level=500);
@@ -1875,12 +1883,11 @@ protected:
     ClusterType         targetClusterType;
     bool contextAvailable;
     unsigned maxSequence;
-    StringAttr          activeGraphName;
     unsigned            startCursorSet;
     bool                requireTable;
     BuildCtx *          activeGraphCtx;
     HqlExprArray        metas;
-    Owned<IPropertyTree> graph;
+    Owned<GeneratedGraphInfo> activeGraph;
     unsigned            graphSeqNumber;
     StringAttr          graphLabel;
     NlpParseContext *   nlpParse;               // Not linked so it can try and stay opaque.

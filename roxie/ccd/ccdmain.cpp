@@ -112,6 +112,7 @@ bool debugPermitted = true;
 bool checkCompleted = true;
 unsigned preabortKeyedJoinsThreshold = 100;
 unsigned preabortIndexReadsThreshold = 100;
+bool preloadOnceData;
 
 unsigned memoryStatsInterval = 0;
 memsize_t defaultMemoryLimit;
@@ -249,6 +250,13 @@ public:
 #endif
     }
 } waiter;
+
+void closedown()
+{
+    Owned<IFile> sentinelFile = createSentinelTarget();
+    removeSentinelFile(sentinelFile);
+    waiter.onAbort();
+}
 
 void getAccessList(const char *aclName, IPropertyTree *topology, IPropertyTree *serverInfo)
 {
@@ -433,6 +441,10 @@ public:
 
 int STARTQUERY_API start_query(int argc, const char *argv[])
 {
+    EnableSEHtoExceptionMapping();
+    setTerminateOnSEH();
+    init_signals();
+    // We need to do the above BEFORE we call InitModuleObjects
     InitModuleObjects();
     getDaliServixPort();
     init_signals();
@@ -492,8 +504,6 @@ int STARTQUERY_API start_query(int argc, const char *argv[])
 #endif
     srand( (unsigned)time( NULL ) );
     ccdChannels = createPTree("Channels");
-    EnableSEHtoExceptionMapping();
-    setTerminateOnSEH();
 
     char currentDirectory[_MAX_DIR];
     if (!getcwd(currentDirectory, sizeof(currentDirectory)))
@@ -674,6 +684,7 @@ int STARTQUERY_API start_query(int argc, const char *argv[])
         blindLogging = topology->getPropBool("@blindLogging", false);
         if (!blindLogging)
             logExcessiveSeeks = true;
+        preloadOnceData = topology->getPropBool("@preloadOnceData", true);
         linuxYield = topology->getPropBool("@linuxYield", false);
         traceSmartStepping = topology->getPropBool("@traceSmartStepping", false);
         useMemoryMappedIndexes = topology->getPropBool("@useMemoryMappedIndexes", false);

@@ -378,6 +378,8 @@ static int doMain(int argc, const char *argv[])
 
 int main(int argc, const char *argv[])
 {
+    EnableSEHtoExceptionMapping();
+    setTerminateOnSEH(true);
     InitModuleObjects();
     queryStderrLogMsgHandler()->setMessageFields(0);
     // Turn logging down (we turn it back up if -v option seen)
@@ -1282,7 +1284,7 @@ void EclCC::generateOutput(EclCompileInstance & instance)
         else
             xmlFilename.append(DEFAULT_OUTPUTNAME);
         xmlFilename.append(".xml");
-        exportWorkUnitToXMLFile(instance.wu, xmlFilename, 0);
+        exportWorkUnitToXMLFile(instance.wu, xmlFilename, 0, true);
     }
 }
 
@@ -1801,7 +1803,7 @@ void EclCC::processBatchedFile(IFile & file, bool multiThreaded)
             dbglogTransformStats(true);
             if (info.wu &&
                 (info.wu->getDebugValueBool("generatePartialOutputOnError", false) || info.errs->errCount() == 0))
-                exportWorkUnitToXMLFile(info.wu, xmlFilename, XML_NoBinaryEncode64);
+                exportWorkUnitToXMLFile(info.wu, xmlFilename, XML_NoBinaryEncode64, true);
         }
     }
     catch (IException * e)

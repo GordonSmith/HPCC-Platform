@@ -19,6 +19,8 @@
 #include "jiface.hpp"
 #include "hqlir.hpp"
 
+//#define ADD_ACTIVE_SCOPE_AS_COMMENT
+
 namespace EclIR
 {
 
@@ -513,7 +515,7 @@ const char * getOperatorIRText(node_operator op)
     EXPAND_CASE(no,blob2id);
     EXPAND_CASE(no,anon);
     EXPAND_CASE(no,projectrow);
-    EXPAND_CASE(no,cppbody);
+    EXPAND_CASE(no,embedbody);
     EXPAND_CASE(no,sortpartition);
     EXPAND_CASE(no,define);
     EXPAND_CASE(no,globalscope);
@@ -821,6 +823,7 @@ public:
     _ATOM name;
     unsigned __int64 sequence;
     IdArray args;
+    IdArray comment;
 };
 
 class ExprAnnotationBuilderInfo
@@ -1442,6 +1445,17 @@ protected:
             line.append(" : ");
             appendId(info.type);
         }
+        if (info.comment.ordinality())
+        {
+            line.append("  // ");
+            ForEachItemIn(i, info.comment)
+            {
+                if (i)
+                    line.append(",");
+                appendId(info.comment.item(i));
+            }
+        }
+
     }
 
     void appendConstantText(const ConstantBuilderInfo & info)
@@ -1884,6 +1898,7 @@ id_t ExpressionIRPlayer::processExpr(IHqlExpression * expr)
     IInterface * match = expr->queryTransformExtra();
     if (match)
     {
+        //Check for recursion
         if (match == expr)
             throwUnexpected();
         return static_cast<ExpressionId *>(match)->id;
@@ -1925,6 +1940,18 @@ id_t ExpressionIRPlayer::doProcessExpr(IHqlExpression * expr)
 
     ForEachChild(i, expr)
         info.args.append(processExpr(expr->queryChild(i)));
+
+#ifdef ADD_ACTIVE_SCOPE_AS_COMMENT
+    HqlExprCopyArray inScope;
+    expr->gatherTablesUsed(NULL, &inScope);
+    ForEachItemIn(i, inScope)
+    {
+        IHqlExpression * cur = &inScope.item(i);
+        if (cur == expr) // add 0 to list if is own active selector
+            cur = NULL;
+        info.comment.append(processExpr(cur));
+    }
+#endif
 
     if (getRequiredTypeCode(op) == type_none)
         info.type = processType(expr->queryType());
@@ -2086,6 +2113,20 @@ extern HQL_API void dump_ir(IHqlExpression * expr1, IHqlExpression * expr2)
     reader.play(expr2);
 }
 
+extern HQL_API void dump_irn(unsigned n, ...)
+{
+    FileIRBuilder output(defaultDumpOptions, stdout);
+    ExpressionIRPlayer reader(&output);
+    va_list args;
+    va_start(args, n);
+    for (unsigned i=0; i < n;i++)
+    {
+        IHqlExpression * expr = va_arg(args, IHqlExpression *);
+        reader.play(expr);
+    }
+    va_end(args);
+}
+
 //-- Dump the IR for the expression(s)/type to DBGLOG ----------------------------------------------------------------
 
 extern HQL_API void dbglogIR(IHqlExpression * expr)
@@ -2124,14 +2165,14 @@ extern HQL_API void getIRText(StringArray & target, unsigned options, IHqlExpres
 static StringBuffer staticDebuggingStringBuffer;
 extern HQL_API const char * getIRText(IHqlExpression * expr)
 {
-    StringBufferIRBuilder output(staticDebuggingStringBuffer, defaultDumpOptions);
+    StringBufferIRBuilder output(staticDebuggingStringBuffer.clear(), defaultDumpOptions);
     playIR(output, expr, NULL, NULL);
     return staticDebuggingStringBuffer.str();
 }
 
 extern HQL_API const char * getIRText(ITypeInfo * type)
 {
-    StringBufferIRBuilder output(staticDebuggingStringBuffer, defaultDumpOptions);
+    StringBufferIRBuilder output(staticDebuggingStringBuffer.clear(), defaultDumpOptions);
     playIR(output, NULL, NULL, type);
     return staticDebuggingStringBuffer.str();
 }

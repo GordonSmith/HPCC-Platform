@@ -1330,6 +1330,8 @@ bool EvalContext::evaluateInParent(BuildCtx & ctx, IHqlExpression * expr, bool h
         return !translator.isCurrentActiveGraph(ctx, expr->queryChild(0));
     case no_getgraphresult:
         return !translator.isCurrentActiveGraph(ctx, expr->queryChild(1));
+    case no_getresult:
+        return !matchesConstantValue(queryPropertyChild(expr, sequenceAtom, 0), ResultSequenceOnce);
     case no_failcode:
     case no_failmessage:
     case no_fail:
@@ -1505,9 +1507,10 @@ void ClassEvalContext::createMemberAlias(CtxCollection & ctxs, BuildCtx & ctx, I
     assertex(ctxs.evalctx != NULL);
     translator.expandAliases(*ctxs.evalctx, value);
 
+    const _ATOM serializeForm = internalAtom; // The format of serialized expressions in memory must match the internal serialization format
     CHqlBoundTarget tempTarget;
     translator.buildTempExpr(*ctxs.evalctx, ctxs.declarectx, tempTarget, value, FormatNatural, false);
-    ensureSerialized(ctxs, tempTarget);
+    ensureSerialized(ctxs, tempTarget, serializeForm);
 
     tgt.setFromTarget(tempTarget);
     ctxs.declarectx.associateExpr(value, tgt);
@@ -1524,10 +1527,10 @@ void ClassEvalContext::doCallNestedHelpers(const char * member, const char * act
 }
 
 
-void ClassEvalContext::ensureSerialized(CtxCollection & ctxs, const CHqlBoundTarget & target)
+void ClassEvalContext::ensureSerialized(CtxCollection & ctxs, const CHqlBoundTarget & target, _ATOM serializeForm)
 {
     if (ctxs.serializectx)
-        translator.ensureSerialized(target, *ctxs.serializectx, *ctxs.deserializectx, "*in", "out");
+        translator.ensureSerialized(target, *ctxs.serializectx, *ctxs.deserializectx, "*in", "out", serializeForm);
 }
 
 AliasKind ClassEvalContext::evaluateExpression(BuildCtx & ctx, IHqlExpression * value, CHqlBoundExpr & tgt, bool evaluateLocally)
@@ -1614,7 +1617,8 @@ AliasKind ClassEvalContext::evaluateExpression(BuildCtx & ctx, IHqlExpression * 
 
 void ClassEvalContext::tempCompatiablityEnsureSerialized(const CHqlBoundTarget & tgt)
 {
-    ensureSerialized(onCreate, tgt);
+    const _ATOM serializeForm = internalAtom; // The format of serialized expressions in memory must match the internal serialization format
+    ensureSerialized(onCreate, tgt, serializeForm);
 }
 
 bool ClassEvalContext::isRowInvariant(IHqlExpression * expr)

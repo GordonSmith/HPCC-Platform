@@ -399,6 +399,7 @@ extern bool useTreeCopy;
 extern XmlReaderOptions defaultXmlReadFlags;
 extern bool mergeSlaveStatistics;
 extern bool roxieMulticastEnabled;   // enable use of multicast for sending requests to slaves
+extern bool preloadOnceData;
 
 extern unsigned udpMulticastBufferSize;
 extern size32_t diskReadBufferSize;
@@ -451,6 +452,7 @@ inline unsigned getBondedChannel(unsigned partNo)
 
 extern void FatalError(const char *format, ...)  __attribute__((format(printf, 1, 2)));
 extern unsigned getNextInstanceId();
+extern void closedown();
 
 #define LOGGING_INTERCEPTED     0x01
 #define LOGGING_TIMEACTIVITIES  0x02
