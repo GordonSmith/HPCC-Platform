@@ -60,8 +60,11 @@ define([
                 display: "block",
                 opacity: 1
             });
+            
         }
     },
+
+
 
     endLoading = function () {
         fx.fadeOut({

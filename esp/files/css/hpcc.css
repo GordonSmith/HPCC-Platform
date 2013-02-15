@@ -107,6 +107,10 @@ form h2{
     padding:5px 0;
 }
 
+img{
+    border:none;
+}
+
 /*IDs************************/
 
 #myProgressBar{
@@ -170,7 +174,180 @@ form h2{
     padding:20px;
 }
 
+
+#hpccTitlebar{
+background:#353535;
+height:60px;
+margin:0px;
+padding:0px;
+overflow: hidden;
+}
+
+
+#hoverIcon :hover{
+    background-color:#4f4f4f;
+}
+
+#homeStackController .dijitToggleButton .dijitButtonNode {
+    background-color: #353535;
+    background:none;
+    box-shadow: none;
+}
+
+#homeStackController span:nth-child(1){
+background-image: url("../img/hpcc_systems_logo.png");
+width:228px;
+height:50px;
+}
+
+
+#homeStackController span:nth-child(2){
+background-image: url("../img/icon_ecl.png");
+width:45px;
+height:45px;
+margin-left:20px;
+}
+
+#homeStackController span:nth-child(3){
+background-image: url("../img/icon_ecl.png");
+width:45px;
+height:45px;
+margin-left:20px;
+}
+
+#homeStackController span:nth-child(4){
+background-image: url("../img/icon_ecl.png");
+width:45px;
+height:45px;
+margin-left:20px;
+}
+
+#homeStackController .dijitButtonContents{
+    display:none;
+    border:none;
+}
+
+#homeStackController .dijitButtonNode{
+    border:none;
+}
+
+#homeStackController .dijitReset{
+    cursor: pointer;
+}
+
+#userTools{
+    float:right;
+}
+
+#userAccount{
+    float:left;
+    text-align: left;
+    padding:5px 20px 0 0;
+    text-align: right;
+    padding-top:10px;
+}
+
+
+#userAccount a{
+    color:rgb(0, 160, 224);
+}
+
+
+#userIcons{
+    width:148px;
+    float:left;
+    text-align: center;
+}
+
+#userIcons img{
+    padding-top:10px;
+    border:none;
+}
+
+#userIcons .dijitDropDownButton .dijitButtonNode{
+    border:none;
+    padding:0;
+    background: none;
+    box-shadow: none;
+}
+
+
+
+#userIcons .holder span:nth-child(1) {
+    border:none;
+    margin:0 0 12px 0;
+    padding:0;
+    outline: none;
+}
+
+
+#userIcons .dijitButtonText{
+    padding:0px;
+}
+
+#userIcons .dijitArrowButtonInner{
+    display:none;
+}
+
+#userIcons .dijitFocused{
+    border:none;
+}
+
+
 /*CLASSES******************/
+
+
+.holder :focus{
+    /*border:none;*/
+}
+
+
+ #search-form{
+    padding:0;
+    margin:0;
+    float:left;
+    width:300px;
+    margin-top:8px;
+}
+
+#search-form :focus{
+    /*outline: none;*/
+  }
+
+.roundForm {
+    width:250px;
+    border-radius: 6px;
+    padding: 3px 3px 3px 15px;
+}
+
+.corner {
+    border: 0px;
+    margin:-15px 0 0 -30px;
+    background-color: transparent; /*important*/
+
+}
+
+
+.holder{
+    width:40px;
+    height:60px;
+    float:left;
+}
+
+.seperator{
+    width:1px;
+    height:35px;
+    float:left;
+    margin:10px 10px 0 10px;
+}
+
+.grey{
+background-color: rgb(80, 80, 80);
+}
+
+.white{
+    background-color:rgb(255,255,255);
+}
 .left{float:left;}
 
 .right{float:right;}
@@ -187,6 +364,13 @@ form h2{
 .hpccApp {
     height: 100%;
 }
+
+.navBarLoggedin{
+    text-transform: uppercase;
+    color:rgb(255,255,255);
+    display: block;
+}
+
 
 .toolTip{
 width:500px;
@@ -239,6 +423,11 @@ margin-left:-20px;
     background-color: rgb(208, 233, 252);
 }
 
+.claro .hpccApp .hpccTitlebar {
+    background-color: rgb(0, 108, 204);
+}
+
+
 .dijitValidationTextBoxLabel {
     width:170px;
     text-align: left;
@@ -265,7 +454,24 @@ margin-left:-20px;
 }
 
 
+
 /*WUSTATES*/
+
+
+.dijitIconUser {
+    background-position: 0px 0px;
+    width:30px;
+    height:30px;
+}
+
+
+.dijitIconHelp {
+    background-position: -20px 0px;
+    width:20px;
+    height:30px;
+}
+
+
 .iconWorkunit {
     background-image: url("../img/workunit.png"); 
     width: 16px;
@@ -357,3 +563,4 @@ text-align: left;
 
     padding-top:5px;
 }
+
