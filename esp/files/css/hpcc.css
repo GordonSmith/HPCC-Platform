@@ -298,7 +298,7 @@ margin-left:20px;
 
 
 .holder :focus{
-    /*border:none;*/
+    outline: none;
 }
 
 
@@ -311,8 +311,8 @@ margin-left:20px;
 }
 
 #search-form :focus{
-    /*outline: none;*/
-  }
+    outline: none;
+}
 
 .roundForm {
     width:250px;
