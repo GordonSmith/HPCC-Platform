@@ -16,17 +16,18 @@
 define([
     "dojo/_base/declare",
     "dojo/dom",
-    "dojo/on",
+    "dojo/dom-class",
     "dojo/data/ObjectStore",
     "dojo/date",
     "dijit/Menu",
     "dijit/MenuItem",
     "dijit/MenuSeparator",
-    "dijit/form/Select",
+    "dijit/form/ComboBox",
 
     "dijit/PopupMenuItem",
     "dijit/Dialog",
 
+    "dijit/layout/_LayoutWidget",
     "dijit/_TemplatedMixin",
     "dijit/_WidgetsInTemplateMixin",
     "dijit/registry",
@@ -34,11 +35,11 @@ define([
     "dojox/grid/EnhancedGrid",
     "dojox/grid/enhanced/plugins/Pagination",
     "dojox/grid/enhanced/plugins/IndirectSelection",
-    "dojox/widget/Calendar",
+    "dojox/form/Uploader",
+    "dojox/form/uploader/plugins/IFrame",
+    "dojox/form/uploader/FileList",
 
-    "hpcc/_TabContainerWidget",
     "hpcc/FileSpray",
-    "hpcc/DropZonesWidget",
 
     "dojo/text!../templates/DropZoneWidget.html",
 
@@ -54,41 +55,42 @@ define([
     "dijit/TooltipDialog",
     "dijit/form/DateTextBox"
 
-], function (declare, dom, on, ObjectStore, date, Menu, MenuItem, MenuSeparator, Select, PopupMenuItem, Dialog,
-                _TemplatedMixin, _WidgetsInTemplateMixin, registry, EnhancedGrid, Pagination, IndirectSelection, Calendar,
-                _TabContainerWidget, FileSpray, DropZonesWidget,
+], function (declare, dom, domClass, ObjectStore, date, Menu, MenuItem, MenuSeparator, ComboBox, PopupMenuItem, Dialog,
+                _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry, EnhancedGrid, Pagination, IndirectSelection, Uploader,IFrame, FileList,
+                FileSpray,
                 template) {
-    return declare("DropZoneWidget", [_TabContainerWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
+    return declare("DropZonesWidget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
-        baseClass: "DropZoneWidget",
-        legacyPane: null,
-        legacyPaneLoaded: false,
-
-        tabMap: [],
+        baseClass: "DropZonesWidget",
+        borderContainer: null,
+        dropzonesGrid: null,
 
         buildRendering: function (args) {
             this.inherited(arguments);
         },
-
         postCreate: function (args) {
             this.inherited(arguments);
-            this.legacyPane = registry.byId(this.id + "_Legacy");
+            this.borderContainer = registry.byId(this.id + "BorderContainer");
+            this.dropzonesGrid = registry.byId(this.id + "DropZonesGrid");
         },
-
-        buildTabs: function (id, params) {
-        },
-
         query: function (query, options) {
         },
-
         startup: function (args) {
             this.inherited(arguments);
+            this.initDropZonesGrid();
             this.refreshActionState();
+            this.setForms();
+            registry.byId(this.id + "Submit").set("disabled", true);
         },
 
         resize: function (args) {
             this.inherited(arguments);
             this.borderContainer.resize();
+        },
+
+        setForms: function(params) {
+           //console.log(params.netAddress);
+            
         },
 
         layout: function (args) {
@@ -98,73 +100,82 @@ define([
         destroy: function (args) {
             this.inherited(arguments);
         },
-
         //  Hitched actions  ---
-        getISOString: function () {
+        _onUpload: function (event) {
+            //myDialog.show();
+            registry.byId(this.id + "Submit").set("disabled", false);
         },
 
+        _onDelete: function (event) {
+            if (confirm('Delete selected workunits?')) {
+                var context = this;
+                FileSpray.WUAction(this.dropzonesGrid.selection.getSelected(), "Delete", {
+                    load: function (response) {
+                        context.dropzonesGrid.rowSelectCell.toggleAllSelection(false);
+                        context.refreshGrid(response);
+                    }
+                });
+            }
+        },
+
+       
+        _onSubmit: function(){
+            //myDialog.hide();
+            //registry.byId(this.id + "UploadForm").submit();
+        },
+
+        getValues: function () {
+        },
         //  Implementation  ---
         init: function (params) {
+            if (this.initalized) {
+                return;
+            }
+            this.initalized = true;
+            this.dropzonesGrid.setQuery({
+                NetAddress: params.netAddress
+            });
+
+            fileUploadForm.action = "/FileSpray/UploadFile?upload_&NetAddress=" + params.netAddress + "&OS=1&Path=/var/lib/HPCCSystems/mydropzone/";
+        },
+        initDropZonesGrid: function() {
+            this.dropzonesGrid.setStructure([
+                { name: "Name", field: "name", width: "25"},
+                { name: "Size", field: "filesize", width: "25" },
+                { name: "Date", field: "modifiedtime", width: "25" }
+            ]);
+
+
+            var store = new FileSpray.DropZoneFiles();
+            var objStore = new ObjectStore({ objectStore: store });
+            this.dropzonesGrid.setStore(objStore);
+            //this.dropzonesGrid.noDataMessage = "<span class='dojoxGridNoData'>No Files.</span>";
+            this.dropzonesGrid.startup();
+
             var context = this;
-            FileSpray.GetDropZones({
-                load: function (response) {
-                    var firstTab = null;
-                    for (var i = 0; i < response.length; ++i) {
-                        var tab = context.ensurePane(context.id + "_dropZone" + i, {
-                            netAddress: response[i].NetAddress
-                        });
-                        if (i == 0) {
-                            firstTab = tab;
-                        }
-                    }
-                    if (firstTab) {
-                        context.selectChild(firstTab);
-                    }
-                }
+            dojo.connect(this.dropzonesGrid.selection, 'onSelected', function (idx) {
+                context.refreshActionState();
+            });
+            dojo.connect(this.dropzonesGrid.selection, 'onDeselected', function (idx) {
+                context.refreshActionState();
             });
         },
 
         refreshGrid: function (args) {
+            this.workunitsGrid.setQuery(this.getFilter());
+            var context = this;
+            setTimeout(function () {
+                context.refreshActionState()
+            }, 200);
         },
 
         refreshActionState: function () {
-        },
-
-        initTab: function () {
-            var currSel = this.getSelectedChild();
-            if (currSel.id == this.id + "_Legacy") {
-                if (!this.legacyPaneLoaded) {
-                    this.legacyPaneLoaded = true;
-                    this.legacyPane.set("content", dojo.create("iframe", {
-                        src: "/FileSpray/DropZoneFiles",
-                        style: "border: 0; width: 100%; height: 100%"
-                    }));
-                }
-            } else {
-                if (currSel && !currSel.initalized) {
-                    currSel.init(currSel.params);
-                }
+            var selection = this.dropzonesGrid.selection.getSelected();
+            var hasSelection = false;
+            for (var i = 0; i < selection.length; ++i) {
+                hasSelection = true;
             }
-        },
-
-        ensurePane: function (id, params) {
-            var retVal = this.tabMap[id];
-            if (!retVal) {
-                var context = this;
-                retVal = new DropZonesWidget({
-                    id: id,
-                    title: params.netAddress,
-                    closable: true,
-                    onClose: function () {
-                        delete context.tabMap[id];
-                        return true;
-                    },
-                    params: params
-                });
-                this.tabMap[id] = retVal;
-                this.addChild(retVal, 0);
-            }
-            return retVal;
+             registry.byId(this.id + "Delete").set("disabled", !hasSelection);
         },
     });
 });

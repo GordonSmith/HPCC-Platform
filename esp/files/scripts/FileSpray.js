@@ -110,6 +110,7 @@ define([
                 content: request
             });
 
+
             var deferredResults = new Deferred();
             deferredResults.total = results.then(function (response) {
                 if (lang.exists("DropZoneFilesResponse.Files.PhysicalFileStruct.length", response)) {
