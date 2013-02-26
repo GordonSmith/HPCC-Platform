@@ -22,12 +22,11 @@ define([
     "dijit/Menu",
     "dijit/MenuItem",
     "dijit/MenuSeparator",
-    "dijit/form/ComboBox",
+    "dijit/form/Select",
 
     "dijit/PopupMenuItem",
     "dijit/Dialog",
 
-    "dijit/layout/_LayoutWidget",
     "dijit/_TemplatedMixin",
     "dijit/_WidgetsInTemplateMixin",
     "dijit/registry",
@@ -35,9 +34,11 @@ define([
     "dojox/grid/EnhancedGrid",
     "dojox/grid/enhanced/plugins/Pagination",
     "dojox/grid/enhanced/plugins/IndirectSelection",
-    "dojox/form/Uploader",
+    "dojox/widget/Calendar",
 
+    "hpcc/_TabContainerWidget",
     "hpcc/FileSpray",
+    "hpcc/DropZoneWidget",
 
     "dojo/text!../templates/DropZonesWidget.html",
 
@@ -53,85 +54,117 @@ define([
     "dijit/TooltipDialog",
     "dijit/form/DateTextBox"
 
-], function (declare, dom, on, ObjectStore, date, Menu, MenuItem, MenuSeparator, ComboBox, PopupMenuItem, Dialog,
-                _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry, EnhancedGrid, Pagination, IndirectSelection, Uploader,
-                FileSpray,
+], function (declare, dom, on, ObjectStore, date, Menu, MenuItem, MenuSeparator, Select, PopupMenuItem, Dialog,
+                _TemplatedMixin, _WidgetsInTemplateMixin, registry, EnhancedGrid, Pagination, IndirectSelection, Calendar,
+                _TabContainerWidget, FileSpray, DropZonesWidget,
                 template) {
-    return declare("DropZonesWidget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
+    return declare("DropZonesWidget", [_TabContainerWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
         baseClass: "DropZonesWidget",
-        borderContainer: null,
-        dropzonesGrid: null,
+        legacyPane: null,
+        legacyPaneLoaded: false,
+
+        tabMap: [],
 
         buildRendering: function (args) {
             this.inherited(arguments);
         },
+
         postCreate: function (args) {
             this.inherited(arguments);
-            this.borderContainer = registry.byId(this.id + "BorderContainer");
-            this.dropzonesGrid = registry.byId(this.id + "DropZonesGrid");
+            this.legacyPane = registry.byId(this.id + "_Legacy");
         },
+
+        buildTabs: function (id, params) {
+        },
+
         query: function (query, options) {
         },
+
         startup: function (args) {
             this.inherited(arguments);
             this.refreshActionState();
-            this.initDropZonesGrid();
         },
+
         resize: function (args) {
             this.inherited(arguments);
             this.borderContainer.resize();
         },
+
         layout: function (args) {
             this.inherited(arguments);
         },
+
         destroy: function (args) {
             this.inherited(arguments);
         },
+
         //  Hitched actions  ---
-        _onUpload: function (event) {
+        getISOString: function () {
         },
-        _onDelete: function (event) {
-            if (confirm('Delete selected workunits?')) {
-                var context = this;
-                FileSpray.GetDropZones(this.dropzonesGrid.selection.getSelected(), "Delete", {
-                    load: function (response) {
-                        context.dropzonesGrid.rowSelectCell.toggleAllSelection(false);
-                        context.refreshGrid(response);
-                    }
-                });
-            }
-        },
-        getValues: function () {
-        },
+
         //  Implementation  ---
         init: function (params) {
-            if (this.initalized) {
-                return;
-            }
-            this.initalized = true;
-            this.dropzonesGrid.setQuery({
-                NetAddress: params.netAddress
+            var context = this;
+            FileSpray.GetDropZones({
+                load: function (response) {
+                    var firstTab = null;
+                    for (var i = 0; i < response.length; ++i) {
+                        var tab = context.ensurePane(context.id + "_dropZone" + i, {
+                            netAddress: response[i].NetAddress
+                        });
+                        if (i == 0) {
+                            firstTab = tab;
+                        }
+                    }
+                    if (firstTab) {
+                        context.selectChild(firstTab);
+                    }
+                }
             });
-        },
-        initDropZonesGrid: function() {
-            this.dropzonesGrid.setStructure([
-                { name: "Name", field: "name", width: "25" },
-                { name: "Size", field: "filesize", width: "25" },
-                { name: "Date", field: "modifiedtime", width: "25" }
-            ]);
-
-            var store = new FileSpray.DropZoneFiles();
-            var objStore = new ObjectStore({ objectStore: store });
-            this.dropzonesGrid.setStore(objStore);
-            //this.dropzonesGrid.noDataMessage = "<span class='dojoxGridNoData'>No Results.</span>";
-            this.dropzonesGrid.startup();
         },
 
         refreshGrid: function (args) {
         },
 
         refreshActionState: function () {
-        }
+        },
+
+        initTab: function () {
+            var currSel = this.getSelectedChild();
+            if (currSel.id == this.id + "_Legacy") {
+                if (!this.legacyPaneLoaded) {
+                    this.legacyPaneLoaded = true;
+                    this.legacyPane.set("content", dojo.create("iframe", {
+                        src: "/FileSpray/DropZoneFiles",
+                        style: "border: 0; width: 100%; height: 100%"
+                    }));
+                }
+            } else {
+                if (currSel && !currSel.initalized) {
+                    currSel.init(currSel.params);
+                }
+            }
+        },
+
+        ensurePane: function (id, params) {
+            var retVal = this.tabMap[id];
+            if (!retVal) {
+                var context = this;
+                retVal = new DropZonesWidget({
+                    id: id,
+                    title: params.netAddress,
+                    closable: true,
+                    onClose: function () {
+                        delete context.tabMap[id];
+                        return true;
+                    },
+                    params: params
+                });
+                this.tabMap[id] = retVal;
+                this.addChild(retVal, 0);
+            }
+            return retVal;
+        },
     });
 });
