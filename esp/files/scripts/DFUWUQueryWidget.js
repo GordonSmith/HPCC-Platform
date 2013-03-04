@@ -19,6 +19,11 @@ define([
     "dojo/data/ObjectStore",
     "dojo/date",
     "dojo/on",
+    "dijit/Menu",
+    "dijit/MenuItem",
+    "dijit/MenuSeparator",
+    "dijit/PopupMenuItem",
+    "dijit/Dialog",
 
     "dijit/layout/_LayoutWidget",
     "dijit/_TemplatedMixin",
@@ -31,6 +36,7 @@ define([
 
     "hpcc/WsDfu",
     "hpcc/LFDetailsWidget",
+    "hpcc/DFUWUDetailsWidget",
 
     "dojo/text!../templates/DFUWUQueryWidget.html",
 
@@ -44,10 +50,10 @@ define([
     "dijit/form/Select",
     "dijit/Toolbar",
     "dijit/TooltipDialog"
-], function (declare, dom, ObjectStore, date, on,
+], function (declare, dom, ObjectStore, date, on, Menu, MenuItem, MenuSeparator, PopupMenuItem, Dialog,
                 _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry,
                 EnhancedGrid, Pagination, IndirectSelection,
-                WsDfu, LFDetailsWidget,
+                WsDfu, LFDetailsWidget, DFUWUDetailsWidget,
                 template) {
     return declare("DFUWUQueryWidget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
@@ -91,10 +97,13 @@ define([
             });
         },
 
+        
+
         startup: function (args) {
             this.inherited(arguments);
             this.refreshActionState();
             this.initWorkunitsGrid();
+            //this.query();
         },
 
         resize: function (args) {
@@ -119,6 +128,16 @@ define([
                 });
             }
         },
+
+
+        _onReplicate: function (event) {
+            var selections = this.workunitsGrid.selection.getSelected();
+            for (var i = selections.length - 1; i >= 0; --i) {
+                this.ensureDetailsPane(selections[i].Name, {
+                    Name: selections[i].Name
+                });
+            }
+        },
         _onDelete: function (event) {
             if (confirm('Delete selected workunits?')) {
                 var context = this;
@@ -129,6 +148,32 @@ define([
                     }
                 });
             }
+        },
+
+        _onRename: function (event) {
+            //var selections = this.workunitsGrid.selection.getSelected();
+            /*for (var i = selections.length - 1; i >= 0; --i) {
+                this.ensurePane(selections[i].Name, {
+                    Name: selections[i].Name
+                });
+            }*/
+            myRenameDialog.show();
+        },
+
+        _onDespray: function(event){
+
+            myDesprayDialog.show();
+        },
+
+
+        _onCopy: function (event) {
+            //var selections = this.workunitsGrid.selection.getSelected();
+            /*for (var i = selections.length - 1; i >= 0; --i) {
+                this.ensurePane(selections[i].Name, {
+                    Name: selections[i].Name
+                });
+            }*/
+            myCopyDialog.show();
         },
         _onAddToSuperfile: function (event) {
         },
@@ -154,15 +199,15 @@ define([
 
         getFilter: function () {
             var retVal = {
-                Owner: dom.byId(this.id + "Owner").value,
-                Jobname: dom.byId(this.id + "Jobname").value,
-                Cluster: dom.byId(this.id + "Cluster").value,
-                State: dom.byId(this.id + "State").value,
-                ECL: dom.byId(this.id + "ECL").value,
-                LogicalFile: dom.byId(this.id + "LogicalFile").value,
-                StartDate: this.getISOString("FromDate", "FromTime"),
-                EndDate: this.getISOString("ToDate", "ToTime"),
-                LastNDays: dom.byId(this.id + "LastNDays").value
+                //Owner: dom.byId(this.id + "Owner").value,
+                //Jobname: dom.byId(this.id + "Jobname").value,
+                //Cluster: dom.byId(this.id + "Cluster").value,
+                //State: dom.byId(this.id + "State").value,
+                //ECL: dom.byId(this.id + "ECL").value,
+                //LogicalFile: dom.byId(this.id + "LogicalFile").value,
+                //StartDate: this.getISOString("FromDate", "FromTime"),
+                //EndDate: this.getISOString("ToDate", "ToTime"),
+                //LastNDays: dom.byId(this.id + "LastNDays").value
             };
             if (retVal.StartDate != "" && retVal.EndDate != "") {
                 retVal["DateRB"] = "0";
@@ -194,6 +239,39 @@ define([
         },
 
         initWorkunitsGrid: function() {
+            var pMenu;
+            var context = this;
+            
+            pMenu = new Menu({
+                targetNodeIds: [this.id + "WorkunitsGrid"]
+            });
+            pMenu.addChild(new MenuItem({
+                label: "Details",
+                onClick: function(){context._onOpen();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Copy",
+                onClick: function(){context._onCopy();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Rename",
+                onClick: function(){context._onRename();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "View Data File",
+                onClick: function(){context._onOpen();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Replicate",
+                onClick: function(){context._onReplicate();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Despray",
+                onClick: function(){context._onDespray();}
+            }));
+
+            pMenu.startup();
+
             this.workunitsGrid.setStructure([
 			    {
 			        name: "C",
@@ -252,6 +330,17 @@ define([
                 }
             }, true);
 
+            this.workunitsGrid.on("RowContextMenu", function (evt){
+                if (context.onRowContextMenu) {
+                    var idx = evt.rowIndex;
+                    var colField = evt.cell.field;
+                    var item = this.getItem(idx);
+                    var mystring = "item." + colField;
+                    context.onRowContextMenu(idx,item,colField,mystring);
+                }
+            }, true);
+
+
             dojo.connect(this.workunitsGrid.selection, 'onSelected', function (idx) {
                 context.refreshActionState();
             });
@@ -282,6 +371,10 @@ define([
             registry.byId(this.id + "AddToSuperfile").set("disabled", !hasSelection);
         },
 
+        /*query: function(response){
+                console.log(workunits);
+        },*/
+
         ensurePane: function (id, params) {
             var retVal = this.tabMap[id];
             if (!retVal) {
@@ -302,11 +395,46 @@ define([
             return retVal;
         },
 
+        ensureDetailsPane: function (id, params) {
+            var retVal = this.tabMap[id];
+            if (!retVal) {
+                var context = this;
+                retVal = new DFUWUDetailsWidget({
+                    Name: id,
+                    title: id,
+                    closable: true,
+                    onClose: function () {
+                        delete context.tabMap[id];
+                        return true;
+                    },
+                    params: params
+                });
+                this.tabMap[id] = retVal;
+                this.tabContainer.addChild(retVal, 3);
+            }
+            return retVal;
+        },
+
+       
+
         onRowDblClick: function (name) {
             var wuTab = this.ensurePane(name, {
                 Name: name
             });
             this.tabContainer.selectChild(wuTab);
+        },
+
+        onReplicate: function(name){
+            
+            var wuTab = this.ensureDetailsPane(name, {
+                Name: name
+            });
+            this.tabContainer.selectChild(wuTab);
+        },
+
+        onRowContextMenu: function (idx,item,colField,mystring) {
+            this.workunitsGrid.selection.clear(idx,true);
+            this.workunitsGrid.selection.setSelected(idx,true);
         }
     });
 });
