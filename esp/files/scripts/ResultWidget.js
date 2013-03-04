@@ -19,10 +19,12 @@ define([
     "dojo/dom",
     "dojo/request/iframe",
 
+
     "dijit/layout/_LayoutWidget",
     "dijit/_TemplatedMixin",
     "dijit/_WidgetsInTemplateMixin",
     "dijit/registry",
+    "dijit/TooltipDialog",
 
     "dojox/grid/enhanced/plugins/Pagination",
 
@@ -36,7 +38,7 @@ define([
     "dijit/ToolbarSeparator",
     "dojox/grid/EnhancedGrid"
 ], function (declare, lang, dom, iframe,
-                _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry,
+                _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry, TooltipDialog,
                 Pagination,
                 ESPBase,
                 template) {

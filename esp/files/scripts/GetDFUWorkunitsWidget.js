@@ -19,6 +19,9 @@ define([
     "dojo/data/ObjectStore",
     "dojo/date",
     "dojo/on",
+    "dijit/Menu",
+    "dijit/MenuItem",
+    "dijit/MenuSeparator",
 
     "dijit/layout/_LayoutWidget",
     "dijit/_TemplatedMixin",
@@ -44,7 +47,7 @@ define([
     "dijit/form/Select",
     "dijit/Toolbar",
     "dijit/TooltipDialog"
-], function (declare, dom, ObjectStore, date, on,
+], function (declare, dom, ObjectStore, date, on, Menu, MenuItem, MenuSeparator, 
                 _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry,
                 EnhancedGrid, Pagination, IndirectSelection,
                 FileSpray, DFUWUDetailsWidget,
@@ -158,43 +161,47 @@ define([
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
             this.refreshGrid();
         },
-        _onFilterClear: function(event) {
+
+        _onFilterSoapTest:function (event){
+
+        },
+
+        _onFilterLink:function (event){
+
+        },
+
+        _onFilterClearAll:function (event){
+
+        },
+
+        _onFilterReset: function(event) {
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
             dom.byId(this.id + "Owner").value = "";
-            dom.byId(this.id + "Jobname").value = "";
             dom.byId(this.id + "Cluster").value = "";
-            dom.byId(this.id + "State").value = "";
-            dom.byId(this.id + "ECL").value = "";
-            dom.byId(this.id + "LogicalFile").value = "";
-            dom.byId(this.id + "LogicalFileSearchType").value = "";
-            dom.byId(this.id + "FromDate").value = "";
-            dom.byId(this.id + "FromTime").value = "";
-            dom.byId(this.id + "ToDate").value = "";
-            dom.byId(this.id + "LastNDays").value = "";
+            dom.byId(this.id + "StateReq").value = "";
+            dom.byId(this.id + "Type").value = "";
+            dom.byId(this.id + "Jobname").value = "";
+            dom.byId(this.id + "PageSize").value = "";
+            dom.byId(this.id + "CurrentPage").value = "";
+            dom.byId(this.id + "PageStartFrom").value = "";
+            dom.byId(this.id + "Sortby").value = "";
+            dom.byId(this.id + "Descending").value = "";
             this.refreshGrid();
         },
 
         getFilter: function () {
             var retVal = {
                 Owner: dom.byId(this.id + "Owner").value,
-                Jobname: dom.byId(this.id + "Jobname").value,
                 Cluster: dom.byId(this.id + "Cluster").value,
-                State: dom.byId(this.id + "State").value,
-                ECL: dom.byId(this.id + "ECL").value,
-                LogicalFile: dom.byId(this.id + "LogicalFile").value,
-                LogicalFileSearchType: registry.byId(this.id + "LogicalFileSearchType").get("value"),
-                StartDate: this.getISOString("FromDate", "FromTime"),
-                EndDate: this.getISOString("ToDate", "ToTime"),
-                LastNDays: dom.byId(this.id + "LastNDays").value
+                StateReq: dom.byId(this.id + "StateReq").value,
+                Type: dom.byId(this.id + "Type").value,
+                Jobname: dom.byId(this.id + "Jobname").value,
+                PageSize: dom.byId(this.id + "PageSize").value,
+                CurrentPage: dom.byId(this.id + "CurrentPage").value,
+                PageStartFrom: dom.byId(this.id + "PageStartFrom").value,
+                Sortby: dom.byId(this.id + "Sortby").value,
+                //Descending: dom.byId(this.id + "Descending").value
             };
-            if (retVal.StartDate != "" && retVal.EndDate != "") {
-                retVal["DateRB"] = "0";
-            } else if (retVal.LastNDays != "") {
-                retVal["DateRB"] = "0";
-                var now = new Date();
-                retVal.StartDate = date.add(now, "day", dom.byId(this.id + "LastNDays").value * -1).toISOString();
-                retVal.EndDate = now.toISOString();
-            }
             return retVal;
         },
 
@@ -217,6 +224,39 @@ define([
         },
 
         initWorkunitsGrid: function() {
+
+            var pMenu;
+            var context = this;
+            
+            pMenu = new Menu({
+                targetNodeIds: [this.id + "WorkunitsGrid"]
+            });
+            pMenu.addChild(new MenuItem({
+                label: "Open",
+                onClick: function(){context._onOpen();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Delete",
+                onClick: function(){context._onDelete();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Set To Failed",
+                onClick: function(){context._onRename();}
+            }));
+            pMenu.addChild(new MenuSeparator());
+            pMenu.addChild(new MenuItem({
+                label: "Protect",
+                onClick: function(){context._onOpen();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Unprotect",
+                onClick: function(){context._onReplicate();}
+            }));
+            
+
+            pMenu.startup();
+
+
             this.workunitsGrid.setStructure([
 			    {
 				    name: "P",
