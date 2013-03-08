@@ -50,6 +50,7 @@ h1 {
     font-size: 1.5em;
 }
 
+
 /*Use this when creating a small popup form*/
 .smallForm label{
   float: left;
@@ -65,6 +66,15 @@ form {
     margin:0;
     padding:0;
     width:100%;
+}
+
+fieldset{
+    margin:10px 0;
+    border:dotted 1px #5ea4d6;
+}
+
+legend{
+font-size:20px;
 }
 
 form label{
@@ -125,16 +135,6 @@ form h2{
 
 #appLayout {
     height: 100%;
-}
-
-#longList label{
-    float: left;
-    width: 14%;
-    margin: 0 15px 0 0;
-    text-align: right;
-    padding-top: 4px;
-    font-weight:bold;
-    height:20px;
 }
 
 #loadingOverlay {
