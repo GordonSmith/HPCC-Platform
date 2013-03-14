@@ -1,17 +1,17 @@
 /*##############################################################################
-#	HPCC SYSTEMS software Copyright (C) 2012 HPCC Systems.
+#   HPCC SYSTEMS software Copyright (C) 2012 HPCC Systems.
 #
-#	Licensed under the Apache License, Version 2.0 (the "License");
-#	you may not use this file except in compliance with the License.
-#	You may obtain a copy of the License at
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
 #
-#	   http://www.apache.org/licenses/LICENSE-2.0
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-#	Unless required by applicable law or agreed to in writing, software
-#	distributed under the License is distributed on an "AS IS" BASIS,
-#	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#	See the License for the specific language governing permissions and
-#	limitations under the License.
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 ############################################################################## */
 define([
     "dojo/_base/declare",
@@ -22,10 +22,15 @@ define([
     "dojo/data/ObjectStore",
     "dojo/date",
     "dojo/on",
+    "dijit/Menu",
+    "dijit/MenuItem",
+    "dijit/MenuSeparator",
+    
 
     "dijit/_TemplatedMixin",
     "dijit/_WidgetsInTemplateMixin",
     "dijit/registry",
+    "dijit/Dialog",
 
     "dojox/grid/EnhancedGrid",
     "dojox/grid/enhanced/plugins/Pagination",
@@ -55,8 +60,8 @@ define([
 
     "hpcc/TargetSelectWidget"
 
-], function (declare, lang, arrayUtil, dom, domForm, ObjectStore, date, on,
-                _TemplatedMixin, _WidgetsInTemplateMixin, registry,
+], function (declare, lang, arrayUtil, dom, domForm, ObjectStore, date, on, Menu, MenuItem, MenuSeparator,
+                _TemplatedMixin, _WidgetsInTemplateMixin, registry, Dialog,
                 EnhancedGrid, Pagination, IndirectSelection,
                 _TabContainerWidget, WsDfu, ESPLogicalFile, LFDetailsWidget, SFDetailsWidget,
                 template) {
@@ -70,6 +75,7 @@ define([
 
         tabMap: [],
 
+
         postCreate: function (args) {
             this.inherited(arguments);
             this.workunitsTab = registry.byId(this.id + "_Workunits");
@@ -80,8 +86,9 @@ define([
 
         startup: function (args) {
             this.inherited(arguments);
-            this.refreshActionState();
             this.initWorkunitsGrid();
+            this.initFilter();
+            this.refreshActionState();
         },
 
         //  Hitched actions  ---
@@ -129,9 +136,18 @@ define([
             var d = registry.byId(this.id + "AddtoDropDown");
             registry.byId(this.id + "AddtoDropDown").closeDropDown();
         },
-        _onFilterApply: function (event) {
+        _onClickFilterApply: function (event) {
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
             this.refreshGrid();
+        },
+        _onFilterApply: function (event) {
+            this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
+            if (this.hasFilter()) {
+                registry.byId(this.id + "FilterDropDown").closeDropDown();
+                this.refreshGrid();
+            } else {
+                this.validateDialog.show();
+            }
         },
         _onFilterClear: function(event) {
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
@@ -158,6 +174,20 @@ define([
                 return d.toISOString();
             }
             return "";
+        },
+
+        hasFilter: function () {
+            return dom.byId(this.id + "Name").value !== "" ||
+               dom.byId(this.id + "Description").value !== "" ||
+               dom.byId(this.id + "Owner").value !== "" ||
+               //dom.byId(this.id + "ClusterTargetSelect").value !== "" ||
+               dom.byId(this.id + "FromSize").value !== "" ||
+               dom.byId(this.id + "ToSize").value !== "" ||
+               dom.byId(this.id + "FromDate").value !== "" ||
+               dom.byId(this.id + "FromTime").value !== "" ||
+               dom.byId(this.id + "ToDate").value !== "" ||
+               dom.byId(this.id + "ToTime").value !== "" ||
+               dom.byId(this.id + "LastNDays").value !== "";
         },
 
         getFilter: function () {
@@ -224,6 +254,36 @@ define([
         },
 
         initWorkunitsGrid: function() {
+            var pMenu;
+            var context = this;
+            pMenu = new Menu({
+                targetNodeIds: [this.id + "WorkunitsGrid"]
+            });
+            pMenu.addChild(new MenuItem({
+                label: "Refresh",
+                onClick: function(args){context._onRefresh();}
+            }));
+            pMenu.addChild(new MenuSeparator());
+            pMenu.addChild(new MenuItem({
+                label: "Open",
+                onClick: function(args){context._onOpen();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Delete",
+                onClick: function(args){context._onDelete();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Add To Superfile",
+                onClick: function(args){dijit.byId(context.id+"AddtoDropDown").openDropDown()}
+            }));
+            pMenu.addChild(new MenuSeparator());
+            pMenu.addChild(new MenuItem({
+                label: "Filter",
+                onClick: function(args){dijit.byId(context.id+"FilterDropDown").openDropDown()}
+            }));
+            pMenu.startup();
+
+
             this.workunitsGrid.setStructure([
                 {
                     name: "C",
@@ -280,6 +340,16 @@ define([
                 }
             }, true);
 
+             this.workunitsGrid.on("RowContextMenu", function (evt){
+                if (context.onRowContextMenu) {
+                    var idx = evt.rowIndex;
+                    var colField = evt.cell.field;
+                    var item = this.getItem(idx);
+                    var mystring = "item." + colField;
+                    context.onRowContextMenu(idx,item,colField,mystring);
+                }
+            }, true);
+
             dojo.connect(this.workunitsGrid.selection, 'onSelected', function (idx) {
                 context.refreshActionState();
             });
@@ -289,6 +359,19 @@ define([
 
             this.workunitsGrid.startup();
         },
+
+        initFilter: function () {
+            this.validateDialog = new Dialog({
+                title: "Filter",
+                content: "No filter criteria specified."
+            });
+            dojo.connect(registry.byId(this.id + "FromDate"), 'onClick', function (evt) {
+            });
+            dojo.connect(registry.byId(this.id + "ToDate"), 'onClick', function (evt) {
+            });
+        },
+
+        
 
         refreshGrid: function (args) {
             this.workunitsGrid.setQuery(this.getFilter());
@@ -301,6 +384,7 @@ define([
         refreshActionState: function () {
             var selection = this.workunitsGrid.selection.getSelected();
             var hasSelection = false;
+            var hasFilter = this.hasFilter();
             for (var i = 0; i < selection.length; ++i) {
                 hasSelection = true;
             }
@@ -308,6 +392,7 @@ define([
             registry.byId(this.id + "Open").set("disabled", !hasSelection);
             registry.byId(this.id + "Delete").set("disabled", !hasSelection);
             registry.byId(this.id + "AddtoDropDown").set("disabled", !hasSelection);
+            dom.byId(this.id + "IconFilter").src = hasFilter ? "img/filter.png" : "img/noFilter.png";
         },
 
         ensurePane: function (id, params) {
@@ -350,6 +435,11 @@ define([
         onRowDblClick: function (item) {
             var wuTab = this.ensurePane(this.id + "_" + item.Name, item);
             this.selectChild(wuTab);
+        },
+
+         onRowContextMenu: function (idx,item,colField,mystring) {
+            this.workunitsGrid.selection.clear(idx,true);
+            this.workunitsGrid.selection.setSelected(idx,true);
         }
     });
 });
