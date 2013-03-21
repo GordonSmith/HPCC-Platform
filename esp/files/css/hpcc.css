@@ -50,6 +50,7 @@ h1 {
     font-size: 1.5em;
 }
 
+
 /*Use this when creating a small popup form*/
 .smallForm label{
   float: left;
@@ -65,6 +66,15 @@ form {
     margin:0;
     padding:0;
     width:100%;
+}
+
+fieldset{
+    margin:10px 0;
+    border:dotted 1px #5ea4d6;
+}
+
+legend{
+font-size:20px;
 }
 
 form label{
@@ -108,6 +118,147 @@ form h2{
 }
 
 /*IDs************************/
+#files{
+    border:solid 1px #DBDBDB;
+    width:95%;
+    margin:auto;
+    padding:20px;
+}
+
+
+#hpccTitlebar{
+background:#353535;
+height:60px;
+margin:0px;
+padding:0px;
+overflow: hidden;
+}
+
+
+#hoverIcon :hover{
+    background-color:#4f4f4f;
+}
+
+#homeStackController .dijitToggleButton .dijitButtonNode {
+    background-color: #353535;
+    background:none;
+    box-shadow: none;
+}
+
+#homeStackController span:nth-child(1){
+background-image: url("../img/hpcc_systems_logo.png");
+width:228px;
+height:50px;
+}
+
+
+#homeStackController span:nth-child(2){
+background-image: url("../img/icon_ecl.png");
+width:45px;
+height:45px;
+margin-left:20px;
+}
+
+#homeStackController span:nth-child(3){
+background-image: url("../img/icon_ecl.png");
+width:45px;
+height:45px;
+margin-left:20px;
+}
+
+#homeStackController span:nth-child(4){
+background-image: url("../img/icon_ecl.png");
+width:45px;
+height:45px;
+margin-left:20px;
+}
+
+#homeStackController .dijitButtonContents{
+    display:none;
+    border:none;
+}
+
+#homeStackController .dijitButtonNode{
+    border:none;
+}
+
+#homeStackController .dijitReset{
+    cursor: pointer;
+}
+
+#userTools{
+    float:right;
+}
+
+#userAccount{
+    float:left;
+    text-align: left;
+    padding:5px 20px 0 0;
+    text-align: right;
+    padding-top:10px;
+}
+
+
+#userAccount a{
+    color:rgb(0, 160, 224);
+}
+
+
+#userIcons{
+    width:148px;
+    float:left;
+    text-align: center;
+}
+
+#userIcons img{
+    padding-top:10px;
+    border:none;
+}
+
+#userIcons .dijitDropDownButton .dijitButtonNode{
+    border:none;
+    padding:0;
+    background: none;
+    box-shadow: none;
+}
+
+
+
+#userIcons .holder span:nth-child(1) {
+    border:none;
+    margin:0 0 12px 0;
+    padding:0;
+    outline: none;
+}
+
+#search-form{
+    padding:0;
+    margin:0;
+    float:left;
+    width:300px;
+    margin-top:8px;
+}
+
+#search-form :focus{
+    outline: none;
+}
+
+#search-form input{
+    color:#666;
+}
+
+#userIcons .dijitButtonText{
+    padding:0px;
+}
+
+#userIcons .dijitArrowButtonInner{
+    display:none;
+}
+
+#userIcons .dijitFocused{
+    border:none;
+}
+
 
 #myProgressBar{
     width:200px;
@@ -125,16 +276,6 @@ form h2{
 
 #appLayout {
     height: 100%;
-}
-
-#longList label{
-    float: left;
-    width: 14%;
-    margin: 0 15px 0 0;
-    text-align: right;
-    padding-top: 4px;
-    font-weight:bold;
-    height:20px;
 }
 
 #loadingOverlay {
@@ -164,6 +305,74 @@ form h2{
 }
 
 /*CLASSES******************/
+.holder :focus{
+    outline: none;
+}
+
+.roundForm {
+    width:250px;
+    border-radius: 5px;
+    padding: 3px 3px 3px 15px;
+}
+
+.corner {
+    border: 0px;
+    margin:0 0 6px -25px;
+    vertical-align:bottom;
+    background-color: transparent; /*important*/
+}
+
+
+.holder{
+    width:40px;
+    height:60px;
+    float:left;
+}
+
+.seperator{
+    width:1px;
+    height:35px;
+    float:left;
+    margin:10px 10px 0 10px;
+}
+
+.grey{
+background-color: rgb(80, 80, 80);
+}
+
+.white{
+    background-color:rgb(255,255,255);
+}
+.left{float:left;}
+
+.right{float:right;}
+
+.hidden{
+    color:rgb(214, 214, 214);
+    display: none !important;
+}
+
+.show{
+    display:block;
+}
+
+.hpccApp {
+    height: 100%;
+}
+
+.navBarLoggedin{
+    text-transform: uppercase;
+    color:rgb(255,255,255);
+    display: block;
+}
+
+.claro .hpccApp .hpccTitlebar {
+    background-color: rgb(0, 108, 204);
+}
+
+
+
+
 .hidden{
     color:rgb(214, 214, 214);
     display: none !important;
@@ -236,6 +445,35 @@ margin-left:-20px;
 .smallForm .dijitValidationTextBoxLabel {
     width: auto;
 }
+
+.dojoxUploaderIndex, .dojoxUploaderIcon, .dojoxUploaderFileName{
+padding:5px 0 5px 10px;
+color:rgb(40, 40, 40);
+text-align: left;
+}
+
+.fileDialog{
+    padding:20px;
+}
+
+.fileDialog submit{
+
+    padding-top:5px;
+}
+
+.dijitIconUser {
+    background-position: 0px 0px;
+    width:30px;
+    height:30px;
+}
+
+
+.dijitIconHelp {
+    background-position: -20px 0px;
+    width:20px;
+    height:30px;
+}
+
 
 .iconAlign{
     vertical-align: middle;
