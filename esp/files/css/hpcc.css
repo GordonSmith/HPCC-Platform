@@ -108,6 +108,144 @@ form h2{
 }
 
 /*IDs************************/
+#files{
+    border:solid 1px #DBDBDB;
+    width:95%;
+    margin:auto;
+    padding:20px;
+}
+
+#hpccTitlebar {
+    background: rgb(46, 112, 150);
+    height: 51px;
+    margin: 0px;
+    padding: 2px;
+    overflow: hidden;
+}
+
+#hoverIcon :hover{
+    background-color:rgb(118, 157, 192);
+}
+
+#homeStackController .dijitToggleButton .dijitButtonNode {
+    background-color: #353535;
+    background:none;
+    box-shadow: none;
+}
+
+#homeStackController span:nth-child(1) {
+    background-image: url("../img/hpcc_systems_logo.png");
+    width: 180px;
+    height: 45px;
+}
+
+#homeStackController :hover{
+    background-color:rgb(118, 157, 192);
+}
+
+#homeStackController span:nth-child(2) {
+    background-image: url("../img/ecl_icon.png");
+    width: 45px;
+    height: 45px;
+}
+
+#homeStackController span:nth-child(3) {
+    background-image: url("../img/files_icon.png");
+    width: 45px;
+    height: 45px;
+}
+
+#homeStackController span:nth-child(4) {
+    background-image: url("../img/dfu_icon.png");
+    width: 45px;
+    height: 45px;
+}
+
+#homeStackController span:nth-child(5) {
+    background-image: url("../img/ops_icon.png");
+    width: 45px;
+    height: 45px;
+}
+
+#homeStackController .dijitButtonContents{
+    display:none;
+    border:none;
+}
+
+#homeStackController .dijitButtonNode{
+    border:none;
+}
+
+#homeStackController .dijitReset{
+    cursor: pointer;
+}
+
+#userTools{
+    float:right;
+}
+
+#userAccount{
+    float:left;
+    text-align: left;
+    padding:5px 20px 0 0;
+    text-align: right;
+    padding-top:10px;
+}
+
+#userAccount a{
+    color:rgb(0, 160, 224);
+}
+
+#userIcons{
+    float:left;
+    text-align: center;
+}
+
+#userIcons img{
+    border:none;
+}
+
+#userIcons .dijitDropDownButton .dijitButtonNode{
+    border:none;
+    padding:0;
+    background: none;
+    box-shadow: none;
+}
+
+#userIcons .holder span:nth-child(1) {
+    border:none;
+    margin:0 0 0 0;
+    padding:0;
+    outline: none;
+}
+
+#search-form{
+    padding:0;
+    margin:0;
+    float:left;
+    width:300px;
+    margin-top:8px;
+}
+
+#search-form :focus{
+    outline: none;
+}
+
+#search-form input{
+    color:#666;
+}
+
+#userIcons .dijitButtonText{
+    padding:0px;
+}
+
+#userIcons .dijitArrowButtonInner{
+    display:none;
+}
+
+#userIcons .dijitFocused{
+    border:none;
+}
 
 #myProgressBar{
     width:200px;
@@ -164,6 +302,77 @@ form h2{
 }
 
 /*CLASSES******************/
+.holder :focus{
+    outline: none;
+}
+
+.roundForm {
+    width:250px;
+    border-radius: 5px;
+    padding: 3px 3px 3px 15px;
+}
+
+.corner {
+    border: 0px;
+    margin:0 0 3px -25px;
+    vertical-align:bottom;
+    background-color: transparent; /*important*/
+}
+
+.holder{
+    width:40px;
+    height:60px;
+    float:left;
+}
+
+.seperator{
+    width:1px;
+    height:40px;
+    float:left;
+    margin-left: 2px;
+    margin-top: 5px;
+    margin-right: 2px;
+    margin-bottom: 5px;
+}
+
+.titleLowLite {
+    background-color: rgb(24, 59, 79);
+}
+
+.grey{
+background-color: rgb(80, 80, 80);
+}
+
+.white{
+    background-color:rgb(255,255,255);
+}
+.left{float:left;}
+
+.right{float:right;}
+
+.hidden{
+    color:rgb(214, 214, 214);
+    display: none !important;
+}
+
+.show{
+    display:block;
+}
+
+.hpccApp {
+    height: 100%;
+}
+
+.navBarLoggedin{
+    text-transform: uppercase;
+    color:rgb(255,255,255);
+    display: block;
+}
+
+.claro .hpccApp .hpccTitlebar {
+    background-color: rgb(0, 108, 204);
+}
+
 .hidden{
     color:rgb(214, 214, 214);
     display: none !important;

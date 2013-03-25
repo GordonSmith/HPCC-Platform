@@ -55,8 +55,6 @@ define([
         borderContainer: null,
         tabContainer: null,
         workunitsGrid: null,
-        legacyPane: null,
-        legacyPaneLoaded: false,
 
         tabMap: [],
 
@@ -69,19 +67,10 @@ define([
             this.borderContainer = registry.byId(this.id + "BorderContainer");
             this.tabContainer = registry.byId(this.id + "TabContainer");
             this.workunitsGrid = registry.byId(this.id + "WorkunitsGrid");
-            this.legacyPane = registry.byId(this.id + "Legacy");
 
             var context = this;
             this.tabContainer.watch("selectedChildWidget", function (name, oval, nval) {
                 if (nval.id == context.id + "Workunits") {
-                } else if (nval.id == context.id + "Legacy") {
-                    if (!context.legacyPaneLoaded) {
-                        context.legacyPaneLoaded = true;
-                        context.legacyPane.set("content", dojo.create("iframe", {
-                            src: "/FileSpray/GetDFUWorkunits",
-                            style: "border: 0; width: 100%; height: 100%"
-                        }));
-                    }
                 } else {
                     if (!nval.initalized) {
                         nval.init(nval.params);
@@ -221,48 +210,48 @@ define([
 
         initWorkunitsGrid: function() {
             this.workunitsGrid.setStructure([
-			    {
-				    name: "P",
-				    field: "isProtected",
-				    width: "20px",
-				    formatter: function (_protected) {
-				        if (_protected == true) {
-					        return "P";
-					    }
-					    return "";
-				    }
-			    },
-			    { name: "ID", field: "ID", width: "12" },
-			    {
-			        name: "Type",
-			        field: "Command",
-			        width: "8",
-			        formatter: function (command) {
-			            switch (command) {
-			                case 1: return "Copy";
-			                case 2: return "Remove";
-			                case 3: return "Move";
-			                case 4: return "Rename";
-			                case 5: return "Replicate";
-			                case 6: return "Spray";
-			                case 7: return "Despray";
-			                case 8: return "Add";
-			                case 9: return "Transfer";
-			                case 10: return "Save Map";
-			                case 11: return "Add Group";
-			                case 12: return "Server";
-			                case 13: return "Monitor";
-			                case 14: return "Copy Merge";
-			                case 15: return "Super Copy";
-			            }
-			            return "Unknown";
-			        }
-			    },
-			    { name: "Owner", field: "Owner", width: "8" },
-			    { name: "Job Name", field: "JobName", width: "16" },
-			    { name: "Cluster", field: "ClusterName", width: "8" },
-			    { name: "State", field: "StateMessage", width: "8" },
-			    { name: "% Complete", field: "PercentDone", width: "8" }
+                {
+                    name: "P",
+                    field: "isProtected",
+                    width: "20px",
+                    formatter: function (_protected) {
+                        if (_protected == true) {
+                            return "P";
+                        }
+                        return "";
+                    }
+                },
+                { name: "ID", field: "ID", width: "12" },
+                {
+                    name: "Type",
+                    field: "Command",
+                    width: "8",
+                    formatter: function (command) {
+                        switch (command) {
+                            case 1: return "Copy";
+                            case 2: return "Remove";
+                            case 3: return "Move";
+                            case 4: return "Rename";
+                            case 5: return "Replicate";
+                            case 6: return "Spray";
+                            case 7: return "Despray";
+                            case 8: return "Add";
+                            case 9: return "Transfer";
+                            case 10: return "Save Map";
+                            case 11: return "Add Group";
+                            case 12: return "Server";
+                            case 13: return "Monitor";
+                            case 14: return "Copy Merge";
+                            case 15: return "Super Copy";
+                        }
+                        return "Unknown";
+                    }
+                },
+                { name: "Owner", field: "Owner", width: "8" },
+                { name: "Job Name", field: "JobName", width: "16" },
+                { name: "Cluster", field: "ClusterName", width: "8" },
+                { name: "State", field: "StateMessage", width: "8" },
+                { name: "% Complete", field: "PercentDone", width: "8" }
             ]);
             var store = new FileSpray.GetDFUWorkunits();
             var objStore = new ObjectStore({ objectStore: store });
@@ -332,7 +321,7 @@ define([
                 retVal = new DFUWUDetailsWidget({
                     Wuid: id,
                     title: id,
-                    closable: true,
+                    closable: false,
                     onClose: function () {
                         delete context.tabMap[id];
                         return true;

@@ -68,8 +68,8 @@ public:
         ensureNavLink(*folder, "XRef", "/WsDFUXRef/DFUXRefList", "View Xref result details or run the Xref utility", NULL, NULL, 12);
 
         IPropertyTree *folderTP = CEspBinding::ensureNavFolder(data, "Tech Preview", "Technical Preview");
-        CEspBinding::ensureNavLink(*folderTP, "DFU Workunits", "/esp/files/stub.htm?Widget=GetDFUWorkunitsWidget", "DFU Workunits", NULL, NULL, 2);
-        CEspBinding::ensureNavLink(*folderTP, "Logical Files", "/esp/files/stub.htm?Widget=DFUWUQueryWidget", "Logical Files", NULL, NULL, 3);
+        CEspBinding::ensureNavLink(*folderTP, "DFU Workunits", "/esp/files/stub.htm?Widget=GetDFUWorkunitsWidget", "DFU Workunits", NULL, NULL, 3);
+        CEspBinding::ensureNavLink(*folderTP, "Logical Files", "/esp/files/stub.htm?Widget=DFUWUQueryWidget", "Logical Files", NULL, NULL, 4);
     }
 
     int onGetInstantQuery(IEspContext &context, CHttpRequest* request, CHttpResponse* response, const char *service, const char *method);
