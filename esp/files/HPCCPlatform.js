@@ -30,12 +30,13 @@ define([
     "dijit/layout/StackController",
     "dijit/layout/ContentPane",
     "dijit/form/Button",
+    "dijit/Tooltip",
 
     "hpcc/WUQueryWidget",
     "hpcc/GetDFUWorkunitsWidget",
     "hpcc/DFUWUQueryWidget"
 ], function (lang, fx, baseWindow, dom, domStyle, domGeometry, ioQuery, topic, ready,
-        Toaster, Standby, StackContainer, StackController, ContentPane, Button,
+        Toaster, Standby, StackContainer, StackController, ContentPane, Button, Tooltip,
         WUQueryWidget, GetDFUWorkunitsWidget, DFUWUQueryWidget
         ) {
     var initUi = function () {
@@ -46,6 +47,38 @@ define([
             messageTopic: 'hpcc/brToaster'
         });
         return;
+    },
+
+    startTips  = function(){
+        new Tooltip({
+            connectId: ["info"],
+            label: "Additional information",
+            position: ["below"]
+        });
+
+        new Tooltip({
+            connectId: ["dijit_layout_StackController_0_Workunits"],
+            label: "Active Workunits",
+            position: ["below"]
+        });
+
+        new Tooltip({
+            connectId: ["dijit_layout_StackController_0_DFUWorkunits"],
+            label: "DFU Workunits",
+            position: ["below"]
+        });
+
+        new Tooltip({
+            connectId: ["dijit_layout_StackController_0_DFUWidget"],
+            label: "DFU Workunit Query",
+            position: ["below"]
+        });
+
+        new Tooltip({
+            connectId: ["dijit_layout_StackController_0_Operations"],
+            label: "Operations",
+            position: ["below"]
+        });
     },
 
     startLoading = function (targetNode) {
@@ -68,6 +101,8 @@ define([
                 domStyle.set(node, "display", "none");
             }
         }).play();
+
+
     };
 
     return {
@@ -75,6 +110,7 @@ define([
             startLoading();
             ready(function () {
                 initUi();
+                startTips();
                 endLoading();
             });
         }

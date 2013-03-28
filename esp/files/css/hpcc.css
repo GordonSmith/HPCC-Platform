@@ -125,58 +125,80 @@ form h2{
 
 #hoverIcon :hover{
     background-color:rgb(118, 157, 192);
+     cursor: pointer;
 }
 
-#homeStackController .dijitToggleButton .dijitButtonNode {
-    background-color: #353535;
-    background:none;
+ .claro #hpccTitlebar .dijitToggleButton .dijitButtonNode{
+    background: none;
+    border:none;
     box-shadow: none;
+    margin:0;
+    cursor: pointer;
 }
 
-#homeStackController span:nth-child(1) {
+.claro #hpccTitlebar .dijitToggleButton, .dijitButton, .dijitDropDownButton, .dijitComboButton{
+    margin:0;
+    cursor: pointer;
+}
+
+/*.dijitToggleButtonChecked {
+    cursor: pointer;
+}
+
+ .dijitReset{
+    cursor: pointer;
+}
+
+.dijitChecked{
+    cursor: pointer;
+}
+
+
+*/
+#hpccTitlebar :focus {
+ 
+    outline: none;
+
+}
+
+
+
+#hpccTitlebar .dijitStackController .dijitToggleButtonChecked *{
+    cursor: pointer;
+}
+
+.iconLogo{
     background-image: url("../img/hpcc_systems_logo.png");
     width: 180px;
     height: 45px;
+    cursor: pointer;
 }
 
-#homeStackController :hover{
-    background-color:rgb(118, 157, 192);
+.iconWu {
+    background-image: url("../img/Cog.png");
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
 }
 
-#homeStackController span:nth-child(2) {
-    background-image: url("../img/ecl_icon.png");
-    width: 45px;
-    height: 45px;
+.iconDFU {
+    background-image: url("../img/Folder.png");
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
 }
 
-#homeStackController span:nth-child(3) {
-    background-image: url("../img/files_icon.png");
-    width: 45px;
-    height: 45px;
+.iconGetDFU {
+    background-image: url("../img/Folder_Smart.png");
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
 }
 
-#homeStackController span:nth-child(4) {
-    background-image: url("../img/dfu_icon.png");
-    width: 45px;
-    height: 45px;
-}
-
-#homeStackController span:nth-child(5) {
-    background-image: url("../img/ops_icon.png");
-    width: 45px;
-    height: 45px;
-}
-
-#homeStackController .dijitButtonContents{
-    display:none;
-    border:none;
-}
-
-#homeStackController .dijitButtonNode{
-    border:none;
-}
-
-#homeStackController .dijitReset{
+.iconOperations{
+    background-image: url("../img/preferences_system.png");
+    width: 32px;
+    height: 32px;
     cursor: pointer;
 }
 
@@ -193,7 +215,7 @@ form h2{
 }
 
 #userAccount a{
-    color:rgb(0, 160, 224);
+    color:rgb(164, 220, 245);
 }
 
 #userIcons{
@@ -203,6 +225,7 @@ form h2{
 
 #userIcons img{
     border:none;
+    margin-top:8px;
 }
 
 #userIcons .dijitDropDownButton .dijitButtonNode{
@@ -314,8 +337,8 @@ form h2{
 
 .corner {
     border: 0px;
-    margin:0 0 3px -25px;
-    vertical-align:bottom;
+    margin:0 0 3px -30px;
+    vertical-align:middle;
     background-color: transparent; /*important*/
 }
 
