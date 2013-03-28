@@ -128,7 +128,7 @@ form h2{
      cursor: pointer;
 }
 
-.claro .dijitToggleButton .dijitButtonNode{
+ .claro #hpccTitlebar .dijitToggleButton .dijitButtonNode{
     background: none;
     border:none;
     box-shadow: none;
@@ -136,7 +136,7 @@ form h2{
     cursor: pointer;
 }
 
-.claro .dijitToggleButton, .dijitButton, .dijitDropDownButton, .dijitComboButton{
+.claro #hpccTitlebar .dijitToggleButton, .dijitButton, .dijitDropDownButton, .dijitComboButton{
     margin:0;
     cursor: pointer;
 }
@@ -163,7 +163,7 @@ form h2{
 
 
 
-.dijitStackController .dijitToggleButtonChecked *{
+#hpccTitlebar .dijitStackController .dijitToggleButtonChecked *{
     cursor: pointer;
 }
 
