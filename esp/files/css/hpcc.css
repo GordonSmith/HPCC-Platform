@@ -27,6 +27,19 @@ html, body {
     padding: 0;
 }
 
+/*form table{
+    table-layout: fixed;
+}
+
+form table td{
+    padding: 5px 0;
+}
+
+form .dijitCheckBoxInput{
+    
+    border:solid 1px red;
+}*/
+
 button {
     background-position: top;
     padding: 2px 8px 4px;
@@ -174,7 +187,7 @@ form h2{
 }
 
 .toolTip{
-width:500px;
+width:inherit;
 }
 
 .toolTip img{

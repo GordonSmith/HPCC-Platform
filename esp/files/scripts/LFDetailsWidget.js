@@ -1,17 +1,17 @@
 /*##############################################################################
-#	HPCC SYSTEMS software Copyright (C) 2012 HPCC Systems.
+#   HPCC SYSTEMS software Copyright (C) 2012 HPCC Systems.
 #
-#	Licensed under the Apache License, Version 2.0 (the "License");
-#	you may not use this file except in compliance with the License.
-#	You may obtain a copy of the License at
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
 #
-#	   http://www.apache.org/licenses/LICENSE-2.0
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-#	Unless required by applicable law or agreed to in writing, software
-#	distributed under the License is distributed on an "AS IS" BASIS,
-#	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#	See the License for the specific language governing permissions and
-#	limitations under the License.
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 ############################################################################## */
 define([
     "exports",
@@ -76,8 +76,6 @@ define([
         workunitWidgetLoaded: false,
         dfuWorkunitWidget: null,
         dfuWorkunitWidgetLoaded: false,
-        legacyPane: null,
-        legacyPaneLoaded: false,
 
         logicalFile: null,
         prevState: "",
@@ -93,7 +91,6 @@ define([
             this.filePartsWidget = registry.byId(this.id + "_FileParts");
             this.workunitWidget = registry.byId(this.id + "_Workunit");
             this.dfuWorkunitWidget = registry.byId(this.id + "_DFUWorkunit");
-            this.legacyPane = registry.byId(this.id + "_Legacy");
             this.copyTargetSelect = registry.byId(this.id + "CopyTargetSelect");
             this.desprayTargetSelect = registry.byId(this.id + "DesprayTargetSelect");
         },
@@ -216,12 +213,6 @@ define([
                 this.dfuWorkunitWidget.init({
                     Wuid: this.logicalFile.Wuid
                 });
-            } else if (currSel.id == this.legacyPane.id && !this.legacyPaneLoaded) {
-                this.legacyPaneLoaded = true;
-                this.legacyPane.set("content", dojo.create("iframe", {
-                    src: "/WsDfu/DFUInfo?Name=" + this.logicalFile.Name,//+ "&Cluster=" + this.logicalFile.cluster,
-                    style: "border: 0; width: 100%; height: 100%"
-                }));
             }
         },
 

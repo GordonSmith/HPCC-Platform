@@ -1,31 +1,37 @@
 /*##############################################################################
-#	HPCC SYSTEMS software Copyright (C) 2012 HPCC Systems.
+#   HPCC SYSTEMS software Copyright (C) 2012 HPCC Systems.
 #
-#	Licensed under the Apache License, Version 2.0 (the "License");
-#	you may not use this file except in compliance with the License.
-#	You may obtain a copy of the License at
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
 #
-#	   http://www.apache.org/licenses/LICENSE-2.0
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-#	Unless required by applicable law or agreed to in writing, software
-#	distributed under the License is distributed on an "AS IS" BASIS,
-#	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#	See the License for the specific language governing permissions and
-#	limitations under the License.
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 ############################################################################## */
 define([
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/_base/array",
     "dojo/dom",
+    "dojo/dom-class",
     "dojo/dom-form",
     "dojo/data/ObjectStore",
     "dojo/date",
     "dojo/on",
-
+    
     "dijit/_TemplatedMixin",
     "dijit/_WidgetsInTemplateMixin",
     "dijit/registry",
+    "dijit/Dialog",
+    "dijit/Menu",
+    "dijit/MenuItem",
+    "dijit/MenuSeparator",
+
 
     "dojox/grid/EnhancedGrid",
     "dojox/grid/enhanced/plugins/Pagination",
@@ -36,6 +42,7 @@ define([
     "hpcc/ESPLogicalFile",
     "hpcc/LFDetailsWidget",
     "hpcc/SFDetailsWidget",
+    "hpcc/TargetSelectWidget",
 
     "dojo/text!../templates/DFUWUQueryWidget.html",
 
@@ -51,22 +58,18 @@ define([
     "dijit/Toolbar",
     "dijit/TooltipDialog",
 
-    "dojox/layout/TableContainer",
+    "dojox/layout/TableContainer"
 
-    "hpcc/TargetSelectWidget"
-
-], function (declare, lang, arrayUtil, dom, domForm, ObjectStore, date, on,
-                _TemplatedMixin, _WidgetsInTemplateMixin, registry,
+], function (declare, lang, arrayUtil, dom, domClass, domForm, ObjectStore, date, on,
+                _TemplatedMixin, _WidgetsInTemplateMixin, registry, Dialog, Menu, MenuItem, MenuSeparator,
                 EnhancedGrid, Pagination, IndirectSelection,
-                _TabContainerWidget, WsDfu, ESPLogicalFile, LFDetailsWidget, SFDetailsWidget,
+                _TabContainerWidget, WsDfu, ESPLogicalFile, LFDetailsWidget, SFDetailsWidget, TargetSelectWidget,
                 template) {
     return declare("DFUWUQueryWidget", [_TabContainerWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
         baseClass: "DFUWUQueryWidget",
         workunitsTab: null,
         workunitsGrid: null,
-        legacyPane: null,
-        legacyPaneLoaded: false,
 
         tabMap: [],
 
@@ -74,14 +77,14 @@ define([
             this.inherited(arguments);
             this.workunitsTab = registry.byId(this.id + "_Workunits");
             this.workunitsGrid = registry.byId(this.id + "WorkunitsGrid");
-            this.legacyPane = registry.byId(this.id + "_Legacy");
             this.clusterTargetSelect = registry.byId(this.id + "ClusterTargetSelect");
         },
 
         startup: function (args) {
             this.inherited(arguments);
-            this.refreshActionState();
             this.initWorkunitsGrid();
+            this.initFilter();
+            this.refreshActionState();
         },
 
         //  Hitched actions  ---
@@ -102,6 +105,7 @@ define([
                 this.selectChild(firstTab, true);
             }
         },
+
         _onDelete: function (event) {
             if (confirm('Delete selected files?')) {
                 var context = this;
@@ -113,6 +117,7 @@ define([
                 });
             }
         },
+
         _onAddToSuperfileOk: function (event) {
             var context = this;
             var formData = domForm.toObject(this.id + "AddToSuperfileForm");
@@ -125,23 +130,35 @@ define([
             var d = registry.byId(this.id + "AddtoDropDown");
             registry.byId(this.id + "AddtoDropDown").closeDropDown();
         },
+
         _onAddToSuperfileCancel: function (event) {
             var d = registry.byId(this.id + "AddtoDropDown");
             registry.byId(this.id + "AddtoDropDown").closeDropDown();
         },
+
         _onFilterApply: function (event) {
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
-            this.refreshGrid();
+            if (this.hasFilter()) {
+                registry.byId(this.id + "FilterDropDown").closeDropDown();
+                this.refreshGrid();
+            } else {
+                registry.byId(this.id + "FilterDropDown").closeDropDown();
+                this.validateDialog.show();
+            }
         },
+
         _onFilterClear: function(event) {
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
             var context = this;
             arrayUtil.forEach(registry.byId(this.id + "FilterForm").getDescendants(), function (item, idx) {
+               
                 if (item.id == context.id + "ClusterTargetSelect") {
                     item.setValue("");
                 } else {
+
                     item.set('value', null);
                 }
+
             });
             this.refreshGrid();
         },
@@ -160,6 +177,16 @@ define([
             return "";
         },
 
+        hasFilter: function () {
+            var filter = domForm.toObject(this.id + "FilterForm")
+            for (var key in filter) {
+                if (filter[key] != ""){
+                    return true
+                }
+            }
+            return false
+        },
+
         getFilter: function () {
             var retVal = domForm.toObject(this.id + "FilterForm");
             lang.mixin(retVal, {
@@ -168,9 +195,9 @@ define([
                 EndDate: this.getISOString("ToDate", "ToTime")
             });
             if (retVal.StartDate != "" && retVal.EndDate != "") {
-            } else if (retVal.LastNDays) {
+            } else if (retVal.FirstN) {
                 var now = new Date();
-                retVal.StartDate = date.add(now, "day", dom.byId(this.id + "LastNDays").value * -1).toISOString();
+                retVal.StartDate = date.add(now, "day", dom.byId(this.id + "FirstN").value * -1).toISOString();
                 retVal.EndDate = now.toISOString();
             }
             return retVal;
@@ -195,8 +222,6 @@ define([
             if (this.initalized)
                 return;
             this.initalized = true;
-
-            this.selectChild(this.legacyPane, true);
             this.clusterTargetSelect.init({
                 Groups: true,
                 includeBlank: true
@@ -207,14 +232,6 @@ define([
             var currSel = this.getSelectedChild();
             if (currSel && !currSel.initalized) {
                 if (currSel.id == this.workunitsTab.id) {
-                } else if (currSel.id == this.legacyPane.id) {
-                    if (!this.legacyPaneLoaded) {
-                        this.legacyPaneLoaded = true;
-                        this.legacyPane.set("content", dojo.create("iframe", {
-                            src: "/WsDfu/DFUQuery",
-                            style: "border: 0; width: 100%; height: 100%"
-                        }));
-                    }
                 } else {
                     if (!currSel.initalized) {
                         currSel.init(currSel._hpccParams);
@@ -224,6 +241,35 @@ define([
         },
 
         initWorkunitsGrid: function() {
+            var pMenu;
+            var context = this;
+            pMenu = new Menu({
+                targetNodeIds: [this.id + "WorkunitsGrid"]
+            });
+            pMenu.addChild(new MenuItem({
+                label: "Refresh",
+                onClick: function(args){context._onRefresh();}
+            }));
+            pMenu.addChild(new MenuSeparator());
+            pMenu.addChild(new MenuItem({
+                label: "Open",
+                onClick: function(args){context._onOpen();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Delete",
+                onClick: function(args){context._onDelete();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Add To Superfile",
+                onClick: function(args){dijit.byId(context.id+"AddtoDropDown").openDropDown()}
+            }));
+            pMenu.addChild(new MenuSeparator());
+            pMenu.addChild(new MenuItem({
+                label: "Filter",
+                onClick: function(args){dijit.byId(context.id+"FilterDropDown").openDropDown()}
+            }));
+            pMenu.startup();
+
             this.workunitsGrid.setStructure([
                 {
                     name: "C",
@@ -280,6 +326,16 @@ define([
                 }
             }, true);
 
+             this.workunitsGrid.on("RowContextMenu", function (evt){
+                if (context.onRowContextMenu) {
+                    var idx = evt.rowIndex;
+                    var colField = evt.cell.field;
+                    var item = this.getItem(idx);
+                    var mystring = "item." + colField;
+                    context.onRowContextMenu(idx,item,colField,mystring);
+                }
+            }, true);
+
             dojo.connect(this.workunitsGrid.selection, 'onSelected', function (idx) {
                 context.refreshActionState();
             });
@@ -288,6 +344,14 @@ define([
             });
 
             this.workunitsGrid.startup();
+        },
+
+        initFilter: function () {
+            this.validateDialog = new Dialog({
+                title: "Filter",
+                content: "No filter criteria specified."
+            });
+          
         },
 
         refreshGrid: function (args) {
@@ -301,13 +365,14 @@ define([
         refreshActionState: function () {
             var selection = this.workunitsGrid.selection.getSelected();
             var hasSelection = false;
+            var hasFilter = this.hasFilter();
             for (var i = 0; i < selection.length; ++i) {
                 hasSelection = true;
             }
-
             registry.byId(this.id + "Open").set("disabled", !hasSelection);
             registry.byId(this.id + "Delete").set("disabled", !hasSelection);
             registry.byId(this.id + "AddtoDropDown").set("disabled", !hasSelection);
+            dom.byId(this.id + "IconFilter").src = hasFilter ? "img/filter.png" : "img/noFilter.png";
         },
 
         ensurePane: function (id, params) {
@@ -350,6 +415,11 @@ define([
         onRowDblClick: function (item) {
             var wuTab = this.ensurePane(this.id + "_" + item.Name, item);
             this.selectChild(wuTab);
+        },
+
+         onRowContextMenu: function (idx,item,colField,mystring) {
+            this.workunitsGrid.selection.clear(idx,true);
+            this.workunitsGrid.selection.setSelected(idx,true);
         }
     });
 });
