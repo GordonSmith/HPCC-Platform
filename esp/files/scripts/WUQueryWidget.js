@@ -19,6 +19,7 @@ define([
     "dojo/dom",
     "dojo/on",
     "dojo/dom-class",
+    "dojo/dom-form",
     "dojo/date",
 
     "dijit/_TemplatedMixin",
@@ -52,8 +53,11 @@ define([
     "dijit/form/RadioButton",
     "dijit/form/Select",
     "dijit/Toolbar",
-    "dijit/TooltipDialog"
-], function (declare, arrayUtil, dom, on, domClass, date,
+    "dijit/TooltipDialog",
+
+    "dojox/layout/TableContainer"
+
+], function (declare, arrayUtil, dom, on, domClass, domForm, date,
                 _TemplatedMixin, _WidgetsInTemplateMixin, registry, Menu, MenuItem, MenuSeparator, PopupMenuItem, Dialog,
                 EnhancedGrid, Pagination, IndirectSelection, Calendar,
                 _TabContainerWidget, ESPWorkunit, WsWorkunits, WUDetailsWidget,
@@ -176,22 +180,15 @@ define([
                 registry.byId(this.id + "FilterDropDown").closeDropDown();
                 this.refreshGrid();
             } else {
+                registry.byId(this.id + "FilterDropDown").closeDropDown();
                 this.validateDialog.show();
             }
         },
         _onFilterClear: function (event, supressGridRefresh) {
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
-            dom.byId(this.id + "Owner").value = "";
-            dom.byId(this.id + "Jobname").value = "";
-            dom.byId(this.id + "Cluster").value = "";
-            dom.byId(this.id + "State").value = "";
-            dom.byId(this.id + "ECL").value = "";
-            dom.byId(this.id + "LogicalFile").value = "";
-            dom.byId(this.id + "LogicalFileSearchType").value = "";
-            dom.byId(this.id + "FromDate").value = "";
-            dom.byId(this.id + "FromTime").value = "";
-            dom.byId(this.id + "ToDate").value = "";
-            dom.byId(this.id + "LastNDays").value = "";
+            arrayUtil.forEach(registry.byId(this.id + "FilterForm").getDescendants(), function (item, idx) {
+                item.set('value', null);
+            });
             if (!supressGridRefresh) {
                 this.refreshGrid();
             }
@@ -246,16 +243,13 @@ define([
 
         //  Implementation  ---
         hasFilter: function () {
-            return dom.byId(this.id + "Owner").value !== "" ||
-               dom.byId(this.id + "Jobname").value !== "" ||
-               dom.byId(this.id + "Cluster").value !== "" ||
-               dom.byId(this.id + "State").value !== "" ||
-               dom.byId(this.id + "ECL").value !== "" ||
-               dom.byId(this.id + "LogicalFile").value !== "" ||
-               dom.byId(this.id + "FromDate").value !== "" ||
-               dom.byId(this.id + "FromTime").value !== "" ||
-               dom.byId(this.id + "ToDate").value !== "" ||
-               dom.byId(this.id + "LastNDays").value !== "";
+            var filter = domForm.toObject(this.id + "FilterForm")
+            for (var key in filter) {
+                if (filter[key] != ""){
+                    return true
+                }
+            }
+            return false
         },
 
         getFilter: function () {
@@ -474,10 +468,6 @@ define([
             this.validateDialog = new Dialog({
                 title: "Filter",
                 content: "No filter criteria specified."
-            });
-            dojo.connect(registry.byId(this.id + "FromDate"), 'onClick', function (evt) {
-            });
-            dojo.connect(registry.byId(this.id + "ToDate"), 'onClick', function (evt) {
             });
         },
 

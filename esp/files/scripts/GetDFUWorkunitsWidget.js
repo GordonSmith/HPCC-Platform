@@ -16,14 +16,21 @@
 define([
     "dojo/_base/declare",
     "dojo/dom",
+    "dojo/dom-class",
+    "dojo/dom-form",
     "dojo/data/ObjectStore",
     "dojo/date",
     "dojo/on",
+    "dojo/_base/array",
 
     "dijit/layout/_LayoutWidget",
     "dijit/_TemplatedMixin",
     "dijit/_WidgetsInTemplateMixin",
     "dijit/registry",
+    "dijit/Menu",
+    "dijit/MenuItem",
+    "dijit/MenuSeparator",
+    "dijit/Dialog",
 
     "dojox/grid/EnhancedGrid",
     "dojox/grid/enhanced/plugins/Pagination",
@@ -31,6 +38,7 @@ define([
 
     "hpcc/FileSpray",
     "hpcc/DFUWUDetailsWidget",
+    "hpcc/TargetSelectWidget",
 
     "dojo/text!../templates/GetDFUWorkunitsWidget.html",
 
@@ -43,11 +51,14 @@ define([
     "dijit/form/Button",
     "dijit/form/Select",
     "dijit/Toolbar",
-    "dijit/TooltipDialog"
-], function (declare, dom, ObjectStore, date, on,
-                _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry,
+    "dijit/TooltipDialog",
+
+    "dojox/layout/TableContainer"
+
+], function (declare, dom, domClass, domForm, ObjectStore, date, on, arrayUtil, 
+                _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry, Menu, MenuItem, MenuSeparator, Dialog,
                 EnhancedGrid, Pagination, IndirectSelection,
-                FileSpray, DFUWUDetailsWidget,
+                FileSpray, DFUWUDetailsWidget, TargetSelectWidget,
                 template) {
     return declare("GetDFUWorkunitsWidget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
@@ -57,6 +68,8 @@ define([
         workunitsGrid: null,
 
         tabMap: [],
+
+        validateDialog: null,
 
         buildRendering: function (args) {
             this.inherited(arguments);
@@ -82,6 +95,7 @@ define([
 
         startup: function (args) {
             this.inherited(arguments);
+            this.initFilter();
         },
 
         resize: function (args) {
@@ -106,6 +120,7 @@ define([
                 });
             }
         },
+
         _onDelete: function (event) {
             if (confirm('Delete selected workunits?')) {
                 var context = this;
@@ -117,6 +132,7 @@ define([
                 });
             }
         },
+
         _onSetToFailed: function (event) {
             var context = this;
             FileSpray.WUAction(this.workunitsGrid.selection.getSelected(), "SetToFailed", {
@@ -125,6 +141,7 @@ define([
                 }
             });
         },
+
         _onProtect: function (event) {
             var context = this;
             FileSpray.WUAction(this.workunitsGrid.selection.getSelected(), "Protect", {
@@ -133,6 +150,7 @@ define([
                 }
             });
         },
+
         _onUnprotect: function (event) {
             var context = this;
             FileSpray.WUAction(this.workunitsGrid.selection.getSelected(), "Unprotect", {
@@ -141,23 +159,24 @@ define([
                 }
             });
         },
+
         _onFilterApply: function (event) {
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
-            this.refreshGrid();
+            if (this.hasFilter()) {
+                registry.byId(this.id + "FilterDropDown").closeDropDown();
+                this.refreshGrid();
+            } else {
+                registry.byId(this.id + "FilterDropDown").closeDropDown();
+                this.validateDialog.show();
+            }
         },
+
         _onFilterClear: function(event) {
-            this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
-            dom.byId(this.id + "Owner").value = "";
-            dom.byId(this.id + "Jobname").value = "";
-            dom.byId(this.id + "Cluster").value = "";
-            dom.byId(this.id + "State").value = "";
-            dom.byId(this.id + "ECL").value = "";
-            dom.byId(this.id + "LogicalFile").value = "";
-            dom.byId(this.id + "LogicalFileSearchType").value = "";
-            dom.byId(this.id + "FromDate").value = "";
-            dom.byId(this.id + "FromTime").value = "";
-            dom.byId(this.id + "ToDate").value = "";
-            dom.byId(this.id + "LastNDays").value = "";
+           this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
+            var context = this;
+            arrayUtil.forEach(registry.byId(this.id + "FilterForm").getDescendants(), function (item, idx) {
+                   item.set('value', null);
+            });
             this.refreshGrid();
         },
 
@@ -167,12 +186,7 @@ define([
                 Jobname: dom.byId(this.id + "Jobname").value,
                 Cluster: dom.byId(this.id + "Cluster").value,
                 State: dom.byId(this.id + "State").value,
-                ECL: dom.byId(this.id + "ECL").value,
-                LogicalFile: dom.byId(this.id + "LogicalFile").value,
                 LogicalFileSearchType: registry.byId(this.id + "LogicalFileSearchType").get("value"),
-                StartDate: this.getISOString("FromDate", "FromTime"),
-                EndDate: this.getISOString("ToDate", "ToTime"),
-                LastNDays: dom.byId(this.id + "LastNDays").value
             };
             if (retVal.StartDate != "" && retVal.EndDate != "") {
                 retVal["DateRB"] = "0";
@@ -183,6 +197,16 @@ define([
                 retVal.EndDate = now.toISOString();
             }
             return retVal;
+        },
+
+         hasFilter: function () {
+            var filter = domForm.toObject(this.id + "FilterForm")
+            for (var key in filter) {
+                if (filter[key] != ""){
+                    return true
+                }
+            }
+            return false
         },
 
         getISOString: function (dateField, timeField) {
@@ -213,49 +237,83 @@ define([
         },
 
         initWorkunitsGrid: function() {
+            var pMenu;
+            var context = this;
+            
+            pMenu = new Menu({
+                targetNodeIds: [this.id + "WorkunitsGrid"]
+            });
+            pMenu.addChild(new MenuItem({
+                label: "Open",
+                onClick: function(){context._onOpen();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Delete",
+                onClick: function(){context._onDelete();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Set To Failed",
+                onClick: function(){context._onRename();}
+            }));
+            pMenu.addChild(new MenuSeparator());
+            pMenu.addChild(new MenuItem({
+                label: "Protect",
+                onClick: function(){context._onProtect();}
+            }));
+            pMenu.addChild(new MenuItem({
+                label: "Unprotect",
+                onClick: function(){context._onUnprotect();}
+            }));
+            pMenu.addChild(new MenuSeparator());
+            pMenu.addChild(new MenuItem({
+                label: "Filter",
+                onClick: function(args){dijit.byId(context.id+"FilterDropDown").openDropDown()}
+            }));
+            pMenu.startup();
+
             this.workunitsGrid.setStructure([
-			    {
-				    name: "P",
-				    field: "isProtected",
-				    width: "20px",
-				    formatter: function (_protected) {
-				        if (_protected == true) {
-					        return "P";
-					    }
-					    return "";
-				    }
-			    },
-			    { name: "ID", field: "ID", width: "12" },
-			    {
-			        name: "Type",
-			        field: "Command",
-			        width: "8",
-			        formatter: function (command) {
-			            switch (command) {
-			                case 1: return "Copy";
-			                case 2: return "Remove";
-			                case 3: return "Move";
-			                case 4: return "Rename";
-			                case 5: return "Replicate";
-			                case 6: return "Spray";
-			                case 7: return "Despray";
-			                case 8: return "Add";
-			                case 9: return "Transfer";
-			                case 10: return "Save Map";
-			                case 11: return "Add Group";
-			                case 12: return "Server";
-			                case 13: return "Monitor";
-			                case 14: return "Copy Merge";
-			                case 15: return "Super Copy";
-			            }
-			            return "Unknown";
-			        }
-			    },
-			    { name: "Owner", field: "Owner", width: "8" },
-			    { name: "Job Name", field: "JobName", width: "16" },
-			    { name: "Cluster", field: "ClusterName", width: "8" },
-			    { name: "State", field: "StateMessage", width: "8" },
-			    { name: "% Complete", field: "PercentDone", width: "8" }
+                {
+                    name: "P",
+                    field: "isProtected",
+                    width: "20px",
+                    formatter: function (_protected) {
+                        if (_protected == true) {
+                            return ("<img src='../files/img/locked.png'>");
+                        }
+                        return "";
+                    }
+                },
+                { name: "ID", field: "ID", width: "12" },
+                {
+                    name: "Type",
+                    field: "Command",
+                    width: "8",
+                    formatter: function (command) {
+                        switch (command) {
+                            case 1: return "Copy";
+                            case 2: return "Remove";
+                            case 3: return "Move";
+                            case 4: return "Rename";
+                            case 5: return "Replicate";
+                            case 6: return "Spray";
+                            case 7: return "Despray";
+                            case 8: return "Add";
+                            case 9: return "Transfer";
+                            case 10: return "Save Map";
+                            case 11: return "Add Group";
+                            case 12: return "Server";
+                            case 13: return "Monitor";
+                            case 14: return "Copy Merge";
+                            case 15: return "Super Copy";
+                        }
+                        return "Unknown";
+                    }
+                },
+                { name: "Owner", field: "Owner", width: "8" },
+                { name: "Job Name", field: "JobName", width: "16" },
+                { name: "Cluster", field: "ClusterName", width: "8" },
+                { name: "State", field: "StateMessage", width: "8" },
+                { name: "% Complete", field: "PercentDone", width: "8" }
             ]);
             var store = new FileSpray.GetDFUWorkunits();
             var objStore = new ObjectStore({ objectStore: store });
@@ -263,11 +321,21 @@ define([
 
             var context = this;
             this.workunitsGrid.on("RowDblClick", function (evt) {
-                if (context.onRowDblClick) {
+                if (context._onRowDblClick) {
                     var idx = evt.rowIndex;
                     var item = this.getItem(idx);
                     var id = this.store.getValue(item, "ID");
-                    context.onRowDblClick(id);
+                    context._onRowDblClick(id);
+                }
+            }, true);
+
+            this.workunitsGrid.on("RowContextMenu", function (evt) {
+                if (context._onRowContextMenu) {
+                    var idx = evt.rowIndex;
+                    var colField = evt.cell.field;
+                    var item = this.getItem(idx);
+                    var mystring = "item." + colField;
+                    context._onRowContextMenu(idx, item, colField, mystring);
                 }
             }, true);
 
@@ -279,6 +347,13 @@ define([
             });
 
             this.workunitsGrid.startup();
+        },
+
+        initFilter: function () {
+            this.validateDialog = new Dialog({
+                title: "Filter",
+                content: "No filter criteria specified."
+            });
         },
 
         refreshGrid: function (args) {
@@ -296,6 +371,7 @@ define([
             var hasNotProtected = false;
             var hasFailed = false;
             var hasNotFailed = false;
+            var hasFilter = this.hasFilter();
             for (var i = 0; i < selection.length; ++i) {
                 hasSelection = true;
                 if (selection[i] && selection[i].isProtected && selection[i].isProtected != "0") {
@@ -315,6 +391,7 @@ define([
             registry.byId(this.id + "SetToFailed").set("disabled", !hasNotProtected);
             registry.byId(this.id + "Protect").set("disabled", !hasNotProtected);
             registry.byId(this.id + "Unprotect").set("disabled", !hasProtected);
+            dom.byId(this.id + "IconFilter").src = hasFilter ? "img/filter.png" : "img/noFilter.png";
         },
 
         ensurePane: function (id, params) {
@@ -337,11 +414,54 @@ define([
             return retVal;
         },
 
-        onRowDblClick: function (id) {
+        _onRowDblClick: function (id) {
             var wuTab = this.ensurePane(id, {
                 Wuid: id
             });
             this.tabContainer.selectChild(wuTab);
+        },
+
+        _onRowContextMenu: function (idx, item, colField, mystring) {
+            var selection = this.workunitsGrid.selection.getSelected();
+            var found = arrayUtil.indexOf(selection, item);
+            if (found == -1) {
+                this.workunitsGrid.selection.deselectAll();
+                this.workunitsGrid.selection.setSelected(idx, true);
+            }
+
+            this.menuFilterOwner.set("disabled", false);
+            this.menuFilterJobname.set("disabled", false);
+            this.menuFilterCluster.set("disabled", false);
+            this.menuFilterState.set("disabled", false);
+
+            if (item) {
+                this.menuFilterOwner.set("label", "Owner:  " + item.Owner);
+                this.menuFilterOwner.set("hpcc_value", item.Owner);
+                this.menuFilterJobname.set("label", "Jobname:  " + item.Jobname);
+                this.menuFilterJobname.set("hpcc_value", item.Jobname);
+                this.menuFilterCluster.set("label", "Cluster:  " + item.Cluster);
+                this.menuFilterCluster.set("hpcc_value", item.Cluster);
+                this.menuFilterState.set("label", "State:  " + item.State);
+                this.menuFilterState.set("hpcc_value", item.State);
+            }
+
+            if (item.Owner == "") {
+                this.menuFilterOwner.set("disabled", true);
+                this.menuFilterOwner.set("label", "Owner:  " + "N/A");
+            }
+            if (item.Jobname == "") {
+                this.menuFilterJobname.set("disabled", true);
+                this.menuFilterJobname.set("label", "Jobname:  " + "N/A");
+            }
+            if (item.Cluster == "") {
+                this.menuFilterCluster.set("disabled", true);
+                this.menuFilterCluster.set("label", "Cluster:  " + "N/A");
+            }
+            if (item.State == "") {
+                this.menuFilterState.set("disabled", true);
+                this.menuFilterState.set("label", "State:  " + "N/A");
+            }
         }
+
     });
 });
