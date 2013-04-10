@@ -23,7 +23,7 @@ define([
     "dojo/data/ObjectStore",
     "dojo/date",
     "dojo/on",
-
+    
     "dijit/_TemplatedMixin",
     "dijit/_WidgetsInTemplateMixin",
     "dijit/registry",
@@ -31,6 +31,7 @@ define([
     "dijit/Menu",
     "dijit/MenuItem",
     "dijit/MenuSeparator",
+
 
     "dojox/grid/EnhancedGrid",
     "dojox/grid/enhanced/plugins/Pagination",
@@ -43,7 +44,7 @@ define([
     "hpcc/SFDetailsWidget",
     "hpcc/TargetSelectWidget",
 
-    "dojo/text!../templates/DFUQueryWidget.html",
+    "dojo/text!../templates/DFUWUQueryWidget.html",
 
     "dijit/layout/BorderContainer",
     "dijit/layout/TabContainer",
@@ -89,10 +90,6 @@ define([
         //  Hitched actions  ---
         _onRefresh: function (event) {
             this.refreshGrid();
-        },
-
-        onChange: function(callback){ //adding change of target select to filter mixin
-
         },
 
         _onOpen: function (event) {
@@ -154,7 +151,14 @@ define([
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
             var context = this;
             arrayUtil.forEach(registry.byId(this.id + "FilterForm").getDescendants(), function (item, idx) {
-                item.set('value', null);
+               
+                if (item.id == context.id + "ClusterTargetSelect") {
+                    item.setValue("");
+                } else {
+
+                    item.set('value', null);
+                }
+
             });
             this.refreshGrid();
         },
@@ -186,13 +190,14 @@ define([
         getFilter: function () {
             var retVal = domForm.toObject(this.id + "FilterForm");
             lang.mixin(retVal, {
+                ClusterName: this.clusterTargetSelect.getValue(),
                 StartDate: this.getISOString("FromDate", "FromTime"),
                 EndDate: this.getISOString("ToDate", "ToTime")
             });
             if (retVal.StartDate != "" && retVal.EndDate != "") {
             } else if (retVal.FirstN) {
                 var now = new Date();
-                retVal.StartDate = date.add(now, "day", dom.byId(this.id + "LastNDays").value * -1).toISOString();
+                retVal.StartDate = date.add(now, "day", dom.byId(this.id + "FirstN").value * -1).toISOString();
                 retVal.EndDate = now.toISOString();
             }
             return retVal;
@@ -309,8 +314,8 @@ define([
                 { name: "Modified (UTC/GMT)", field: "Modified", width: "12" }
             ]);
             var objStore = ESPLogicalFile.CreateLFQueryObjectStore();
-            this.workunitsGrid.setStore(objStore, this.getFilter());
-            this.workunitsGrid.noDataMessage = "<span class='dojoxGridNoData'>Zero Logical Files(check filter).</span>";
+            this.workunitsGrid.setStore(objStore);
+            this.workunitsGrid.setQuery(this.getFilter());
 
             var context = this;
             this.workunitsGrid.on("RowDblClick", function (evt) {
