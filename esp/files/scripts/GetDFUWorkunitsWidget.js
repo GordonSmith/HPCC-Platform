@@ -80,6 +80,7 @@ define([
             this.borderContainer = registry.byId(this.id + "BorderContainer");
             this.tabContainer = registry.byId(this.id + "TabContainer");
             this.workunitsGrid = registry.byId(this.id + "WorkunitsGrid");
+            this.clusterTargetSelect = registry.byId(this.id + "ClusterTargetSelect");
 
             var context = this;
             this.tabContainer.watch("selectedChildWidget", function (name, oval, nval) {
@@ -180,25 +181,6 @@ define([
             this.refreshGrid();
         },
 
-        getFilter: function () {
-            var retVal = {
-                Owner: dom.byId(this.id + "Owner").value,
-                Jobname: dom.byId(this.id + "Jobname").value,
-                Cluster: dom.byId(this.id + "Cluster").value,
-                State: dom.byId(this.id + "State").value,
-                LogicalFileSearchType: registry.byId(this.id + "LogicalFileSearchType").get("value"),
-            };
-            if (retVal.StartDate != "" && retVal.EndDate != "") {
-                retVal["DateRB"] = "0";
-            } else if (retVal.LastNDays != "") {
-                retVal["DateRB"] = "0";
-                var now = new Date();
-                retVal.StartDate = date.add(now, "day", dom.byId(this.id + "LastNDays").value * -1).toISOString();
-                retVal.EndDate = now.toISOString();
-            }
-            return retVal;
-        },
-
          hasFilter: function () {
             var filter = domForm.toObject(this.id + "FilterForm")
             for (var key in filter) {
@@ -207,6 +189,11 @@ define([
                 }
             }
             return false
+        },
+
+        getFilter: function () {
+            var retVal = domForm.toObject(this.id + "FilterForm");
+            return retVal;
         },
 
         getISOString: function (dateField, timeField) {
@@ -228,12 +215,12 @@ define([
             if (this.initalized)
                 return;
             this.initalized = true;
-
-            if (params.ClusterName) {
-                registry.byId(this.id + "Cluster").set("value", params.ClusterName);
-            }
             this.initWorkunitsGrid();
             this.refreshActionState();
+            this.clusterTargetSelect.init({
+                Groups: true,
+                includeBlank: true
+            });
         },
 
         initWorkunitsGrid: function() {
@@ -318,6 +305,7 @@ define([
             var store = new FileSpray.GetDFUWorkunits();
             var objStore = new ObjectStore({ objectStore: store });
             this.workunitsGrid.setStore(objStore, this.getFilter());
+            this.workunitsGrid.noDataMessage = "<span class='dojoxGridNoData'>Zero DFU Workunits (check filter).</span>";
 
             var context = this;
             this.workunitsGrid.on("RowDblClick", function (evt) {
