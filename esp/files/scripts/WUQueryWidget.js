@@ -15,6 +15,7 @@
 ############################################################################## */
 define([
     "dojo/_base/declare",
+    "dojo/_base/lang",
     "dojo/_base/array",
     "dojo/dom",
     "dojo/on",
@@ -40,6 +41,7 @@ define([
     "hpcc/ESPWorkunit",
     "hpcc/WsWorkunits",
     "hpcc/WUDetailsWidget",
+    "hpcc/TargetSelectWidget",
 
     "dojo/text!../templates/WUQueryWidget.html",
 
@@ -57,10 +59,10 @@ define([
 
     "dojox/layout/TableContainer"
 
-], function (declare, arrayUtil, dom, on, domClass, domForm, date,
+], function (declare, lang, arrayUtil, dom, on, domClass, domForm, date, 
                 _TemplatedMixin, _WidgetsInTemplateMixin, registry, Menu, MenuItem, MenuSeparator, PopupMenuItem, Dialog,
                 EnhancedGrid, Pagination, IndirectSelection, Calendar,
-                _TabContainerWidget, ESPWorkunit, WsWorkunits, WUDetailsWidget,
+                _TabContainerWidget, ESPWorkunit, WsWorkunits, WUDetailsWidget, TargetSelectWidget,
                 template) {
     return declare("WUQueryWidget", [_TabContainerWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
@@ -77,6 +79,7 @@ define([
             this.inherited(arguments);
             this.workunitsTab = registry.byId(this.id + "_Workunits");
             this.workunitsGrid = registry.byId(this.id + "WorkunitsGrid");
+            this.clusterTargetSelect = registry.byId(this.id + "ClusterTargetSelect");
         },
 
         startup: function (args) {
@@ -87,7 +90,6 @@ define([
 
         resize: function (args) {
             this.inherited(arguments);
-
             //  TODO:  This should not be needed
             var context = this;
             setTimeout(function () {
@@ -171,7 +173,6 @@ define([
         },
         _onClickFilterApply: function (event) {
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
-
             this.refreshGrid();
         },
         _onFilterApply: function (event) {
@@ -243,7 +244,7 @@ define([
 
         //  Implementation  ---
         hasFilter: function () {
-            var filter = domForm.toObject(this.id + "FilterForm")
+            var filter = domForm.toObject(this.id + "FilterForm");
             for (var key in filter) {
                 if (filter[key] != ""){
                     return true
@@ -253,22 +254,13 @@ define([
         },
 
         getFilter: function () {
-            var retVal = {
-                Owner: dom.byId(this.id + "Owner").value,
-                Jobname: dom.byId(this.id + "Jobname").value,
-                Cluster: dom.byId(this.id + "Cluster").value,
-                State: dom.byId(this.id + "State").value,
-                ECL: dom.byId(this.id + "ECL").value,
-                LogicalFile: dom.byId(this.id + "LogicalFile").value,
-                LogicalFileSearchType: registry.byId(this.id + "LogicalFileSearchType").get("value"),
+            var retVal = domForm.toObject(this.id + "FilterForm");
+            lang.mixin(retVal, {
                 StartDate: this.getISOString("FromDate", "FromTime"),
-                EndDate: this.getISOString("ToDate", "ToTime"),
-                LastNDays: dom.byId(this.id + "LastNDays").value
-            };
+                EndDate: this.getISOString("ToDate", "ToTime")
+            });
             if (retVal.StartDate != "" && retVal.EndDate != "") {
-                retVal["DateRB"] = "0";
-            } else if (retVal.LastNDays != "") {
-                retVal["DateRB"] = "0";
+            } else if (retVal.FirstN) {
                 var now = new Date();
                 retVal.StartDate = date.add(now, "day", retVal.LastNDays * -1).toISOString();
                 retVal.EndDate = now.toISOString();
@@ -295,14 +287,18 @@ define([
             if (this.initalized)
                 return;
             this.initalized = true;
-
-            //TODO:  Should be easier generic way
-            if (params.Cluster) {
-                registry.byId(this.id + "Cluster").set("value", params.Cluster);
-            }
             this.initWorkunitsGrid();
             this.refreshActionState();
             this.selectChild(this.workunitsTab, true);
+            
+            this.clusterTargetSelect.init({
+                Targets: true,
+                includeBlank: true
+            });
+            /*TODO:  Should be easier generic way
+            if (params.Cluster) {
+                registry.byId(this.id + "Cluster").set("value", params.Cluster);
+            }*/
         },
 
         initTab: function () {

@@ -102,17 +102,17 @@ require([
                 this.callback(this._value, this._valueItem);
             }
         },
-
-        setValue: function (target) {
+        
+        _valueSetter: function (target){
             if (target !== null && this._value != target) {
                 this._value = target;
                 this.targetSelectControl.set("value", target);
             }
         },
 
-        getValue: function () {
+        /*_valueGetter: function (target){
             return this._value;
-        },
+        },*/
 
         loadDropZones: function () {
             var context = this;

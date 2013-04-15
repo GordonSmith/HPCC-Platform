@@ -21,18 +21,36 @@
                     <div id="${id}FilterDropDown" data-dojo-type="dijit.form.DropDownButton">
                         <span>Filter</span>
                         <div data-dojo-type="dijit.TooltipDialog" class="toolTip">
-                            <div id="${id}FilterForm" style="width:510px" data-dojo-type="dijit.form.Form">
+                            <div id="${id}FilterForm" style="width:460px" data-dojo-type="dijit.form.Form">
                                 <div data-dojo-props="cols:2" data-dojo-type="dojox.layout.TableContainer">
                                     <input id="${id}Owner" title="Owner:" name="Owner" colspan="2" data-dojo-props="trim: true, placeHolder:'jsmi*'" data-dojo-type="dijit.form.TextBox" />
-                                    <input id="${id}Jobname" title="Job&nbsp;Name:" name="Jobname" colspan="2" data-dojo-props="trim: true, placeHolder:'log_analysis_1'" data-dojo-type="dijit.form.TextBox" />
-                                    <input id="${id}Cluster" title="Cluster:" name="Cluster" colspan="3" data-dojo-props="trim: true, placeHolder:'r?x*'" data-dojo-type="dijit.form.TextBox" />
-                                    <input id="${id}State" title="State:" name="State" colspan="2" data-dojo-props="trim: true, placeHolder:'failed'" data-dojo-type="dijit.form.TextBox" />
-                                    <input id="${id}ECL" title="ECL:" name="ECL" colspan="2" data-dojo-props="trim: true, placeHolder:':=dataset'" data-dojo-type="dijit.form.TextBox" />
+                                    <input id="${id}Jobname" title="Job&nbsp;Name:" name="Jobname" colspan="2" data-dojo-props="trim: true, placeHolder:'log_analysis_1*'" data-dojo-type="dijit.form.TextBox" />
+                                    <input id="${id}ClusterTargetSelect" title="Cluster:" name="Cluster" colspan="3" data-dojo-props="trim: true, placeHolder:'r?x*'" data-dojo-type="TargetSelectWidget" />
+                                    <select id="${id}State" title="State" name="State" colspan="2" data-dojo-props="trim: true, placeHolder:'Created'" data-dojo-type="dijit.form.Select">
+                                        <option value="" selected="true"></option>
+                                        <option value="unknown">unknown</option>
+                                        <option value="compiled">compiled</option>
+                                        <option value="running">running</option>
+                                        <option value="completed">completed</option>
+                                        <option value="aborting">aborting</option>
+                                        <option value="aborted">aborted</option>
+                                        <option value="blocked">blocked</option>
+                                        <option value="submitted">submitted</option>
+                                        <option value="scheduled">scheduled</option>
+                                        <option value="wait">wait</option>
+                                        <option value="failed">failed</option>
+                                        <option value="compiling">compiling</option>
+                                        <option value="uploading_files">uploading_files</option>
+                                        <option value="debugging">debugging</option>
+                                        <option value="debug_running">debug_running</option>
+                                        <option value="paused">paused</option>
+                                    </select>
+                                    <input id="${id}ECL" title="ECL:" name="ECL" colspan="2" data-dojo-props="trim: true, placeHolder:':=dataset*'" data-dojo-type="dijit.form.TextBox" />
                                      <input id="${id}LogicalFile" title="Logical&nbsp;File:" name="LogicalFile" colspan="2" data-dojo-props="trim: true, placeHolder:'*::somefile'" data-dojo-type="dijit.form.TextBox" />
                                     <select id="${id}LogicalFileSearchType" title="Logical&nbsp;File&nbsp;Type" name="LogicalFileSearchType" colspan="2" data-dojo-props="trim: true, placeHolder:'Created'" data-dojo-type="dijit.form.Select">
-                                            <option value="" selected="true">Select A Search Type</option>
-                                            <option value="Created">Created</option>
-                                            <option value="Used">Referenced</option>
+                                        <option value="" selected="true"></option>
+                                        <option value="created">Created</option>
+                                        <option value="used">Referenced</option>
                                     </select>
                                     <input id="${id}FromDate" title="From&nbsp;Date:" name="StartDate" data-dojo-props="trim: true, placeHolder:'7/28/2013'" data-dojo-type="dijit.form.DateTextBox" />
                                     <input id="${id}FromTime" name="FromTime" data-dojo-props="trim: true, placeHolder:'7:30 AM'" data-dojo-type="dijit.form.TimeTextBox" />

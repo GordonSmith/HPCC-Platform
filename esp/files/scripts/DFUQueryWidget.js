@@ -64,7 +64,7 @@ define([
                 EnhancedGrid, Pagination, IndirectSelection,
                 _TabContainerWidget, WsDfu, ESPLogicalFile, LFDetailsWidget, SFDetailsWidget, TargetSelectWidget,
                 template) {
-    return declare("DFUWUQueryWidget", [_TabContainerWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
+    return declare("DFUQueryWidget", [_TabContainerWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
         baseClass: "DFUQueryWidget",
         workunitsTab: null,
@@ -89,6 +89,10 @@ define([
         //  Hitched actions  ---
         _onRefresh: function (event) {
             this.refreshGrid();
+        },
+
+        onChange: function(callback){ //adding change of target select to filter mixin
+
         },
 
         _onOpen: function (event) {
@@ -150,11 +154,7 @@ define([
             this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
             var context = this;
             arrayUtil.forEach(registry.byId(this.id + "FilterForm").getDescendants(), function (item, idx) {
-                if (item.id == context.id + "ClusterTargetSelect") {
-                    item.setValue("");
-                } else {
-                    item.set('value', null);
-                }
+                item.set('value', null);
             });
             this.refreshGrid();
         },
@@ -186,14 +186,13 @@ define([
         getFilter: function () {
             var retVal = domForm.toObject(this.id + "FilterForm");
             lang.mixin(retVal, {
-                ClusterName: this.clusterTargetSelect.getValue(),
                 StartDate: this.getISOString("FromDate", "FromTime"),
                 EndDate: this.getISOString("ToDate", "ToTime")
             });
             if (retVal.StartDate != "" && retVal.EndDate != "") {
             } else if (retVal.FirstN) {
                 var now = new Date();
-                retVal.StartDate = date.add(now, "day", dom.byId(this.id + "FirstN").value * -1).toISOString();
+                retVal.StartDate = date.add(now, "day", dom.byId(this.id + "LastNDays").value * -1).toISOString();
                 retVal.EndDate = now.toISOString();
             }
             return retVal;
@@ -311,6 +310,7 @@ define([
             ]);
             var objStore = ESPLogicalFile.CreateLFQueryObjectStore();
             this.workunitsGrid.setStore(objStore, this.getFilter());
+            this.workunitsGrid.noDataMessage = "<span class='dojoxGridNoData'>Zero Logical Files(check filter).</span>";
 
             var context = this;
             this.workunitsGrid.on("RowDblClick", function (evt) {
