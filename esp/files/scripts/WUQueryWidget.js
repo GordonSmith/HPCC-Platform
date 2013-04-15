@@ -262,7 +262,7 @@ define([
             if (retVal.StartDate != "" && retVal.EndDate != "") {
             } else if (retVal.FirstN) {
                 var now = new Date();
-                retVal.StartDate = date.add(now, "day", dom.byId(this.id + "LastNDays").value * -1).toISOString();
+                retVal.StartDate = date.add(now, "day", retVal.LastNDays * -1).toISOString();
                 retVal.EndDate = now.toISOString();
             }
             return retVal;
