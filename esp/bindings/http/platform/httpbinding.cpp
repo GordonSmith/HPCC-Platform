@@ -326,7 +326,21 @@ EspHttpBinding::EspHttpBinding(IPropertyTree* tree, const char *bindname, const 
                 m_secmgr.setown(SecLoader::loadSecManager("Local", "EspHttpBinding", NULL));
                 m_authmap.setown(m_secmgr->createAuthMap(authcfg));
             }
+            else if(stricmp(m_authmethod.str(), "htpasswd") == 0)
+            {
+                Owned<IPropertyTree> cfg;
+                Owned<IPropertyTree> process_config = getProcessConfig(tree, procname);
+                if(process_config.get() != NULL)
+                    cfg.setown(process_config->getPropTree("htpasswdSecurity"));
+                if(cfg == NULL)
+                {
+                    ERRLOG("can't find htpasswdSecurity in configuration");
+                    throw MakeStringException(-1, "can't find htpasswdSecurity in configuration");
+                }
 
+                m_secmgr.setown(SecLoader::loadSecManager("htpasswd", "EspHttpBinding", LINK(cfg)));
+                m_authmap.setown(m_secmgr->createAuthMap(authcfg));
+            }
             IRestartManager* restartManager = dynamic_cast<IRestartManager*>(m_secmgr.get());
             if(restartManager!=NULL)
             {
@@ -533,7 +547,7 @@ bool EspHttpBinding::basicAuth(IEspContext* ctx)
     if(user == NULL)
     {
         WARNLOG("Can't find user in context");
-        ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "Access Denied: No username provided", NULL);
+        ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "Access Denied: No username provided");
         return false;
     }
 
@@ -550,10 +564,10 @@ bool EspHttpBinding::basicAuth(IEspContext* ctx)
     bool authenticated = m_secmgr->authorize(*user, rlist);
     if(!authenticated)
     {
-        if (user->getAuthenticateStatus() == AS_PASSWORD_EXPIRED)
-            ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "ESP password is expired", NULL);
+        if (user->getAuthenticateStatus() == AS_PASSWORD_EXPIRED || user->getAuthenticateStatus() == AS_PASSWORD_VALID_BUT_EXPIRED)
+            ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "ESP password is expired");
         else
-            ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "Access Denied: User or password invalid", NULL);
+            ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "Access Denied: User or password invalid");
         return false;
     }
     bool authorized = true;
@@ -2103,9 +2117,10 @@ int EspHttpBinding::formatResultsPage(IEspContext &context, const char *serv, co
 
 bool EspHttpBinding::setContentFromFile(IEspContext &context, CHttpResponse &resp, const char *filepath)
 {
-    StringBuffer mimetype;
+    StringBuffer mimetype, etag, lastModified;
     MemoryBuffer content;
-    if (httpContentFromFile(filepath, mimetype, content))
+    bool modified = false;
+    if (httpContentFromFile(filepath, mimetype, content, modified, lastModified, etag))
     {
         resp.setContent(content.length(), content.toByteArray());
         resp.setContentType(mimetype.str());

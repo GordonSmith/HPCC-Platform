@@ -72,8 +72,6 @@ define([
         playgroundWidgetLoaded: false,
         xmlWidget: null,
         xmlWidgetLoaded: false,
-        legacyPane: null,
-        legacyPaneLoaded: false,
 
         initalized: false,
         wu: null,
@@ -90,7 +88,6 @@ define([
             this.logsWidget = registry.byId(this.id + "_Logs");
             this.playgroundWidget = registry.byId(this.id + "_Playground");
             this.xmlWidget = registry.byId(this.id + "_XML");
-            this.legacyPane = registry.byId(this.id + "_Legacy");
 
             this.infoGridWidget = registry.byId(this.id + "InfoContainer");
         },
@@ -127,6 +124,7 @@ define([
             this.wu.restart();
         },
         _onPublish: function (event) {
+            registry.byId(this.id + "Publish").closeDropDown();
             this.wu.publish(dom.byId(this.id + "Jobname2").value);
         },
 
@@ -149,7 +147,6 @@ define([
                 this.wu.watch(function (name, oldValue, newValue) {
                     context.updateInput(name, oldValue, newValue);
                 });
-                //this.wu.refresh(true);
             }
             this.infoGridWidget.init(params);
             this.selectChild(this.summaryWidget, true);
@@ -202,12 +199,6 @@ define([
                 this.xmlWidget.init({
                     Wuid: this.wu.Wuid
                 });
-            } else if (currSel.id == this.legacyPane.id && !this.legacyPaneLoaded) {
-                this.legacyPaneLoaded = true;
-                this.legacyPane.set("content", dojo.create("iframe", {
-                    src: "/WsWorkunits/WUInfo?Wuid=" + this.wu.Wuid + "&IncludeExceptions=0&IncludeGraphs=0&IncludeSourceFiles=0&IncludeResults=0&IncludeVariables=0&IncludeTimers=0&IncludeDebugValues=0&IncludeApplicationValues=0&IncludeWorkflows&SuppressResultSchemas=1",
-                    style: "border: 0; width: 100%; height: 100%"
-                }));
             }
         },
 

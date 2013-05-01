@@ -606,6 +606,7 @@ public:
     {
         return createRowFromXml(rowAllocator, len, utf8, xmlTransformer, stripWhitespace);
     }
+    virtual IEngineContext *queryEngineContext() { return NULL; }
 };
 
 //================================================================================================
@@ -832,7 +833,7 @@ public:
         forceUnkeyed(_forceUnkeyed)
     {
         helper = (IHThorDiskReadBaseArg *) basehelper;
-        variableFileName = (helper->getFlags() & (TDXvarfilename|TDXdynamicfilename)) != 0;
+        variableFileName = allFilesDynamic || ((helper->getFlags() & (TDXvarfilename|TDXdynamicfilename)) != 0);
         isOpt = (helper->getFlags() & TDRoptional) != 0;
         diskSize.set(helper->queryDiskRecordSize());
         processed = 0;
@@ -975,7 +976,7 @@ public:
         : CSlaveActivityFactory(_graphNode, _subgraphId, _queryFactory, _helperFactory)
     {
         Owned<IHThorDiskReadBaseArg> helper = (IHThorDiskReadBaseArg *) helperFactory();
-        bool variableFileName = (helper->getFlags() & (TDXvarfilename|TDXdynamicfilename)) != 0;
+        bool variableFileName = allFilesDynamic || ((helper->getFlags() & (TDXvarfilename|TDXdynamicfilename)) != 0);
         if (!variableFileName)
         {
             bool isOpt = (helper->getFlags() & TDRoptional) != 0;
@@ -1619,7 +1620,7 @@ public:
 #endif
         Linked<IXmlToRowTransformer> rowTransformer = helper->queryTransformer();
         OwnedRoxieString xmlIterator(helper->getXmlIteratorPath());
-        Owned<IXMLParse> xmlParser = createXMLParse(*reader->querySimpleStream(), xmlIterator, *this, (0 != (TDRxmlnoroot & helper->getFlags()))?xr_noRoot:xr_none, (helper->getFlags() & TDRusexmlcontents) != 0);
+        Owned<IXMLParse> xmlParser = createXMLParse(*reader->querySimpleStream(), xmlIterator, *this, (0 != (TDRxmlnoroot & helper->getFlags()))?ptr_noRoot:ptr_none, (helper->getFlags() & TDRusexmlcontents) != 0);
         while (!aborted)
         {
             //call to next() will callback on the IXmlSelect interface
@@ -3070,7 +3071,7 @@ public:
         m.setBuffer(indexLayoutSize, indexLayoutMeta.getdata());
         activityMeta.setown(deserializeRecordMeta(m, true));
         layoutTranslators.setown(new TranslatorArray);
-        bool variableFileName = (helper->getFlags() & (TIRvarfilename|TIRdynamicfilename)) != 0;
+        bool variableFileName = allFilesDynamic || ((helper->getFlags() & (TIRvarfilename|TIRdynamicfilename)) != 0);
         if (!variableFileName)
         {
             bool isOpt = (helper->getFlags() & TIRoptional) != 0;
@@ -3225,7 +3226,7 @@ public:
         stepExtra(SSEFreadAhead, NULL)
     {
         indexHelper = (IHThorIndexReadBaseArg *) basehelper;
-        variableFileName = (indexHelper->getFlags() & (TIRvarfilename|TIRdynamicfilename)) != 0;
+        variableFileName = allFilesDynamic || ((indexHelper->getFlags() & (TIRvarfilename|TIRdynamicfilename)) != 0);
         isOpt = (indexHelper->getFlags() & TDRoptional) != 0;
         inputData = NULL;
         inputCount = 0;
@@ -4267,7 +4268,7 @@ public:
     {
         Owned<IHThorFetchBaseArg> helper = (IHThorFetchBaseArg *) helperFactory();
         IHThorFetchContext * fetchContext = static_cast<IHThorFetchContext *>(helper->selectInterface(TAIfetchcontext_1));
-        bool variableFileName = (fetchContext->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0;
+        bool variableFileName = allFilesDynamic || ((fetchContext->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0);
         if (!variableFileName)
         {
             bool isOpt = (fetchContext->getFetchFlags() & FFdatafileoptional) != 0;
@@ -4316,7 +4317,7 @@ public:
         helper = (IHThorFetchBaseArg *) basehelper;
         fetchContext = static_cast<IHThorFetchContext *>(helper->selectInterface(TAIfetchcontext_1));
         base = 0;
-        variableFileName = (fetchContext->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0;
+        variableFileName = allFilesDynamic || ((fetchContext->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0);
         isOpt = (fetchContext->getFetchFlags() & FFdatafileoptional) != 0;
         onCreate();
         inputData = (char *) serializedCreate.readDirect(0);
@@ -4616,7 +4617,7 @@ public:
         m.setBuffer(indexLayoutSize, indexLayoutMeta.getdata());
         activityMeta.setown(deserializeRecordMeta(m, true));
         layoutTranslators.setown(new TranslatorArray);
-        bool variableFileName = (helper->getJoinFlags() & (JFvarindexfilename|JFdynamicindexfilename)) != 0;
+        bool variableFileName = allFilesDynamic || ((helper->getJoinFlags() & (JFvarindexfilename|JFdynamicindexfilename)) != 0);
         if (!variableFileName)
         {
             bool isOpt = (helper->getJoinFlags() & JFindexoptional) != 0;
@@ -4658,7 +4659,7 @@ public:
         : factory(_aFactory), CRoxieKeyedActivity(_logctx, _packet, _hFactory, _aFactory)
     {
         helper = (IHThorKeyedJoinArg *) basehelper;
-        variableFileName = (helper->getJoinFlags() & (JFvarindexfilename|JFdynamicindexfilename)) != 0;
+        variableFileName = allFilesDynamic || ((helper->getJoinFlags() & (JFvarindexfilename|JFdynamicindexfilename)) != 0);
         inputDone = 0;
         processed = 0;
         candidateCount = 0;
@@ -4962,7 +4963,7 @@ public:
     {
         Owned<IHThorKeyedJoinArg> helper = (IHThorKeyedJoinArg *) helperFactory();
         assertex(helper->diskAccessRequired());
-        bool variableFileName = (helper->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0;
+        bool variableFileName = allFilesDynamic || ((helper->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0);
         if (!variableFileName)
         {
             bool isOpt = (helper->getFetchFlags() & FFdatafileoptional) != 0;
@@ -5015,7 +5016,7 @@ public:
         // MORE - no continuation row support?
         base = 0;
         helper = (IHThorKeyedJoinArg *) basehelper;
-        variableFileName = (helper->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0;
+        variableFileName = allFilesDynamic || ((helper->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0);
         onCreate();
         inputData = (const char *) serializedCreate.readDirect(0);
         inputLimit = inputData + (serializedCreate.length() - serializedCreate.getPos());

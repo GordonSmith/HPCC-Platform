@@ -36,6 +36,8 @@ interface IRecordSize: public IInterface
        //passing NULL to getRecordSize returns size for fixed records and initial size for variable
     virtual size32_t getFixedSize() const = 0;                      
        // returns 0 for variable row size
+    virtual size32_t getMinRecordSize() const = 0;
+       // The minimum size that a variable (or fixed) size record can be.
 
     inline bool isFixedSize()      const { return getFixedSize()!=0; }
     inline bool isVariableSize()   const { return getFixedSize()==0; }
@@ -139,34 +141,6 @@ extern jlib_decl offset_t checked_lseeki64(int handle, offset_t offset, int orig
 extern jlib_decl size32_t checked_write(int handle, const void *buffer, size32_t count);
 extern jlib_decl size32_t checked_read(int file, void *buffer, size32_t len);
 extern jlib_decl size32_t checked_pread(int file, void *buffer, size32_t len, offset_t pos);
-
-class CachedRecordSize
-{
-public:
-    inline CachedRecordSize(IRecordSize * _rs = NULL) { set(_rs); }
-
-    inline void set(IRecordSize * _rs)
-    {
-        rs.set(_rs);
-        if (_rs)
-        {
-            initialSize = _rs->getRecordSize(NULL);
-            fixedSize = _rs->getFixedSize();
-        }
-    }
-
-    inline size32_t getInitialSize() const                  { return initialSize; }
-    inline size32_t getFixedSize() const                    { return fixedSize; }
-    inline size32_t getRecordSize(const void *rec) const    { return fixedSize ? fixedSize : rs->getRecordSize(rec); }
-    inline bool isFixedSize() const                         { return (fixedSize != 0); }
-    inline operator IRecordSize * () const                  { return rs; }
-
-private:
-    Owned<IRecordSize> rs;
-    size32_t fixedSize;
-    size32_t initialSize;
-};
-
 
 interface IFileIO;
 interface IFileIOStream;

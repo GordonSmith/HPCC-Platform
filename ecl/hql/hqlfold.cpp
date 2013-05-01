@@ -1749,9 +1749,23 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
             return applyBinaryFold(expr, multiplyValues);
         }
     case no_div:
-        return applyBinaryFold(expr, divideValues);
     case no_modulus:
-        return applyBinaryFold(expr, modulusValues);
+        {
+            IValue * leftValue = expr->queryChild(0)->queryValue();
+            IValue * rightValue = expr->queryChild(1)->queryValue();
+            if (leftValue && rightValue)
+            {
+                DBZaction onZero = (foldOptions & HFOforcefold) ? DBZfail : DBZnone;
+                IValue * res;
+                if (op == no_div)
+                    res = divideValues(leftValue, rightValue, onZero);
+                else
+                    res = modulusValues(leftValue, rightValue, onZero);
+                if (res)
+                    return createConstant(res);
+            }
+            return LINK(expr);
+        }
     case no_concat:
         return applyBinaryFold(expr, concatValues);
     case no_band:
@@ -3357,7 +3371,7 @@ IHqlExpression * NullFolderMixin::foldNullDataset(IHqlExpression * expr)
             break;
         }
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
         {
             //If action does not change the type information, then it can't have done anything...
@@ -4769,6 +4783,15 @@ IHqlExpression * CExprFolderTransformer::doFoldTransformed(IHqlExpression * unfo
         if (getBoolValue(expr->queryChild(0), false))
             return createValue(no_null, makeVoidType());
         break;
+    case no_sequential:
+    case no_parallel:
+        if (expr->numChildren() == 1)
+        {
+            if (expr->queryChild(0)->isAttribute())
+                return createValue(no_null, makeVoidType());
+            return removeParentNode(expr);
+        }
+        break;
     }
 
     return LINK(expr);
@@ -5565,7 +5588,7 @@ HqlConstantPercolator * CExprFolderTransformer::gatherConstants(IHqlExpression *
     case no_keyeddistribute:
     case no_cosort:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_assertsorted:
     case no_topn:

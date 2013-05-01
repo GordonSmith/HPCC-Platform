@@ -159,6 +159,11 @@ void ActPrintLog(const CActivityBase *activity, IException *e, const char *forma
     va_end(args);
 }
 
+void ActPrintLog(const CActivityBase *activity, IException *e)
+{
+    ActPrintLog(activity, e, "%s", "");
+}
+
 void GraphPrintLogArgsPrep(StringBuffer &res, CGraphBase *graph, const ActLogEnum flags, const LogMsgCategory &logCat, const char *format, va_list args)
 {
     if (format)
@@ -393,6 +398,11 @@ IThorException *MakeActivityException(CActivityBase *activity, IException *e, co
     return e2;
 }
 
+IThorException *MakeActivityException(CActivityBase *activity, IException *e)
+{
+    return MakeActivityException(activity, e, "%s", "");
+}
+
 IThorException *MakeActivityWarning(CActivityBase *activity, int code, const char *format, ...)
 {
     va_list args;
@@ -431,6 +441,11 @@ IThorException *MakeActivityException(CGraphElementBase *container, IException *
     IThorException *e2 = _MakeActivityException(*container, e, format, args);
     va_end(args);
     return e2;
+}
+
+IThorException *MakeActivityException(CGraphElementBase *container, IException *e)
+{
+    return MakeActivityException(container, e, "%s", "");
 }
 
 IThorException *MakeActivityWarning(CGraphElementBase *container, int code, const char *format, ...)
@@ -542,18 +557,11 @@ void SetLogName(const char *prefix, const char *logdir, const char *thorname, bo
 }
 #endif
 
-#ifdef __linux__
-int file_select(const struct dirent *entry)
-{
-    return strncmp(entry->d_name, "thtmp", 5) == 0;
-}
-#endif
-
 class CTempNameHandler
 {
 public:
     unsigned num;
-    StringAttr tempdir;
+    StringAttr tempdir, tempPrefix;
     StringAttr alttempdir; // only set if needed
     CriticalSection crit;
     bool altallowed;
@@ -565,25 +573,22 @@ public:
         altallowed = false;
         cleardir = false;
     }
-
     ~CTempNameHandler()
     {
         if (cleardir) 
             clearDirs(false);       // don't log as jlog may have closed
     }
-
-
     const char *queryTempDir(bool alt) 
     { 
         if (alt&&altallowed) 
             return alttempdir;
         return tempdir; 
     }
-
-    void setTempDir(const char *name,bool clear)
+    void setTempDir(const char *name, const char *_tempPrefix, bool clear)
     {
         CriticalBlock block(crit);
         assertex(tempdir.isEmpty()); // should only be called once
+        tempPrefix.set(_tempPrefix);
         StringBuffer base;
         if (name&&*name) {
             base.append(name);
@@ -606,7 +611,8 @@ public:
 #else
         altallowed = globals->getPropBool("@thor_dual_drive",true);
 #endif
-        if (altallowed) {
+        if (altallowed)
+        {
             unsigned d = getPathDrive(tempdir);
             if (d>1)
                 altallowed = false;
@@ -620,10 +626,10 @@ public:
         if (clear)
             clearDirs(true);
     }
-
     static void clearDir(const char *dir, bool log)
     {
-        if (dir&&*dir) {
+        if (dir&&*dir)
+        {
             Owned<IDirectoryIterator> iter = createDirectoryIterator(dir);
             ForEach (*iter)
             {
@@ -643,14 +649,11 @@ public:
             }
         }
     }
-
     void clearDirs(bool log)
     {
         clearDir(tempdir,log);
         clearDir(alttempdir,log);
     }
-
-
     void getTempName(StringBuffer &name, const char *suffix,bool alt)
     {
         CriticalBlock block(crit);
@@ -659,13 +662,11 @@ public:
             name.append(alttempdir);
         else
             name.append(tempdir);
-        name.append("thtmp").append((unsigned)GetCurrentProcessId()).append('_').append(++num);
+        name.append(tempPrefix).append((unsigned)GetCurrentProcessId()).append('_').append(++num);
         if (suffix)
             name.append("__").append(suffix);
         name.append(".tmp");
     }
-
-
 } TempNameHandler;
 
 
@@ -675,9 +676,9 @@ void GetTempName(StringBuffer &name, const char *prefix,bool altdisk)
     TempNameHandler.getTempName(name, prefix, altdisk);
 }
 
-void SetTempDir(const char *name,bool clear)
+void SetTempDir(const char *name, const char *tempPrefix, bool clear)
 {
-    TempNameHandler.setTempDir(name,clear);
+    TempNameHandler.setTempDir(name, tempPrefix, clear);
 }
 
 void ClearDir(const char *dir)
@@ -931,7 +932,7 @@ bool getBestFilePart(CActivityBase *activity, IPartDescriptor &partDesc, OwnedIF
             }
             catch (IException *e)
             {
-                ActPrintLog(&activity->queryContainer(), e, NULL);
+                ActPrintLog(&activity->queryContainer(), e, "In getBestFilePart");
                 e->Release();
             }
         }
@@ -1230,4 +1231,14 @@ void sendInChunks(ICommunicator &comm, rank_t dst, mptag_t mpTag, IRowStream *in
         if (0 == msg.length())
             break;
     }
+}
+
+void logDiskSpace()
+{
+    StringBuffer diskSpaceMsg("Disk space: ");
+    diskSpaceMsg.append(queryBaseDirectory()).append(" = ").append(getFreeSpace(queryBaseDirectory())/0x100000).append(" MB, ");
+    diskSpaceMsg.append(queryBaseDirectory(true)).append(" = ").append(getFreeSpace(queryBaseDirectory(true))/0x100000).append(" MB, ");
+    const char *tempDir = globals->queryProp("@thorTempDirectory");
+    diskSpaceMsg.append(tempDir).append(" = ").append(getFreeSpace(tempDir)/0x100000).append(" MB");
+    PROGLOG("%s", diskSpaceMsg.str());
 }

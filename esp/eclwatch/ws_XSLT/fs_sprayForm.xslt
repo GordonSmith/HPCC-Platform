@@ -154,16 +154,6 @@
                document.getElementById('maskV').innerHTML = o.value+'._$P$_of_$N$';
                handleSubmitBtn();
             }
-            /*function onChangeFormat()
-            {   
-               if (method == 'SprayVariable' && smethod == 'csv')
-               {
-                  if (document.forms[0].sourceFormat.value != "1")
-                     document.forms[0].compress.disabled = true;
-                  else
-                     document.forms[0].compress.disabled = false;
-               }
-            }*/
             function handleSubmitBtn()
             {
                //disable = label == '';
@@ -180,7 +170,7 @@
                      if (method == 'SprayVariable')
                      {
                         disable = (document.getElementById('sourceMaxRecordSize') != null && document.getElementById('sourceMaxRecordSize').value == 0) || 
-                                      (document.getElementById('sourceCsvSeparator') != null && document.getElementById('sourceCsvSeparator').value  == '') ||
+                                      (document.getElementById('sourceCsvSeparate') != null && document.getElementById('sourceCsvSeparate').value  == '') ||
                                       (document.getElementById('sourceCsvTerminate') != null && document.getElementById('sourceCsvTerminate').value == '') ||
                                       (document.getElementById('sourceCsvQuote') != null && document.getElementById('sourceCsvQuote').value == '') ||
                                       (document.getElementById('sourceRowTag') != null && document.getElementById('sourceRowTag').value == '');
@@ -249,7 +239,7 @@
 
             function setSourceCsvSeparator(noSeparatorCheckbox)
             {
-                var separatorInputField = document.getElementById("sourceCsvSeparator");
+                var separatorInputField = document.getElementById("sourceCsvSeparate");
                 if (separatorInputField == NaN)
                     return;
 
@@ -289,7 +279,7 @@
                <h3>Spray <xsl:choose>
                      <xsl:when test="$method='SprayFixed'">Fixed</xsl:when>
                      <xsl:otherwise>
-                         <xsl:choose><xsl:when test="$submethod='csv'"> CSV</xsl:when><xsl:otherwise> XML</xsl:otherwise></xsl:choose>
+                         <xsl:choose><xsl:when test="$submethod='csv'"> Delimited</xsl:when><xsl:otherwise> XML</xsl:otherwise></xsl:choose>
                     </xsl:otherwise>
                   </xsl:choose>
                </h3>
@@ -495,9 +485,9 @@
                </tr>
               <xsl:choose><xsl:when test="$submethod='csv'">
                <tr>
-                  <td>Separator:</td>
+                  <td>Separators:</td>
                   <td>
-                     <input type="text" id="sourceCsvSeparator" name="sourceCsvSeparator" size="6" value="{$sep}" onchange="handleSubmitBtn()" onblur="handleSubmitBtn()"/>
+                     <input type="text" id="sourceCsvSeparate" name="sourceCsvSeparate" size="6" value="{$sep}" onchange="handleSubmitBtn()" onblur="handleSubmitBtn()"/>
                   </td>
                </tr>
                <tr>
@@ -513,7 +503,7 @@
                   </td>
                </tr>
                <tr>
-                  <td>Line Terminator:</td>
+                  <td>Line Terminators:</td>
                   <td>
                      <input type="text" id="sourceCsvTerminate" name="sourceCsvTerminate" size="6" value="{$term}" onchange="handleSubmitBtn()" onblur="handleSubmitBtn()"/>
                   </td>

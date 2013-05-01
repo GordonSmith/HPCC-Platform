@@ -15,10 +15,12 @@
 ############################################################################## */
 define([
     "dojo/_base/declare",
+    "dojo/_base/lang",
     "dojo/_base/array",
     "dojo/dom",
     "dojo/on",
     "dojo/dom-class",
+    "dojo/dom-form",
     "dojo/date",
 
     "dijit/_TemplatedMixin",
@@ -39,6 +41,7 @@ define([
     "hpcc/ESPWorkunit",
     "hpcc/WsWorkunits",
     "hpcc/WUDetailsWidget",
+    "hpcc/TargetSelectWidget",
 
     "dojo/text!../templates/WUQueryWidget.html",
 
@@ -52,11 +55,14 @@ define([
     "dijit/form/RadioButton",
     "dijit/form/Select",
     "dijit/Toolbar",
-    "dijit/TooltipDialog"
-], function (declare, arrayUtil, dom, on, domClass, date,
+    "dijit/TooltipDialog",
+
+    "dojox/layout/TableContainer"
+
+], function (declare, lang, arrayUtil, dom, on, domClass, domForm, date, 
                 _TemplatedMixin, _WidgetsInTemplateMixin, registry, Menu, MenuItem, MenuSeparator, PopupMenuItem, Dialog,
                 EnhancedGrid, Pagination, IndirectSelection, Calendar,
-                _TabContainerWidget, ESPWorkunit, WsWorkunits, WUDetailsWidget,
+                _TabContainerWidget, ESPWorkunit, WsWorkunits, WUDetailsWidget, TargetSelectWidget,
                 template) {
     return declare("WUQueryWidget", [_TabContainerWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
@@ -64,8 +70,6 @@ define([
 
         workunitsTab: null,
         workunitsGrid: null,
-        legacyPane: null,
-        legacyPaneLoaded: false,
 
         tabMap: [],
 
@@ -75,20 +79,17 @@ define([
             this.inherited(arguments);
             this.workunitsTab = registry.byId(this.id + "_Workunits");
             this.workunitsGrid = registry.byId(this.id + "WorkunitsGrid");
-            this.legacyPane = registry.byId(this.id + "_Legacy");
+            this.clusterTargetSelect = registry.byId(this.id + "ClusterTargetSelect");
         },
 
         startup: function (args) {
             this.inherited(arguments);
-            this.initWorkunitsGrid();
             this.initFilter();
             this.initContextMenu();
-            this.refreshActionState();
         },
 
         resize: function (args) {
             this.inherited(arguments);
-
             //  TODO:  This should not be needed
             var context = this;
             setTimeout(function () {
@@ -170,36 +171,17 @@ define([
         },
         _onDeschedule: function (event) {
         },
-        _onClickFilterApply: function (event) {
-            this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
-
-            this.refreshGrid();
-        },
         _onFilterApply: function (event) {
-            this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
+            registry.byId(this.id + "FilterDropDown").closeDropDown();
             if (this.hasFilter()) {
-                registry.byId(this.id + "FilterDropDown").closeDropDown();
-                this.refreshGrid();
+                this.applyFilter();
             } else {
                 this.validateDialog.show();
             }
         },
         _onFilterClear: function (event, supressGridRefresh) {
-            this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
-            dom.byId(this.id + "Owner").value = "";
-            dom.byId(this.id + "Jobname").value = "";
-            dom.byId(this.id + "Cluster").value = "";
-            dom.byId(this.id + "State").value = "";
-            dom.byId(this.id + "ECL").value = "";
-            dom.byId(this.id + "LogicalFile").value = "";
-            dom.byId(this.id + "LogicalFileSearchType").value = "";
-            dom.byId(this.id + "FromDate").value = "";
-            dom.byId(this.id + "FromTime").value = "";
-            dom.byId(this.id + "ToDate").value = "";
-            dom.byId(this.id + "LastNDays").value = "";
-            if (!supressGridRefresh) {
-                this.refreshGrid();
-            }
+            this.clearFilter();
+            this.applyFilter();
         },
         _onRowDblClick: function (wuid) {
             var wuTab = this.ensurePane(this.id + "_" + wuid, {
@@ -250,32 +232,29 @@ define([
         },
 
         //  Implementation  ---
+        clearFilter: function () {
+            arrayUtil.forEach(registry.byId(this.id + "FilterForm").getDescendants(), function (item, idx) {
+                item.set('value', null);
+            });
+        },
+
         hasFilter: function () {
-            return dom.byId(this.id + "Owner").value !== "" ||
-               dom.byId(this.id + "Jobname").value !== "" ||
-               dom.byId(this.id + "Cluster").value !== "" ||
-               dom.byId(this.id + "State").value !== "" ||
-               dom.byId(this.id + "ECL").value !== "" ||
-               dom.byId(this.id + "LogicalFile").value !== "" ||
-               dom.byId(this.id + "FromDate").value !== "" ||
-               dom.byId(this.id + "FromTime").value !== "" ||
-               dom.byId(this.id + "ToDate").value !== "" ||
-               dom.byId(this.id + "LastNDays").value !== "";
+            var filter = domForm.toObject(this.id + "FilterForm");
+            for (var key in filter) {
+                if (filter[key] != ""){
+                    return true
+                }
+            }
+            return false
         },
 
         getFilter: function () {
-            var retVal = {
-                Owner: dom.byId(this.id + "Owner").value,
-                Jobname: dom.byId(this.id + "Jobname").value,
-                Cluster: dom.byId(this.id + "Cluster").value,
-                State: dom.byId(this.id + "State").value,
-                ECL: dom.byId(this.id + "ECL").value,
-                LogicalFile: dom.byId(this.id + "LogicalFile").value,
-                LogicalFileSearchType: registry.byId(this.id + "LogicalFileSearchType").get("value"),
+            var retVal = domForm.toObject(this.id + "FilterForm");
+            lang.mixin(retVal, {
+                Cluster: this.clusterTargetSelect.get("value"),
                 StartDate: this.getISOString("FromDate", "FromTime"),
-                EndDate: this.getISOString("ToDate", "ToTime"),
-                LastNDays: dom.byId(this.id + "LastNDays").value
-            };
+                EndDate: this.getISOString("ToDate", "ToTime")
+            });
             if (retVal.StartDate != "" && retVal.EndDate != "") {
                 retVal["DateRB"] = "0";
             } else if (retVal.LastNDays != "") {
@@ -285,6 +264,11 @@ define([
                 retVal.EndDate = now.toISOString();
             }
             return retVal;
+        },
+
+        applyFilter: function () {
+            this.workunitsGrid.rowSelectCell.toggleAllSelection(false);
+            this.refreshGrid();
         },
 
         getISOString: function (dateField, timeField) {
@@ -307,6 +291,14 @@ define([
                 return;
             this.initalized = true;
 
+            this.clusterTargetSelect.init({
+                Targets: true,
+                includeBlank: true,
+                Target: params.Cluster
+            });
+
+            this.initWorkunitsGrid();
+            this.refreshActionState();
             this.selectChild(this.workunitsTab, true);
         },
 
@@ -314,14 +306,6 @@ define([
             var currSel = this.getSelectedChild();
             if (currSel && !currSel.initalized) {
                 if (currSel.id == this.workunitsTab.id) {
-                } else if (currSel.id == this.legacyPane.id) {
-                    if (!this.legacyPaneLoaded) {
-                        this.legacyPaneLoaded = true;
-                        this.legacyPane.set("content", dojo.create("iframe", {
-                            src: "/WsWorkunits/WUQuery",
-                            style: "border: 0; width: 100%; height: 100%"
-                        }));
-                    }
                 } else {
                     if (!currSel.initalized) {
                         currSel.init(currSel.params);
@@ -376,36 +360,38 @@ define([
                 var pSubMenu = new Menu();
                 this.menuFilterOwner = this.addMenuItem(pSubMenu, {
                     onClick: function (args) {
-                        context._onFilterClear(null, true);
+                        context.clearFilter();
                         registry.byId(context.id + "Owner").set("value", context.menuFilterOwner.get("hpcc_value"));
-                        context._onClickFilterApply();
+                        context.applyFilter();
                     }
                 });
                 this.menuFilterJobname = this.addMenuItem(pSubMenu, {
                     onClick: function (args) {
-                        context._onFilterClear(null, true);
+                        context.clearFilter();
                         registry.byId(context.id + "Jobname").set("value", context.menuFilterJobname.get("hpcc_value"));
-                        context._onClickFilterApply();
+                        context.applyFilter();
                     }
                 });
                 this.menuFilterCluster = this.addMenuItem(pSubMenu, {
                     onClick: function (args) {
-                        context._onFilterClear(null, true);
-                        registry.byId(context.id + "Cluster").set("value", context.menuFilterCluster.get("hpcc_value"));
-                        context._onClickFilterApply();
+                        context.clearFilter();
+                        registry.byId(context.id + "ClusterTargetSelect").set("value", context.menuFilterCluster.get("hpcc_value"));
+                        context.applyFilter();
                     }
                 });
                 this.menuFilterState = this.addMenuItem(pSubMenu, {
                     onClick: function (args) {
-                        context._onFilterClear(null, true);
+                        context.clearFilter();
                         registry.byId(context.id + "State").set("value", context.menuFilterState.get("hpcc_value"));
-                        context._onClickFilterApply();
+                        context.applyFilter();
                     }
                 });
                 pSubMenu.addChild(new MenuSeparator());
                 this.menuFilterClearFilter = this.addMenuItem(pSubMenu, {
                     label: "Clear",
-                    onClick: function () { context._onFilterClear(); }
+                    onClick: function () {
+                        context._onFilterClear();
+                    }
                 });
                 pMenu.addChild(new PopupMenuItem({
                     label: "Filter",
@@ -431,9 +417,9 @@ define([
                 },
                 {
                     name: "Wuid", field: "Wuid", width: "15",
-                    formatter: function (Wuid) {
+                    formatter: function (Wuid, idx) {
                         var wu = ESPWorkunit.Get(Wuid);
-                        return ("<img src='../files/" + wu.getStateImage() + "'>&nbsp" + Wuid);
+                        return "<img src='../files/" + wu.getStateImage() + "'>&nbsp<a href=# rowIndex=" + idx + " class='WuidClick' Wuid=>" + Wuid + "</a>";
                     }
                 },
                 { name: "Owner", field: "Owner", width: "8" },
@@ -443,11 +429,17 @@ define([
                 { name: "State", field: "State", width: "8" },
                 { name: "Total Thor Time", field: "TotalThorTime", width: "8" }
             ]);
-
             this.objectStore = ESPWorkunit.CreateWUQueryObjectStore();
-            this.workunitsGrid.setStore(this.objectStore);
-            this.workunitsGrid.setQuery(this.getFilter());
+            this.workunitsGrid.setStore(this.objectStore, this.getFilter());
             this.workunitsGrid.noDataMessage = "<span class='dojoxGridNoData'>Zero Workunits (check filter).</span>";
+
+            on(document, ".WuidClick:click", function (evt) {
+                if (context._onRowContextMenu) {
+                    var idx = evt.target.getAttribute("rowIndex");
+                    var item = context.workunitsGrid.getItem(idx);
+                    context._onRowDblClick(item.Wuid);
+                }
+            });
 
             this.workunitsGrid.on("RowDblClick", function (evt) {
                 if (context._onRowDblClick) {
@@ -483,10 +475,18 @@ define([
                 title: "Filter",
                 content: "No filter criteria specified."
             });
-            dojo.connect(registry.byId(this.id + "FromDate"), 'onClick', function (evt) {
-            });
-            dojo.connect(registry.byId(this.id + "ToDate"), 'onClick', function (evt) {
-            });
+            var stateOptions = [{
+                label: "any",
+                value: ""
+            }];
+            for (var key in WsWorkunits.States) {
+                stateOptions.push({
+                    label: WsWorkunits.States[key],
+                    value: WsWorkunits.States[key]
+                });
+            }
+            var stateSelect = registry.byId(this.id + "State");
+            stateSelect.addOption(stateOptions);
         },
 
         refreshGrid: function (args) {
@@ -504,7 +504,6 @@ define([
             var hasNotProtected = false;
             var hasFailed = false;
             var hasNotFailed = false;
-            var hasFilter = this.hasFilter();
             var hasCompleted = false;
             var hasNotCompleted = false;
             for (var i = 0; i < selection.length; ++i) {
@@ -542,25 +541,35 @@ define([
             this.menuProtect.set("disabled", !hasNotProtected);
             this.menuUnprotect.set("disabled", !hasProtected);
 
+            this.refreshFilterState();
+        },
+
+        refreshFilterState: function () {
+            var hasFilter = this.hasFilter();
             dom.byId(this.id + "IconFilter").src = hasFilter ? "img/filter.png" : "img/noFilter.png";
         },
 
         ensurePane: function (id, params) {
             var retVal = this.tabMap[id];
             if (!retVal) {
-                var context = this;
-                retVal = new WUDetailsWidget({
-                    id: id,
-                    title: params.Wuid,
-                    closable: false,
-                    onClose: function () {
-                        delete context.tabMap[id];
-                        return true;
-                    },
-                    params: params
-                });
+                retVal = registry.byId(id);
+                if (!retVal) {
+                    var context = this;
+                    retVal = new WUDetailsWidget({
+                        id: id,
+                        title: params.Wuid,
+                        closable: true,
+                        onClose: function () {
+                            //  Workaround for http://bugs.dojotoolkit.org/ticket/16475
+                            context._tabContainer.removeChild(this);
+                            delete context.tabMap[this.id];
+                            return false;
+                        },
+                        params: params
+                    });
+                }
                 this.tabMap[id] = retVal;
-                this.addChild(retVal, 2);
+                this.addChild(retVal, 1);
             }
             return retVal;
         }

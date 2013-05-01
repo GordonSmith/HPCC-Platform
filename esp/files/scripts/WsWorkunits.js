@@ -22,6 +22,24 @@ define([
 ], function (declare, lang, arrayUtil,
     ESPRequest) {
     return {
+        States: {
+            0: "unknown",
+            1: "compiled",
+            2: "running",
+            3: "completed",
+            4: "aborting",
+            5: "aborted",
+            6: "blocked",
+            7: "submitted",
+            8: "wait",
+            9: "failed",
+            10: "compiling",
+            11: "uploading_files",
+            12: "debugging",
+            13: "debug_running",
+            14: "paused"
+        },
+
         WUCreate: function (params) {
             return ESPRequest.send("WsWorkunits", "WUCreate", params);
         },
@@ -40,7 +58,26 @@ define([
         },
 
         WUPublishWorkunit: function (params) {
-            return ESPRequest.send("WsWorkunits", "WUPublishWorkunit", params);
+            return ESPRequest.send("WsWorkunits", "WUPublishWorkunit", params).then(function (response) {
+                if (lang.exists("WUPublishWorkunitResponse", response)) {
+                    if (response.WUPublishWorkunitResponse.ErrorMesssage) {
+                        dojo.publish("hpcc/brToaster", {
+                            message: "<h4>Publish " + response.WUPublishWorkunitResponse.Wuid + "</h4>" + "<p>" + response.WUPublishWorkunitResponse.ErrorMesssage + "</p>",
+                            type: "error",
+                            duration: -1
+                        });
+                    } else {
+                        dojo.publish("hpcc/brToaster", {
+                            message: "<h4>Publish " + response.WUPublishWorkunitResponse.Wuid + "</h4>" + "<p><ul>" +
+                                "<li>Query ID:  " + response.WUPublishWorkunitResponse.QueryId + "</li>" +
+                                "<li>Query Name:  " + response.WUPublishWorkunitResponse.QueryName + "</li>" +
+                                "<li>Query Set:  " + response.WUPublishWorkunitResponse.QuerySet + "</li>" +
+                                "</ul></p>",
+                            type: "message"
+                        });
+                    }
+                }
+            });
         },
 
         WUQuery: function (params) {

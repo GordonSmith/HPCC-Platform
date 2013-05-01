@@ -25,37 +25,40 @@
 
 project( Rembed )
 
-find_package(R)
-if (NOT R_FOUND)
-  message(FATAL_ERROR "MAKE_REMBED requested but R libraries not found")
+if (USE_RINSIDE)
+  ADD_PLUGIN(Rembed PACKAGES R OPTION MAKE_REMBED)
+  if ( MAKE_REMBED )
+    set (    SRCS
+             Rembed.cpp
+        )
+
+    include_directories (
+             ${R_INCLUDE_DIRS}
+             ./../../system/include
+             ./../../rtl/eclrtl
+             ./../../rtl/include
+             ./../../common/deftype
+             ./../../system/jlib
+        )
+
+    ADD_DEFINITIONS( -D_USRDLL -DREMBED_EXPORTS )
+
+    HPCC_ADD_LIBRARY( Rembed SHARED ${SRCS} )
+    if (${CMAKE_VERSION} VERSION_LESS "2.8.9")
+      message("WARNING: Cannot set NO_SONAME. shlibdeps will give warnings when package is installed")
+    else()
+      set_target_properties( Rembed PROPERTIES NO_SONAME 1 )
+    endif()
+
+    install ( TARGETS Rembed DESTINATION plugins )
+
+    target_link_libraries ( Rembed
+        ${R_LIBRARIES}
+        eclrtl
+        jlib
+        )
+  endif()
 endif()
 
-set (    SRCS
-         Rembed.cpp
-    )
-
-include_directories (
-         "${R_INCLUDE_DIRS}"
-         ./../../system/include
-         ./../../rtl/eclrtl
-         ./../../rtl/include
-         ./../../common/deftype
-         ./../../system/jlib
-    )
-
-ADD_DEFINITIONS( -D_USRDLL -DREMBED_EXPORTS )
-
-HPCC_ADD_LIBRARY( Rembed SHARED ${SRCS} )
-if (${CMAKE_VERSION} VERSION_LESS "2.8.9")
-  message("WARNING: Cannot set NO_SONAME. shlibdeps will give warnings when package is installed")
-else()
-  set_target_properties( Rembed PROPERTIES NO_SONAME 1 )
-endif()
-
-install ( TARGETS Rembed DESTINATION plugins )
-
-target_link_libraries ( Rembed
-    ${R_LIBRARIES}
-    eclrtl
-    jlib
-    )
+# Even if not making the R plugin, we want to install the header
+install ( FILES ${CMAKE_CURRENT_SOURCE_DIR}/R.ecllib DESTINATION plugins COMPONENT Runtime)

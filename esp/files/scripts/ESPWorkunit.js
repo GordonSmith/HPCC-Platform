@@ -122,10 +122,16 @@ define([
             var actionEx = lang.exists("ActionEx", this) ? this.ActionEx : null;
             this.set("hasCompleted", WsWorkunits.isComplete(this.StateID, actionEx));
         },
+        _ActionExSetter: function (ActionEx) {
+            if (this.StateID) {
+                this.ActionEx = ActionEx;
+                this.set("hasCompleted", WsWorkunits.isComplete(this.StateID, this.ActionEx));
+            }
+        },
         _VariablesSetter: function (Variables) {
             var variables = [];
             for (var i = 0; i < Variables.ECLResult.length; ++i) {
-                context.variables.push(lang.mixin({
+                variables.push(lang.mixin({
                     ColumnType: Variables.ECLResult[i].ECLSchemas && Variables.ECLResult[i].ECLSchemas.ECLSchemaItem.length ? Variables.ECLResult[i].ECLSchemas.ECLSchemaItem[0].ColumnType : "unknown"
                 }, variables[i]));
             }
@@ -180,11 +186,10 @@ define([
             return this.hasCompleted;
         },
         monitor: function (callback) {
-            if (this.hasCompleted) {
-                if (callback) {
-                    callback(this);
-                }
-            } else {
+            if (callback) {
+                callback(this);
+            }
+            if (!this.hasCompleted) {
                 var context = this;
                 this.watch("changedCount", function (name, oldValue, newValue) {
                     if (oldValue !== newValue && newValue) {
@@ -550,6 +555,16 @@ define([
 
             this.getInfo({
                 onGetResults: onFetchResults
+            });
+        },
+        fetchSourceFiles: function (onFetchSourceFiles) {
+            if (this.sourceFiles && this.sourceFiles.length) {
+                onFetchSourceFiles(this.sourceFiles);
+                return;
+            }
+
+            this.getInfo({
+                onGetSourceFiles: onFetchSourceFiles
             });
         },
         fetchTimers: function (onFetchTimers) {

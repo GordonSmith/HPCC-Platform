@@ -17,7 +17,7 @@
 
 #include "platform.h"
 #include "jliball.hpp"
-#include "bcd.hpp"
+#include "rtlbcd.hpp"
 #include "workunit.hpp"
 #include "seclib.hpp"
 #include "eclrtl.hpp"
@@ -571,40 +571,35 @@ ITypeInfo * containsSingleSimpleFieldBlankXPath(IResultSetMetaData * meta)
     return NULL;
 }
 
-    
+void fvSplitXPath(const char *xpath, StringBuffer &s, const char *&name, const char **childname=NULL)
+{
+    if (!xpath || !*xpath)
+        return;
+    const char * slash = strchr(xpath, '/');
+    if (!slash)
+    {
+        name = xpath;
+        if (childname)
+            *childname = NULL;
+    }
+    else
+    {
+        if (!childname || strchr(slash+1, '/')) //output ignores xpaths that are too deep
+            return;
+        name = s.clear().append(slash-xpath, xpath).str();
+        *childname = slash+1;
+    }
+}
+
 void CResultSetMetaData::getXmlSchema(ISchemaBuilder & builder, bool useXPath) const
 {
-    StringBuffer prefix, suffix;
+    StringBuffer xname;
     ForEachItemIn(idx, columns)
     {
         CResultSetColumnInfo & column = columns.item(idx);
         unsigned flag = column.flag;
         const char * name = meta->queryName(idx);
         const char * childname = NULL;
-        const char * xname = NULL;
-        if (useXPath)
-        {
-            xname = meta->queryXPath(idx);
-            if (xname)
-            {
-                const char * slash = strchr(xname, '/');
-                if (slash)
-                {
-                    const char * slash2 = strchr(slash+1, '/');
-                    prefix.clear().append(slash-xname, xname);
-                    name = prefix.str();
-                    if (slash2)
-                    {
-                        suffix.clear().append(slash2-(slash+1), slash+1);
-                        childname = suffix.str();
-                    }
-                    else
-                        childname = slash+1;
-                }
-                else
-                    name = xname;
-            }
-        }
 
         switch (flag)
         {
@@ -622,7 +617,9 @@ void CResultSetMetaData::getXmlSchema(ISchemaBuilder & builder, bool useXPath) c
             break;
         case FVFFdataset:
             {
-                if (!childname && (!xname || !*xname)) childname = "Row";
+                childname = "Row";
+                if (useXPath)
+                    fvSplitXPath(meta->queryXPath(idx), xname, name, &childname);
                 ITypeInfo * singleFieldType = (useXPath && name && *name && childname && *childname) ? containsSingleSimpleFieldBlankXPath(column.childMeta.get()) : NULL;
                 if (!singleFieldType || !builder.addSingleFieldDataset(name, childname, *singleFieldType))
                 {
@@ -639,11 +636,17 @@ void CResultSetMetaData::getXmlSchema(ISchemaBuilder & builder, bool useXPath) c
                 ITypeInfo & type = *column.type;
                 if (type.getTypeCode() == type_set)
                 {
-                    if (!childname) childname = "Item";
+                    childname = "Item";
+                    if (useXPath)
+                        fvSplitXPath(meta->queryXPath(idx), xname, name, &childname);
                     builder.addSetField(name, childname, type);
                 }
                 else
+                {
+                    if (useXPath)
+                        fvSplitXPath(meta->queryXPath(idx), xname, name);
                     builder.addField(name, type);
+                }
                 break;
             }
         }
@@ -670,7 +673,7 @@ IStringVal & CResultSetMetaData::getXmlXPathSchema(IStringVal & str, bool addHea
 
 IResultSetCursor * CResultSetBase::createCursor()
 {
-    return doCreateCursor(false);
+    return doCreateCursor();
 }
 
 IResultSetCursor * CResultSetBase::createCursor(IDataVal & savedCursor)
@@ -703,9 +706,9 @@ IResultSetCursor * CResultSetBase::createSortedCursor(unsigned column, bool desc
     return new CResultSetSortedCursor(getMeta(), this, column, descend);
 }
 
-CResultSetCursor * CResultSetBase::doCreateCursor(bool oldInterface)
+CResultSetCursor * CResultSetBase::doCreateCursor()
 {
-    return new CResultSetCursor(getMeta(), this, oldInterface);
+    return new CResultSetCursor(getMeta(), this);
 }
 
 
@@ -850,16 +853,14 @@ void CResultSet::serialize(MemoryBuffer & out)
 
 //---------------------------------------------------------------------------
 
-CResultSetCursor::CResultSetCursor(const CResultSetMetaData & _meta, IExtendedNewResultSet * _resultSet, bool _oldInterface) : meta(_meta)
+CResultSetCursor::CResultSetCursor(const CResultSetMetaData & _meta, IExtendedNewResultSet * _resultSet) : meta(_meta)
 { 
-    oldInterface = _oldInterface;
     init(_resultSet); 
     absolute(BEFORE_FIRST_ROW);
 }
 
 CResultSetCursor::CResultSetCursor(const CResultSetMetaData & _meta, IExtendedNewResultSet * _resultSet, MemoryBuffer & buffer) : meta(_meta)
 { 
-    oldInterface = false;
     init(_resultSet); 
 
     buffer.read(curRow);
@@ -868,8 +869,7 @@ CResultSetCursor::CResultSetCursor(const CResultSetMetaData & _meta, IExtendedNe
 
 CResultSetCursor::~CResultSetCursor()
 {
-    if (!oldInterface)
-        resultSet->onClose();
+    resultSet->onClose();
     delete [] offsets;
 }
 
@@ -880,8 +880,7 @@ void CResultSetCursor::init(IExtendedNewResultSet * _resultSet)
     offsets = new unsigned[meta.getColumnCount()+1];
     if (meta.isFixedSize())
         meta.calcFieldOffsets(NULL, offsets);
-    if (!oldInterface)
-        resultSet->onOpen();
+    resultSet->onOpen();
 }
 
 bool CResultSetCursor::absolute(__int64 row)
@@ -909,19 +908,6 @@ void CResultSetCursor::beforeFirst()
 {
     absolute(BEFORE_FIRST_ROW);
     curRowData.clear();
-}
-
-
-int CResultSetCursor::findColumn(const char * columnName) const
-{
-    SCMStringBuffer s;
-    for(int i = 0; i < getMetaData().getColumnCount(); i++)
-    {
-        s.clear();
-        if(!stricmp(columnName, getMetaData().getColumnLabel(s, i).str()))
-            return i;
-    }
-    return -1;
 }
 
 
@@ -1964,16 +1950,6 @@ bool CResultSetCursor::supportsRandomSeek() const
 }
 
 
-void CResultSetCursor::beginAccess()
-{
-    resultSet->onOpen();
-}
-
-void CResultSetCursor::endAccess()
-{
-    resultSet->onClose();
-}
-
 //---------------------------------------------------------------------------
 
 bool IndirectResultSetCursor::absolute(__int64 row) 
@@ -2360,7 +2336,7 @@ void buildCursorIndex(unsigned & numElements, unsigned * & elements, CResultSetC
     delete [] keys;
 }
 
-CResultSetSortedCursor::CResultSetSortedCursor(const CResultSetMetaData & _meta, IExtendedNewResultSet * _resultSet, unsigned _column, bool _desc) : CResultSetCursor(_meta, _resultSet, false)
+CResultSetSortedCursor::CResultSetSortedCursor(const CResultSetMetaData & _meta, IExtendedNewResultSet * _resultSet, unsigned _column, bool _desc) : CResultSetCursor(_meta, _resultSet)
 {
     numEntries = 0;
     elements = NULL;
@@ -2370,7 +2346,7 @@ CResultSetSortedCursor::CResultSetSortedCursor(const CResultSetMetaData & _meta,
     buildIndex();
 }
 
-CResultSetSortedCursor::CResultSetSortedCursor(const CResultSetMetaData & _meta, IExtendedNewResultSet * _resultSet, unsigned _column, bool _desc, MemoryBuffer & buffer) : CResultSetCursor(_meta, _resultSet, false)
+CResultSetSortedCursor::CResultSetSortedCursor(const CResultSetMetaData & _meta, IExtendedNewResultSet * _resultSet, unsigned _column, bool _desc, MemoryBuffer & buffer) : CResultSetCursor(_meta, _resultSet)
 { 
     numEntries = 0;
     elements = NULL;
@@ -2393,7 +2369,7 @@ CResultSetSortedCursor::~CResultSetSortedCursor()
 
 void CResultSetSortedCursor::buildIndex()
 {
-    Owned<CResultSetCursor> cursor = new CResultSetCursor(meta, resultSet, false);
+    Owned<CResultSetCursor> cursor = new CResultSetCursor(meta, resultSet);
     switch (meta.getColumnDisplayType(column))
     {
     case TypeBoolean:
@@ -3045,17 +3021,6 @@ CResultSetFactory::CResultSetFactory(ISecManager &secmgr, ISecUser &secuser) : C
 {
 }
 
-IResultSet * CResultSetFactory::createResultSet(IConstWUResult * wuResult, const char * wuid)
-{
-    Owned<IFvDataSource> ds = createDataSource(wuResult, wuid, username, password);
-    if (ds)
-    {
-        Owned<CResultSet> result = createResultSet(ds, (wuResult->getResultFormat() == ResultFormatXml));
-        return result->createOldStyleCursor();
-    }
-    return NULL;
-}
-
 IDistributedFile * CResultSetFactory::lookupLogicalName(const char * logicalName)
 {
     Owned<IUserDescriptor> udesc;
@@ -3071,19 +3036,6 @@ IDistributedFile * CResultSetFactory::lookupLogicalName(const char * logicalName
     return df.getClear();
 }
 
-
-IResultSet * CResultSetFactory::createFileResultSet(const char * logicalName, const char * cluster)
-{
-    Owned<IDistributedFile> df = lookupLogicalName(logicalName);
-    Owned<IFvDataSource> ds = createFileDataSource(df, logicalName, cluster, username, password);
-    if (ds)
-    {
-        Owned<CResultSet> result = createResultSet(ds, false);
-        result->setColumnMapping(df);
-        return result->createOldStyleCursor();
-    }
-    return NULL;
-};
 
 INewResultSet * CResultSetFactory::createNewResultSet(IConstWUResult * wuResult, const char * wuid)
 {
@@ -3147,30 +3099,6 @@ CRemoteResultSetFactory::CRemoteResultSetFactory(const char * remoteServer, ISec
     serverEP.set(remoteServer);
 }
 
-IResultSet * CRemoteResultSetFactory::createResultSet(IConstWUResult * wuResult, const char * wuid)
-{
-    SCMStringBuffer name;
-    wuResult->getResultName(name);
-    Owned<IFvDataSource> ds = createRemoteDataSource(serverEP, username, password, wuid, wuResult->getResultSequence(), name.length() ? name.str() : NULL);
-    if (ds)
-    {
-        Owned<CResultSet> result = new CResultSet(ds, false);
-        return result->createOldStyleCursor();
-    }
-    return NULL;
-}
-
-IResultSet * CRemoteResultSetFactory::createFileResultSet(const char * logicalName, const char * cluster)
-{
-    Owned<IFvDataSource> ds = createRemoteFileDataSource(serverEP, username, password, logicalName);
-    if (ds)
-    {
-        Owned<CResultSet> result = new CResultSet(ds, false);
-        return result->createOldStyleCursor();
-    }
-    return NULL;
-};
-
 INewResultSet * CRemoteResultSetFactory::createNewResultSet(IConstWUResult * wuResult, const char * wuid)
 {
     SCMStringBuffer name;
@@ -3216,40 +3144,6 @@ IResultSetMetaData * CRemoteResultSetFactory::createResultSetMeta(const char * w
 }
 
 //---------------------------------------------------------------------------
-
-extern FILEVIEW_API IResultSet* createResultSet(IResultSetFactory & factory, IStringVal & error, IConstWUResult * wuResult, const char * wuid);
-extern FILEVIEW_API IResultSet* createFileResultSet(IResultSetFactory & factory, IStringVal & error, const char * logicalFile, const char * queue, const char * cluster);
-
-IResultSet* createResultSet(IResultSetFactory & factory, IStringVal & error, IConstWUResult * wuResult, const char * wuid)
-{
-    try
-    {
-        return factory.createResultSet(wuResult, wuid);
-    }
-    catch (IException * e)
-    {
-        StringBuffer s;
-        error.set(e->errorMessage(s).str());
-        e->Release();
-        return NULL;
-    }
-}
-
-IResultSet* createFileResultSet(IResultSetFactory & factory, IStringVal & error, const char * logicalFile, const char * cluster)
-{
-    try
-    {
-        return factory.createFileResultSet(logicalFile, cluster);
-    }
-    catch (IException * e)
-    {
-        StringBuffer s;
-        error.set(e->errorMessage(s).str());
-        e->Release();
-        return NULL;
-    }
-}
-
 
 INewResultSet* createNewResultSet(IResultSetFactory & factory, IStringVal & error, IConstWUResult * wuResult, const char * wuid)
 {
@@ -3319,20 +3213,6 @@ IResultSetFactory * getSecResultSetFactory(ISecManager *secmgr, ISecUser *secuse
 IResultSetFactory * getRemoteResultSetFactory(const char * remoteServer, const char * username, const char * password)
 {
     return new CRemoteResultSetFactory(remoteServer, username, password);
-}
-
-extern FILEVIEW_API void getNumRows(IResultSet * rs, IStringVal &ret)
-{
-    if (rs)
-    {
-        char buff[64];
-#ifdef _WIN32
-      numtostr(buff, rs->getNumRows());
-#else
-        sprintf(buff, "%"I64F"d", rs->getNumRows());
-#endif
-        ret.set(buff);
-    }
 }
 
 int findResultSetColumn(const INewResultSet * results, const char * columnName)

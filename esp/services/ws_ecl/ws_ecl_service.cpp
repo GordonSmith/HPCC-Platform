@@ -1362,7 +1362,7 @@ void appendEclInputXsds(StringBuffer &content, IPropertyTree *xsd, BoolHash &add
 
 void CWsEclBinding::SOAPSectionToXsd(WsEclWuInfo &wsinfo, const char *parmXml, StringBuffer &schema, bool isRequest, IPropertyTree *xsdtree)
 {
-    Owned<IPropertyTree> tree = createPTreeFromXMLString(parmXml, ipt_none, (XmlReaderOptions)(xr_ignoreWhiteSpace|xr_noRoot));
+    Owned<IPropertyTree> tree = createPTreeFromXMLString(parmXml, ipt_none, (PTreeReaderOptions)(ptr_ignoreWhiteSpace|ptr_noRoot));
 
     schema.appendf("<xsd:element name=\"%s%s\">", wsinfo.queryname.sget(), isRequest ? "Request" : "Response");
     schema.append("<xsd:complexType>");
@@ -1744,25 +1744,30 @@ void CWsEclBinding::getWsEcl2XmlRequest(StringBuffer& soapmsg, IEspContext &cont
     }
 }
 
-StringBuffer &appendJSONException(StringBuffer &s, IException *e, const char *objname="Exceptions", const char *arrayName = "Exception")
+StringBuffer &appendJSONExceptionItem(StringBuffer &s, int code, const char *msg, const char *objname="Exceptions", const char *arrayName = "Exception")
 {
-    if (!e)
-        return s;
     if (objname && *objname)
         appendJSONName(s, objname).append('{');
     if (arrayName && *arrayName)
         appendJSONName(s, arrayName).append('[');
     delimitJSON(s);
     s.append('{');
-    appendJSONValue(s, "Code", e->errorCode());
-    StringBuffer temp;
-    appendJSONValue(s, "Message", e->errorMessage(temp).str());
+    appendJSONValue(s, "Code", code);
+    appendJSONValue(s, "Message", msg);
     s.append('}');
     if (arrayName && *arrayName)
         s.append(']');
     if (objname && *objname)
         s.append('}');
     return s;
+}
+
+StringBuffer &appendJSONException(StringBuffer &s, IException *e, const char *objname="Exceptions", const char *arrayName = "Exception")
+{
+    if (!e)
+        return s;
+    StringBuffer temp;
+    return appendJSONExceptionItem(s, e->errorCode(), e->errorMessage(temp).str(), objname, arrayName);
 }
 
 StringBuffer &appendJSONExceptions(StringBuffer &s, IMultiException *e, const char *objname="Exceptions", const char *arrayName = "Exception")
@@ -1824,35 +1829,35 @@ void CWsEclBinding::getWsEclJsonResponse(StringBuffer& jsonmsg, IEspContext &con
     size32_t start = jsonmsg.length();
     try
     {
-        Owned<IPropertyTree> parmtree = createPTreeFromXMLString(xml, ipt_none, (XmlReaderOptions)(xr_ignoreWhiteSpace|xr_ignoreNameSpaces));
+        Owned<IPropertyTree> parmtree = createPTreeFromXMLString(xml, ipt_none, (PTreeReaderOptions)(ptr_ignoreWhiteSpace|ptr_ignoreNameSpaces));
 
         StringBuffer element;
         element.append(wsinfo.queryname.sget());
         element.append("Response");
 
-        VStringBuffer xpath("Body/%s/Results/Result/Exception", element.str());
-        Owned<IPropertyTreeIterator> exceptions = parmtree->getElements(xpath.str());
+        IPropertyTree *node = parmtree;
+        if (node->hasProp("Body"))
+            node = node->queryPropTree("Body");
+        if (node->hasProp(element))
+            node = node->queryPropTree(element);
+        if (node->hasProp("Results"))
+            node = node->queryPropTree("Results");
+        if (node->hasProp("Result"))
+            node = node->queryPropTree("Result");
 
         jsonmsg.appendf("{\n  \"%s\": {\n    \"Results\": {\n", element.str());
 
+        Owned<IPropertyTreeIterator> exceptions = node->getElements("Exception");
         if (exceptions && exceptions->first())
         {
-            jsonmsg.append("      \"Exceptions\": {\n        \"Exception\": [\n");
-            bool first=true;
+            appendJSONName(jsonmsg.pad(3), "Exceptions").append("{\n");
+            appendJSONName(jsonmsg.pad(4), "Exception").append("[\n");
             ForEach(*exceptions)
-            {
-                if (first)
-                    first=false;
-                else
-                    jsonmsg.append(",\n");
-            jsonmsg.appendf("          {\n            \"Code\": %d,\n            \"Message\": \"%s\"\n          }", exceptions->query().getPropInt("Code"), exceptions->query().queryProp("Message"));
-            }
-            jsonmsg.append("\n        ]\n      }\n");
+                appendJSONExceptionItem(jsonmsg.pad(2), exceptions->query().getPropInt("Code"), exceptions->query().queryProp("Message"), NULL, NULL);
+            jsonmsg.append("\n   ]\n    }\n");
         }
 
-        xpath.clear().append("Body/*[1]/Results/Result/Dataset");
-        Owned<IPropertyTreeIterator> datasets = parmtree->getElements(xpath.str());
-
+        Owned<IPropertyTreeIterator> datasets = node->getElements("Dataset");
         ForEach(*datasets)
         {
             IPropertyTree &ds = datasets->query();
@@ -1878,7 +1883,6 @@ void CWsEclBinding::getWsEclJsonResponse(StringBuffer& jsonmsg, IEspContext &con
                 }
             }
         }
-
         jsonmsg.append("    }\n  }\n}");
     }
     catch (IException *e)
@@ -2189,7 +2193,7 @@ int CWsEclBinding::submitWsEclWorkunit(IEspContext & context, WsEclWuInfo &wsinf
     workunit->setState(WUStateSubmitted);
     workunit->commit();
 
-    Owned<IPropertyTree> req = createPTreeFromXMLString(xml, ipt_none, (XmlReaderOptions)(xr_ignoreWhiteSpace|xr_ignoreNameSpaces));
+    Owned<IPropertyTree> req = createPTreeFromXMLString(xml, ipt_none, (PTreeReaderOptions)(ptr_ignoreWhiteSpace|ptr_ignoreNameSpaces));
     IPropertyTree *start = req.get();
     if (start->hasProp("Envelope"))
         start=start->queryPropTree("Envelope");
@@ -2328,7 +2332,7 @@ bool xppGotoTag(XmlPullParser &xppx, const char *tagname, StartTag &stag)
     return false;
 }
 
-void CWsEclBinding::sendRoxieRequest(const char *target, StringBuffer &req, StringBuffer &resp, StringBuffer &status, const char *query)
+void CWsEclBinding::sendRoxieRequest(const char *target, StringBuffer &req, StringBuffer &resp, StringBuffer &status, const char *query, const char *contentType)
 {
     ISmartSocketFactory *conn = NULL;
     SocketEndpoint ep;
@@ -2351,7 +2355,7 @@ void CWsEclBinding::sendRoxieRequest(const char *target, StringBuffer &req, Stri
         ep.getIpText(url).append(':').append(ep.port);
 
         Owned<IHttpClient> httpclient = httpctx->createHttpClient(NULL, url);
-        if (0 > httpclient->sendRequest("POST", "text/xml", req, resp, status))
+        if (0 > httpclient->sendRequest("POST", contentType, req, resp, status))
             throw MakeStringException(-1, "Process cluster communication error: %s", process.str());
     }
     catch (IException *e)
@@ -2360,21 +2364,32 @@ void CWsEclBinding::sendRoxieRequest(const char *target, StringBuffer &req, Stri
             conn->setStatus(ep, false);
 
         StringBuffer s;
-        VStringBuffer uri("urn:hpccsystems:ecl:%s", query);
-        resp.set("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-        resp.append("<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body>");
-        resp.append('<').append(query).append("Response xmlns='").append(uri).append("'>");
-        resp.append("<Results><Result><Exception><Source>WsEcl</Source>");
-        resp.append("<Code>").append(e->errorCode()).append("</Code>");
-        resp.append("<Message>").append(e->errorMessage(s)).append("</Message>");
-        resp.append("</Exception></Result></Results>");
-        resp.append("</").append(query).append("Response></soap:Body></soap:Envelope>");
+        if (strieq(contentType, "application/json"))
+        {
+            resp.set("{").append("\"").append(query).append("Response\": {\"Results\": {");
+            appendJSONException(resp, e);
+            resp.append("}}}");
+        }
+        else
+        {
+            VStringBuffer uri("urn:hpccsystems:ecl:%s", query);
+            resp.set("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            resp.append("<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body>");
+            resp.append('<').append(query).append("Response xmlns='").append(uri).append("'>");
+            resp.append("<Results><Result><Exception><Source>WsEcl</Source>");
+            resp.append("<Code>").append(e->errorCode()).append("</Code>");
+            resp.append("<Message>").append(e->errorMessage(s)).append("</Message>");
+            resp.append("</Exception></Result></Results>");
+            resp.append("</").append(query).append("Response></soap:Body></soap:Envelope>");
+        }
         e->Release();
     }
 }
 
-int CWsEclBinding::onSubmitQueryOutputXML(IEspContext &context, CHttpRequest* request, CHttpResponse* response, WsEclWuInfo &wsinfo, const char *format)
+int CWsEclBinding::onSubmitQueryOutput(IEspContext &context, CHttpRequest* request, CHttpResponse* response, WsEclWuInfo &wsinfo, const char *format)
 {
+    bool outputJSON = !format ? false : strieq(format, "json");
+
     StringBuffer soapmsg;
 
     getSoapMessage(soapmsg, context, request, wsinfo, REQXML_TRIM|REQXML_ROOT);
@@ -2398,17 +2413,28 @@ int CWsEclBinding::onSubmitQueryOutputXML(IEspContext &context, CHttpRequest* re
         StringBuffer roxieresp;
         sendRoxieRequest(wsinfo.qsetname.get(), soapmsg, roxieresp, status, wsinfo.queryname);
 
-        Owned<IWuWebView> web = createWuWebView(*wsinfo.wu, wsinfo.queryname.get(), getCFD(), true);
-        if (web.get())
-            web->expandResults(roxieresp.str(), output, xmlflags);
+        if (outputJSON)
+            getWsEclJsonResponse(output, context, request, roxieresp.str(), wsinfo);
+        else
+        {
+            Owned<IWuWebView> web = createWuWebView(*wsinfo.wu, wsinfo.queryname.get(), getCFD(), true);
+            if (web.get())
+                web->expandResults(roxieresp.str(), output, xmlflags);
+        }
     }
     else
     {
         submitWsEclWorkunit(context, wsinfo, soapmsg.str(), output, xmlflags);
+        if (outputJSON)
+        {
+            StringBuffer jsonresp;
+            getWsEclJsonResponse(jsonresp, context, request, output.str(), wsinfo);
+            output.swapWith(jsonresp);
+        }
     }
 
     response->setContent(output.str());
-    response->setContentType(HTTP_TYPE_APPLICATION_XML);
+    response->setContentType(outputJSON ? "application/json" : "application/xml");
     response->setStatus("200 OK");
     response->send();
 
@@ -2716,7 +2742,7 @@ int CWsEclBinding::onGet(CHttpRequest* request, CHttpResponse* response)
             nextPathNode(thepath, format);
 
             WsEclWuInfo wsinfo(wuid.str(), qs.str(), qid.str(), context->queryUserId(), context->queryPassword());
-            return onSubmitQueryOutputXML(*context, request, response, wsinfo, format.str());
+            return onSubmitQueryOutput(*context, request, response, wsinfo, format.str());
         }
         else if (!stricmp(methodName.str(), "xslt"))
         {
@@ -2849,48 +2875,45 @@ void CWsEclBinding::handleJSONPost(CHttpRequest *request, CHttpResponse *respons
         }
 
         WsEclWuInfo wsinfo(wuid.str(), queryset.str(), queryname.str(), ctx->queryUserId(), ctx->queryPassword());
-
-        StringBuffer content(request->queryContent());
-        StringBuffer status;
-        StringBuffer soapfromjson;
-        soapfromjson.append(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-            "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\""
-              " xmlns:SOAP-ENC=\"http://schemas.xmlsoap.org/soap/encoding/\">"
-                " <soap:Body>"
-            );
-        createPTreeFromJsonString(content.str(), false, soapfromjson, "Request");
-        soapfromjson.append("</soap:Body></soap:Envelope>");
-        DBGLOG("soap from json req: %s", soapfromjson.str());
-
-        StringBuffer soapresp;
-
         SCMStringBuffer clustertype;
         wsinfo.wu->getDebugValue("targetclustertype", clustertype);
 
-        unsigned xmlflags = WWV_ADD_SOAP | WWV_ADD_RESULTS_TAG | WWV_ADD_RESPONSE_TAG | WWV_INCL_NAMESPACES | WWV_INCL_GENERATED_NAMESPACES;
-        if (ctx->queryRequestParameters()->hasProp("display"))
-            xmlflags |= WWV_USE_DISPLAY_XSLT;
-        if (streq(action.str(), "expanded"))
-            xmlflags |= WWV_CDATA_SCHEMAS;
-        else
-            xmlflags |= WWV_OMIT_SCHEMAS;
-
+        StringBuffer content(request->queryContent());
+        StringBuffer status;
         if (strieq(clustertype.str(), "roxie"))
         {
             StringBuffer output;
-            sendRoxieRequest(wsinfo.qsetname.get(), soapfromjson, output, status, wsinfo.queryname);
-            Owned<IWuWebView> web = createWuWebView(*wsinfo.wu, NULL, getCFD(), true);
-            if (web.get())
-                web->expandResults(output.str(), soapresp, xmlflags);
+            DBGLOG("json req: %s", content.str());
+            sendRoxieRequest(wsinfo.qsetname.get(), content, jsonresp, status, wsinfo.queryname, "application/json");
+            DBGLOG("json resp: %s", jsonresp.str());
         }
         else
         {
+            StringBuffer soapfromjson;
+            soapfromjson.append(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\""
+                  " xmlns:SOAP-ENC=\"http://schemas.xmlsoap.org/soap/encoding/\">"
+                    " <soap:Body>"
+                );
+            createPTreeFromJsonString(content.str(), false, soapfromjson, "Request");
+            soapfromjson.append("</soap:Body></soap:Envelope>");
+            DBGLOG("soap from json req: %s", soapfromjson.str());
+
+            StringBuffer soapresp;
+            unsigned xmlflags = WWV_ADD_SOAP | WWV_ADD_RESULTS_TAG | WWV_ADD_RESPONSE_TAG | WWV_INCL_NAMESPACES | WWV_INCL_GENERATED_NAMESPACES;
+            if (ctx->queryRequestParameters()->hasProp("display"))
+                xmlflags |= WWV_USE_DISPLAY_XSLT;
+            if (streq(action.str(), "expanded"))
+                xmlflags |= WWV_CDATA_SCHEMAS;
+            else
+                xmlflags |= WWV_OMIT_SCHEMAS;
+
             submitWsEclWorkunit(*ctx, wsinfo, soapfromjson.str(), soapresp, xmlflags);
+            DBGLOG("HandleSoapRequest response: %s", soapresp.str());
+            getWsEclJsonResponse(jsonresp, *ctx, request, soapresp.str(), wsinfo);
         }
 
-        DBGLOG("HandleSoapRequest response: %s", soapresp.str());
-        getWsEclJsonResponse(jsonresp, *ctx, request, soapresp.str(), wsinfo);
     }
     catch (IException *e)
     {

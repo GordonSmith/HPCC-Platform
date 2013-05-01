@@ -19,7 +19,7 @@
 #########################################################
 # Description:
 # ------------
-# sets up various cmake options. 
+# sets up various cmake options.
 #########################################################
 
 IF ("${COMMONSETUP_DONE}" STREQUAL "")
@@ -33,7 +33,7 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
   ENDMACRO (MACRO_ENSURE_OUT_OF_SOURCE_BUILD)
 
   macro_ensure_out_of_source_build("The LexisNexis Hpcc requires an out of source build.
-    Please remove the directory ${CMAKE_BINARY_DIR}/CMakeFiles 
+    Please remove the directory ${CMAKE_BINARY_DIR}/CMakeFiles
     and the file ${CMAKE_BINARY_DIR}/CMakeCache.txt,
     then create a separate build directory and run 'cmake path_to_source [options]' there.")
 
@@ -62,6 +62,7 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
   option(USE_GIT_DESCRIBE "Use git describe to generate build tag" ON)
   option(CHECK_GIT_TAG "Require git tag to match the generated build tag" OFF)
   option(USE_XALAN "Configure use of xalan" ON)
+  option(USE_APR "Configure use of Apache Software Foundation (ASF) Portable Runtime (APR) libraries" ON)
   option(USE_LIBXSLT "Configure use of libxslt" OFF)
   option(MAKE_DOCS "Create documentation at build time." OFF)
   option(MAKE_DOCS_ONLY "Create a base build with only docs." OFF)
@@ -71,10 +72,12 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
   option(USE_RESOURCE "Use resource download in ECLWatch" OFF)
   option(GENERATE_COVERAGE_INFO "Generate coverage info for gcov" OFF)
 
-  option(MAKE_PYEMBED "Make the plugin for Python embedding" ON)
-  option(MAKE_V8EMBED "Make the plugin for V8 JavaScript embedding" ON)
-  option(MAKE_JAVAEMBED "Make the plugin for Java embedding" ON)
-  option(MAKE_REMBED "Make the plugin for R embedding" OFF)
+  option(USE_PYTHON "Enable Python support" ON)
+  option(USE_V8 "Enable V8 JavaScript support" ON)
+  option(USE_JNI "Enable Java JNI support" ON)
+  option(USE_RINSIDE "Enable R support support" ON)
+
+  option(USE_OPTIONAL "Automatically disable requested features with missing dependencies" ON)
 
   if ( USE_XALAN AND USE_LIBXSLT )
       set(USE_XALAN OFF)
@@ -98,7 +101,7 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
       set(PLATFORM OFF)
       set(DEVEL OFF)
   endif()
-  
+
   option(PORTALURL "Set url to hpccsystems portal download page")
 
   if ( NOT PORTALURL )
@@ -157,8 +160,8 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
 
     if (${ARCH64BIT} EQUAL 0)
       add_definitions(/Zc:wchar_t-)
-    endif ()      
-      
+    endif ()
+
     if ("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
       add_definitions(/ZI)
     endif ()
@@ -190,6 +193,7 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
     if (CMAKE_COMPILER_IS_CLANGXX)
       SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=logical-op-parentheses -Werror=bool-conversions -Werror=return-type -Werror=comment")
       SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Werror=bitwise-op-parentheses -Werror=tautological-compare")
+      SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Wno-switch-enum -Wno-format-zero-length")
     endif()
     # All of these are defined in platform.h too, but need to be defned before any system header is included
     ADD_DEFINITIONS (-D_LARGEFILE_SOURCE=1 -D_LARGEFILE64_SOURCE=1 -D_FILE_OFFSET_BITS=64 -D__USE_LARGEFILE64=1 -D__USE_FILE_OFFSET64=1)
@@ -206,11 +210,11 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
     add_library(${target} ${ARGN})
   endmacro(HPCC_ADD_LIBRARY target)
 
-  # This Macro is provided as Public domain from 
+  # This Macro is provided as Public domain from
   # http://www.cmake.org/Wiki/CMakeMacroParseArguments
   MACRO(PARSE_ARGUMENTS prefix arg_names option_names)
     SET(DEFAULT_ARGS)
-    FOREACH(arg_name ${arg_names})    
+    FOREACH(arg_name ${arg_names})
       SET(${prefix}_${arg_name})
     ENDFOREACH(arg_name)
     FOREACH(option ${option_names})
@@ -219,16 +223,16 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
 
     SET(current_arg_name DEFAULT_ARGS)
     SET(current_arg_list)
-    FOREACH(arg ${ARGN})            
-      SET(larg_names ${arg_names})    
-      LIST(FIND larg_names "${arg}" is_arg_name)                   
+    FOREACH(arg ${ARGN})
+      SET(larg_names ${arg_names})
+      LIST(FIND larg_names "${arg}" is_arg_name)
       IF (is_arg_name GREATER -1)
         SET(${prefix}_${current_arg_name} ${current_arg_list})
         SET(current_arg_name ${arg})
         SET(current_arg_list)
       ELSE (is_arg_name GREATER -1)
-        SET(loption_names ${option_names})    
-        LIST(FIND loption_names "${arg}" is_option)            
+        SET(loption_names ${option_names})
+        LIST(FIND loption_names "${arg}" is_option)
         IF (is_option GREATER -1)
           SET(${prefix}_${arg} TRUE)
         ELSE (is_option GREATER -1)
@@ -269,6 +273,73 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
   set ( SCM_GENERATED_DIR ${CMAKE_BINARY_DIR}/generated )
   include_directories (${SCM_GENERATED_DIR})
 
+  ###############################################################
+  # Macro for Logging Plugin build in CMake
+
+  macro(LOG_PLUGIN)
+    PARSE_ARGUMENTS(pLOG
+      "OPTION;MDEPS"
+      ""
+      ${ARGN}
+    )
+    LIST(GET pLOG_DEFAULT_ARGS 0 PLUGIN_NAME)
+    if ( ${pLOG_OPTION} )
+        message(STATUS "Building Plugin: ${PLUGIN_NAME}" )
+    else()
+      message("---- WARNING -- Not Building Plugin: ${PLUGIN_NAME}")
+      foreach (dep ${pLOG_MDEPS})
+        MESSAGE("---- WARNING -- Missing dependency: ${dep}")
+      endforeach()
+      if (NOT USE_OPTIONAL)
+        message(FATAL_ERROR "Optional dependencies missing and USE_OPTIONAL not set")
+      endif()
+    endif()
+  endmacro()
+
+  ###############################################################
+  # Macro for adding an optional plugin to the CMake build.
+
+  macro(ADD_PLUGIN)
+    PARSE_ARGUMENTS(PLUGIN
+        "PACKAGES;OPTION;MINVERSION;MAXVERSION"
+        ""
+        ${ARGN}
+    )
+    LIST(GET PLUGIN_DEFAULT_ARGS 0 PLUGIN_NAME)
+    string(TOUPPER ${PLUGIN_NAME} name)
+    set(PLUGIN_FOUND 0)
+    set(PLUGIN_MDEPS ${PLUGIN_NAME}_mdeps)
+    set(${PLUGIN_MDEPS} "")
+
+    FOREACH(package ${PLUGIN_PACKAGES})
+      set(findvar ${package}_FOUND)
+      string(TOUPPER ${findvar} PACKAGE_FOUND)
+      if ("${PLUGIN_MINVERSION}" STREQUAL "")
+        find_package(${package})
+      else()
+        set(findvar ${package}_VERSION_STRING)
+        string(TOUPPER ${findvar} PACKAGE_VERSION_STRING)
+        find_package(${package} ${PLUGIN_MINVERSION} )
+        if ("${${PACKAGE_VERSION_STRING}}" VERSION_GREATER "${PLUGIN_MAXVERSION}")
+          set(${PLUGIN_FOUND} 0)
+        endif()
+      endif()
+      if (${PACKAGE_FOUND})
+        set(PLUGIN_FOUND 1)
+      else()
+        set(PLUGIN_FOUND 0)
+        set(${PLUGIN_MDEPS} ${${PLUGIN_MDEPS}} ${package})
+      endif()
+    ENDFOREACH()
+    option(${PLUGIN_OPTION} "Turn on optional plugin based on availability of dependencies" ${PLUGIN_FOUND})
+    LOG_PLUGIN(${PLUGIN_NAME} OPTION ${PLUGIN_OPTION} MDEPS ${${PLUGIN_MDEPS}})
+    if(${PLUGIN_FOUND})
+      set(bPLUGINS ${bPLUGINS} ${PLUGIN_NAME})
+    else()
+      set(nbPLUGINS ${nbPLUGINS} ${PLUGIN_NAME})
+    endif()
+  endmacro()
+
   ##################################################################
 
   # Build tag generation
@@ -289,6 +360,10 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
   ENDIF ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 
   ###########################################################################
+
+  if (USE_OPTIONAL)
+    message ("-- USE_OPTIONAL set - missing dependencies for optional features will automatically disable them")
+  endif()
 
   if (NOT "${EXTERNALS_DIRECTORY}" STREQUAL "")
     message ("-- Using externals directory at ${EXTERNALS_DIRECTORY}")
@@ -313,9 +388,9 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
       IF ("${BISON_VERSION}" STREQUAL "")
         IF (WIN32)
           # cmake bug workaround - it converts path separators fine in add_custom_command but not here
-          STRING(REPLACE "/" "\\" BISON_exename "${bisoncmd}")  
+          STRING(REPLACE "/" "\\" BISON_exename "${bisoncmd}")
         ELSE()
-          SET(BISON_exename "${bisoncmd}")  
+          SET(BISON_exename "${bisoncmd}")
         ENDIF()
         EXECUTE_PROCESS(COMMAND ${BISON_exename} --version
           OUTPUT_VARIABLE BISON_version_output
@@ -328,9 +403,9 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
       IF ("${FLEX_VERSION}" STREQUAL "")
         IF (WIN32)
           # cmake bug workaround - it converts path separators fine in add_custom_command but not here
-          STRING(REPLACE "/" "\\" FLEX_exename "${flexcmd}")  
+          STRING(REPLACE "/" "\\" FLEX_exename "${flexcmd}")
         ELSE()
-          SET(FLEX_exename "${flexcmd}")  
+          SET(FLEX_exename "${flexcmd}")
         ENDIF()
         EXECUTE_PROCESS(COMMAND ${FLEX_exename} --version
           OUTPUT_VARIABLE FLEX_version_output
@@ -422,8 +497,8 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
           message(FATAL_ERROR "XALAN requested but package not found")
         endif()
       endif(USE_XALAN)
-      
-      if(USE_LIBXSLT)  
+
+      if(USE_LIBXSLT)
         find_package(LIBXSLT)
         if (LIBXSLT_FOUND)
           add_definitions (-D_USE_LIBSLT)
@@ -440,7 +515,7 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
           message(FATAL_ERROR "XERCES requested but package not found")
         endif()
       endif(USE_XERCES)
-      
+
       if(USE_LIBXML2)
         find_package(LIBXML2)
         if (LIBXML2_FOUND)
@@ -507,6 +582,26 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
       else()
         add_definitions (-D_NO_MYSQL)
       endif(USE_MYSQL)
+
+      if(USE_APR)
+        find_package(APR)
+        if (APR_FOUND)
+          add_definitions (-D_USE_APR)
+          include_directories(${APR_INCLUDE_DIR})
+          link_directories(${APR_LIBRARIES})
+        else()
+          message(FATAL_ERROR "APR requested but package not found")
+        endif()
+        if (APRUTIL_FOUND)
+          include_directories(${APRUTIL_INCLUDE_DIR})
+          link_directories(${APRUTIL_LIBRARIES})
+        else()
+          message(FATAL_ERROR "APRUTIL requested but package not found")
+        endif()
+      else()
+        add_definitions (-D_NO_APR)
+      endif(USE_APR)
+
   ENDIF()
   ###########################################################################
   ###
@@ -518,12 +613,12 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
     set ( CMAKE_INSTALL_PREFIX "${PREFIX}/${DIR_NAME}/${version}/clienttools" )
   endif ( PLATFORM )
   set (CMAKE_SKIP_BUILD_RPATH  FALSE)
-  set (CMAKE_BUILD_WITH_INSTALL_RPATH FALSE) 
+  set (CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
   set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${LIB_DIR}")
   set (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
   if (APPLE)
     set(CMAKE_INSTALL_RPATH "@loader_path/../${LIB_DIR}")
-    set(CMAKE_INSTALL_NAME_DIR "@loader_path/../${LIB_DIR}") 
+    set(CMAKE_INSTALL_NAME_DIR "@loader_path/../${LIB_DIR}")
   endif()
   MACRO (FETCH_GIT_TAG workdir edition result)
       execute_process(COMMAND "${GIT_COMMAND}" describe --tags --dirty --abbrev=6 --match ${edition}*

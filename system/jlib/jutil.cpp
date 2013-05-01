@@ -83,8 +83,6 @@ bool safe_ecvt(size_t len, char * buffer, double value, int numDigits, int * dec
 {
 #ifdef _WIN32
     return _ecvt_s(buffer, len, value, numDigits, decimal, sign) == 0;
-#elif defined(__FreeBSD__) || defined (__APPLE__)
-    UNIMPLEMENTED;
 #else
     SpinBlock block(*cvtLock);
     const char * result = ecvt(value, numDigits, decimal, sign);
@@ -99,8 +97,6 @@ bool safe_fcvt(size_t len, char * buffer, double value, int numPlaces, int * dec
 {
 #ifdef _WIN32
     return _fcvt_s(buffer, len, value, numPlaces, decimal, sign) == 0;
-#elif defined(__FreeBSD__) || defined (__APPLE__)
-    UNIMPLEMENTED;
 #else
     SpinBlock block(*cvtLock);
     const char * result = fcvt(value, numPlaces, decimal, sign);
@@ -1697,7 +1693,6 @@ static void buffer_destroy(void * buf)
 static void buffer_key_alloc()
 {
     pthread_key_create(&buffer_key, buffer_destroy);
-    DBGLOG("buffer_key=%d", buffer_key);
 }
 
 // Allocate the thread-specific buffer
@@ -2262,9 +2257,9 @@ StringBuffer & fillConfigurationDirectoryEntry(const char *dir,const char *name,
     return dirout;
 }
 
-IPropertyTree *getHPCCenvironment(const char *confloc)
+IPropertyTree *getHPCCEnvironment(const char *configFileName)
 {
-    StringBuffer configFileSpec(confloc);
+    StringBuffer configFileSpec(configFileName);
     if (!configFileSpec.length())
 #ifdef _WIN32 
         return NULL;
@@ -2272,16 +2267,20 @@ IPropertyTree *getHPCCenvironment(const char *confloc)
         configFileSpec.set(CONFIG_DIR).append(PATHSEPSTR).append("environment.conf");
 #endif  
     Owned<IProperties> props = createProperties(configFileSpec.str());
-    if (props) {
+    if (props)
+    {
         StringBuffer envfile;
-        if (props->getProp("environment",envfile)&&envfile.length()) {
-            if (!isAbsolutePath(envfile.str())) {
+        if (props->getProp("environment",envfile)&&envfile.length())
+        {
+            if (!isAbsolutePath(envfile.str()))
+            {
                 StringBuffer tail(envfile);
                 splitDirTail(configFileSpec.str(),envfile.clear());
                 addPathSepChar(envfile).append(tail);
             }
             Owned<IFile> file = createIFile(envfile.str());
-            if (file) {
+            if (file)
+            {
                 Owned<IFileIO> fileio = file->open(IFOread);
                 if (fileio)
                     return createPTree(*fileio);
@@ -2293,7 +2292,7 @@ IPropertyTree *getHPCCenvironment(const char *confloc)
 
 static IPropertyTree *getOSSdirTree()
 {
-    Owned<IPropertyTree> envtree = getHPCCenvironment();
+    Owned<IPropertyTree> envtree = getHPCCEnvironment();
     if (envtree) {
         IPropertyTree *ret = envtree->queryPropTree("Software/Directories");
         if (ret) 

@@ -24,13 +24,15 @@
 project( graph_lcr ) 
 
 set (    SRCS 
-         ../thorutil/mcorecache.cpp 
          ../thorutil/thbuf.cpp 
          ../thorutil/thcompressutil.cpp 
          ../thorutil/thmem.cpp 
+         ../thorutil/thorport.cpp
          ../thorutil/thalloc.cpp 
          ../thorutil/thormisc.cpp 
          thgraph.cpp 
+
+         ../thorutil/thorport.hpp
     )
 
 include_directories ( 
@@ -48,7 +50,6 @@ include_directories (
          ./../../system/jlib 
          ./../thorcodectx 
          ./../mfilemanager 
-         ./../../common/commonext 
          ./../../rtl/eclrtl 
          ./../../common/thorhelper 
          ./../../roxie/roxiemem
@@ -70,7 +71,6 @@ target_link_libraries ( graph_lcr
          eclrtl 
          deftype 
          workunit 
-         commonext 
          thorhelper
          roxiemem
     )

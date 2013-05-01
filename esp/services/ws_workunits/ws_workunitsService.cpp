@@ -103,7 +103,7 @@ void setWsWuXmlParameters(IWorkUnit *wu, const char *xml, bool setJobname=false)
 {
     if (!xml || !*xml)
         return;
-    Owned<IPropertyTree> tree = createPTreeFromXMLString(xml, ipt_none, (XmlReaderOptions)(xr_ignoreWhiteSpace | xr_ignoreNameSpaces));
+    Owned<IPropertyTree> tree = createPTreeFromXMLString(xml, ipt_none, (PTreeReaderOptions)(ptr_ignoreWhiteSpace | ptr_ignoreNameSpaces));
     IPropertyTree *root = tree.get();
     if (strieq(root->queryName(), "Envelope"))
         root = root->queryPropTree("Body/*[1]");
@@ -1084,14 +1084,16 @@ bool CWsWorkunitsEx::onWUResubmit(IEspContext &context, IEspWUResubmitRequest &r
         SCMStringBuffer wuid;
         StringArray wuids;
 
+        double version = context.getClientVersion();
+        IArrayOf<IEspResubmittedWU> resubmittedWUs;
         for(aindex_t i=0; i<req.getWuids().length();i++)
         {
-            StringBuffer wuidStr = req.getWuids().item(i);
-            checkAndTrimWorkunit("WUResubmit", wuidStr);
+            StringBuffer requestWuid = req.getWuids().item(i);
+            checkAndTrimWorkunit("WUResubmit", requestWuid);
 
-            ensureWsWorkunitAccess(context, wuidStr.str(), SecAccess_Write);
+            ensureWsWorkunitAccess(context, requestWuid.str(), SecAccess_Write);
 
-            wuid.set(wuidStr.str());
+            wuid.set(requestWuid.str());
 
             try
             {
@@ -1114,6 +1116,15 @@ bool CWsWorkunitsEx::onWUResubmit(IEspContext &context, IEspWUResubmitRequest &r
                     throw MakeStringException(ECLWATCH_CANNOT_OPEN_WORKUNIT,"Cannot open workunit %s.",wuid.str());
 
                 submitWsWorkunit(context, cw, NULL, NULL, 0, req.getRecompile(), req.getResetWorkflow(), false);
+
+                if (version < 1.40)
+                    continue;
+
+                Owned<IEspResubmittedWU> resubmittedWU = createResubmittedWU();
+                resubmittedWU->setWUID(wuid.str());
+                if (!streq(requestWuid.str(), wuid.str()))
+                    resubmittedWU->setParentWUID(requestWuid.str());
+                resubmittedWUs.append(*resubmittedWU.getClear());
             }
             catch (IException *E)
             {
@@ -1134,6 +1145,9 @@ bool CWsWorkunitsEx::onWUResubmit(IEspContext &context, IEspWUResubmitRequest &r
             for(aindex_t i=0; i<wuids.length(); i++)
                 waitForWorkUnitToComplete(wuids.item(i), timeToWait);
         }
+
+        if (version >= 1.40)
+            resp.setWUs(resubmittedWUs);
 
         if(wuids.length()==1)
         {
@@ -1993,6 +2007,7 @@ void doWUQueryWithSort(IEspContext &context, IEspWUQueryRequest & req, IEspWUQue
         else
             sortorder[0] = WUSFwuid;
 
+        sortorder[0] = (WUSortField) (sortorder[0] | WUSFnocase);
         bool descending = req.getDescending();
         if (descending)
             sortorder[0] = (WUSortField) (sortorder[0] | WUSFreverse);
@@ -2022,9 +2037,15 @@ void doWUQueryWithSort(IEspContext &context, IEspWUQueryRequest & req, IEspWUQue
 
     filters[filterCount] = WUSFterm;
 
+    __int64 cacheHint = 0;
+    if (!req.getCacheHint_isNull())
+        cacheHint = req.getCacheHint();
+
     Owned<IWorkUnitFactory> factory = getWorkUnitFactory(context.querySecManager(), context.queryUser());
-    unsigned numWUs = factory->numWorkUnitsFiltered(filters, filterbuf.bufferBase());
-    Owned<IConstWorkUnitIterator> it = factory->getWorkUnitsSorted(sortorder, filters, filterbuf.bufferBase(), begin, pagesize+1, "", NULL);
+    unsigned numWUs;
+    Owned<IConstWorkUnitIterator> it = factory->getWorkUnitsSorted(sortorder, filters, filterbuf.bufferBase(), begin, pagesize+1, "", &cacheHint, &numWUs);
+    if (version >= 1.41)
+        resp.setCacheHint(cacheHint);
 
     unsigned actualCount = 0;
     ForEach(*it)

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Environment>
+<Software>
+<EspProcess build="_" componentfilesDir="/opt/HPCCSystems/componentfiles" daliServers="10.241.3.238:7070" description="ESP server DEV" enableSEHMapping="true" formOptionsAccess="false" httpConfigAccess="true" logLevel="1" logRequests="false" logResponses="false" maxBacklogQueueSize="200" maxConcurrentThreads="0" name="esp_7" perfReportDelay="60" portalurl="http://hpccsystems.com/download" computer="node003241" directory="/var/lib/HPCCSystems/esp_7">
+<!--EspProcess build="community_3.11.0-1trunk" componentfilesDir="/opt/HPCCSystems/componentfiles" daliServers="10.0.2.15:7070" description="ESP server" enableSEHMapping="true" formOptionsAccess="false" httpConfigAccess="true" logLevel="1" logRequests="false" logResponses="false" maxBacklogQueueSize="200" maxConcurrentThreads="0" name="myesp" perfReportDelay="60" portalurl="http://hpccsystems.com/download" computer="localhost" directory="/var/lib/HPCCSystems/myesp"-->
+<Environment>
+<EclWatch>http://10.0.2.15:8010</EclWatch>
+</Environment>
+<EspProtocol name="http" type="http_protocol" plugin="esphttp" maxRequestEntityLength="8000000"/>
+<EspService name="WsSMC_EclWatch_myesp" type="WsSMC" plugin="libws_smc.so"/>
+<EspBinding name="WsSMC_smc_myesp" service="WsSMC_EclWatch_myesp" protocol="http" type="ws_smcSoapBinding" plugin="libws_smc.so" netAddress="0.0.0.0" port="8010" defaultBinding="true" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="WsWorkunits_EclWatch_myesp" type="WsWorkunits" plugin="libws_workunits.so">
+<ViewTimeout>1000</ViewTimeout>
+<AWUsCacheMinutes>15</AWUsCacheMinutes>
+<AllowNewRoxieOnDemandQuery>false</AllowNewRoxieOnDemandQuery>
+<LayoutProgram>dot/dot -Tsvg -Gordering=out</LayoutProgram>
+<StyleSheets>
+<xslt name="atts">/esp/xslt/atts.xslt</xslt>
+<xslt name="dot_update">/esp/xslt/dot_update.xslt</xslt>
+<xslt name="dot">/esp/xslt/dot.xslt</xslt>
+<xslt name="graphStats">/esp/xslt/graphStats.xslt</xslt>
+<xslt name="graphupdate_gvc">/esp/xslt/graphupdate_gvc.xslt</xslt>
+</StyleSheets>
+</EspService>
+<EspBinding name="WsWorkunits_smc_myesp" service="WsWorkunits_EclWatch_myesp" protocol="http" type="ws_workunitsSoapBinding" plugin="libws_workunits.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="WsTopology_EclWatch_myesp" type="WsTopology" plugin="libws_topology.so" warnIfCpuLoadOver="95" warnIfFreeMemoryUnder="5" warnIfFreeStorageUnder="5">
+<AllowNewRoxieOnDemandQuery>false</AllowNewRoxieOnDemandQuery>
+<SystemUseRewrite>false</SystemUseRewrite>
+</EspService>
+<EspBinding name="WsTopology_smc_myesp" service="WsTopology_EclWatch_myesp" protocol="http" type="ws_topologySoapBinding" plugin="libws_topology.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="WsDfu_EclWatch_myesp" type="WsDfu" plugin="libws_dfu.so">
+<DisableUppercaseTranslation>false</DisableUppercaseTranslation>
+<ViewTimeout>1000</ViewTimeout>
+<StyleSheets>
+<xslt name="def_file">./smc_xslt/def_file.xslt</xslt>
+</StyleSheets>
+<Plugins path="/opt/HPCCSystems/plugins"/>
+</EspService>
+<EspBinding name="WsDfu_smc_myesp" service="WsDfu_EclWatch_myesp" protocol="http" type="ws_dfuSoapBinding" plugin="libws_dfu.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="WsDfuXRef_EclWatch_myesp" type="WsDfuXRef" plugin="libws_dfu.so">
+<ViewTimeout>1000</ViewTimeout>
+<LayoutProgram>dot/dot -Tsvg -Gordering=out</LayoutProgram>
+<StyleSheets>
+<xslt name="def_file">./smc_xslt/def_file.xslt</xslt>
+</StyleSheets>
+</EspService>
+<EspBinding name="WsDfuXRef_smc_myesp" service="WsDfuXRef_EclWatch_myesp" protocol="http" type="ws_dfuxrefSoapBinding" plugin="libws_dfu.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="ecldirect_EclWatch_myesp" type="EclDirect" plugin="libEclDirect.so"/>
+<EspBinding name="ecldirect_smc_myesp" service="ecldirect_EclWatch_myesp" protocol="http" type="EclDirectSoapBinding" plugin="libEclDirect.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="FileSpray_Serv_EclWatch_myesp" type="FileSpray_Serv" plugin="libws_fs.so">
+<QueueLabel>dfuserver_queue</QueueLabel>
+<MonitorQueueLabel>dfuserver_monitor_queue</MonitorQueueLabel>
+<RootFolder>/c$/thordata</RootFolder>
+</EspService>
+<EspBinding name="FileSpray_Serv_smc_myesp" service="FileSpray_Serv_EclWatch_myesp" protocol="http" type="FileSpray_Bind" plugin="libws_fs.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="WsFileIO_EclWatch_myesp" type="WsFileIO" plugin="libws_fileio.so"/>
+<EspBinding name="WsFileIO_smc_myesp" service="WsFileIO_EclWatch_myesp" protocol="http" type="WsFileIO" plugin="libws_fileio.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="WsPackageProcess_EclWatch_myesp" type="WsPackageProcess" plugin="libws_packageprocess.so"/>
+<EspBinding name="WsPackageProcess_smc_myesp" service="WsPackageProcess_EclWatch_myesp" protocol="http" type="WsPackageProcessSoapBinding" plugin="libws_packageprocess.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="WsRoxieQuery_EclWatch_myesp" type="WsRoxieQuery" plugin="libws_roxiequery.so"/>
+<EspBinding name="WsRoxieQuery_smc_myesp" service="WsRoxieQuery_EclWatch_myesp" protocol="http" type="WsRoxieQuery" plugin="libws_roxiequery.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="ws_machine_EclWatch_myesp" type="ws_machine" plugin="libws_machine.so" excludePartitions="/,/dev*,/sys,/usr,/proc/*" monitorDaliFileServer="false">
+<ProcessFilters>
+     <Platform name="Windows">
+      <ProcessFilter name="any">
+       <Process name="dafilesrv"/>
+      </ProcessFilter>
+      <ProcessFilter multipleInstances="true" name="DfuServerProcess"/>
+      <ProcessFilter multipleInstances="true" name="EclCCServerProcess"/>
+      <ProcessFilter multipleInstances="true" name="EspProcess">
+       <Process name="dafilesrv" remove="true"/>
+      </ProcessFilter>
+     </Platform>
+     <Platform name="Linux">
+      <ProcessFilter name="any">
+       <Process name="dafilesrv"/>
+      </ProcessFilter>
+      <ProcessFilter multipleInstances="true" name="DfuServerProcess"/>
+      <ProcessFilter multipleInstances="true" name="EclCCServerProcess"/>
+      <ProcessFilter multipleInstances="true" name="EspProcess">
+       <Process name="dafilesrv" remove="true"/>
+      </ProcessFilter>
+      <ProcessFilter name="GenesisServerProcess">
+       <Process name="httpd"/>
+       <Process name="atftpd"/>
+       <Process name="dhcpd"/>
+      </ProcessFilter>
+     </Platform>
+    </ProcessFilters>
+</EspService>
+<EspBinding name="ws_machine_smc_myesp" service="ws_machine_EclWatch_myesp" protocol="http" type="ws_machineSoapBinding" plugin="libws_machine.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="ws_account_EclWatch_myesp" type="ws_account" plugin="libws_account.so"/>
+<EspBinding name="ws_account_smc_myesp" service="ws_account_EclWatch_myesp" protocol="http" type="ws_accountSoapBinding" plugin="libws_account.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="ws_access_EclWatch_myesp" type="ws_access" plugin="libws_access.so">
+<Resources>
+<Binding name="smc" service="EclWatch" port="8010" basedn="ou=SMC,ou=EspServices,ou=ecl" workunitsBasedn="ou=workunits,ou=ecl"/>
+<Binding name="ws_ecl" service="ws_ecl" port="8002" basedn="ou=WsEcl,ou=EspServices,ou=ecl" workunitsBasedn="ou=workunits,ou=ecl"/>
+</Resources>
+</EspService>
+<EspBinding name="ws_access_smc_myesp" service="ws_access_EclWatch_myesp" protocol="http" type="ws_accessSoapBinding" plugin="libws_access.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="ws_config_EclWatch_myesp" type="ws_config" plugin="libws_config.so"/>
+<EspBinding name="ws_config_smc_myesp" service="ws_config_EclWatch_myesp" protocol="http" type="ws_configSoapBinding" plugin="libws_config.so" netAddress="0.0.0.0" port="8010" wsdlServiceAddress="" defaultServiceVersion=""/>
+<EspService name="ws_ecl_ws_ecl_myesp" type="ws_ecl" plugin="ws_ecl">
+<VIPS/>
+</EspService>
+<EspBinding name="ws_ecl_ws_ecl_myesp" service="ws_ecl_ws_ecl_myesp" protocol="http" type="ws_eclSoapBinding" plugin="ws_ecl" netAddress="0.0.0.0" port="8002" defaultBinding="true" wsdlServiceAddress="" defaultServiceVersion=""/>
+   
+   
+   <Authentication ldapAuthMethod="kerberos" ldapConnections="10" ldapServer="" method="none"/>
+   
+   
+  </EspProcess>
+<Directories name="HPCCSystems">
+   <Category dir="/var/log/[NAME]/[INST]" name="log"/>
+   <Category dir="/var/lib/[NAME]/[INST]" name="run"/>
+   <Category dir="/etc/[NAME]/[INST]" name="conf"/>
+   <Category dir="/var/lib/[NAME]/[INST]/temp" name="temp"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data2/[COMPONENT]" name="data2"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data3/[COMPONENT]" name="data3"/>
+   <Category dir="/var/lib/[NAME]/hpcc-mirror/[COMPONENT]" name="mirror"/>
+   <Category dir="/var/lib/[NAME]/queries/[INST]" name="query"/>
+   <Category dir="/var/lock/[NAME]/[INST]" name="lock"/>
+  </Directories>
+</Software>
+</Environment>

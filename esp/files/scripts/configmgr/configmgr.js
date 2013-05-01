@@ -332,24 +332,33 @@ function createTable(rows, tabDivName, index, compName) {
       var columnFields = new Array();
       var subTables = new Array();
 
-      if (typeof (rows) !== 'undefined' && rows.length > 0) {
-        for (var i in rows[0]) {
-          var lbl = i;
-          if (rows[0][i + "_caption"])
-            lbl = rows[0][i + "_caption"];
-          //if((i.indexOf('_extra') === -1) && (i.indexOf('_ctrlType') === -1) && (i.indexOf('params') === -1) && (i.indexOf('compType') === -1))
-          if ((i.indexOf('_') === -1) && (i.indexOf('params') === -1) && (i.indexOf('compType') === -1)) {
-            if (typeof (colIndex) !== 'undefined' && colIndex[i + tabDivName])
-              myColumnDefs[colIndex[i + tabDivName]] = { key: i, label: lbl, minWidth: 200, /*maxAutoWidth:auto,*/scrollable: true, resizeable: true, formatter: formatterDispatcher, editor: new YAHOO.widget.BaseCellEditor() };
-            else
-              myColumnDefs[colIndex1++] = { key: i, label: lbl, minWidth: 200, /*maxAutoWidth:auto,*/scrollable: true, resizeable: true, formatter: formatterDispatcher, editor: new YAHOO.widget.BaseCellEditor() };
+      if (typeof(rows) !== 'undefined' && rows.length > 0)
+      {
+        var topRow = rows[0];
+        for (var columnName in topRow)  // all rows should have the same columns as the top row
+        {
+          var columnLabel = topRow[columnName + "_caption"] ? topRow[columnName + "_caption"] : columnName;
+
+          if (columnName.indexOf('_') === - 1 && (columnName.indexOf('params') === -1) && (columnName.indexOf('compType') === -1))
+          {
+            myColumnDefs[colIndex1] = { key: columnName, label: columnLabel, minWidth: 200, scrollable: true, resizeable: true, formatter: formatterDispatcher, editor: new YAHOO.widget.BaseCellEditor() };
+
+            if (columnLabel == 'name')
+            {
+              var temp = myColumnDefs[0];
+              myColumnDefs[0] = myColumnDefs[colIndex1];
+              myColumnDefs[colIndex1] = temp;
+            }
+            colIndex1++;
           }
-          else if ((i.indexOf('_') === 0) && YAHOO.lang.isArray(rows[0][i]))
-            subTables[subTables.length] = createSubTable(rows[0][i], tabDivName, 0, i);
-          columnFields[colIndex2++] = i;
+          else if ((columnName.indexOf('_') === 0) && YAHOO.lang.isArray(topRow[columnName]))
+             subTables[subTables.length] = createSubTable(topRow[columnName], tabDivName, 0, columnName);
+
+          columnFields[colIndex2++] = columnName;
         }
       }
-      //Add missing columns or columns for tables with no rows
+
+     //Add missing columns or columns for tables with no rows
       if (typeof (tabCols) !== 'undefined' && YAHOO.lang.isArray(tabCols) && typeof (tabCols[tabDivName]) !== 'undefined' && tabCols[tabDivName].length > 0) {
         for (var colHdrIndex = 0; colHdrIndex < tabCols[tabDivName].length; colHdrIndex++) {
           if (typeof (tabCols[tabDivName][colHdrIndex]) !== 'undefined') {
@@ -843,9 +852,9 @@ function handleConfigCellClickEvent(oArgs, caller, isComplex) {
     var compName = top.document.navDT.getRecord(top.document.navDT.getSelectedRows()[0]).getData('Name');
     var bldSet = top.document.navDT.getRecord(top.document.navDT.getSelectedRows()[0]).getData('BuildSet');
 
-    if (compName === "Hardware" && attrName === "netAddress") {
+    if (compName === "Hardware" && (attrName === "netAddress" || attrName === "mask" || attrName === "subnet")) {
       var errMsg = "";
-      errMsg = isValidIPAddress(newValue, "netAddress", true, false);
+      errMsg = isValidIPAddress(newValue, attrName, true, false);
 
       if (errMsg.length > 0) {
         alert(errMsg);
@@ -942,6 +951,13 @@ function handleConfigCellClickEvent(oArgs, caller, isComplex) {
         refreshConfirm = false;
     }
 
+    var regEx = new RegExp("^[a-zA-Z0-9_-]+$");
+
+    if (attrName == 'name' && regEx.test(newValue) == false)
+    {
+      alert("Invalid character in component name. Only alpha-numerics, underscores, and dashes are allowed.");
+      return false;
+    }
     var xmlArgs = argsToXml(category, params, attrName, oldValue, newValue, recordIndex + 1, record.getData(column.key + '_onChange'));
     YAHOO.util.Connect.asyncRequest('POST', '/WsDeploy/SaveSetting', {
       success: function(o) {
@@ -1044,9 +1060,10 @@ function handleConfigCellClickEvent(oArgs, caller, isComplex) {
           }
           var indexOfSubType = newParams.indexOf("::subType");
           var newParamsSubString = newParams.substr(indexOfSubType);
+          var indexOfName = newParamsSubString.indexof("@name")+7;
 
           top.document.selectRecordClick = true;
-          top.document.selectRecord = newParamsSubString.substr(newParamsSubString.indexOf("@name")+7).substring(0,newParamsSubString.substr(newParamsSubString.indexOf("@name")+7).indexOf("'"));
+          top.document.selectRecord = newParamsSubString.substr(indexOfName).substring(0,newParamsSubString.substr(indexOfName).indexOf("'"));
           top.document.navDT.clickCurrentSelOrName(top.document.navDT); // refresh
         } else {
           alert(r.replyText);
@@ -2896,7 +2913,39 @@ function onMenuItemClickGenericAddDelete(p_sType, p_aArgs, p_oValue) {
     return;
   }
 
-  if (dt.parentDT && dt.parentDT.getRecord(dt.parentDT.getSelectedRows()[0]) != null)
+  if (parentName == "Base Access Control Lists (Ordered List)")
+  {
+    var xmlArgs = "<XmlArgs ";
+    if ( this.cfg.getProperty("text") == "Add" )
+      xmlArgs += "XPath = \'Software/RoxieCluster[@name=\"" + top.document.navDT.getRecord(top.document.navDT.getSelectedRows()[0]).getData('Name') + "\"]/ACL[@name=\"" + dt.parentDT.getRecord(dt.parentDT.getSelectedRows()[0]).getData('name') + "\"]\'";
+    else
+    {
+      record = dt.getRecord(dt.getRecordIndex(dt.getSelectedRows()[0]));
+      record = record.getData('params').substring(record.getData('params').indexOf('subTypeKey=[@name=')+19);
+      record = record.substring(0,record.indexOf('\''));
+
+      xmlArgs += "XPath = \'Software/RoxieCluster[@name=\"" + top.document.navDT.getRecord(top.document.navDT.getSelectedRows()[0]).getData('Name') + "\"]/ACL[@name=\"" + dt.parentDT.getRecord(dt.parentDT.getSelectedRows()[0]).getData('name') + "\"]/BaseList[@name=\"" + record + "\"]\'";
+    }
+    xmlArgs += " />";
+
+    YAHOO.util.Connect.asyncRequest('POST', '/WsDeploy/HandleBaseAccessControlList', {
+      success: function(o)
+      {
+        top.document.selectRecord = dt.parentDT.getRecord((dt.parentDT.getSelectedRows()[0])).getData('name');
+        top.document.selectRecordClick = true;
+        top.document.navDT.clickCurrentSelOrName(top.document.navDT);
+      },
+      failure: function(o) {
+        top.document.stopWait(document);
+          alert(o.statusText);
+      },
+      scope: this
+    },
+    top.document.navDT.getFileName(true) + 'Operation=' + this.cfg.getProperty("text") + '&XmlArgs=' + xmlArgs);
+    return;
+  }
+
+ if (dt.parentDT && dt.parentDT.getRecord(dt.parentDT.getSelectedRows()[0]) != null)
     type = dt.parentDT.getRecord(dt.parentDT.getSelectedRows()[0]).getData('name');
 
   var subRecs = null;
@@ -3422,7 +3471,7 @@ var oTarget = this.contextEventTarget, aMenuItems, aClasses;
 
     if (!aMenuItems) {
       if (isPresentInArr(menuEnabled, compTabToNode[parentName])) {
-        if (compTabToNode[parentName] === "Domain" || compTabToNode[parentName] === "Switch" || compTabToNode[parentName] === "ComputerType")
+        if (compTabToNode[parentName] === "Domain" || compTabToNode[parentName] === "Switch" || compTabToNode[parentName] === "ComputerType" || compTabToNode[parentName] === "NAS")
           parentName = "Hardware";
         else
           parentName = "GenericAddDelete";

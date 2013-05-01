@@ -128,6 +128,7 @@ public:
     }
 
     static void release(const void *ptr);
+    static void releaseRowset(unsigned count, byte * * rowset);
     static bool isShared(const void *ptr);
     static void link(const void *ptr);
     static memsize_t capacity(const void *ptr);
@@ -254,6 +255,9 @@ public:
 #define ReleaseRoxieRow(row) roxiemem::HeapletBase::release(row)
 #define ReleaseClearRoxieRow(row) roxiemem::HeapletBase::releaseClear(row)
 #define LinkRoxieRow(row) roxiemem::HeapletBase::link(row)
+
+#define ReleaseRoxieRowset(cnt, rowset) roxiemem::HeapletBase::releaseRowset(cnt, rowset)
+#define LinkRoxieRowset(rowset) roxiemem::HeapletBase::link(rowset)
 
 //Functions to determine information about roxie rows
 #define RoxieRowCapacity(row)  roxiemem::HeapletBase::capacity(row)
@@ -450,15 +454,18 @@ interface IDataBufferManager : extends IInterface
 
 extern roxiemem_decl IDataBufferManager *createDataBufferManager(size32_t size);
 extern roxiemem_decl void setMemoryStatsInterval(unsigned secs);
-extern roxiemem_decl void setTotalMemoryLimit(memsize_t max, memsize_t largeBlockSize, ILargeMemCallback * largeBlockCallback);
+extern roxiemem_decl void setTotalMemoryLimit(bool allowHugePages, memsize_t max, memsize_t largeBlockSize, ILargeMemCallback * largeBlockCallback);
 extern roxiemem_decl memsize_t getTotalMemoryLimit();
 extern roxiemem_decl void releaseRoxieHeap();
 extern roxiemem_decl bool memPoolExhausted();
+extern roxiemem_decl unsigned getHeapAllocated();
+extern roxiemem_decl unsigned getHeapPercentAllocated();
+extern roxiemem_decl unsigned getDataBufferPages();
+extern roxiemem_decl unsigned getDataBuffersActive();
+
 extern roxiemem_decl unsigned memTraceLevel;
 extern roxiemem_decl memsize_t memTraceSizeLimit;
 
-extern roxiemem_decl atomic_t dataBufferPages;
-extern roxiemem_decl atomic_t dataBuffersActive;
 
 #define ALLOCATE(a) allocate(a, activityId)
 #define CLONE(a,b) clone(a, b, activityId)

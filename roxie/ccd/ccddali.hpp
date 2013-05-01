@@ -39,6 +39,7 @@ interface IRoxieDaliHelper : extends IInterface
 {
     virtual void commitCache() = 0;
     virtual bool connected() const = 0;
+    virtual IFileDescriptor *checkClonedFromRemote(const char *id, IFileDescriptor *fdesc, bool cacheIt, bool writeAccess) = 0;
     virtual IDistributedFile *resolveLFN(const char *filename, bool cacheIt, bool writeAccess) = 0;
     virtual IFileDescriptor *resolveCachedLFN(const char *filename) = 0;
     virtual IConstWorkUnit *attachWorkunit(const char *wuid, ILoadedDllEntry *source) = 0;
@@ -51,7 +52,6 @@ interface IRoxieDaliHelper : extends IInterface
     virtual void releaseSubscription(IDaliPackageWatcher *subscription) = 0;
     virtual bool connect(unsigned timeout) = 0;
     virtual void disconnect() = 0;
-    virtual void waitConnected() = 0;
     virtual void noteQueuesRunning(const char *queueNames) = 0;
     virtual void noteWorkunitRunning(const char *wu, bool running) = 0;
 };

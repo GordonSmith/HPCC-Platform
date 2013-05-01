@@ -57,7 +57,7 @@
                                 return o.checked ? '\n'+o.value : '';
 
                             var s='';
-                            var ch=o.children;
+                            var ch=o.childNodes;
                             if (ch)
                                 for (var i in ch)
                                     s=s+getSelected(ch[i]);
@@ -266,19 +266,29 @@
                     <tr><th>Persistent:</th><td><xsl:value-of select="Persistent"/></td></tr>
                 </xsl:if>
                 <xsl:if test="string-length(Format)">
-                    <tr><th>Format:</th><td><xsl:value-of select="Format"/></td></tr>
+                    <tr><th>Format:</th>
+                    <td>
+                        <xsl:choose>
+                            <xsl:when test="Format='csv'">Delimited</xsl:when>
+                            <xsl:otherwise><xsl:value-of select="Format"/></xsl:otherwise>
+                        </xsl:choose>
+                    </td>
+                    </tr>
                 </xsl:if>
                 <xsl:if test="string-length(MaxRecordSize)">
                     <tr><th>MaxRecordSize:</th><td><xsl:value-of select="MaxRecordSize"/></td></tr>
                 </xsl:if>
                 <xsl:if test="string-length(CsvSeparate)">
-                    <tr><th>CsvSeparate:</th><td><xsl:value-of select="CsvSeparate"/></td></tr>
+                    <tr><th>Separators:</th><td><xsl:value-of select="CsvSeparate"/></td></tr>
                 </xsl:if>
                 <xsl:if test="string-length(CsvQuote)">
-                    <tr><th>CsvQuote:</th><td><xsl:value-of select="CsvQuote"/></td></tr>
+                    <tr><th>Quote:</th><td><xsl:value-of select="CsvQuote"/></td></tr>
                 </xsl:if>
                 <xsl:if test="string-length(CsvTerminate)">
-                    <tr><th>CsvTerminate:</th><td><xsl:value-of select="CsvTerminate"/></td></tr>   
+                    <tr><th>Terminators:</th><td><xsl:value-of select="CsvTerminate"/></td></tr>
+                </xsl:if>
+                <xsl:if test="string-length(CsvEscape)">
+                    <tr><th>Escape:</th><td><xsl:value-of select="CsvEscape"/></td></tr>
                 </xsl:if>
                     <xsl:if test="count(Graphs/ECLGraph)">
                         <th>Graphs:</th>

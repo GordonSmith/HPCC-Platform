@@ -120,7 +120,7 @@ void ProcessSlaveActivity::main()
             }
             _e->Release();
         }
-        ActPrintLog(e, NULL);
+        ActPrintLog(e);
         exception.setown(e);
     }
     catch (std::exception & es)
@@ -546,9 +546,6 @@ public:
                 UNIMPLEMENTED;
             case TAKchilditerator:
                 ret = createChildIteratorSlave(this);
-                break;
-            case TAKrawiterator:
-                ret = createRawIteratorSlave(this);
                 break;
             case TAKlinkedrawiterator:
                 ret = createLinkedRawIteratorSlave(this);

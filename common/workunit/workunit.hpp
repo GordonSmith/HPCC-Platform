@@ -534,11 +534,11 @@ interface IConstWUExceptionIterator : extends IScmIterator
     virtual IConstWUException & query() = 0;
 };
 
-enum ClusterType { NoCluster, ThorCluster, HThorCluster, RoxieCluster, ThorLCRCluster };
+enum ClusterType { NoCluster, HThorCluster, RoxieCluster, ThorLCRCluster };
 
 extern WORKUNIT_API ClusterType getClusterType(const char * platform, ClusterType dft = NoCluster);
 extern WORKUNIT_API const char *clusterTypeString(ClusterType clusterType, bool lcrSensitive);
-inline bool isThorCluster(ClusterType type) { return (type == ThorCluster) || (type == ThorLCRCluster); }
+inline bool isThorCluster(ClusterType type) { return (type == ThorLCRCluster); }
 
 //! IClusterInfo
 interface IConstWUClusterInfo : extends IInterface
@@ -1100,7 +1100,7 @@ interface IWorkUnitFactory : extends IInterface
     virtual IConstWorkUnitIterator * getWorkUnitsByECL(const char * ecl) = 0;
     virtual IConstWorkUnitIterator * getWorkUnitsByCluster(const char * cluster) = 0;
     virtual IConstWorkUnitIterator * getWorkUnitsByXPath(const char * xpath) = 0;
-    virtual IConstWorkUnitIterator * getWorkUnitsSorted(WUSortField * sortorder, WUSortField * filters, const void * filterbuf, unsigned startoffset, unsigned maxnum, const char * queryowner, __int64 * cachehint) = 0;
+    virtual IConstWorkUnitIterator * getWorkUnitsSorted(WUSortField * sortorder, WUSortField * filters, const void * filterbuf, unsigned startoffset, unsigned maxnum, const char * queryowner, __int64 * cachehint, unsigned *total) = 0;
     virtual unsigned numWorkUnits() = 0;
     virtual unsigned numWorkUnitsFiltered(WUSortField * filters, const void * filterbuf) = 0;
     virtual void descheduleAllWorkUnits() = 0;
@@ -1210,6 +1210,7 @@ enum WUQueryActivationOptions
     MAKE_ACTIVATE_LOAD_DATA_ONLY = 5
 };
 
+extern WORKUNIT_API int calcPriorityValue(const IPropertyTree * p);  // Calls to this should really go through the workunit interface.
 
 extern WORKUNIT_API IPropertyTree * addNamedQuery(IPropertyTree * queryRegistry, const char * name, const char * wuid, const char * dll, bool library, const char *userid);       // result not linked
 extern WORKUNIT_API void removeNamedQuery(IPropertyTree * queryRegistry, const char * id);

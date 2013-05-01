@@ -513,6 +513,7 @@ public:
     virtual bool queryWriteResultsToStdout() { return writeResultsToStdout; }
     virtual IOrderedOutputSerializer * queryOutputSerializer() { return outputSerializer; }
     virtual const void * fromXml(IEngineRowAllocator * _rowAllocator, size32_t len, const char * utf8, IXmlToRowTransformer * xmlTransformer, bool stripWhitespace);
+    virtual IEngineContext *queryEngineContext() { return NULL; }
 
     unsigned __int64 queryStopAfter() { return stopAfter; }
 
@@ -537,7 +538,7 @@ public:
     virtual void executeGraph(const char * graphName, bool realThor, size32_t parentExtractSize, const void * parentExtract);
     virtual IHThorGraphResults * executeLibraryGraph(const char * libraryName, unsigned expectedInterfaceHash, unsigned activityId, bool embedded, const byte * parentExtract);
     virtual IThorChildGraph * resolveChildQuery(__int64 subgraphId, IHThorArg * colocal);
-    virtual ILocalGraph * resolveLocalQuery(__int64 activityId);
+    virtual IEclGraphResults * resolveLocalQuery(__int64 activityId);
 
     virtual IHThorGraphResults * createGraphLoopResults();
 
@@ -758,7 +759,6 @@ public:
 
     virtual void addRowOwn(const void * row);
     virtual const void * queryRow(unsigned whichRow);
-    virtual void getResult(unsigned & len, void * & data);
     virtual void getLinkedResult(unsigned & count, byte * * & ret);
     virtual const void * getOwnRow(unsigned whichRow);
 
@@ -775,7 +775,6 @@ public:
 
     virtual void addRowOwn(const void * row);
     virtual const void * queryRow(unsigned whichRow);
-    virtual void getResult(unsigned & len, void * & data);
     virtual void getLinkedResult(unsigned & count, byte * * & ret);
     virtual const void * getOwnRow(unsigned whichRow);
 
@@ -802,10 +801,6 @@ public:
     virtual void setResult(unsigned id, IHThorGraphResult * result);
 
 //interface IEclGraphResults
-    virtual void getResult(size32_t & retSize, void * & ret, unsigned id)
-    {
-        queryResult(id)->getResult(retSize, ret);
-    }
     virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id)
     {
         queryResult(id)->getLinkedResult(count, ret);
@@ -840,7 +835,7 @@ protected:
     ICodeContext * codeContext;
 };
 
-class EclSubGraph : public CInterface, implements ILocalGraphEx, public IEclLoopGraph, public IThorChildGraph
+class EclSubGraph : public CInterface, implements ILocalEclGraphResults, public IEclLoopGraph, public IThorChildGraph
 {
     friend class EclGraphElement;
 private:
@@ -912,7 +907,7 @@ private:
     class SubGraphCodeContext : public IndirectCodeContext
     {
     public:
-        virtual ILocalGraph * resolveLocalQuery(__int64 activityId)
+        virtual IEclGraphResults * resolveLocalQuery(__int64 activityId)
         {
             if (activityId == container->queryId())
                 return container;
@@ -962,14 +957,13 @@ public:
             return in;
     }
 
-//interface ILocalGraph
+//interface IEclGraphResults
     virtual IHThorGraphResult * queryResult(unsigned id);
     virtual IHThorGraphResult * queryGraphLoopResult(unsigned id);
     virtual IHThorGraphResult * createResult(unsigned id, IEngineRowAllocator * ownedRowsetAllocator);
     virtual IHThorGraphResult * createGraphLoopResult(IEngineRowAllocator * ownedRowsetAllocator);
     virtual IEclGraphResults * evaluate(unsigned parentExtractSize, const byte * parentExtract);
 
-    virtual void getResult(unsigned & len, void * & data, unsigned id);
     virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id);
     virtual void getDictionaryResult(size32_t & tcount, byte * * & tgt, unsigned id);
     inline unsigned __int64 queryId() const
@@ -1026,7 +1020,7 @@ class EclGraph : public CInterface
             return container->resolveChildQuery((unsigned)subgraphId);
         }
 
-        ILocalGraph * resolveLocalQuery(__int64 activityId) 
+        IEclGraphResults * resolveLocalQuery(__int64 activityId)
         { 
             return container->resolveLocalQuery((unsigned)activityId);
         }
@@ -1060,7 +1054,7 @@ public:
     EclGraphElement * idToActivity(unsigned id);
     const char *queryGraphName() { return graphName; }
     IThorChildGraph * resolveChildQuery( unsigned subgraphId);
-    ILocalGraph * resolveLocalQuery(unsigned subgraphId);
+    IEclGraphResults * resolveLocalQuery(unsigned subgraphId);
     IEclLoopGraph * resolveLoopGraph(unsigned id);
     EclGraphElement * recurseFindActivityFromId(EclSubGraph * subGraph, unsigned id);
     void updateLibraryProgress();

@@ -1508,7 +1508,6 @@ void HqlCppTranslator::cacheOptions()
         DebugOption(options.peephole,"peephole", true),
         DebugOption(options.foldConstantCast,"foldConstantCast", true),
         DebugOption(options.optimizeBoolReturn,"optimizeBoolReturn", true),
-        DebugOption(options.checkRowOverflow,"checkRowOverflow", true),
         DebugOption(options.freezePersists,"freezePersists", false),
         DebugOption(options.maxRecordSize, "defaultMaxLengthRecord", MAX_RECORD_SIZE),
 
@@ -1532,7 +1531,6 @@ void HqlCppTranslator::cacheOptions()
         DebugOption(options.commonUpChildGraphs,"commonUpChildGraphs", true),
         DebugOption(options.detectAmbiguousSelector,"detectAmbiguousSelector", false),
         DebugOption(options.allowAmbiguousSelector,"allowAmbiguousSelector", false),
-        DebugOption(options.preserveUniqueSelector,"preserveUniqueSelector", true),
 #ifdef _DEBUG
         DebugOption(options.regressionTest,"regressionTest", true),
 #else
@@ -1557,7 +1555,7 @@ void HqlCppTranslator::cacheOptions()
         DebugOption(options.warnOnImplicitReadLimit,"warnOnImplicitReadLimit", targetRoxie()),
 
         DebugOption(options.convertJoinToLookup,"convertJoinToLookup", true),
-        DebugOption(options.convertJoinToLookupIfSorted,"convertJoinToLookupIfSorted", false),      // should change to false once tested
+        DebugOption(options.convertJoinToLookupIfSorted,"convertJoinToLookupIfSorted", false),
         DebugOption(options.spotCSE,"spotCSE", true),
         DebugOption(options.optimizeNonEmpty,"optimizeNonEmpty", !targetThor()),                // not sure that it will be conditional resourced correctly for thor
         DebugOption(options.allowVariableRoxieFilenames,"allowVariableRoxieFilenames", false),
@@ -1571,26 +1569,22 @@ void HqlCppTranslator::cacheOptions()
         DebugOption(options.moveUnconditionalActions,"moveUnconditionalActions", false),
         DebugOption(options.paranoidCheckNormalized, "paranoidCheckNormalized", paranoid),
         DebugOption(options.paranoidCheckDependencies, "paranoidCheckDependencies", paranoid),
+        DebugOption(options.paranoidCheckSelects, "paranoidCheckSelects", paranoid),
         DebugOption(options.preventKeyedSplit,"preventKeyedSplit", true),
         DebugOption(options.preventSteppedSplit,"preventSteppedSplit", true),
         DebugOption(options.canGenerateSimpleAction,"canGenerateSimpleAction", true),
         DebugOption(options.minimizeActivityClasses,"minimizeActivityClasses", true),
         DebugOption(options.maxRootMaybeThorActions, "maxRootMaybeThorActions", 0),
-        DebugOption(options.includeHelperInGraph,"includeHelperInGraph", false),
-        DebugOption(options.supportsLinkedChildRows,"supportsLinkedChildRows", (targetClusterType != ThorCluster)),
         DebugOption(options.minimizeSkewBeforeSpill,"minimizeSkewBeforeSpill", false),
         DebugOption(options.createSerializeForUnknownSize,"createSerializeForUnknownSize", false),
         DebugOption(options.implicitLinkedChildRows,"implicitLinkedChildRows", false),
-        DebugOption(options.tempDatasetsUseLinkedRows,"tempDatasetsUseLinkedRows", false),
-//      DebugOption(options.mainRowsAreLinkCounted,"mainRowsAreLinkCounted", options.supportsLinkedChildRows),
+        DebugOption(options.mainRowsAreLinkCounted,"mainRowsAreLinkCounted", true),
         DebugOption(options.allowSections,"allowSections", true),
         DebugOption(options.autoPackRecords,"autoPackRecords", false),
         DebugOption(options.commonUniqueNameAttributes,"commonUniqueNameAttributes", true),
         DebugOption(options.sortIndexPayload,"sortIndexPayload", true),
         DebugOption(options.foldFilter,"foldFilter", true),
         DebugOption(options.finalizeAllRows, "finalizeAllRows", false),
-        DebugOption(options.finalizeAllVariableRows, "finalizeAllVariableRows", true),
-        DebugOption(options.maxStaticRowSize , "maxStaticRowSize", MAX_STATIC_ROW_SIZE),
         DebugOption(options.maxLocalRowSize , "maxLocalRowSize", MAX_LOCAL_ROW_SIZE),
         DebugOption(options.optimizeGraph,"optimizeGraph", true),
         DebugOption(options.optimizeChildGraph,"optimizeChildGraph", false),
@@ -1605,10 +1599,6 @@ void HqlCppTranslator::cacheOptions()
         DebugOption(options.generateLogicalGraph,"generateLogicalGraph", false),
         DebugOption(options.generateLogicalGraphOnly,"generateLogicalGraphOnly", false),
         DebugOption(options.globalAutoHoist,"globalAutoHoist", true),
-
-        DebugOption(options.useLinkedRawIterator,"useLinkedRawIterator", false),
-        DebugOption(options.useLinkedNormalize,"useLinkedNormalize", false),
-
         DebugOption(options.applyInstantEclTransformationsLimit, "applyInstantEclTransformationsLimit", 100),
         DebugOption(options.insertProjectCostLevel, "insertProjectCostLevel", (unsigned)-1),
         DebugOption(options.dfaRepeatMax, "dfaRepeatMax", 10),
@@ -1677,10 +1667,7 @@ void HqlCppTranslator::cacheOptions()
         DebugOption(options.addLibraryInputsToGraph,"addLibraryInputsToGraph", false),
         DebugOption(options.showRecordCountInGraph,"showRecordCountInGraph", true),
         DebugOption(options.serializeRowsetInExtract,"serializeRowsetInExtract", false),
-        DebugOption(options.optimizeInSegmentMonitor,"optimizeInSegmentMonitor", true),
-        DebugOption(options.supportDynamicRows,"supportDynamicRows", true),
         DebugOption(options.testIgnoreMaxLength,"testIgnoreMaxLength", false),
-        DebugOption(options.limitMaxLength,"limitMaxLength", false),
         DebugOption(options.trackDuplicateActivities,"trackDuplicateActivities", false),
         DebugOption(options.showActivitySizeInGraph,"showActivitySizeInGraph", false),
         DebugOption(options.addLocationToCpp,"addLocationToCpp", false),
@@ -1697,22 +1684,22 @@ void HqlCppTranslator::cacheOptions()
         DebugOption(options.createImplicitAliases,"createImplicitAliases", false),
         DebugOption(options.combineSiblingGraphs,"combineSiblingGraphs", true),
         DebugOption(options.optimizeSharedGraphInputs,"optimizeSharedGraphInputs", true),
-        DebugOption(options.supportsShuffleActivity,"supportsShuffleActivity",false),
-        DebugOption(options.implicitShuffle,"implicitShuffle",false),
-        DebugOption(options.implicitBuildIndexShuffle,"implicitBuildIndexShuffle",false),
-        DebugOption(options.implicitJoinShuffle,"implicitJoinShuffle",false),
-        DebugOption(options.implicitGroupShuffle,"implicitGroupShuffle",false),
+        DebugOption(options.supportsSubSortActivity,"supportsSubSortActivity",false),
+        DebugOption(options.implicitSubSort,"implicitSubSort",false),
+        DebugOption(options.implicitBuildIndexSubSort,"implicitBuildIndexSubSort",false),
+        DebugOption(options.implicitJoinSubSort,"implicitJoinSubSort",false),
+        DebugOption(options.implicitGroupSubSort,"implicitGroupSubSort",false),
         DebugOption(options.implicitGroupHashAggregate,"implicitGroupHashAggregate",false),
         DebugOption(options.implicitGroupHashDedup,"implicitGroupHashDedup",false),
         DebugOption(options.reportFieldUsage,"reportFieldUsage",false),
         DebugOption(options.reportFileUsage,"reportFileUsage",false),
-        DebugOption(options.shuffleLocalJoinConditions,"shuffleLocalJoinConditions",false),
+        DebugOption(options.subsortLocalJoinConditions,"subsortLocalJoinConditions",false),
         DebugOption(options.projectNestedTables,"projectNestedTables",true),
         DebugOption(options.showSeqInGraph,"showSeqInGraph",false),  // For tracking down why projects are not commoned up
         DebugOption(options.normalizeSelectorSequence,"normalizeSelectorSequence",false),  // For tracking down why projects are not commoned up
-        DebugOption(options.transformCaseToChoose,"transformCaseToChoose",true),
         DebugOption(options.removeXpathFromOutput,"removeXpathFromOutput",false),
         DebugOption(options.canLinkConstantRows,"canLinkConstantRows",true),
+        DebugOption(options.checkAmbiguousRollupCondition,"checkAmbiguousRollupCondition",true),
     };
 
     //get options values from workunit
@@ -1735,12 +1722,21 @@ void HqlCppTranslator::cacheOptions()
         }
     }
 
+    //Configure the divide by zero action
+    options.divideByZeroAction = DBZzero;
+    const char * dbz = wu()->getDebugValue("divideByZero",val).str();
+    if (strieq(val.str(), "0") || strieq(val.str(), "zero"))
+        options.divideByZeroAction = DBZzero;
+    else if (strieq(val.str(), "nan"))
+        options.divideByZeroAction = DBZnan;
+    else if (strieq(val.str(), "fail") || strieq(val.str(), "throw"))
+        options.divideByZeroAction = DBZfail;
+    else if (val.length())
+        throwError2(HQLERR_UnexpectedOptionValue_XY, "divideByZero", val.str());
+
     //The following cases handle options whose default values are dependent on other options.  
     //Or where one debug options sets more than one option
     options.hasResourceUseMpForDistribute = wu()->hasDebugValue("resourceUseMpForDistribute");
-    if (!options.supportsLinkedChildRows) 
-        options.implicitLinkedChildRows = false;
-
     if (options.spanMultipleCpp)
     {
         options.activitiesPerCpp = wu()->getDebugValueInt("activitiesPerCpp", DEFAULT_ACTIVITIES_PER_CPP);
@@ -1765,9 +1761,7 @@ void HqlCppTranslator::cacheOptions()
         options.optimizeResourcedProjects = true;
     }
 
-    options.mainRowsAreLinkCounted = options.supportsLinkedChildRows && getDebugFlag("mainRowsAreLinkCounted", true);
     options.minimizeWorkunitTemporaries = !options.workunitTemporaries || getDebugFlag("minimizeWorkunitTemporaries", false);//options.resourceConditionalActions);
-    options.tempDatasetsUseLinkedRows = getDebugFlag("tempDatasetsUseLinkedRows", options.implicitLinkedChildRows);
 
     options.inlineStringThreshold = wu()->getDebugValueInt("inlineStringThreshold", (options.targetCompiler != Vs6CppCompiler) ? 0 : 10000);
 
@@ -1777,17 +1771,8 @@ void HqlCppTranslator::cacheOptions()
         options.constantFoldPostNormalize = false;
     }
 
-    //A meta flag for enabling link counted child rows.
-    bool useLCR = getDebugFlag("linkCountedRows", getDebugFlag("testLCR", true));
-    if (options.supportsLinkedChildRows && useLCR)
-    {
-        options.implicitLinkedChildRows = true;
-        options.tempDatasetsUseLinkedRows = true;
-        options.useLinkedRawIterator = true;
-        options.useLinkedNormalize = true;
-        options.finalizeAllRows = true;     // inline temporary rows should actually be ok.
-        options.finalizeAllVariableRows = true;
-    }
+    options.implicitLinkedChildRows = true;
+    options.finalizeAllRows = true;     // inline temporary rows should actually be ok.
 
     postProcessOptions();
 }
@@ -1795,38 +1780,6 @@ void HqlCppTranslator::cacheOptions()
 void HqlCppTranslator::postProcessOptions()
 {
 //Any post processing - e.g., dependent flags goes here...
-    if (targetClusterType == ThorCluster)
-    {
-        options.supportDynamicRows = false;
-        options.resourceConditionalActions = false;
-        options.resourceSequential = false;
-    }
-
-    if (options.supportDynamicRows)
-    {
-        options.finalizeAllVariableRows = true;
-    }
-    else
-    {
-        options.testIgnoreMaxLength = false;
-        options.limitMaxLength = false;
-    }
-
-    if (options.supportsLinkedChildRows) 
-    {
-        options.maxStaticRowSize = 0;
-    }
-    else
-    {
-        options.maxStaticRowSize = (unsigned)-1;
-        options.implicitLinkedChildRows = false;
-        options.tempDatasetsUseLinkedRows = false;
-        options.useLinkedRawIterator = false;
-        options.useLinkedNormalize = false;
-        options.finalizeAllRows = false;
-        options.finalizeAllVariableRows = false;
-    }
-
     options.optimizeDiskFlag = 0;
     if (options.optimizeInlineSource) 
         options.optimizeDiskFlag |= CSFnewinline;
@@ -1864,7 +1817,6 @@ unsigned HqlCppTranslator::getOptimizeFlags() const
     case HThorCluster:
         optFlags |= HOOnocloneindexlimit|HOOalwayslocal;
         break;
-    case ThorCluster:
     case ThorLCRCluster:
         break;
     default:
@@ -3207,6 +3159,7 @@ void HqlCppTranslator::buildExpr(BuildCtx & ctx, IHqlExpression * expr, CHqlBoun
             throwUnexpected();
         buildExpr(ctx, expr->queryChild(0), tgt);
         return;
+    case no_nothor:
     case no_nofold:
     case no_nohoist:
     case no_section:
@@ -3520,13 +3473,14 @@ void HqlCppTranslator::buildStmt(BuildCtx & _ctx, IHqlExpression * expr)
 {
     BuildCtx ctx(_ctx);
 
-    switch (expr->getOperator())
+    node_operator op = expr->getOperator();
+    switch (op)
     {
     case no_assign:
         doBuildStmtAssign(ctx, expr->queryChild(0), expr->queryChild(1));
         return;
     case no_assign_addfiles:
-        doBuildStmtAssignModify(ctx, expr->queryChild(0), expr->queryChild(1), expr->getOperator());
+        doBuildStmtAssignModify(ctx, expr->queryChild(0), expr->queryChild(1), op);
         return;
     case no_alias:
         doBuildExprAlias(ctx, expr, NULL);
@@ -3599,7 +3553,13 @@ void HqlCppTranslator::buildStmt(BuildCtx & _ctx, IHqlExpression * expr)
     case no_actionlist:
         {
             ForEachChild(idx, expr)
-                buildStmt(ctx, expr->queryChild(idx));
+            {
+                BuildCtx subctx(ctx);
+                //Add a group for each branch of a sequential to ensure all branches are independent
+                if (op == no_sequential)
+                    subctx.addGroup();
+                buildStmt(subctx, expr->queryChild(idx));
+            }
             return;
         }
     case no_wait:
@@ -4141,7 +4101,7 @@ void HqlCppTranslator::createTempFor(BuildCtx & ctx, ITypeInfo * _exprType, CHql
                 assertex(format != FormatBlockedDataset);
                 format = FormatLinkedDataset;
             }
-            else if (options.tempDatasetsUseLinkedRows && (format == FormatNatural))
+            else if (format == FormatNatural)
                 format = FormatLinkedDataset;
             break;
         }
@@ -4814,7 +4774,7 @@ void HqlCppTranslator::doBuildFilterToTarget(BuildCtx & ctx, const CHqlBoundTarg
 {
     LinkedHqlExpr test = isOk.expr;
     if (invert)
-        test.setown(createValue(no_not, makeBoolType(), LINK(test)));
+        test.setown(getInverse(test));
 
     unsigned max = conds.ordinality();
     unsigned curIndex = 0;
@@ -5207,11 +5167,23 @@ void HqlCppTranslator::doBuildExprArith(BuildCtx & ctx, IHqlExpression * expr, C
             _ATOM func;
             switch (expr->getOperator())
             {
-            case no_add: func = DecAddAtom; break;
-            case no_div: func = DecDivideAtom; break;
-            case no_modulus: func = DecModulusAtom; break;
-            case no_mul: func = DecMulAtom; break;
-            case no_sub: func = DecSubAtom; break;
+            case no_add:
+                func = DecAddAtom;
+                break;
+            case no_div:
+                func = DecDivideAtom;
+                args.append(*getSizetConstant(options.divideByZeroAction));
+                break;
+            case no_modulus:
+                func = DecModulusAtom;
+                args.append(*getSizetConstant(options.divideByZeroAction));
+                break;
+            case no_mul:
+                func = DecMulAtom;
+                break;
+            case no_sub:
+                func = DecSubAtom;
+                break;
             default: UNIMPLEMENTED;
             }
             callProcedure(ctx, func, args);
@@ -5818,21 +5790,8 @@ void HqlCppTranslator::doBuildCall(BuildCtx & ctx, const CHqlBoundTarget * tgt, 
             if (resultSelfCursor->queryBuilder())
                 args.append(*LINK(resultSelfCursor->queryBuilder()));
             else
-            {
-                //Legacy support....
-                assertex(!options.supportDynamicRows);
-                OwnedHqlExpr rowExpr = getPointer(resultSelfCursor->queryBound());
+                throwUnexpectedX("Expected a dynamic target for a transform - legacy not supported");
 
-                StringBuffer builderName;
-                getUniqueId(builderName.append("b"));
-
-                StringBuffer s;
-                s.append("RtlStaticRowBuilder ").append(builderName).append("(");
-                generateExprCpp(s, rowExpr).append(",").append(getMaxRecordSize(funcdef->queryRecord())).append(");");
-                ctx.addQuoted(s);
-
-                args.append(*createVariable(builderName, makeBoolType()));
-            }
             returnByReference = true;
             doneAssign = true;
             break;
@@ -7055,7 +7014,10 @@ void HqlCppTranslator::doBuildExprDivide(BuildCtx & ctx, IHqlExpression * expr, 
         int cmp = value->compare(zero);
 
         if (cmp == 0)
-            tgt.expr.setown(createConstant(zero.getClear()));
+        {
+            OwnedHqlExpr eZero = createConstant(LINK(zero));
+            doBuildDivideByZero(ctx, NULL, eZero, &tgt);
+        }
         else
             doBuildPureSubExpr(ctx, expr, tgt);
     }
@@ -7065,6 +7027,45 @@ void HqlCppTranslator::doBuildExprDivide(BuildCtx & ctx, IHqlExpression * expr, 
     }
 }
 
+
+
+void HqlCppTranslator::doBuildDivideByZero(BuildCtx & ctx, const CHqlBoundTarget * target, IHqlExpression * zero, CHqlBoundExpr * bound)
+{
+    //Always assign something to bound - even if it is replaced further down.
+    if (bound)
+        buildExpr(ctx, zero, *bound);
+
+    switch (options.divideByZeroAction)
+    {
+    case DBZzero:
+        if (target)
+            assignBound(ctx, *target, zero);
+        break;
+    case DBZfail:
+        {
+            HqlExprArray noArgs;
+            buildFunctionCall(ctx, failDivideByZeroAtom, noArgs);
+            break;
+        }
+    case DBZnan:
+        {
+            LinkedHqlExpr nan = zero;
+            if (zero->queryType()->getTypeCode() == type_real)
+            {
+                HqlExprArray noArgs;
+                nan.setown(bindFunctionCall(createRealNullAtom, noArgs));
+            }
+
+            if (target)
+                assignBound(ctx, *target, nan);
+            else
+                buildExpr(ctx, nan, *bound);
+            break;
+        }
+    default:
+        throwUnexpected();
+    }
+}
 
 void HqlCppTranslator::doBuildAssignDivide(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr)
 {
@@ -7092,7 +7093,7 @@ void HqlCppTranslator::doBuildAssignDivide(BuildCtx & ctx, const CHqlBoundTarget
         int cmp = value->compare(eZero->queryValue());
 
         if (cmp == 0)
-            assignBound(ctx, target, eZero);
+            doBuildDivideByZero(ctx, &target, eZero, NULL);
         else
             assignBound(ctx, target, pureExpr);
     }
@@ -7102,7 +7103,7 @@ void HqlCppTranslator::doBuildAssignDivide(BuildCtx & ctx, const CHqlBoundTarget
         IHqlStmt * stmt = subctx.addFilter(divisor);
         assignBound(subctx, target, pureExpr);
         subctx.selectElse(stmt);
-        assignBound(subctx, target, eZero);
+        doBuildDivideByZero(subctx, &target, eZero, NULL);
     }
 }
 
@@ -7619,22 +7620,10 @@ void HqlCppTranslator::doBuildAssignAll(BuildCtx & ctx, const CHqlBoundTarget & 
 
 void HqlCppTranslator::doBuildExprNot(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & tgt)
 {
-    ITypeInfo * type = expr->queryChild(0)->queryType();
-    switch (type->getTypeCode())
-    {
-    case type_decimal:
-        {
-            //MORE: Could leak decimal stack....  Is the last line correct?
-            HqlExprArray args;              
-            bindAndPush(ctx, expr->queryChild(0));
-            IHqlExpression * op = bindTranslatedFunctionCall(DecCompareNullAtom, args);
-            tgt.expr.setown(createValue(expr->getOperator(), LINK(boolType), op, getZero()));
-        }
-        break;
-    default:
-        doBuildPureSubExpr(ctx, expr, tgt);
-        break;
-    }
+    assertex(expr->queryChild(0)->isBoolean());
+    CHqlBoundExpr bound;
+    buildExpr(ctx, expr->queryChild(0), bound);
+    tgt.expr.setown(getInverse(bound.expr));
 }
 
 
@@ -9849,10 +9838,18 @@ void HqlCppTranslator::doBuildExprIsValid(BuildCtx & ctx, IHqlExpression * expr,
 
     CHqlBoundExpr bound;
     buildExpr(ctx, value, bound);
+
+    type_t tc = type->getTypeCode();
+    if ((tc == type_decimal) && (bound.expr->getOperator() == no_decimalstack))
+    {
+        tgt.expr.setown(bindTranslatedFunctionCall(DecValidTosAtom, args));
+        return;
+    }
+
     ensureHasAddress(ctx, bound);
 
     OwnedHqlExpr address = getPointer(bound.expr);
-    switch (type->getTypeCode())
+    switch (tc)
     {
     case type_decimal:
         args.append(*createConstant(type->isSigned()));
@@ -11324,8 +11321,16 @@ static IHqlExpression *createActualFromFormal(IHqlExpression *param)
     case type_groupedtable:
         if (paramType->getSize() == UNKNOWN_LENGTH)
         {
-            appendCapital(temp.clear().append("len"), paramNameText);
-            bound.length.setown(createVariable(temp.str(), LINK(sizetType)));
+            if (hasOutOfLineModifier(paramType) || hasLinkCountedModifier(paramType))
+            {
+                appendCapital(temp.clear().append("count"), paramNameText);
+                bound.count.setown(createVariable(temp.str(), LINK(sizetType)));
+            }
+            else
+            {
+                appendCapital(temp.clear().append("len"), paramNameText);
+                bound.length.setown(createVariable(temp.str(), LINK(sizetType)));
+            }
         }
         type.setown(makeReferenceModifier(LINK(type)));
         break;

@@ -383,7 +383,7 @@ public:
 
             try
             {
-                queryXml.setown(createPTreeFromXMLString(rawText.str(), ipt_caseInsensitive, (XmlReaderOptions)(xr_ignoreWhiteSpace|xr_ignoreNameSpaces)));
+                queryXml.setown(createPTreeFromXMLString(rawText.str(), ipt_caseInsensitive, (PTreeReaderOptions)(ptr_ignoreWhiteSpace|ptr_ignoreNameSpaces)));
             }
             catch (IException *E)
             {
@@ -399,7 +399,7 @@ public:
             sanitizeQuery(queryXml, queryName, sanitizedText, isHTTP, uid, isRequest, isRequestArray);
             DBGLOG("Received debug query %s", sanitizedText.str());
 
-            FlushingStringBuffer response(client, false, true, false, false, queryDummyContextLogger());
+            FlushingStringBuffer response(client, false, MarkupFmt_XML, false, false, queryDummyContextLogger());
             response.startDataset("Debug", NULL, (unsigned) -1);
 
             if (!debugCmdHandler.get())
@@ -1820,6 +1820,7 @@ void EclAgent::doProcess()
     try
     {
         LOG(MCrunlock, unknownJob, "Waiting for workunit lock");
+        unsigned eclccCodeVersion;
         {
             WorkunitUpdate w = updateWorkUnit();
             LOG(MCrunlock, unknownJob, "Obtained workunit lock");
@@ -1828,8 +1829,10 @@ void EclAgent::doProcess()
             w->setTracingValue("EclAgentBuild", BUILD_TAG);
             if (agentTopology->hasProp("@name"))
                 w->addProcess("EclAgent", agentTopology->queryProp("@name"), logname.str());
-            if (checkVersion && ((w->getCodeVersion() > ACTIVITY_INTERFACE_VERSION) || (w->getCodeVersion() < MIN_ACTIVITY_INTERFACE_VERSION)))
-                failv(0, "Workunit was compiled for eclagent interface version %d, this eclagent requires version %d..%d", w->getCodeVersion(), MIN_ACTIVITY_INTERFACE_VERSION, ACTIVITY_INTERFACE_VERSION);
+
+            eclccCodeVersion = w->getCodeVersion();
+            if (checkVersion && ((eclccCodeVersion > ACTIVITY_INTERFACE_VERSION) || (eclccCodeVersion < MIN_ACTIVITY_INTERFACE_VERSION)))
+                failv(0, "Workunit was compiled for eclagent interface version %d, this eclagent requires version %d..%d", eclccCodeVersion, MIN_ACTIVITY_INTERFACE_VERSION, ACTIVITY_INTERFACE_VERSION);
             if(noRetry && (w->getState() == WUStateFailed))
                 throw MakeStringException(0, "Ecl agent started in 'no retry' mode for failed workunit, so failing");
             w->setState(WUStateRunning);
@@ -1854,6 +1857,10 @@ void EclAgent::doProcess()
         {
             MTIME_SECTION(timer, "Process");
             Owned<IEclProcess> process = loadProcess();
+
+            if (checkVersion && (process->getActivityVersion() != eclccCodeVersion))
+                failv(0, "Inconsistent interface versions.  Workunit was created using eclcc for version %u, but the c++ compiler used version %u", eclccCodeVersion, process->getActivityVersion());
+
             PrintLog("Starting process");
             runProcess(process);
             failed = false;
@@ -2011,11 +2018,15 @@ void EclAgent::runProcess(IEclProcess *process)
     allocatorMetaCache.setown(createRowAllocatorCache(this));
     rowManager.setown(roxiemem::createRowManager(0, NULL, queryDummyContextLogger(), allocatorMetaCache, false));
     setHThorRowManager(rowManager.get());
-    rtlSetReleaseRowHook(queryHThorRtlRowCallback());
 
     //Get memory limit. Workunit specified value takes precedence over config file
-    int memLimitMB = globals->getPropInt("defaultMemoryLimitMB", DEFAULT_MEM_LIMIT);
+    int memLimitMB = agentTopology->getPropInt("@defaultMemoryLimitMB", DEFAULT_MEM_LIMIT);
+    memLimitMB = globals->getPropInt("defaultMemoryLimitMB", memLimitMB);
     memLimitMB = queryWorkUnit()->getDebugValueInt("hthorMemoryLimit", memLimitMB);
+
+    bool allowHugePages = agentTopology->getPropBool("@heapUseHugePages", false);
+    allowHugePages = globals->getPropBool("heapUseHugePages", allowHugePages);
+
 #ifndef __64BIT__
     if (memLimitMB > 4096)
     {
@@ -2025,7 +2036,7 @@ void EclAgent::runProcess(IEclProcess *process)
     }
 #endif
     memsize_t memLimitBytes = (memsize_t)memLimitMB * 1024 * 1024;
-    roxiemem::setTotalMemoryLimit(memLimitBytes, 0, NULL);
+    roxiemem::setTotalMemoryLimit(allowHugePages, memLimitBytes, 0, NULL);
 
     if (debugContext)
         debugContext->checkBreakpoint(DebugStateReady, NULL, NULL);

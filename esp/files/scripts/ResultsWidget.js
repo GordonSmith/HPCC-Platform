@@ -39,9 +39,9 @@ define([
         baseClass: "ResultsWidget",
 
         //borderContainer: null,
-        tabContainer: null,
         tabMap: [],
         selectedTab: null,
+        TabPosition: "bottom",
 
         onErrorClick: function (line, col) {
         },
@@ -131,7 +131,7 @@ define([
                             }
                         });
                         var currSel = context.getSelectedChild();
-                        if (currSel) {
+                        if (currSel && currSel.refresh) {
                             currSel.refresh();
                         }
                     }

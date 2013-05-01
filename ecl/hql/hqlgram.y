@@ -316,6 +316,7 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
   NOTHOR
   NOTIFY
   NOTRIM
+  NOXPATH
   OF
   OMITTED
   ONCE
@@ -388,7 +389,6 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
   SERVICE
   SET
   SHARED
-  SHUFFLE
   SIMPLE_TYPE
   SIN
   SINGLE
@@ -407,6 +407,7 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
   STEPPED
   STORED
   STREAMED
+  SUBSORT
   SUCCESS
   SUM
   SWAPPED
@@ -3172,6 +3173,10 @@ outputFlag
                             $$.setExpr(createAttribute(workunitAtom));              // need a better keyword, but WORKUNIT is no good
                             $$.setPosition($1);
                         }
+    | NOXPATH           {
+                            $$.setExpr(createAttribute(noXpathAtom));
+                            $$.setPosition($1);
+                        }
     ;
 
 soapFlags
@@ -3419,6 +3424,10 @@ outputWuFlag
                         }
     | UPDATE            {
                             $$.setExpr(createComma(createAttribute(updateAtom), createAttribute(overwriteAtom)));
+                            $$.setPosition($1);
+                        }
+    | NOXPATH           {
+                            $$.setExpr(createAttribute(noXpathAtom));
                             $$.setPosition($1);
                         }
     | commonAttribute
@@ -4068,13 +4077,13 @@ recordOption
     | MAXLENGTH '(' constExpression ')'
                         {
                             parser->normalizeExpression($3, type_numeric, false);
-                            $$.setExpr(createAttribute(maxLengthAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxLengthAtom, $3.getExpr()));
                             $$.setPosition($1);
                         }
     | MAXSIZE '(' constExpression ')'
                         {
                             parser->normalizeExpression($3, type_numeric, false);
-                            $$.setExpr(createAttribute(maxLengthAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxLengthAtom, $3.getExpr()));
                             $$.setPosition($1);
                         }
     | PACKED
@@ -4353,67 +4362,67 @@ fieldAttr
     | CARDINALITY '(' expression ')'    
                         {
                             parser->normalizeExpression($3, type_numeric, false);
-                            $$.setExpr(createAttribute(cardinalityAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(cardinalityAtom, $3.getExpr()));
                         }
     | CASE '(' expression ')'
                         { 
                             parser->normalizeExpression($3, type_set, false);
-                            $$.setExpr(createAttribute(caseAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(caseAtom, $3.getExpr()));
                         }
     | MAXCOUNT '(' expression ')' 
                         {
                             parser->normalizeExpression($3, type_int, true);
-                            $$.setExpr(createAttribute(maxCountAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxCountAtom, $3.getExpr()));
                         }
     | CHOOSEN '(' expression ')' 
                         {
                             parser->normalizeExpression($3, type_int, true);
-                            $$.setExpr(createAttribute(choosenAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(choosenAtom, $3.getExpr()));
                         }
     | MAXLENGTH '(' expression ')' 
                         {
                             parser->normalizeExpression($3, type_int, true);
-                            $$.setExpr(createAttribute(maxLengthAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxLengthAtom, $3.getExpr()));
                         }
     | MAXSIZE '(' expression ')' 
                         {
                             parser->normalizeExpression($3, type_int, true);
-                            $$.setExpr(createAttribute(maxSizeAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxSizeAtom, $3.getExpr()));
                         }
     | NAMED '(' expression ')'  
                         {
                             parser->normalizeExpression($3, type_any, true);
-                            $$.setExpr(createAttribute(namedAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(namedAtom, $3.getExpr()));
                         }
     | RANGE '(' rangeExpr ')'           
                         {
-                            $$.setExpr(createAttribute(rangeAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(rangeAtom, $3.getExpr()));
                         }
     | VIRTUAL '(' LOGICALFILENAME ')'       
                         {
-                            $$.setExpr(createAttribute(virtualAtom, createAttribute(logicalFilenameAtom)));
+                            $$.setExpr(createExprAttribute(virtualAtom, createAttribute(logicalFilenameAtom)));
                         }
     | VIRTUAL '(' FILEPOSITION ')'  
                         {
-                            $$.setExpr(createAttribute(virtualAtom, createAttribute(filepositionAtom)));
+                            $$.setExpr(createExprAttribute(virtualAtom, createAttribute(filepositionAtom)));
                         }
     | VIRTUAL '(' LOCALFILEPOSITION ')' 
                         {
-                            $$.setExpr(createAttribute(virtualAtom, createAttribute(localFilePositionAtom)));
+                            $$.setExpr(createExprAttribute(virtualAtom, createAttribute(localFilePositionAtom)));
                         }
     | VIRTUAL '(' SIZEOF ')'            
                         {
-                            $$.setExpr(createAttribute(virtualAtom, createAttribute(sizeofAtom)));
+                            $$.setExpr(createExprAttribute(virtualAtom, createAttribute(sizeofAtom)));
                         }
     | XPATH '(' constExpression ')'
                         {
                             parser->normalizeExpression($3, type_string, false);
                             parser->validateXPath($3);
-                            $$.setExpr(createAttribute(xpathAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(xpathAtom, $3.getExpr()));
                         }
     | XMLDEFAULT '(' constExpression ')'
                         {
-                            $$.setExpr(createAttribute(xmlDefaultAtom, $3.getExpr()), $1);
+                            $$.setExpr(createExprAttribute(xmlDefaultAtom, $3.getExpr()), $1);
                         }
     | DEFAULT '(' constExpression ')'
                         {
@@ -5115,7 +5124,7 @@ compareExpr
                             parser->normalizeExpression($1);
                             parser->normalizeExpression($4);
                             parser->normalizeExpression($4, type_dictionary, false);
-                            IHqlExpression *dict = $4.getExpr();
+                            OwnedHqlExpr dict = $4.getExpr();
                             OwnedHqlExpr row = createValue(no_rowvalue, makeNullType(), $1.getExpr());
                             OwnedHqlExpr indict = createINDictExpr(parser->errorHandler, $4.pos, row, dict);
                             $$.setExpr(getInverse(indict));
@@ -5126,8 +5135,8 @@ compareExpr
                             parser->normalizeExpression($1);
                             parser->normalizeExpression($4);
                             parser->normalizeExpression($4, type_dictionary, false);
-                            IHqlExpression *dict = $4.getExpr();
-                            IHqlExpression *row = $1.getExpr();
+                            OwnedHqlExpr dict = $4.getExpr();
+                            OwnedHqlExpr row = $1.getExpr();
                             OwnedHqlExpr indict = createINDictRow(parser->errorHandler, $4.pos, row, dict);
                             $$.setExpr(getInverse(indict));
                             $$.setPosition($3);
@@ -5137,7 +5146,7 @@ compareExpr
                             parser->normalizeExpression($1);
                             parser->normalizeExpression($3);
                             parser->normalizeExpression($3, type_dictionary, false);
-                            IHqlExpression *dict = $3.getExpr();
+                            OwnedHqlExpr dict = $3.getExpr();
                             OwnedHqlExpr row = createValue(no_rowvalue, makeNullType(), $1.getExpr());
                             $$.setExpr(createINDictExpr(parser->errorHandler, $3.pos, row, dict));
                             $$.setPosition($2);
@@ -5147,8 +5156,8 @@ compareExpr
                             parser->normalizeExpression($1);
                             parser->normalizeExpression($3);
                             parser->normalizeExpression($3, type_dictionary, false);
-                            IHqlExpression *dict = $3.getExpr();
-                            IHqlExpression *row = $1.getExpr();
+                            OwnedHqlExpr dict = $3.getExpr();
+                            OwnedHqlExpr row = $1.getExpr();
                             $$.setExpr(createINDictRow(parser->errorHandler, $3.pos, row, dict));
                             $$.setPosition($2);
                         }
@@ -6039,9 +6048,6 @@ primexpr1
     | TOK_ERROR '(' ')'         {
                             $$.setExpr(createValue(no_fail, makeAnyType()));
                         }
-    | TOK_ERROR         {
-                            $$.setExpr(createValue(no_fail, makeAnyType()));
-                        }
     | FAIL '(' scalarType ',' expression ',' expression ')'
                         {
                             $3.release();
@@ -6862,8 +6868,9 @@ dataRow
                         {
                             HqlExprArray args;
                             $3.unwindCommaList(args);
+                            OwnedHqlExpr dict = $1.getExpr();
                             OwnedHqlExpr row = createValue(no_rowvalue, makeNullType(), args);
-                            $$.setExpr(createSelectMapRow(parser->errorHandler, $3.pos, $1.getExpr(), row.getClear()));
+                            $$.setExpr(createSelectMapRow(parser->errorHandler, $3.pos, dict, row));
                         }
     | dataSet '[' NOBOUNDCHECK expression ']'
                         {   
@@ -7226,7 +7233,7 @@ simpleDictionary
                             ForEachItemIn(idx, args)
                             {
                                 IHqlExpression * cur = args.item(idx).queryChild(1);
-                                parser->checkRecordTypes(cur, elseDict, $5);
+                                parser->checkRecordTypesMatch(cur, elseDict, $5);
                             }
                             args.append(*elseDict);
                             $$.setExpr(::createDictionary(no_map, args));
@@ -7244,7 +7251,7 @@ simpleDictionary
                             ForEachItemIn(idx, args)
                             {
                                 IHqlExpression * cur = args.item(idx).queryChild(1);
-                                parser->checkRecordTypes(cur, elseDict, $1);
+                                parser->checkRecordTypesMatch(cur, elseDict, $1);
                             }
                             args.append(*elseDict);
                             $$.setExpr(::createDictionary(no_map, args));
@@ -7260,7 +7267,7 @@ simpleDictionary
                             ForEachItemIn(idx, args)
                             {
                                 IHqlExpression * cur = args.item(idx).queryChild(1);
-                                parser->checkRecordTypes(cur, elseDict, $8);
+                                parser->checkRecordTypesMatch(cur, elseDict, $8);
                             }
                             args.add(*$3.getExpr(),0);
                             args.append(*elseDict);
@@ -7281,7 +7288,7 @@ simpleDictionary
                             ForEachItemIn(idx, args)
                             {
                                 IHqlExpression * cur = args.item(idx).queryChild(1);
-                                parser->checkRecordTypes(cur, elseDict, $6);
+                                parser->checkRecordTypesMatch(cur, elseDict, $6);
                             }
                             args.add(*$3.getExpr(),0);
                             args.append(*elseDict);
@@ -7327,7 +7334,7 @@ simpleDictionary
                                 {
                                     if (compareDict)
                                     {
-                                        parser->checkRecordTypes(cur, compareDict, $5);
+                                        parser->checkRecordTypesMatch(cur, compareDict, $5);
                                     }
                                     else
                                         compareDict = cur;
@@ -7412,7 +7419,7 @@ dataSet
                         {
                             OwnedHqlExpr left = $1.getExpr();
                             OwnedHqlExpr right = $3.getExpr();
-                            parser->checkRecordTypes(left, right, $3);
+                            parser->checkRecordTypesSimilar(left, right, $3);
 
                             OwnedHqlExpr seq = parser->createActiveSelectorSequence(left, right);
                             OwnedHqlExpr leftSelect = createSelector(no_left, left, seq);
@@ -7428,7 +7435,7 @@ dataSet
                         {
                             OwnedHqlExpr left = $1.getExpr();
                             OwnedHqlExpr right = $3.getExpr();
-                            parser->checkRecordTypes(left, right, $3);
+                            parser->checkRecordTypesSimilar(left, right, $3);
 
                             OwnedHqlExpr seq = parser->createActiveSelectorSequence(left, right);
                             OwnedHqlExpr leftSelect = createSelector(no_left, left, seq);
@@ -8326,7 +8333,7 @@ simpleDataSet
                             IHqlExpression *dataset = $3.getExpr();
                             OwnedHqlExpr record = $5.getExpr();
                             OwnedHqlExpr extra = $6.getExpr();
-                            parser->extractRecordFromExtra(record, extra);
+                            parser->extractIndexRecordAndExtra(record, extra);
                             OwnedHqlExpr transform = parser->extractTransformFromExtra(extra);
 
                             parser->inheritRecordMaxLength(dataset, record);
@@ -8354,7 +8361,7 @@ simpleDataSet
                         {
                             OwnedHqlExpr record = $3.getExpr();
                             OwnedHqlExpr extra = $4.getExpr();
-                            parser->extractRecordFromExtra(record, extra);
+                            parser->extractIndexRecordAndExtra(record, extra);
                             $$.setExpr(parser->createIndexFromRecord(record, extra, $3));
                             parser->checkIndexRecordTypes($$.queryExpr(), $1);
                             $$.setPosition($1);
@@ -8637,13 +8644,13 @@ simpleDataSet
                             $$.setExpr(parser->createSortExpr(no_sort, $4, $7, sortItems));
                             $$.setPosition($1);
                         }
-    | SHUFFLE '(' startSortOrder startTopFilter ',' sortListExpr ',' sortListExpr optCommonAttrs ')'  endSortOrder endTopFilter
+    | SUBSORT '(' startSortOrder startTopFilter ',' sortListExpr ',' sortListExpr optCommonAttrs ')'  endSortOrder endTopFilter
                         {
                             OwnedHqlExpr options = $9.getExpr();
                             if (isGrouped($4.queryExpr()))
-                                parser->reportError(HQLERR_CannotBeGrouped, $1, "SHUFFLE not yet supported on grouped datasets");
+                                parser->reportError(HQLERR_CannotBeGrouped, $1, "SUBSORT not yet supported on grouped datasets");
                             //NB: $6 and $8 are reversed in their internal representation to make consistent with no_sort
-                            $$.setExpr(createDataset(no_shuffle, $4.getExpr(), createComma($8.getExpr(), $6.getExpr(), options.getClear())), $1);
+                            $$.setExpr(createDataset(no_subsort, $4.getExpr(), createComma($8.getExpr(), $6.getExpr(), options.getClear())), $1);
                         }
     | SORTED '(' startSortOrder startTopFilter ',' beginList sortListOptCurleys ')' endSortOrder endTopFilter
                         {
@@ -8703,19 +8710,10 @@ simpleDataSet
     | MAP '(' mapDatasetSpec ',' dataSet ')'
                         {
                             HqlExprArray args;
-                            IHqlExpression * elseDs = $5.getExpr();
+                            OwnedHqlExpr elseExpr = $5.getExpr();
                             $3.unwindCommaList(args);
-                            bool groupingDiffers = false;
-                            ForEachItemIn(idx, args)
-                            {
-                                IHqlExpression * cur = args.item(idx).queryChild(1);
-                                if (isGrouped(cur) != isGrouped(elseDs))
-                                    groupingDiffers = true;
-                                parser->checkRecordTypes(cur, elseDs, $5);
-                            }
-                            if (groupingDiffers)
-                                parser->reportError(ERR_GROUPING_MISMATCH, $1, "Branches of the condition have different grouping");
-                            args.append(*elseDs);
+                            parser->ensureMapToRecordsMatch(elseExpr, args, $5, false);
+                            args.append(*elseExpr.getClear());
                             $$.setExpr(::createDataset(no_map, args));
                             $$.setPosition($1);
                         }
@@ -8723,22 +8721,14 @@ simpleDataSet
                         {
                             HqlExprArray args;
                             $3.unwindCommaList(args);
-                            IHqlExpression * elseDs;
+                            OwnedHqlExpr elseExpr;
                             if (args.ordinality())
-                                elseDs = createNullExpr(&args.item(0));
+                                elseExpr.setown(createNullExpr(&args.item(0)));
                             else
-                                elseDs = createDataset(no_null, LINK(queryNullRecord()));
-                            bool groupingDiffers = false;
-                            ForEachItemIn(idx, args)
-                            {
-                                IHqlExpression * cur = args.item(idx).queryChild(1);
-                                if (isGrouped(cur) != isGrouped(elseDs))
-                                    groupingDiffers = true;
-                                parser->checkRecordTypes(cur, elseDs, $1);
-                            }
-                            if (groupingDiffers)
-                                parser->reportError(ERR_GROUPING_MISMATCH, $1, "Branches of the condition have different grouping");
-                            args.append(*elseDs);
+                                elseExpr.setown(createDataset(no_null, LINK(queryNullRecord())));
+
+                            parser->ensureMapToRecordsMatch(elseExpr, args, $3, false);
+                            args.append(*elseExpr.getClear());
                             $$.setExpr(::createDataset(no_map, args));
                             $$.setPosition($1);
                         }
@@ -8746,21 +8736,14 @@ simpleDataSet
                         {
                             parser->normalizeExpression($3, type_scalar, false);
                             HqlExprArray args;
-                            IHqlExpression * elseDs = $8.getExpr();
+                            OwnedHqlExpr elseExpr = $8.getExpr();
                             parser->endList(args);
                             parser->checkCaseForDuplicates(args, $6);
-                            bool groupingDiffers = false;
-                            ForEachItemIn(idx, args)
-                            {
-                                IHqlExpression * cur = args.item(idx).queryChild(1);
-                                if (isGrouped(cur) != isGrouped(elseDs))
-                                    groupingDiffers = true;
-                                parser->checkRecordTypes(cur, elseDs, $8);
-                            }
-                            if (groupingDiffers)
-                                parser->reportError(ERR_GROUPING_MISMATCH, $1, "Branches of the condition have different grouping");
+
+                            parser->ensureMapToRecordsMatch(elseExpr, args, $8, false);
+
                             args.add(*$3.getExpr(),0);
-                            args.append(*elseDs);
+                            args.append(*elseExpr.getClear());
                             $$.setExpr(::createDataset(no_case, args));
                             $$.setPosition($1);
                         }
@@ -8769,24 +8752,17 @@ simpleDataSet
                             parser->normalizeExpression($3, type_scalar, false);
                             HqlExprArray args;
                             parser->endList(args);
-                            IHqlExpression * elseDs;
+                            OwnedHqlExpr elseDs;
                             if (args.ordinality())
-                                elseDs = createNullExpr(&args.item(0));
+                                elseDs.setown(createNullExpr(&args.item(0)));
                             else
-                                elseDs = createDataset(no_null, LINK(queryNullRecord()));
+                                elseDs.setown(createDataset(no_null, LINK(queryNullRecord())));
                             parser->checkCaseForDuplicates(args, $6);
-                            bool groupingDiffers = false;
-                            ForEachItemIn(idx, args)
-                            {
-                                IHqlExpression * cur = args.item(idx).queryChild(1);
-                                if (isGrouped(cur) != isGrouped(elseDs))
-                                    groupingDiffers = true;
-                                parser->checkRecordTypes(cur, elseDs, $6);
-                            }
-                            if (groupingDiffers)
-                                parser->reportError(ERR_GROUPING_MISMATCH, $1, "Branches of the condition have different grouping");
+
+                            parser->ensureMapToRecordsMatch(elseDs, args, $6, false);
+
                             args.add(*$3.getExpr(),0);
-                            args.append(*elseDs);
+                            args.append(*elseDs.getClear());
                             $$.setExpr(::createDataset(no_case, args));
                             $$.setPosition($1);
                         }
@@ -8820,7 +8796,9 @@ simpleDataSet
                                     {
                                         if (isGrouped(cur) != isGrouped(compareDs))
                                             parser->reportError(ERR_GROUPING_MISMATCH, $1, "Branches of the condition have different grouping");
-                                        parser->checkRecordTypes(cur, compareDs, $5);
+                                        OwnedHqlExpr mapped = parser->checkEnsureRecordsMatch(compareDs, cur, $5, false);
+                                        if (mapped != cur)
+                                            args.replace(*mapped.getClear(), idx);
                                     }
                                     else
                                         compareDs = cur;
@@ -9072,14 +9050,12 @@ simpleDataSet
     | MAP '(' mapDatarowSpec ',' dataRow ')'
                         {
                             HqlExprArray args;
-                            IHqlExpression * elseDs = $5.getExpr();
+                            OwnedHqlExpr elseExpr = $5.getExpr();
                             $3.unwindCommaList(args);
-                            ForEachItemIn(idx, args)
-                            {
-                                IHqlExpression * cur = args.item(idx).queryChild(1);
-                                parser->checkRecordTypes(cur, elseDs, $5);
-                            }
-                            args.append(*elseDs);
+
+                            parser->ensureMapToRecordsMatch(elseExpr, args, $5, true);
+
+                            args.append(*elseExpr.getClear());
                             $$.setExpr(::createRow(no_map, args));
                             $$.setPosition($1);
                         }
@@ -9087,16 +9063,14 @@ simpleDataSet
                         {
                             parser->normalizeExpression($3, type_scalar, false);
                             HqlExprArray args;
-                            IHqlExpression * elseDs = $8.getExpr();
+                            OwnedHqlExpr elseExpr = $8.getExpr();
                             parser->endList(args);
                             parser->checkCaseForDuplicates(args, $6);
-                            ForEachItemIn(idx, args)
-                            {
-                                IHqlExpression * cur = args.item(idx).queryChild(1);
-                                parser->checkRecordTypes(cur, elseDs, $8);
-                            }
+
+                            parser->ensureMapToRecordsMatch(elseExpr, args, $8, true);
+
                             args.add(*$3.getExpr(),0);
-                            args.append(*elseDs);
+                            args.append(*elseExpr.getClear());
                             $$.setExpr(::createRow(no_case, args), $1);
                         }
     | WHEN '(' dataSet ',' action sideEffectOptions ')'
@@ -9692,12 +9666,12 @@ csvOption
                         }
     | MAXLENGTH '(' constExpression ')'
                         {
-                            $$.setExpr(createAttribute(maxLengthAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxLengthAtom, $3.getExpr()));
                             $$.setPosition($1);
                         }
     | MAXSIZE '(' constExpression ')'
                         {
-                            $$.setExpr(createAttribute(maxLengthAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxLengthAtom, $3.getExpr()));
                             $$.setPosition($1);
                         }
     | QUOTE '(' expression ')'
@@ -9769,11 +9743,11 @@ xmlOptions
 xmlOption
     : MAXLENGTH '(' constExpression ')'
                         {
-                            $$.setExpr(createAttribute(maxLengthAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxLengthAtom, $3.getExpr()));
                         }
     | MAXSIZE '(' constExpression ')'
                         {
-                            $$.setExpr(createAttribute(maxLengthAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxLengthAtom, $3.getExpr()));
                         }
     | NOROOT            {   $$.setExpr(createAttribute(noRootAtom)); }
     | HEADING '(' expression optCommaExpression ')'
@@ -10361,12 +10335,12 @@ parseFlag
     | MAXLENGTH '(' constExpression ')'
                         {
                             parser->normalizeExpression($3, type_numeric, false);
-                            $$.setExpr(createAttribute(maxLengthAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxLengthAtom, $3.getExpr()));
                         }
     | MAXSIZE '(' constExpression ')'
                         {
                             parser->normalizeExpression($3, type_numeric, false);
-                            $$.setExpr(createAttribute(maxLengthAtom, $3.getExpr()));
+                            $$.setExpr(createExprAttribute(maxLengthAtom, $3.getExpr()));
                         }
     | PARALLEL
                         {
@@ -11294,7 +11268,7 @@ mapDatasetItem
     : booleanExpr GOESTO dataSet
                         {
                             IHqlExpression *e3 = $3.getExpr();
-                            $$.setExpr(createValue(no_mapto, e3->getType(), $1.getExpr(), e3));
+                            $$.setExpr(createDataset(no_mapto, $1.getExpr(), e3));
                             $$.setPosition($3);
                         }
     ;
@@ -11312,7 +11286,7 @@ mapDictionaryItem
     : booleanExpr GOESTO dictionary
                         {
                             IHqlExpression *e3 = $3.getExpr();
-                            $$.setExpr(createValue(no_mapto, e3->getType(), $1.getExpr(), e3));
+                            $$.setExpr(createDictionary(no_mapto, $1.getExpr(), e3));
                             $$.setPosition($3);
                         }
     ;
@@ -11328,7 +11302,7 @@ caseDatasetItem
                             parser->normalizeExpression($1);
                             parser->applyDefaultPromotions($1, true);
                             IHqlExpression *e3 = $3.getExpr();
-                            parser->addListElement(createValue(no_mapto, e3->getType(), $1.getExpr(), e3));
+                            parser->addListElement(createDataset(no_mapto, $1.getExpr(), e3));
                             $$.clear();
                             $$.setPosition($3);
                         }
@@ -11345,7 +11319,7 @@ caseDictionaryItem
                             parser->normalizeExpression($1);
                             parser->applyDefaultPromotions($1, true);
                             IHqlExpression *e3 = $3.getExpr();
-                            parser->addListElement(createValue(no_mapto, e3->getType(), $1.getExpr(), e3));
+                            parser->addListElement(createDictionary(no_mapto, $1.getExpr(), e3));
                             $$.clear();
                             $$.setPosition($3);
                         }
@@ -11364,7 +11338,7 @@ mapDatarowItem
     : booleanExpr GOESTO dataRow
                         {
                             IHqlExpression *e3 = $3.getExpr();
-                            $$.setExpr(createValue(no_mapto, e3->getType(), $1.getExpr(), e3));
+                            $$.setExpr(createRow(no_mapto, $1.getExpr(), e3));
                             $$.setPosition($3);
                         }
     ;
@@ -11380,7 +11354,7 @@ caseDatarowItem
                             parser->normalizeExpression($1);
                             parser->applyDefaultPromotions($1, true);
                             IHqlExpression *e3 = $3.getExpr();
-                            parser->addListElement(createValue(no_mapto, e3->getType(), $1.getExpr(), e3));
+                            parser->addListElement(createRow(no_mapto, $1.getExpr(), e3));
                             $$.clear();
                             $$.setPosition($3);
                         }

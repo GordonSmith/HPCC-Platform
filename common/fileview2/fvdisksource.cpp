@@ -251,7 +251,11 @@ bool DirectDiskDataSource::fetchRowData(MemoryBuffer & out, __int64 offset)
     physical.readData(out, offset, returnedMeta->getMaxRecordSize());
     if (out.length() == 0)
         return false;
-    out.setLength(returnedMeta->getRecordSize(out.toByteArray()));
+    size32_t actualLength = returnedMeta->getRecordSize(out.toByteArray());
+    if (actualLength > readBlockSize)
+        throwError(FVERR_RowTooLarge);
+
+    out.setLength(actualLength);
     return true;
 }
 
@@ -399,6 +403,11 @@ size32_t CsvRecordSize::getFixedSize() const
     return 0; // is variable
 }
 
+
+size32_t CsvRecordSize::getMinRecordSize() const
+{
+    return unitSize;
+}
 
 DirectCsvDiskDataSource::DirectCsvDiskDataSource(IDistributedFile * _df, const char * _format)
 {

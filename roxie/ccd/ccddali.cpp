@@ -23,6 +23,7 @@
 #include "dllserver.hpp"
 #include "ccddali.hpp"
 #include "ccdfile.hpp"
+#include "ccdlistener.hpp"
 #include "ccd.hpp"
 
 #include "jencrypt.hpp"
@@ -340,13 +341,42 @@ public:
         return ret.getClear();
     }
 
+    IFileDescriptor *checkClonedFromRemote(const char *_lfn, IFileDescriptor *fdesc, bool cacheIt, bool writeAccess)
+    {
+        if (_lfn && !strnicmp(_lfn, "foreign", 7)) //if need to support dali hopping should add each remote location
+            return NULL;
+        if (!fdesc || !fdesc->queryProperties().hasProp("@cloneFrom"))
+            return NULL;
+        SocketEndpoint cloneFrom;
+        cloneFrom.set(fdesc->queryProperties().queryProp("@cloneFrom"));
+        if (cloneFrom.isNull())
+            return NULL;
+        CDfsLogicalFileName lfn;
+        lfn.set(_lfn);
+        lfn.setForeign(cloneFrom, false);
+        if (!connected())
+            return resolveCachedLFN(lfn.get());
+        Owned<IDistributedFile> cloneFile = resolveLFN(lfn.get(), cacheIt, writeAccess);
+        if (cloneFile)
+        {
+            Owned<IFileDescriptor> cloneFDesc = cloneFile->getFileDescriptor();
+            if (cloneFDesc->numParts()==fdesc->numParts())
+                return cloneFDesc.getClear();
+
+            StringBuffer s;
+            DBGLOG(ROXIE_MISMATCH, "File %s cloneFrom(%s) mismatch", _lfn, cloneFrom.getIpText(s).str());
+        }
+        return NULL;
+    }
+
     virtual IDistributedFile *resolveLFN(const char *logicalName, bool cacheIt, bool writeAccess)
     {
         if (isConnected)
         {
+            DBGLOG("Dali lookup %s", logicalName);
             CDfsLogicalFileName lfn;
             lfn.set(logicalName);
-            Owned<IDistributedFile> dfsFile = queryDistributedFileDirectory().lookup(lfn, userdesc.get(), writeAccess);
+            Owned<IDistributedFile> dfsFile = queryDistributedFileDirectory().lookup(lfn, userdesc.get(), writeAccess, cacheIt);
             if (dfsFile)
             {
                 IDistributedSuperFile *super = dfsFile->querySuperFile();
@@ -527,12 +557,6 @@ public:
         return isConnected;
     }
 
-    virtual void waitConnected()
-    {
-        while (!isConnected)
-            Sleep(ROXIE_DALI_CONNECT_TIMEOUT);
-    }
-
     // connect handles the operations generally performed by Dali clients at startup.
     virtual bool connect(unsigned timeout)
     {
@@ -591,6 +615,7 @@ public:
                 ::closedownClientProcess(); // dali client closedown
                 isConnected = false;
                 disconnectSem.signal();
+                disconnectRoxieQueues();
             }
         }
     }
@@ -617,6 +642,7 @@ public:
     virtual DllLocationType isAvailable(const char * name) { throwUnexpected(); }
     virtual void removeDll(const char * name, bool removeDlls, bool removeDirectory) { throwUnexpected(); }
     virtual void registerDll(const char * name, const char * kind, const char * dllPath) { throwUnexpected(); }
+    virtual IDllEntry * createEntry(IPropertyTree *owner, IPropertyTree *entry) { throwUnexpected(); }
 
     virtual ILoadedDllEntry * loadDll(const char * name, DllLocationType location) 
     {

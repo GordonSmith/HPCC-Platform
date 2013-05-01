@@ -122,6 +122,7 @@ public:
     
     ~CLazyFileIO()
     {
+        setFailure(); // ensures the open file count properly maintained
     }
 
     virtual void beforeDispose()
@@ -1150,7 +1151,7 @@ public:
         try
         {
             CriticalBlock b(crit);
-            ILazyFileIO *f = files.getValue(localLocation);
+            Linked<ILazyFileIO> f = files.getValue(localLocation);
             if (f && f->isAlive())
             {
                 if ((size != -1 && size != f->getSize()) ||
@@ -1177,7 +1178,7 @@ public:
                     throw MakeStringException(ROXIE_MISMATCH, "Different version of %s already loaded: sizes = %"I64F"d %"I64F"d  Date = %s  %s", id, size, f->getSize(), modifiedDt.str(), fileDt.str());
                 }
                 else
-                    return LINK(f);
+                    return f.getClear();
             }
 
             ret.setown(openFile(id, partNo, fileType, localLocation, peerRoxieCopiedLocationInfo, deployedLocationInfo, size, modified, memFile, crc, isCompressed));  // for now don't check crcs
@@ -1319,25 +1320,22 @@ public:
         ForEach(h)
         {
             ILazyFileIO *f = files.mapToValue(&h.query());
+            const char *fname = remote ? f->querySource()->queryFilename() : f->queryFilename();
             if (f->isAlive() && f->isOpen() && f->isRemote()==remote && !f->isCopying())
             {
                 unsigned age = msTick() - f->getLastAccessed();
                 if (age > maxFileAge[remote])
                 {
                     if (traceLevel > 5)
-                    {
-                        const char *fname;
-                        if (remote)
-                            fname = f->querySource()->queryFilename();
-                        else
-                            fname = f->queryFilename();
                         DBGLOG("Closing inactive %s file %s (last accessed %u ms ago)", remote ? "remote" : "local",  fname, age);
-                    }
                     f->close();
                 }
                 else
                     goers.append(*f);
             }
+            else if (traceLevel > 8)
+                DBGLOG("Ignoring idle %s file %s", remote ? "remote" : "local",  fname);
+
         }
         unsigned numFilesLeft = goers.ordinality(); 
         if (numFilesLeft > maxFilesOpen[remote])
@@ -1421,35 +1419,6 @@ public:
     }
 };
 
-IFileDescriptor *checkCloneFrom(const char *id, IFileDescriptor *fdesc)
-{
-    if (id && !strnicmp(id, "foreign", 7)) //if need to support dali hopping should add each remote location
-        return NULL;
-    if (!fdesc || !fdesc->queryProperties().hasProp("@cloneFrom"))
-        return NULL;
-    SocketEndpoint cloneFrom;
-    cloneFrom.set(fdesc->queryProperties().queryProp("@cloneFrom"));
-    if (!cloneFrom.isNull())
-    {
-        CDfsLogicalFileName lfn;
-        lfn.set(id);
-        lfn.setForeign(cloneFrom, false);
-        Owned<IDistributedFile> cloneFile = queryDistributedFileDirectory().lookup(lfn,UNKNOWN_USER);//MORE:Pass IUserDescriptor
-        if (cloneFile)
-        {
-            Owned<IFileDescriptor> cloneFDesc = cloneFile->getFileDescriptor();
-            if (cloneFDesc->numParts()!=fdesc->numParts())
-            {
-                StringBuffer s;
-                DBGLOG(ROXIE_MISMATCH, "File %s cloneFrom(%s) mismatch", id, cloneFrom.getIpText(s).str());
-                return NULL;
-            }
-            return cloneFDesc.getClear();
-        }
-    }
-    return NULL;
-}
-
 IPartDescriptor *queryMatchingRemotePart(IPartDescriptor *pdesc, IFileDescriptor *remoteFDesc, unsigned int partNum)
 {
     if (!remoteFDesc)
@@ -1465,26 +1434,38 @@ IPartDescriptor *queryMatchingRemotePart(IPartDescriptor *pdesc, IFileDescriptor
     return NULL;
 }
 
-inline bool isCopyFromCluster(IPartDescriptor *pdesc, unsigned copy, const char *process)
+inline bool isCopyFromCluster(IPartDescriptor *pdesc, unsigned clusterNo, const char *process)
 {
     StringBuffer s;
-    unsigned clusterNo = pdesc->copyClusterNum(copy);
     return strieq(process, pdesc->queryOwner().getClusterGroupName(clusterNo, s));
 }
 
-inline void appendRemoteLocations(IPartDescriptor *pdesc, StringArray &locations, bool checkSelf, unsigned maxAppend=2)
+inline bool checkClusterCount(UnsignedArray &counts, unsigned clusterNo, unsigned max)
 {
+    while (!counts.isItem(clusterNo))
+        counts.append(0);
+    unsigned count = counts.item(clusterNo);
+    if (count>=max)
+        return false;
+    counts.replace(++count, clusterNo);
+    return true;
+}
+
+inline void appendRemoteLocations(IPartDescriptor *pdesc, StringArray &locations, bool checkSelf)
+{
+    UnsignedArray clusterCounts;
     unsigned numCopies = pdesc->numCopies();
-    unsigned appended = 0;
-    for (unsigned copy = 0; appended < maxAppend && copy < numCopies; copy++)
+    for (unsigned copy = 0; copy < numCopies; copy++)
     {
-        if (checkSelf && isCopyFromCluster(pdesc, copy, roxieName.str())) //don't add ourself
+        unsigned clusterNo = pdesc->copyClusterNum(copy);
+        if (!checkClusterCount(clusterCounts, clusterNo, 2))
+            continue;
+        if (checkSelf && isCopyFromCluster(pdesc, clusterNo, roxieName.str())) //don't add ourself
             continue;
         RemoteFilename r;
         pdesc->getFilename(copy,r);
         StringBuffer path;
         locations.append(r.getRemotePath(path).str());
-        appended++;
     }
 }
 
@@ -1812,13 +1793,15 @@ protected:
 
     StringArray subNames;
     PointerIArrayOf<IFileDescriptor> subFiles; // note - on slaves, the file descriptors may have incomplete info. On originating server is always complete
+    PointerIArrayOf<IFileDescriptor> remoteSubFiles; // note - on slaves, the file descriptors may have incomplete info. On originating server is always complete
     PointerIArrayOf<IDefRecordMeta> diskMeta;
     Owned <IPropertyTree> properties;
 
-    void addFile(const char *subName, IFileDescriptor *fdesc)
+    void addFile(const char *subName, IFileDescriptor *fdesc, IFileDescriptor *remoteFDesc)
     {
         subNames.append(subName);
         subFiles.append(fdesc);
+        remoteSubFiles.append(remoteFDesc);
         IPropertyTree const & props = fdesc->queryProperties();
         if(props.hasProp("_record_layout"))
         {
@@ -1850,7 +1833,7 @@ protected:
 
 public:
     IMPLEMENT_IINTERFACE;
-    CResolvedFile(const char *_lfn, const char *_physicalName, IDistributedFile *_dFile, RoxieFileType _fileType)
+    CResolvedFile(const char *_lfn, const char *_physicalName, IDistributedFile *_dFile, RoxieFileType _fileType, IRoxieDaliHelper* daliHelper, bool cacheIt, bool writeAccess)
     : lfn(_lfn), physicalName(_physicalName), dFile(_dFile), fileType(_fileType)
     {
         cached = NULL;
@@ -1859,7 +1842,7 @@ public:
         if (dFile)
         {
             if (traceLevel > 5)
-                DBGLOG("Roxie server adding information for dynamic file %s", lfn.get());
+                DBGLOG("Roxie server adding information for file %s", lfn.get());
             IDistributedSuperFile *superFile = dFile->querySuperFile();
             if (superFile)
             {
@@ -1867,11 +1850,21 @@ public:
                 ForEach(*subs)
                 {
                     IDistributedFile &sub = subs->query();
-                    addFile(sub.queryLogicalName(), sub.getFileDescriptor());
+                    Owned<IFileDescriptor> fDesc = sub.getFileDescriptor();
+                    Owned<IFileDescriptor> remoteFDesc;
+                    if (daliHelper)
+                        remoteFDesc.setown(daliHelper->checkClonedFromRemote(NULL, fDesc, cacheIt, writeAccess));
+                    addFile(sub.queryLogicalName(), fDesc.getClear(), remoteFDesc.getClear());
                 }
             }
             else // normal file, not superkey
-                addFile(dFile->queryLogicalName(), dFile->getFileDescriptor());
+            {
+                Owned<IFileDescriptor> fDesc = dFile->getFileDescriptor();
+                Owned<IFileDescriptor> remoteFDesc;
+                if (daliHelper)
+                    remoteFDesc.setown(daliHelper->checkClonedFromRemote(_lfn, fDesc, cacheIt, writeAccess));
+                addFile(dFile->queryLogicalName(), fDesc.getClear(), remoteFDesc.getClear());
+            }
             bool tsSet = dFile->getModificationTime(fileTimeStamp);
             bool csSet = dFile->getFileCheckSum(fileCheckSum);
             assertex(tsSet); // per Nigel, is always set
@@ -1989,7 +1982,7 @@ public:
         if (subFiles.length())
         {
             IFileDescriptor *fdesc = subFiles.item(0);
-            Owned<IFileDescriptor> remoteFDesc = checkCloneFrom(subNames.item(0), fdesc);
+            IFileDescriptor *remoteFDesc = remoteSubFiles.item(0);
             if (fdesc)
             {
                 unsigned numParts = fdesc->numParts();
@@ -2070,7 +2063,7 @@ public:
                     ForEachItemIn(idx, subFiles)
                     {
                         IFileDescriptor *fdesc = subFiles.item(idx);
-                        Owned<IFileDescriptor> remoteFDesc = checkCloneFrom(subNames.item(idx), fdesc);
+                        IFileDescriptor *remoteFDesc = remoteSubFiles.item(idx);
 
                         Owned <ILazyFileIO> part;
                         unsigned crc = 0;
@@ -2111,7 +2104,7 @@ public:
             ForEachItemIn(idx, subFiles)
             {
                 IFileDescriptor *fdesc = subFiles.item(idx);
-                Owned<IFileDescriptor> remoteFDesc = checkCloneFrom(subNames.item(idx), fdesc);
+                IFileDescriptor *remoteFDesc = remoteSubFiles.item(idx);
                 Owned<IKeyIndexBase> key;
                 if (fdesc)
                 {
@@ -2189,12 +2182,12 @@ public:
             fileType = sub->fileType;
         ForEachItemIn(idx, sub->subFiles)
         {
-            addFile(sub->subNames.item(idx), LINK(sub->subFiles.item(idx)));
+            addFile(sub->subNames.item(idx), LINK(sub->subFiles.item(idx)), LINK(sub->remoteSubFiles.item(idx)));
         }
     }
-    virtual void addSubFile(IFileDescriptor *_sub)
+    virtual void addSubFile(IFileDescriptor *_sub, IFileDescriptor *_remoteSub)
     {
-        addFile(lfn, _sub);
+        addFile(lfn, _sub, _remoteSub);
     }
     virtual void addSubFile(const char *localFileName)
     {
@@ -2205,7 +2198,7 @@ public:
         Owned<IPropertyTree> pp = createPTree("Part");
         pp->setPropInt64("@size",size);
         fdesc->setPart(0, queryMyNode(), localFileName, pp);
-        addSubFile(fdesc.getClear());
+        addSubFile(fdesc.getClear(), NULL);
     }
 
     virtual void setCache(const IRoxiePackage *cache)
@@ -2280,7 +2273,7 @@ public:
 
 public:
     CSlaveDynamicFile(const IRoxieContextLogger &logctx, const char *_lfn, RoxiePacketHeader *header, bool _isOpt, bool _isLocal) 
-        : CResolvedFile(_lfn, NULL, NULL, ROXIE_FILE), channel(header->channel), serverIdx(header->serverIdx), isOpt(_isOpt), isLocal(_isLocal)
+        : CResolvedFile(_lfn, NULL, NULL, ROXIE_FILE, NULL, false, false), channel(header->channel), serverIdx(header->serverIdx), isOpt(_isOpt), isLocal(_isLocal)
     {
         // call back to the server to get the info
         IPendingCallback *callback = ROQ->notePendingCallback(*header, lfn); // note that we register before the send to avoid a race.
@@ -2367,13 +2360,13 @@ public:
 
 extern IResolvedFileCreator *createResolvedFile(const char *lfn, const char *physical)
 {
-    return new CResolvedFile(lfn, physical, NULL, ROXIE_FILE);
+    return new CResolvedFile(lfn, physical, NULL, ROXIE_FILE, NULL, false, false);
 }
 
-extern IResolvedFile *createResolvedFile(const char *lfn, const char *physical, IDistributedFile *dFile)
+extern IResolvedFile *createResolvedFile(const char *lfn, const char *physical, IDistributedFile *dFile, IRoxieDaliHelper *daliHelper, bool cacheIt, bool writeAccess)
 {
     const char *kind = dFile ? dFile->queryAttributes().queryProp("@kind") : NULL;
-    return new CResolvedFile(lfn, physical, dFile, kind && stricmp(kind, "key")==0 ? ROXIE_KEY : ROXIE_FILE);
+    return new CResolvedFile(lfn, physical, dFile, kind && stricmp(kind, "key")==0 ? ROXIE_KEY : ROXIE_FILE, daliHelper, cacheIt, writeAccess);
 }
 
 class CSlaveDynamicFileCache : public CInterface, implements ISlaveDynamicFileCache

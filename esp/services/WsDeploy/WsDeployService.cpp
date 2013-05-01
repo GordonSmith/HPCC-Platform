@@ -982,7 +982,7 @@ bool CWsDeployFileInfo::navMenuEvent(IEspContext &context,
 
 bool CWsDeployFileInfo::isAlphaNumeric(const char *pstr) const
 {
-  RegExpr expr("[A-Za-z0-9-_]+");
+  RegExpr expr("[A-Za-z0-9_-]+");
 
   return (expr.find(pstr) && expr.findlen(0) == strlen(pstr));
 }
@@ -3518,6 +3518,7 @@ bool CWsDeployFileInfo::displaySettings(IEspContext &context, IEspDisplaySetting
     multiRowNodes->addProp("Node", "Domain");
     multiRowNodes->addProp("Node", "Computer");
     multiRowNodes->addProp("Node", "Switch");
+    multiRowNodes->addProp("Node", "NAS");
     toXML(multiRowNodes, sb);
     resp.setMultiRowNodes(sb.str());
     
@@ -4893,7 +4894,7 @@ bool CWsDeployFileInfo::handleComputer(IEspContext &context, IEspHandleComputerR
   {
     StringBuffer sbTemp;
     IPropertyTree* pCompTree = createPTree(XML_TAG_HARDWARE);
-    generateHardwareHeaders(pEnvRoot, sbTemp, false, pCompTree);
+    generateHardwareHeaders(pEnvRoot, sbTemp, false, pCompTree, true);
 
     StringBuffer sbNewName(type);
     xpath.clear().appendf("%s", type);
@@ -4963,7 +4964,9 @@ bool CWsDeployFileInfo::handleComputer(IEspContext &context, IEspHandleComputerR
         IPropertyTree& pComp = iter->query();
         const char* compName = pComp.queryProp(XML_ATTR_NAME);
         const char* parentName = pComp.queryName();
-        refs.append("\n").append(parentName).append(" name=").append(compName);
+
+        if (compName != NULL)
+          refs.append("\n").append(parentName).append(" name=").append(compName);
       }
 
       if (refs.length())
@@ -5151,6 +5154,42 @@ bool CWsDeployFileInfo::handleThorTopology(IEspContext &context, IEspHandleThorT
 
   return true;
 }
+
+bool CWsDeployFileInfo::handleBaseAccessControlList(IEspContext &context, IEspHandleBaseAccessControlListRequest &req, IEspHandleBaseAccessControlListResponse &resp)
+{
+  synchronized block(m_mutex);
+  checkForRefresh(context, &req.getReqInfo(), true);
+
+  StringBuffer buildSetPath;
+
+  IPropertyTree *pEnvRoot = getEnvTree(context,&req.getReqInfo());
+  const char* xmlArg = req.getXmlArgs();
+  const char* operation = req.getOperation();
+
+  Owned<IPropertyTreeIterator> buildSetIter = pEnvRoot->getElements("./Programs/Build/BuildSet[@name=\"roxie\"]");
+
+  buildSetIter->first();
+  IPropertyTree* pBuildSet = &buildSetIter->query();
+  Owned<IPropertyTree> pParams = createPTreeFromXMLString(xmlArg && *xmlArg ? xmlArg : "<XmlArgs/>");
+
+  const char* buildSetName = pBuildSet->queryProp(XML_ATTR_NAME);
+  const char* processName = pBuildSet->queryProp(XML_ATTR_PROCESS_NAME);
+  const char* xpath = pParams->queryProp("@XPath");
+
+  Owned<IPropertyTree> pSchema = loadSchema(pEnvRoot->queryPropTree("./Programs/Build[1]"), pBuildSet, buildSetPath, m_Environment);
+  Owned<IPropertyTree> pNewCompTree = generateTreeFromXsd(pEnvRoot, pSchema, processName, buildSetName, m_pService->getCfg(), m_pService->getName());
+
+  if (stricmp("Add",operation) == 0)
+  {
+    IPropertyTree* pTempTree = createPTreeFromIPT(pNewCompTree->queryPropTree("BaseList"));
+    (pEnvRoot->queryPropTree(xpath))->addPropTree("BaseList",pTempTree);
+  }
+  else if (stricmp("Delete", operation) == 0)
+    pEnvRoot->removeProp(xpath);
+
+  return true;
+}
+
 
 bool CWsDeployFileInfo::handleAccessRules(IEspContext &context, IEspHandleAccessRulesRequest &req, IEspHandleAccessRulesResponse &resp)
 {
@@ -6923,6 +6962,11 @@ bool CWsDeployEx::onHandleAccessRules(IEspContext &context, IEspHandleAccessRule
   return fi->handleAccessRules(context, req, resp);
 }
 
+bool CWsDeployEx::onHandleBaseAccessControlList(IEspContext &context, IEspHandleBaseAccessControlListRequest &req, IEspHandleBaseAccessControlListResponse &resp)
+{
+  CWsDeployFileInfo* fi = getFileInfo(req.getReqInfo().getFileName());
+  return fi->handleBaseAccessControlList(context, req, resp);
+}
 
 bool CWsDeployEx::onGraph(IEspContext &context, IEspEmptyRequest& req, IEspGraphResponse& resp)
 {
@@ -7175,6 +7219,11 @@ bool CWsDeployExCE::onHandleTopology(IEspContext &context, IEspHandleTopologyReq
 }
 
 bool CWsDeployExCE::onHandleRows(IEspContext &context, IEspHandleRowsRequest &req, IEspHandleRowsResponse &resp)
+{
+  return supportedInEEOnly();
+}
+
+bool CWsDeployExCE::onHandleBaseAccessControlList(IEspContext &context, IEspHandleBaseAccessControlListRequest &req, IEspHandleBaseAccessControlListResponse &resp)
 {
   return supportedInEEOnly();
 }

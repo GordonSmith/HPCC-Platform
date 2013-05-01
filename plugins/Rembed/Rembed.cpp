@@ -35,17 +35,6 @@ static const char * compatibleVersions[] =
 
 static const char *version = "R Embed Helper 1.0.0";
 
-static const char * EclDefinition =
-    "EXPORT Language := SERVICE\n"
-    "  boolean getEmbedContext():cpp,pure,namespace='Rembed',entrypoint='getEmbedContext',prototype='IEmbedContext* getEmbedContext()';\n"
-    "  boolean syntaxCheck(const varstring src):cpp,pure,namespace='Rembed',entrypoint='syntaxCheck';\n"
-    "  unload():cpp,pure,namespace='Rembed',entrypoint='unload';\n"
-    "END;"
-    "EXPORT getEmbedContext := Language.getEmbedContext;"
-    "EXPORT syntaxCheck := Language.syntaxCheck;"
-    "EXPORT boolean supportsImport := false;"
-    "EXPORT boolean supportsScript := true;";
-
 extern "C" EXPORT bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
 {
     if (pb->size == sizeof(ECLPluginDefinitionBlockEx))
@@ -58,8 +47,8 @@ extern "C" EXPORT bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
     pb->magicVersion = PLUGIN_VERSION;
     pb->version = version;
     pb->moduleName = "R";
-    pb->ECL = EclDefinition;
-    pb->flags = PLUGIN_DLL_MODULE | PLUGIN_MULTIPLE_VERSIONS;
+    pb->ECL = NULL;
+    pb->flags = PLUGIN_MULTIPLE_VERSIONS;
     pb->description = "R Embed Helper";
     return true;
 }

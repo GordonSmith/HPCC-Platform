@@ -119,7 +119,6 @@ interface IThorResult : extends IInterface
     virtual CActivityBase *queryActivity() = 0;
     virtual bool isDistributed() const = 0;
     virtual void serialize(MemoryBuffer &mb) = 0;
-    virtual void getResult(size32_t & retSize, void * & ret) = 0;
     virtual void getLinkedResult(unsigned & count, byte * * & ret) = 0;
 };
 
@@ -290,6 +289,7 @@ public:
     IThorGraphDependencyIterator *getDependsIterator() const;
     void ActPrintLog(const char *format, ...)  __attribute__((format(printf, 2, 3)));
     void ActPrintLog(IException *e, const char *format, ...) __attribute__((format(printf, 3, 4)));
+    void ActPrintLog(IException *e);
     void setBoundGraph(IThorBoundLoopGraph *graph) { loopGraph.set(graph); }
     IThorBoundLoopGraph *queryLoopGraph() { return loopGraph; }
     bool executeDependencies(size32_t parentExtractSz, const byte *parentExtract, int controlId, bool async);
@@ -421,7 +421,7 @@ interface IGraphCallback
 
 class CJobBase;
 interface IPropertyTree;
-class graph_decl CGraphBase : public CInterface, implements ILocalGraph, implements IThorChildGraph, implements IExceptionHandler
+class graph_decl CGraphBase : public CInterface, implements IEclGraphResults, implements IThorChildGraph, implements IExceptionHandler
 {
     mutable CriticalSection crit;
     CriticalSection evaluateCrit;
@@ -499,7 +499,7 @@ class graph_decl CGraphBase : public CInterface, implements ILocalGraph, impleme
         virtual char *getPlatform() { return ctx->getPlatform(); }
         virtual char *getEnv(const char *name, const char *defaultValue) const { return ctx->getEnv(name, defaultValue); }
         virtual char *getOS() { return ctx->getOS(); }
-        virtual ILocalGraph * resolveLocalQuery(__int64 activityId) { return ctx->resolveLocalQuery(activityId); }
+        virtual IEclGraphResults * resolveLocalQuery(__int64 activityId) { return ctx->resolveLocalQuery(activityId); }
         virtual char *getEnv(const char *name, const char *defaultValue) { return ctx->getEnv(name, defaultValue); }
         virtual unsigned logString(const char * text) const { return ctx->logString(text); }
         virtual const IContextLogger &queryContextLogger() const { return ctx->queryContextLogger(); }
@@ -518,7 +518,11 @@ class graph_decl CGraphBase : public CInterface, implements ILocalGraph, impleme
         {
             return ctx->fromXml(_rowAllocator, len, utf8, xmlTransformer, stripWhitespace);
         }
-    } graphCodeContext;
+        virtual IEngineContext *queryEngineContext()
+        {
+            return ctx->queryEngineContext();
+        }
+   } graphCodeContext;
 
 protected:
     Owned<IThorGraphResults> localResults, graphLoopResults;
@@ -528,7 +532,7 @@ protected:
     Owned<IPropertyTree> node;
     IBarrier *startBarrier, *waitBarrier, *doneBarrier;
     mptag_t mpTag, startBarrierTag, waitBarrierTag, doneBarrierTag;
-    bool created, connected, started, aborted, graphDone, prepared, sequential, receiving;
+    bool created, connected, started, aborted, graphDone, prepared, sequential;
     bool reinit, sentInitData, sentStartCtx;
     CJobBase &job;
     graph_id graphId;
@@ -536,6 +540,7 @@ protected:
     size32_t parentExtractSz; // keep track of sz when passed in, as may need to serialize later
     MemoryBuffer parentExtractMb; // retain copy, used if slave transmits to master (child graph 1st time initialization of global graph)
     unsigned counter;
+    CReplyCancelHandler graphCancelHandler;
 
     class CGraphGraphActElementIterator : public CInterface, implements IThorActivityIterator
     {
@@ -602,6 +607,7 @@ public:
     IThorActivityIterator *getTraverseIterator(bool all=false); // all traverses and includes conditionals, others traverses connected nodes only
     void GraphPrintLog(const char *msg, ...) __attribute__((format(printf, 2, 3)));
     void GraphPrintLog(IException *e, const char *msg, ...) __attribute__((format(printf, 3, 4)));
+    void GraphPrintLog(IException *e);
     void createFromXGMML(IPropertyTree *node, CGraphBase *owner, CGraphBase *parent, CGraphBase *resultsGraph);
     const bool &queryAborted() const { return aborted; }
     CJobBase &queryJob() const { return job; }
@@ -634,9 +640,7 @@ public:
     virtual void deserializeStartContexts(MemoryBuffer &mb);
     virtual void serializeCreateContexts(MemoryBuffer &mb);
     virtual void serializeStartContexts(MemoryBuffer &mb);
-    void reset();
-    bool receiveMsg(CMessageBuffer &mb, const rank_t rank, const mptag_t mpTag, rank_t *sender=NULL, unsigned timeout=MP_WAIT_FOREVER);
-    void cancelReceiveMsg(const rank_t rank, const mptag_t mpTag);
+    virtual void reset();
     void disconnectActivities()
     {
         CGraphElementIterator iter(containers);
@@ -741,8 +745,7 @@ public:
     virtual IThorResult *createResult(CActivityBase &activity, unsigned id, IRowInterfaces *rowIf, bool distributed, unsigned spillPriority=SPILL_PRIORITY_RESULT);
     virtual IThorResult *createGraphLoopResult(CActivityBase &activity, IRowInterfaces *rowIf, bool distributed, unsigned spillPriority=SPILL_PRIORITY_RESULT);
 
-// ILocalGraph
-    virtual void getResult(size32_t & len, void * & data, unsigned id);
+// IEclGraphResults
     virtual void getDictionaryResult(unsigned & count, byte * * & ret, unsigned id);
     virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id);
 
@@ -990,6 +993,7 @@ public:
 
     void ActPrintLog(const char *format, ...) __attribute__((format(printf, 2, 3)));
     void ActPrintLog(IException *e, const char *format, ...) __attribute__((format(printf, 3, 4)));
+    void ActPrintLog(IException *e);
 
 // IExceptionHandler
     bool fireException(IException *e);
@@ -1125,11 +1129,6 @@ public:
             results.append(*LINK(result));
     }
     virtual unsigned count() { return results.ordinality(); }
-    virtual void getResult(size32_t & retSize, void * & ret, unsigned id)
-    {
-        Owned<IThorResult> result = getResult(id, true);
-        result->getResult(retSize, ret);
-    }
     virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id)
     {
         Owned<IThorResult> result = getResult(id, true);

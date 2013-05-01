@@ -100,7 +100,6 @@ extern HQL_API unsigned countTotalFields(IHqlExpression * record, bool includeVi
 extern HQL_API bool transformContainsSkip(IHqlExpression * transform);
 extern HQL_API bool transformListContainsSkip(IHqlExpression * transforms);
 extern HQL_API bool recordContainsNestedRecord(IHqlExpression * record);
-extern HQL_API bool hasMaxLength(IHqlExpression * record);
 
 extern HQL_API IHqlExpression * queryInvalidCsvRecordField(IHqlExpression * expr);
 extern HQL_API bool isValidCsvRecord(IHqlExpression * expr);
@@ -311,6 +310,7 @@ public:
 
 extern HQL_API void checkDependencyConsistency(IHqlExpression * expr);
 extern HQL_API void checkDependencyConsistency(const HqlExprArray & exprs);
+extern HQL_API void checkSelectConsistency(IHqlExpression * expr);
 extern HQL_API bool isUngroup(IHqlExpression * expr);
 extern HQL_API bool containsExpression(IHqlExpression * expr, IHqlExpression * search);
 extern HQL_API bool containsOperator(IHqlExpression * expr, node_operator search);

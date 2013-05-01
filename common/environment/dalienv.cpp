@@ -453,30 +453,65 @@ bool envGetConfigurationDirectory(const char *category, const char *component,co
     return false;
 }
 
+IPropertyTree *envGetNASConfiguration(IPropertyTree *source)
+{
+    if ((NULL==source) || !source->hasProp("NAS"))
+        return NULL;
+
+    // check for NAS node : <Hardware><NAS><Filter ....><Filter ....>..</NAS></Hardware>
+    if (source->hasProp("NAS/Filter"))
+        return createPTreeFromIPT(source->queryPropTree("NAS"));
+    else
+    {
+        // check for 'flat' format : <Hardware><NAS ...../><NAS ..../>....</Hardware>
+        Owned<IPropertyTreeIterator> nasIter = source->getElements("NAS");
+        if (!nasIter->first())
+            return NULL;
+        Owned<IPropertyTree> nas = createPTree("NAS");
+        do
+        {
+            IPropertyTree *filter = &nasIter->query();
+            nas->addPropTree("Filter", LINK(filter));
+        }
+        while (nasIter->next());
+        return nas.getClear();
+    }
+}
+
 IPropertyTree *envGetNASConfiguration()
 {
     SessionId sessid = myProcessSession();
     if (!sessid)
         return NULL;
-    Owned<IRemoteConnection> conn = querySDS().connect("/Environment/Hardware/NAS", sessid, 0, SDS_CONNECT_TIMEOUT);
+    Owned<IRemoteConnection> conn = querySDS().connect("/Environment/Hardware", sessid, 0, SDS_CONNECT_TIMEOUT);
     if (!conn)
         return NULL;
-    return createPTreeFromIPT(conn->queryRoot());
+    return envGetNASConfiguration(conn->queryRoot());
 }
 
-IPropertyTree *envGetInstallNASHooks()
+IPropertyTree *envGetInstallNASHooks(SocketEndpoint *myEp)
+{
+    Owned<IPropertyTree> nasPTree = envGetNASConfiguration();
+    return envGetInstallNASHooks(nasPTree, myEp);
+}
+
+IPropertyTree *envGetInstallNASHooks(IPropertyTree *nasPTree, SocketEndpoint *myEp)
 {
     IDaFileSrvHook *daFileSrvHook = queryDaFileSrvHook();
     if (!daFileSrvHook) // probably always installed
         return NULL;
-    daFileSrvHook->clearSubNetFilters();
-    Owned<IPropertyTree> nasPTree = envGetNASConfiguration();
+    daFileSrvHook->clearFilters();
     if (!nasPTree)
         return NULL;
-    return daFileSrvHook->addMySubnetFilters(nasPTree);
+    return daFileSrvHook->addMyFilters(nasPTree, myEp);
 }
 
-void envInstallNASHooks()
+void envInstallNASHooks(SocketEndpoint *myEp)
 {
-    Owned<IPropertyTree> installedFilters = envGetInstallNASHooks();
+    Owned<IPropertyTree> installedFilters = envGetInstallNASHooks(myEp);
+}
+
+void envInstallNASHooks(IPropertyTree *nasPTree, SocketEndpoint *myEp)
+{
+    Owned<IPropertyTree> installedFilters = envGetInstallNASHooks(nasPTree, myEp);
 }

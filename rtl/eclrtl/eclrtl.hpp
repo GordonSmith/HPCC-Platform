@@ -60,15 +60,9 @@ interface IException;
 class StringBuffer;
 class MemoryBuffer;
 
-//-----------------------------------------------------------------------------
+enum DBZaction { DBZnone, DBZzero, DBZnan, DBZfail }; // Different actions on divide by zero
 
-interface IRtlRowCallback
-{
-    virtual void releaseRow(const void * row) const = 0;
-    virtual void releaseRowset(unsigned count, byte * * rowset) const = 0;
-    virtual void * linkRow(const void * row) const = 0;
-    virtual byte * * linkRowset(byte * * rowset) const = 0;
-};
+//-----------------------------------------------------------------------------
 
 // RegEx Compiler for ansii  strings (uses BOOST)
 interface IStrRegExprFindInstance
@@ -388,6 +382,7 @@ ECLRTL_API void rtlFail(int code, const char *msg);
 ECLRTL_API void rtlSysFail(int code, const char *msg);
 ECLRTL_API void rtlFailUnexpected();
 ECLRTL_API void rtlFailOnAssert();
+ECLRTL_API void rtlFailDivideByZero();
 
 ECLRTL_API void rtlReportFieldOverflow(unsigned size, unsigned max, const char * name);
 ECLRTL_API void rtlReportRowOverflow(unsigned size, unsigned max);
@@ -498,11 +493,6 @@ ECLRTL_API void * rtlLinkRow(const void * row);
 ECLRTL_API void rtlReleaseRowset(unsigned count, byte * * rowset);
 ECLRTL_API byte * * rtlLinkRowset(byte * * rowset);
 
-// argument is not linked, and must remain until closedown, or called with NULL.  Returns the previous value.  
-// Not thread safe, but shouldn't need to be.
-ECLRTL_API IRtlRowCallback * rtlSetReleaseRowHook(IRtlRowCallback * hook);      
-
-
 ECLRTL_API void ensureRtlLoaded();      // call this to create a static link to the rtl...
 
 ECLRTL_API void outputXmlString(unsigned len, const char *field, const char *fieldname, StringBuffer &out);
@@ -529,6 +519,10 @@ ECLRTL_API void outputXmlAttrDecimal(const void *field, unsigned size, unsigned 
 ECLRTL_API void outputXmlAttrUDecimal(const void *field, unsigned size, unsigned precision, const char *fieldname, StringBuffer &out);
 ECLRTL_API void outputXmlAttrUnicode(unsigned len, const UChar *field, const char *fieldname, StringBuffer &out);
 ECLRTL_API void outputXmlAttrUtf8(unsigned len, const char *field, const char *fieldname, StringBuffer &out);
+
+ECLRTL_API void outputJsonDecimal(const void *field, unsigned digits, unsigned precision, const char *fieldname, StringBuffer &out);
+ECLRTL_API void outputJsonUDecimal(const void *field, unsigned digits, unsigned precision, const char *fieldname, StringBuffer &out);
+ECLRTL_API void outputJsonUnicode(unsigned len, const UChar *field, const char *fieldname, StringBuffer &out);
 
 ECLRTL_API void deserializeRaw(unsigned size, void *record, MemoryBuffer & in);
 ECLRTL_API void deserializeDataX(size32_t & len, void * & data, MemoryBuffer &in);
@@ -592,6 +586,7 @@ ECLRTL_API double rtlACos(double x);
 ECLRTL_API double rtlASin(double x);
 
 ECLRTL_API bool rtlIsValidReal(unsigned size, const void * data);
+ECLRTL_API double rtlCreateRealNull();
 
 ECLRTL_API unsigned rtlQStrLength(unsigned size);
 ECLRTL_API unsigned rtlQStrSize(unsigned length);

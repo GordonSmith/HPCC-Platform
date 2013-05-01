@@ -497,6 +497,12 @@ public:
     }
     virtual void stop()
     {
+        if (global && !eos) // if stopped early, ensure next informed
+        {
+            kept.clear();
+            keptTransformed.clear();
+            putNextKept();
+        }
         CDedupRollupBaseActivity::stop();
         dataLinkStop();
     }
@@ -528,9 +534,13 @@ public:
                 break;
             RtlDynamicRowBuilder ret(queryRowAllocator());
             unsigned thisSize = ruhelper->transform(ret, keptTransformed, next);
-            kept.setown(next.getClear());
             if (thisSize)
                 keptTransformed.setown(ret.finalizeRowClear(thisSize));
+
+            if (ruhelper->getFlags() & RFrolledismatchleft)
+                kept.set(keptTransformed);
+            else
+                kept.setown(next.getClear());
         }
         OwnedConstThorRow row = keptTransformed.getClear();
         kept.setown(next.getClear());

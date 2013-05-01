@@ -120,7 +120,6 @@
 #define HQLERR_KeyedJoinTooComplex              4097
 #define HQLERR_KeyAccessNeedCast                4098
 #define HQLERR_KeyAccessNoKeyField              4099
-#define HQLERR_MaxLengthNotSetOnRecord          4100
 #define HQLERR_NotSupportedInsideNoThor         4102
 #define HQLERR_RegexNoTransformSupport          4103
 #define HQLERR_AccessMatchAttrInChildQuery      4104
@@ -208,6 +207,7 @@
 #define HQLERR_ScalarOutputWithinApply          4186
 #define HQLERR_EmbeddedTypeNotSupported_X       4187
 #define HQLERR_MaximumSizeLessThanMinimum_XY    4188
+#define HQLERR_UnexpectedOptionValue_XY         4189
 
 //Warnings....
 #define HQLWRN_PersistDataNotLikely             4500
@@ -249,6 +249,8 @@
 #define HQLWRN_ComplexHelperClass               4538
 #define HQLWRN_TryAddingIndependent             4539
 #define HQLWRN_GroupedGlobalFew                 4540
+#define HQLWRN_AmbiguousRollupCondition         4541
+#define HQLWRN_AmbiguousRollupNoGroup           4542
 
 //Temporary errors
 #define HQLERR_OrderOnVarlengthStrings          4601
@@ -400,7 +402,6 @@
 #define HQLERR_KeyedJoinTooComplex_Text         "Key condition (%s) is too complex, it cannot be done with the key."
 #define HQLERR_KeyAccessNeedCast_Text           "Key condition (%s) requires casts on comparison of field '%s'"
 #define HQLERR_KeyAccessNoKeyField_Text         "Key condition (%s) does not have any comparisons against key fields"
-#define HQLERR_MaxLengthNotSetOnRecord_Text     "No explicit maxlength provided for record %s"
 #define HQLERR_MinusOnString_Text               "unary - cannot be performed on a string"
 #define HQLERR_NotSupportedInsideNoThor_Text    "%s is not supported inside NOTHOR()"
 #define HQLERR_RegexNoTransformSupport_Text     "Regular expression parsing doesn't support productions - need to use tomita"
@@ -488,6 +489,7 @@
 #define HQLERR_KeyedJoinNoRightIndex_X_Text     "Right dataset (%s) for a keyed join isn't a key"
 #define HQLERR_EmbeddedTypeNotSupported_X_Text  "Type %s not supported for embedded/external scripts"
 #define HQLERR_MaximumSizeLessThanMinimum_XY_Text "Maximum size (%u) for this record is lower than the minimum (%u)"
+#define HQLERR_UnexpectedOptionValue_XY_Text    "Unexpected value for option %s: %s"
 
 //Warnings.
 #define HQLWRN_CannotRecreateDistribution_Text  "Cannot recreate the distribution for a persistent dataset"
@@ -519,6 +521,8 @@
 #define HQLWRN_GrammarIsAmbiguous_Text          "The PARSE pattern for activity %d is ambiguous.  This may reduce the efficiency of the PARSE."
 #define HQLWRN_ComplexHelperClass_Text          "Activity %d created a complex helper class (%d)"
 #define HQLWRN_GroupedGlobalFew_Text            "Global few expression is grouped"
+#define HQLWRN_AmbiguousRollupCondition_Text    "ROLLUP condition on '%s' is also modified in the transform"
+#define HQLWRN_AmbiguousRollupNoGroup_Text      "ROLLUP condition - no fields are preserved in the transform - not converted to GROUPed ROLLUP"
 
 #define HQLERR_OrderOnVarlengthStrings_Text     "Rank/Ranked not supported on variable length strings"
 #define HQLERR_DistributionNoSequence_Text      "DISTRIBUTION() only supported at the outer level"

@@ -1,0 +1,30 @@
+<div class="${baseClass}">
+    <div id="${id}BorderContainer" class="${baseClass}BorderContainer" style="width: 100%; height: 100%" data-dojo-props="splitter: false" data-dojo-type="dijit.layout.BorderContainer">
+
+         <div id="${id}Toolbar" class="topPanel" data-dojo-props="region: 'top'" data-dojo-type="dijit.Toolbar">
+           
+           <form method="post" name="fileUploadForm" enctype="multipart/form-data" >
+            <div id="${id}DropZoneTargetSelect" style="float:left;" data-dojo-type="TargetSelectWidget" data-dojo-attach-event="onChange:_onDropZoneChange" /></div>
+                <input id="uploader" type="file" data-dojo-attach-event="onChange:_onUpload" multiple="true" data-dojo-type="dojox/form/Uploader" data-dojo-props='label:"Upload",uploadOnSelect:"true"'/>
+                <input id="${id}Delete" data-dojo-attach-event="onClick:_onDelete" type="button" label="Delete" data-dojo-type="dijit.form.Button" />
+                <input id="${id}Submit" data-dojo-attach-event="onClick:_onSubmit" type="submit" label="Submit" data-dojo-type="dijit.form.Button" />
+           </form>
+        </div>
+        <div id="${id}DropZonesGrid" data-dojo-props="region: 'center', plugins: { pagination: { pageSizes:[25, 50, 100, 'All'],defaultPageSize: 50, description: true, sizeSwitch: true, pageStepper: true,
+                        gotoButton: false, maxPageStep: 4, position: 'bottom'}
+                            , indirectSelection: {
+                                headerSelector: true,
+                                width: '25px',
+                                styles: 'text-align: center;'
+                            }
+        }" data-dojo-type="dojox.grid.EnhancedGrid">
+        </div>
+            <div style="height: 33%" data-dojo-props="region: 'bottom', uploaderId: 'uploader', splitter: true, minSize: 120" data-dojo-type="dojox/form/uploader/FileList">
+
+            </div>
+    </div>
+    <div id="${id}fileQueue">
+        <div id="files" data-dojo-type="dojox/form/uploader/FileList" data-dojo-props='uploaderId:"uploader"'>
+        </div>
+    </div>
+</div>

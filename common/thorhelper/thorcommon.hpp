@@ -25,6 +25,7 @@
 #include "thorhelper.hpp"
 #include "thorxmlwrite.hpp"
 
+#define DALI_RESULT_OUTPUTMAX 2000 // MB
 class THORHELPER_API CSizingSerializer : implements IRowSerializerTarget
 {
     size32_t totalsize;
@@ -367,7 +368,7 @@ public:
     {
         return ctx->getOS();
     }
-    virtual ILocalGraph * resolveLocalQuery(__int64 activityId)
+    virtual IEclGraphResults * resolveLocalQuery(__int64 activityId)
     {
         return ctx->resolveLocalQuery(activityId);
     }
@@ -414,6 +415,10 @@ public:
     virtual const void * fromXml(IEngineRowAllocator * _rowAllocator, size32_t len, const char * utf8, IXmlToRowTransformer * xmlTransformer, bool stripWhitespace)
     {
         return ctx->fromXml(_rowAllocator, len, utf8, xmlTransformer, stripWhitespace);
+    }
+    virtual IEngineContext *queryEngineContext()
+    {
+        return ctx->queryEngineContext();
     }
 
 protected:

@@ -190,7 +190,7 @@ public:
     bool ignoreUnknownImport;
 };
 
-class EclCC
+class EclCC : public CInterfaceOf<ICodegenContextCallback>
 {
 public:
     EclCC(int _argc, const char **_argv)
@@ -201,6 +201,7 @@ public:
         logVerbose = false;
         logTimings = false;
         optArchive = false;
+        optCheckEclVersion = true;
         optGenerateMeta = false;
         optGenerateDepend = false;
         optIncludeMeta = false;
@@ -220,6 +221,7 @@ public:
         batchSplit = 1;
         batchLog = NULL;
         cclogFilename.append("cc.").append((unsigned)GetCurrentProcessId()).append(".log");
+        defaultAllowed = true;
     }
 
     bool parseCommandLineOptions(int argc, const char* argv[]);
@@ -227,6 +229,10 @@ public:
     void loadManifestOptions();
     bool processFiles();
     void processBatchedFile(IFile & file, bool multiThreaded);
+
+    virtual void noteCluster(const char *clusterName);
+    virtual void registerFile(const char * filename, const char * description);
+    virtual bool allowAccess(const char * category);
 
 protected:
     void addFilenameDependency(StringBuffer & target, EclCompileInstance & instance, const char * filename);
@@ -283,6 +289,10 @@ protected:
     StringArray linkOptions;
     StringArray libraryPaths;
 
+    StringArray allowedPermissions;
+    StringArray deniedPermissions;
+    bool defaultAllowed;
+
     ClusterType optTargetClusterType;
     CompilerType optTargetCompiler;
     unsigned optThreads;
@@ -292,6 +302,7 @@ protected:
     bool logVerbose;
     bool logTimings;
     bool optArchive;
+    bool optCheckEclVersion;
     bool optGenerateMeta;
     bool optGenerateDepend;
     bool optIncludeMeta;
@@ -482,7 +493,8 @@ void EclCC::loadOptions()
 #else
         extractOption(compilerPath, globals, "CL_PATH", "compilerPath", "/usr", NULL);
 #endif
-        extractOption(libraryPath, globals, "ECLCC_LIBRARY_PATH", "libraryPath", syspath, "lib");
+        if (!extractOption(libraryPath, globals, "ECLCC_LIBRARY_PATH", "libraryPath", syspath, "lib"))
+            libraryPath.append(ENVSEPCHAR).append(syspath).append("plugins");
         extractOption(cppIncludePath, globals, "ECLCC_INCLUDE_PATH", "includePath", syspath, "componentfiles/cl/include");
         extractOption(pluginsPath, globals, "ECLCC_PLUGIN_PATH", "plugins", syspath, "plugins");
         extractOption(hooksPath, globals, "HPCC_FILEHOOKS_PATH", "filehooks", syspath, "filehooks");
@@ -619,7 +631,7 @@ void EclCC::instantECL(EclCompileInstance & instance, IWorkUnit *wu, const char 
             bool optSaveCpp = optSaveTemps || optNoCompile || wu->getDebugValueBool("saveCppTempFiles", false);
             //New scope - testing things are linked correctly
             {
-                Owned<IHqlExprDllGenerator> generator = createDllGenerator(errs, processName.toCharArray(), NULL, wu, templateDir, optTargetClusterType, NULL, false);
+                Owned<IHqlExprDllGenerator> generator = createDllGenerator(errs, processName.toCharArray(), NULL, wu, templateDir, optTargetClusterType, this, false);
 
                 setWorkunitHash(wu, instance.query);
                 if (!optShared)
@@ -1011,7 +1023,8 @@ void EclCC::processXmlFile(EclCompileInstance & instance, const char *archiveXML
     instance.ignoreUnknownImport = archiveTree->getPropBool("@ignoreUnknownImport", true);
 
     instance.eclVersion.set(archiveTree->queryProp("@eclVersion"));
-    checkEclVersionCompatible(instance.errs, instance.eclVersion);
+    if (optCheckEclVersion)
+        checkEclVersionCompatible(instance.errs, instance.eclVersion);
 
     Owned<IEclSourceCollection> archiveCollection;
     if (archiveTree->getPropBool("@testRemoteInterface", false))
@@ -1253,7 +1266,6 @@ void EclCC::generateOutput(EclCompileInstance & instance)
         else
         {
             // Output option settings
-            instance.wu->getDebugValues();
             Owned<IStringIterator> debugValues = &instance.wu->getDebugValues();
             ForEach (*debugValues)
             {
@@ -1319,7 +1331,7 @@ bool EclCC::generatePrecompiledHeader()
     {
         StringBuffer fullpath;
         fullpath.append(paths.item(idx));
-        addPathSepChar(fullpath).append("eclinclude.hpp");
+        addPathSepChar(fullpath).append("eclinclude4.hpp");
         if (checkFileExists(fullpath))
         {
             foundPath = paths.item(idx);
@@ -1328,10 +1340,10 @@ bool EclCC::generatePrecompiledHeader()
     }
     if (!foundPath)
     {
-        ERRLOG("Cannot find eclinclude.hpp");
+        ERRLOG("Cannot find eclinclude4.hpp");
         return false;
     }
-    Owned<ICppCompiler> compiler = createCompiler("eclinclude.hpp", foundPath, NULL);
+    Owned<ICppCompiler> compiler = createCompiler("eclinclude4.hpp", foundPath, NULL);
     compiler->setDebug(true);  // a precompiled header with debug can be used for no-debug, but not vice versa
     compiler->setPrecompileHeader(true);
     if (compiler->compile())
@@ -1432,6 +1444,28 @@ bool EclCompileInstance::reportErrorSummary()
     return errs->errCount() != 0;
 }
 
+//=========================================================================================
+
+void EclCC::noteCluster(const char *clusterName)
+{
+}
+void EclCC::registerFile(const char * filename, const char * description)
+{
+}
+bool EclCC::allowAccess(const char * category)
+{
+    ForEachItemIn(idx1, deniedPermissions)
+    {
+        if (stricmp(deniedPermissions.item(idx1), category)==0)
+            return false;
+    }
+    ForEachItemIn(idx2, allowedPermissions)
+    {
+        if (stricmp(allowedPermissions.item(idx2), category)==0)
+            return true;
+    }
+    return defaultAllowed;
+}
 
 //=========================================================================================
 bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
@@ -1449,7 +1483,11 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
     for (; !iter.done(); iter.next())
     {
         const char * arg = iter.query();
-        if (iter.matchFlag(optBatchMode, "-b"))
+        if (iter.matchOption(tempArg, "--allow"))
+        {
+            allowedPermissions.append(tempArg);
+        }
+        else if (iter.matchFlag(optBatchMode, "-b"))
         {
         }
         else if (iter.matchOption(tempArg, "-brk"))
@@ -1464,6 +1502,16 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         }
         else if (iter.matchFlag(optOnlyCompile, "-c"))
         {
+        }
+        else if (iter.matchFlag(optCheckEclVersion, "-checkVersion"))
+        {
+        }
+        else if (iter.matchOption(tempArg, "--deny"))
+        {
+            if (stricmp(tempArg, "all")==0)
+                defaultAllowed = false;
+            else
+                deniedPermissions.append(tempArg);
         }
         else if (iter.matchFlag(optArchive, "-E"))
         {
@@ -1698,11 +1746,15 @@ const char * const helpText[] = {
     "    -shared       Generate workunit shared object instead of a stand-alone exe",
     "",
     "Other options:",
+    "!   --allow=str   Allow use of named feature",
     "!   -b            Batch mode.  Each source file is processed in turn.  Output",
     "!                 name depends on the input filename",
+    "!   -checkVersion Enable/disable ecl version checking from archives",
 #ifdef _WIN32
     "!   -brk <n>      Trigger a break point in eclcc after nth allocation",
 #endif
+    "!   --deny=all    Disallow use of all named features not specifically allowed using --allow",
+    "!   --deny=str    Disallow use of named feature",
     "    -help, --help Display this message",
     "    -help -v      Display verbose help message",
     "!   -internal     Run internal tests",
@@ -1713,7 +1765,7 @@ const char * const helpText[] = {
     "!   -m            Enable leak checking",
 #endif
 #ifndef _WIN32
-    "!   -pch          Generate precompiled header for eclinclude.hpp",
+    "!   -pch          Generate precompiled header for eclinclude4.hpp",
 #endif
     "!   -P <path>     Specify the path of the output files (only with -b option)",
     "    -specs file   Read eclcc configuration from specified file",

@@ -446,6 +446,11 @@ void CGraphElementBase::ActPrintLog(IException *e, const char *format, ...)
     va_end(args);
 }
 
+void CGraphElementBase::ActPrintLog(IException *e)
+{
+    ActPrintLog(e, "%s", "");
+}
+
 void CGraphElementBase::abort(IException *e)
 {
     CActivityBase *activity = queryActivity();
@@ -799,7 +804,7 @@ void CGraphElementBase::createActivity(size32_t parentExtractSz, const byte *par
                 break;
         }
     }
-    catch (IException *e) { ActPrintLog(e, NULL); activity.clear(); throw; }
+    catch (IException *e) { ActPrintLog(e); activity.clear(); throw; }
 }
 
 ICodeContext *CGraphElementBase::queryCodeContext()
@@ -955,7 +960,6 @@ bool isGlobalActivity(CGraphElementBase &container)
         case TAKsoap_rowaction:
         case TAKsoap_datasetdataset:
         case TAKsoap_datasetaction:
-        case TAKrawiterator:
         case TAKlinkedrawiterator:
         case TAKchilditerator:
         case TAKstreamediterator:
@@ -1021,7 +1025,7 @@ CGraphBase::CGraphBase(CJobBase &_job) : job(_job)
 //  sentStartCtx = false;
     sentStartCtx = true; // JCSMORE - disable for now
     parentActivityId = 0;
-    created = connected = started = graphDone = aborted = prepared = receiving = false;
+    created = connected = started = graphDone = aborted = prepared = false;
     startBarrier = waitBarrier = doneBarrier = NULL;
     mpTag = waitBarrierTag = startBarrierTag = doneBarrierTag = TAG_NULL;
     executeReplyTag = TAG_NULL;
@@ -1105,6 +1109,7 @@ void CGraphBase::deserializeStartContexts(MemoryBuffer &mb)
 void CGraphBase::reset()
 {
     setCompleteEx(false);
+    graphCancelHandler.reset();
     if (0 == containers.count())
     {
         SuperHashIteratorOf<CGraphBase> iter(childGraphsTable);
@@ -1144,18 +1149,6 @@ IThorGraphIterator *CGraphBase::getChildGraphs() const
 bool CGraphBase::fireException(IException *e)
 {
     return job.fireException(e);
-}
-
-bool CGraphBase::receiveMsg(CMessageBuffer &mb, const rank_t rank, const mptag_t mpTag, rank_t *sender, unsigned timeout)
-{
-    BooleanOnOff onOff(receiving);
-    return queryJob().queryJobComm().recv(mb, rank, mpTag, sender, timeout);
-}
-
-void CGraphBase::cancelReceiveMsg(const rank_t rank, const mptag_t mpTag)
-{
-    if (receiving)
-        queryJob().queryJobComm().cancel(rank, mpTag);
 }
 
 bool CGraphBase::preStart(size32_t parentExtractSz, const byte *parentExtract)
@@ -1205,7 +1198,7 @@ void CGraphBase::executeSubGraph(size32_t parentExtractSz, const byte *parentExt
     }
     catch (IException *e)
     {
-        GraphPrintLog(e, NULL);
+        GraphPrintLog(e);
         exception.setown(e);
     }
     if (!queryOwner())
@@ -1247,14 +1240,22 @@ void CGraphBase::doExecute(size32_t parentExtractSz, const byte *parentExtract, 
 {
     if (isComplete()) return;
     if (queryAborted())
+    {
+        if (abortException)
+            throw abortException.getLink();
         throw MakeGraphException(this, 0, "subgraph aborted(1)");
+    }
     if (!prepare(parentExtractSz, parentExtract, checkDependencies, false, false))
     {
         setComplete();
         return;
     }
     if (queryAborted())
+    {
+        if (abortException)
+            throw abortException.getLink();
         throw MakeGraphException(this, 0, "subgraph aborted(2)");
+    }
     Owned<IException> exception;
     try
     {
@@ -1274,7 +1275,8 @@ void CGraphBase::doExecute(size32_t parentExtractSz, const byte *parentExtract, 
     }
     catch (IException *e)
     {
-        GraphPrintLog(e, NULL); exception.setown(e);
+        GraphPrintLog(e);
+        exception.setown(e);
     }
     try
     {
@@ -1305,7 +1307,7 @@ void CGraphBase::doExecute(size32_t parentExtractSz, const byte *parentExtract, 
     }
     catch (IException *e)
     {
-        GraphPrintLog(e, NULL);
+        GraphPrintLog(e);
         if (!exception.get())
             exception.setown(e);
         else
@@ -1384,7 +1386,7 @@ void CGraphBase::end()
         catch (IException *e)
         {
             Owned<IException> e2 = MakeActivityException(element.queryActivity(), e, "Error calling kill()");
-            GraphPrintLog(e2, NULL);
+            GraphPrintLog(e2);
             e->Release();
         }
     }
@@ -1613,7 +1615,7 @@ void CGraphBase::abort(IException *e)
 
         abortException.set(e);
         aborted = true;
-        cancelReceiveMsg(0, mpTag);
+        graphCancelHandler.cancel(0);
 
         if (0 == containers.count())
         {
@@ -1655,6 +1657,11 @@ void CGraphBase::GraphPrintLog(IException *e, const char *format, ...)
     va_start(args, format);
     ::GraphPrintLogArgs(this, e, thorlog_null, MCdebugProgress, format, args);
     va_end(args);
+}
+
+void CGraphBase::GraphPrintLog(IException *e)
+{
+    GraphPrintLog(e, "%s", "");
 }
 
 void CGraphBase::setLogging(bool tf)
@@ -1872,13 +1879,7 @@ IThorResult *CGraphBase::createGraphLoopResult(CActivityBase &activity, IRowInte
     return graphLoopResults->createResult(activity, rowIf, distributed, spillPriority);
 }
 
-// ILocalGraph
-void CGraphBase::getResult(size32_t & len, void * & data, unsigned id)
-{
-    Owned<IThorResult> result = getResult(id, true); // will get collated distributed result
-    result->getResult(len, data);
-}
-
+// IEclGraphResults
 void CGraphBase::getDictionaryResult(unsigned & count, byte * * & ret, unsigned id)
 {
     Owned<IThorResult> result = getResult(id, true); // will get collated distributed result
@@ -2746,6 +2747,11 @@ void CActivityBase::ActPrintLog(IException *e, const char *format, ...)
     va_end(args);
 }
 
+void CActivityBase::ActPrintLog(IException *e)
+{
+    ActPrintLog(e, "%s", "");
+}
+
 bool CActivityBase::fireException(IException *e)
 {
     IThorException *te = QUERYINTERFACE(e, IThorException);
@@ -2829,7 +2835,7 @@ int CActivityBase::getOptInt(const char *prop, int defVal) const
 {
     int def = queryJob().getOptInt(prop, defVal);
     VStringBuffer path("hint[@name=\"%s\"]/@value", prop);
-    return container.queryXGMML().getPropInt(path.str(), def);
+    return container.queryXGMML().getPropInt(path.toLowerCase().str(), def);
 }
 
 __int64 CActivityBase::getOptInt64(const char *prop, __int64 defVal) const

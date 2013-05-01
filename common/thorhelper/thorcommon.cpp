@@ -738,7 +738,6 @@ extern const char * getActivityText(ThorActivityKind kind)
     case TAKchildcase:              return "Case";
     case TAKremotegraph:            return "Remote";
     case TAKlibrarycall:            return "Library Call";
-    case TAKrawiterator:            return "Child Dataset";
     case TAKlocalstreamread:        return "Read Input";
     case TAKprocess:                return "Process";
     case TAKgraphloop:              return "Graph";
@@ -783,7 +782,7 @@ extern const char * getActivityText(ThorActivityKind kind)
     case TAKexternalsink:           return "User Output";
     case TAKexternalprocess:        return "User Proceess";
     case TAKwhen_action:            return "When";
-    case TAKshuffle:                return "Shuffle";
+    case TAKsubsort:                return "Sub Sort";
     case TAKdictionaryworkunitwrite:return "Dictionary Write";
     case TAKdictionaryresultwrite:  return "Dictionary Result";
     }
@@ -823,7 +822,6 @@ extern bool isActivitySource(ThorActivityKind kind)
     case TAKxmlread:
     case TAKlocalresultread:
     case TAKsimpleaction:
-    case TAKrawiterator:
     case TAKlocalstreamread:
     case TAKgraphloopresultread:
     case TAKnwaygraphloopresultread:
@@ -871,17 +869,6 @@ extern bool isActivitySink(ThorActivityKind kind)
     }
     return false;
 }
-
-//------------------------------------------------------------------------------------------------
-
-byte * CStaticRowBuilder::ensureCapacity(size32_t required, const char * fieldName)
-{
-    if (required <= maxLength)
-        return static_cast<byte *>(self);
-    rtlReportFieldOverflow(required, maxLength, fieldName);
-    return NULL;
-}
-
 
 //=====================================================================================================
 

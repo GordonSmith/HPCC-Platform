@@ -55,6 +55,7 @@
 #define THOROPT_PARALLEL_FUNNEL       "parallelFunnel"
 #define THOROPT_SORT_MAX_DEVIANCE     "sort_max_deviance"
 #define THOROPT_OUTPUT_FLUSH_THRESHOLD "output_flush_threshold"
+#define THOROPT_OUTPUTLIMIT           "outputLimit"
 
 #define INITIAL_SELFJOIN_MATCH_WARNING_LEVEL 20000  // max of row matches before selfjoin emits warning
 
@@ -76,6 +77,75 @@ public:
     inline BooleanOnOff(bool &_tf) : tf(_tf) { tf = true; }
     inline ~BooleanOnOff() { tf = false; }
 };
+
+class CReplyCancelHandler
+{
+    ICommunicator *comm;
+    mptag_t mpTag;
+    bool cancelled;
+    SpinLock lock;
+
+    void clear()
+    {
+        mpTag = TAG_NULL;
+        comm = NULL;
+    }
+    void clearLock()
+    {
+        SpinBlock b(lock);
+        clear();
+    }
+public:
+    CReplyCancelHandler()
+    {
+        reset();
+    }
+    void reset()
+    {
+        clear();
+        cancelled = false;
+    }
+    void cancel(rank_t rank)
+    {
+        ICommunicator *_comm = NULL;
+        mptag_t _mpTag = TAG_NULL;
+        {
+            SpinBlock b(lock);
+            if (cancelled)
+                return;
+            cancelled = true;
+            if (TAG_NULL == mpTag)
+                return;
+            // stash in case other thread waiting finishing send.
+            _comm = comm;
+            _mpTag = mpTag;
+        }
+        _comm->cancel(rank, _mpTag);
+    }
+    bool recv(ICommunicator &_comm, CMessageBuffer &mb, rank_t rank, const mptag_t &_mpTag, rank_t *sender=NULL, unsigned timeout=MP_WAIT_FOREVER)
+    {
+        bool ret=false;
+        {
+            SpinBlock b(lock);
+            if (cancelled)
+                return false;
+            comm = &_comm;
+            mpTag = _mpTag; // receiving
+        }
+        try
+        {
+            ret = _comm.recv(mb, rank, _mpTag, sender, timeout);
+        }
+        catch (IException *)
+        {
+            clearLock();
+            throw;
+        }
+        clearLock();
+        return ret;
+    }
+};
+
 
 class graph_decl CTimeoutTrigger : public CInterface, implements IThreaded
 {
@@ -247,6 +317,7 @@ extern graph_decl void ActPrintLogArgs(const CGraphElementBase *container, const
 extern graph_decl void ActPrintLogArgs(const CGraphElementBase *container, IException *e, const ActLogEnum flags, const LogMsgCategory &logCat, const char *format, va_list args);
 extern graph_decl void ActPrintLog(const CActivityBase *activity, const char *format, ...) __attribute__((format(printf, 2, 3)));
 extern graph_decl void ActPrintLog(const CActivityBase *activity, IException *e, const char *format, ...) __attribute__((format(printf, 3, 4)));
+extern graph_decl void ActPrintLog(const CActivityBase *activity, IException *e);
 
 inline void ActPrintLog(const CGraphElementBase *container, const char *format, ...) __attribute__((format(printf, 2, 3)));
 inline void ActPrintLog(const CGraphElementBase *container, const char *format, ...)
@@ -271,6 +342,10 @@ inline void ActPrintLog(const CGraphElementBase *container, IException *e, const
     va_start(args, format);
     ActPrintLogArgs(container, e, thorlog_null, MCexception(e, MSGCLS_error), format, args);
     va_end(args);
+}
+inline void ActPrintLog(const CGraphElementBase *container, IException *e)
+{
+    ActPrintLogEx(container, e, thorlog_null, MCexception(e, MSGCLS_error), "%s", "");
 }
 extern graph_decl void GraphPrintLogArgsPrep(StringBuffer &res, CGraphBase *graph, const ActLogEnum flags, const LogMsgCategory &logCat, const char *format, va_list args);
 extern graph_decl void GraphPrintLogArgs(CGraphBase *graph, IException *e, const ActLogEnum flags, const LogMsgCategory &logCat, const char *format, va_list args);
@@ -302,11 +377,13 @@ inline void GraphPrintLog(CGraphBase *graph, const char *format, ...)
     va_end(args);
 }
 extern graph_decl IThorException *MakeActivityException(CActivityBase *activity, int code, const char *_format, ...) __attribute__((format(printf, 3, 4)));
-extern graph_decl IThorException *MakeActivityException(CActivityBase *activity, IException *e, const char *xtra=NULL, ...) __attribute__((format(printf, 3, 4)));
+extern graph_decl IThorException *MakeActivityException(CActivityBase *activity, IException *e, const char *xtra, ...) __attribute__((format(printf, 3, 4)));
+extern graph_decl IThorException *MakeActivityException(CActivityBase *activity, IException *e);
 extern graph_decl IThorException *MakeActivityWarning(CActivityBase *activity, int code, const char *_format, ...) __attribute__((format(printf, 3, 4)));
 extern graph_decl IThorException *MakeActivityWarning(CActivityBase *activity, IException *e, const char *format, ...) __attribute__((format(printf, 3, 4)));
 extern graph_decl IThorException *MakeActivityException(CGraphElementBase *activity, int code, const char *_format, ...) __attribute__((format(printf, 3, 4)));
-extern graph_decl IThorException *MakeActivityException(CGraphElementBase *activity, IException *e, const char *xtra=NULL, ...) __attribute__((format(printf, 3, 4)));
+extern graph_decl IThorException *MakeActivityException(CGraphElementBase *activity, IException *e, const char *xtra, ...) __attribute__((format(printf, 3, 4)));
+extern graph_decl IThorException *MakeActivityException(CGraphElementBase *activity, IException *e);
 extern graph_decl IThorException *MakeActivityWarning(CGraphElementBase *activity, int code, const char *_format, ...) __attribute__((format(printf, 3, 4)));
 extern graph_decl IThorException *MakeActivityWarning(CGraphElementBase *activity, IException *e, const char *format, ...) __attribute__((format(printf, 3, 4)));
 extern graph_decl IThorException *MakeGraphException(CGraphBase *graph, int code, const char *format, ...);
@@ -319,7 +396,7 @@ extern graph_decl IThorException *ThorWrapException(IException *e, const char *m
 extern graph_decl void setExceptionActivityInfo(CGraphElementBase &container, IThorException *e);
 
 extern graph_decl void GetTempName(StringBuffer &name, const char *prefix=NULL,bool altdisk=false);
-extern graph_decl void SetTempDir(const char *name,bool clear);
+extern graph_decl void SetTempDir(const char *name, const char *tempPrefix, bool clear);
 extern graph_decl void ClearDir(const char *dir);
 extern graph_decl void ClearTempDirs();
 extern graph_decl const char *queryTempDir(bool altdisk=false);  
@@ -372,6 +449,8 @@ extern graph_decl IRowStream *createUngroupStream(IRowStream *input);
 
 interface IRowInterfaces;
 extern graph_decl void sendInChunks(ICommunicator &comm, rank_t dst, mptag_t mpTag, IRowStream *input, IRowInterfaces *rowIf);
+
+extern graph_decl void logDiskSpace();
 
 #endif
 

@@ -53,8 +53,7 @@ void HRPCtrace(const char *fmt, ...)
 
 
 #else 
-#define HRPCtrace if (0) (void)
-
+inline void HRPCtrace(const char *, ...) {}
 #endif
 
 
@@ -425,6 +424,7 @@ bool HRPCmodule::TryConnect(int msecs,bool raiseex,bool leaveunlocked)
             sync->unlock();
             if (raiseex) 
                 throw e;
+            e->Release();
         }
         catch (...) {
             sync->unlock();

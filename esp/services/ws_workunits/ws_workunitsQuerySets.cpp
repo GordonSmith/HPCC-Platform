@@ -447,7 +447,8 @@ void copyQueryFilesToCluster(IEspContext &context, IConstWorkUnit *cw, const cha
         Owned<IHpccPackageSet> ps = createPackageSet(process.str());
         wufiles->addFilesFromQuery(cw, (ps) ? ps->queryActiveMap(target) : NULL, queryid);
         wufiles->resolveFiles(process.str(), remoteIP, !overwrite, true);
-        wufiles->cloneAllInfo(overwrite, true);
+        Owned<IDFUhelper> helper = createIDFUhelper();
+        wufiles->cloneAllInfo(helper, overwrite, true);
     }
 }
 
@@ -878,14 +879,15 @@ bool CWsWorkunitsEx::onWUQueryDetails(IEspContext &context, IEspWUQueryDetailsRe
 
     StringBuffer xpath;
     xpath.clear().append("Query[@id='").append(queryId).append("']");
-    IPropertyTree *query = queryRegistry->queryPropTree(xpath);
+    IPropertyTree *query = queryRegistry->queryPropTree(xpath.str());
     if (!query)
     {
         DBGLOG("No matching Query");
         return false;
     }
 
-    resp.setQueryName(query->queryProp("@name"));
+    const char* queryName = query->queryProp("@name");
+    resp.setQueryName(queryName);
     resp.setWuid(query->queryProp("@wuid"));
     resp.setDll(query->queryProp("@dll"));
     resp.setPublishedBy(query->queryProp("@publishedBy"));
@@ -897,6 +899,17 @@ bool CWsWorkunitsEx::onWUQueryDetails(IEspContext &context, IEspWUQueryDetailsRe
     getQueryFiles(queryId, querySet, logicalFiles);
     if (logicalFiles.length())
         resp.setLogicalFiles(logicalFiles);
+
+    double version = context.getClientVersion();
+    if (version >= 1.42)
+    {
+        xpath.clear().appendf("Alias[@name='%s']", queryName);
+        IPropertyTree *alias = queryRegistry->queryPropTree(xpath.str());
+        if (!alias)
+            resp.setActivated(false);
+        else
+            resp.setActivated(true);
+    }
 
     return true;
 }
@@ -1062,6 +1075,9 @@ bool CWsWorkunitsEx::onWUQuerysetQueryAction(IEspContext &context, IEspWUQuerySe
         result->setQueryId(id);
         try
         {
+            IPropertyTree *query = queryset->queryPropTree(xpath);
+            if (!query)
+                throw MakeStringException(ECLWATCH_QUERYID_NOT_FOUND, "Query %s/%s not found.", req.getQuerySetName(), id);
             switch (req.getAction())
             {
                 case CQuerySetQueryActionTypes_ToggleSuspend:
@@ -1074,22 +1090,17 @@ bool CWsWorkunitsEx::onWUQuerysetQueryAction(IEspContext &context, IEspWUQuerySe
                     setQuerySuspendedState(queryset, id, false, NULL);
                     break;
                 case CQuerySetQueryActionTypes_Activate:
-                {
-                    IPropertyTree *query = queryset->queryPropTree(xpath);
-                    if (!query)
-                        throw MakeStringException(ECLWATCH_QUERYID_NOT_FOUND, "Query %s/%s not found.", req.getQuerySetName(), id);
                     setQueryAlias(queryset, query->queryProp("@name"), id);
                     break;
-                }
                 case CQuerySetQueryActionTypes_Delete:
                     removeNamedQuery(queryset, id);
+                    query = NULL;
                     break;
                 case CQuerySetQueryActionTypes_RemoveAllAliases:
                     removeAliasesFromNamedQuery(queryset, id);
                     break;
             }
             result->setSuccess(true);
-            IPropertyTree *query = queryset->queryPropTree(xpath);
             if (query)
                 result->setSuspended(query->getPropBool("@suspended"));
         }

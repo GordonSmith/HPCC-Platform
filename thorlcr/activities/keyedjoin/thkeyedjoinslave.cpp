@@ -1256,7 +1256,7 @@ class CKeyedJoinSlave : public CSlaveActivity, public CThorDataLink, implements 
             }
             catch (IException *e)
             {
-                ::ActPrintLog(&owner, e, NULL);
+                ::ActPrintLog(&owner, e);
                 throw;
             }
             return NULL;
@@ -1440,7 +1440,7 @@ class CKeyedJoinSlave : public CSlaveActivity, public CThorDataLink, implements 
             }
             catch (IException *e)
             {
-                ::ActPrintLog(&owner, e, NULL);
+                ::ActPrintLog(&owner, e);
                 throw;
             }
             noteStats(partManager->querySeeks(), partManager->queryScans());
@@ -1947,7 +1947,7 @@ public:
                     free(encryptedKey);
                 }
                 Owned<IOutputMetaData> fetchInputMeta;
-                if (0 != helper->queryFetchInputRecordSize()->getRecordSize(NULL))
+                if (0 != helper->queryFetchInputRecordSize()->getMinRecordSize())
                 {
                     fetchInputAllocator.setown(queryJob().getRowAllocator(helper->queryFetchInputRecordSize(), queryActivityId()));
                     fetchInputMeta.setown(createOutputMetaDataWithChildRow(fetchInputAllocator, FETCHKEY_HEADER_SIZE));

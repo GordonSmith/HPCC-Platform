@@ -35,15 +35,6 @@ static const char * compatibleVersions[] = {
     NULL };
 
 static const char *version = "V8 JavaScript Embed Helper 1.0.0";
-static const char * EclDefinition =
-    "EXPORT Language := SERVICE\n"
-    "  boolean getEmbedContext():cpp,pure,namespace='javascriptLanguageHelper',entrypoint='getEmbedContext',prototype='IEmbedContext* getEmbedContext()';\n"
-    "  boolean syntaxCheck(const varstring src):cpp,pure,namespace='javascriptLanguageHelper',entrypoint='syntaxCheck';\n"
-    "END;"
-    "export getEmbedContext := Language.getEmbedContext;"
-    "export syntaxCheck := Language.syntaxCheck;"
-    "EXPORT boolean supportsImport := false;"
-    "EXPORT boolean supportsScript := true;";
 
 extern "C" EXPORT bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
 {
@@ -57,8 +48,8 @@ extern "C" EXPORT bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
     pb->magicVersion = PLUGIN_VERSION;
     pb->version = version;
     pb->moduleName = "javascript";
-    pb->ECL = EclDefinition;
-    pb->flags = PLUGIN_DLL_MODULE | PLUGIN_MULTIPLE_VERSIONS;
+    pb->ECL = NULL;
+    pb->flags = PLUGIN_MULTIPLE_VERSIONS;
     pb->description = "V8 JavaScript Embed Helper";
     return true;
 }

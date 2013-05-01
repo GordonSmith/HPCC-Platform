@@ -580,7 +580,7 @@ interface IWSCAsyncFor: public IInterface
 };
 
 class CWSCHelper;
-IWSCAsyncFor * createWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, XmlReaderOptions _options);
+IWSCAsyncFor * createWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, PTreeReaderOptions _options);
 
 //=================================================================================================
 
@@ -686,18 +686,17 @@ public:
 class CWSCHelper : public CInterface, implements IWSCHelper
 {
 private:
-    QueueOf<const void, false> outputQ;                     // all access is protected by outputCrit
-    CriticalSection outputCrit, errorCrit, toXmlCrit, transformCrit, onfailCrit, timeoutCrit;
+    SimpleInterThreadQueueOf<const void, false> outputQ;
+    SpinLock outputQLock;
+    CriticalSection toXmlCrit, transformCrit, onfailCrit, timeoutCrit;
     unsigned done;
-    InterruptableSemaphore resultAvailable;
-    bool complete;
     Linked<ClientCertificate> clientCert;
 
     static CriticalSection secureContextCrit;
     static Owned<ISecureSocketContext> secureContext;
 
     CTimeMon timeLimitMon;
-    bool timeLimitExceeded;
+    bool complete, timeLimitExceeded;
     IRoxieAbortMonitor * roxieAbortMonitor;
 
 protected:
@@ -705,6 +704,8 @@ protected:
     WSCType wscType;
 
 public:
+    IMPLEMENT_IINTERFACE;
+
     CWSCHelper(IWSCRowProvider *_rowProvider, IEngineRowAllocator * _outputAllocator, const char *_authToken, WSCMode _wscMode, ClientCertificate *_clientCert, const IContextLogger &_logctx, IRoxieAbortMonitor *_roxieAbortMonitor, WSCType _wscType)
         : logctx(_logctx), outputAllocator(_outputAllocator), clientCert(_clientCert), roxieAbortMonitor(_roxieAbortMonitor)
     {
@@ -812,14 +813,10 @@ public:
             acceptType.toLowerCase();
         }
 
-        if(callHelper)
-        {
+        if (callHelper)
             rowTransformer = callHelper->queryInputTransformer();
-        }
         else
-        {
             rowTransformer = NULL;
-        }
 
         OwnedRoxieString hosts(helper->getHosts());
         UrlListParser urlListParser(hosts);
@@ -864,100 +861,68 @@ public:
         for (unsigned i=0; i<numRowThreads; i++)
             threads.append(*new CWSCHelperThread(this));
     }
-
-    IMPLEMENT_IINTERFACE;
-
     ~CWSCHelper()
     {
         complete = true;
         waitUntilDone();
         threads.kill();
-        while (outputQ.ordinality())
-            outputAllocator->releaseRow(outputQ.dequeue());
     }
-
     void waitUntilDone()
     {
         ForEachItemIn(i,threads)
             threads.item(i).join();
+        loop
+        {
+            const void *row = outputQ.dequeueNow();
+            if (!row)
+                break;
+            outputAllocator->releaseRow(row);
+        }
+        outputQ.reset();
     }
-
     void start()
     {
         if (timeLimitMS != WAIT_FOREVER)
             timeLimitMon.reset(timeLimitMS);
 
+        done = 0;
+        complete = aborted = timeLimitExceeded = false;
+
         ForEachItemIn(i,threads)
             threads.item(i).start();
     }
-
     void abort()
     {
         aborted = true;
         complete = true;
-        resultAvailable.signal();
+        outputQ.stop();
     }
-
-    size32_t __deprecated__getRow(void *buffer)
-    {
-        const void * row = getRow();
-        if (row)
-        {
-            size32_t sizeGot = outputAllocator->queryOutputMeta()->getRecordSize(row);
-            memcpy(buffer, row, sizeGot);
-            outputAllocator->releaseRow(row);
-            return sizeGot;
-        }
-        return 0;
-    }
-
     const void * getRow()
     {
-        if (complete) return NULL;
+        if (complete)
+            return NULL;
         loop
         {
-            resultAvailable.wait();
+            const void *row = outputQ.dequeue();
             if (aborted)
                 break;
-            {
-                CriticalBlock block(outputCrit);
-                if (outputQ.ordinality())
-                {
-                    return outputQ.dequeue();
-                }
-                else if (done == numRowThreads)
-                {
-                    complete = true;
-                    if (error.get())
-                        throw error.getLink();
-                    break;
-                }
-                // should never get here
-            }
+            if (row)
+                return row;
+            // should only be here if setDone() triggered
+            complete = true;
+            Owned<IException> e = getError();
+            if (e)
+                throw e.getClear();
+            break;
         }
         return NULL;
     }
-
-    bool rowAvailable()
-    {
-        CriticalBlock block(outputCrit);
-        return (outputQ.ordinality() > 0);
-    }
-
-    bool queryDone()
-    {
-        CriticalBlock block(outputCrit);
-        return (done == numRowThreads);
-    }
-
     IException * getError()
     {
-        CriticalBlock block(errorCrit);
+        SpinBlock sb(outputQLock);
         return error.getLink();
     }
-
     inline IEngineRowAllocator * queryOutputAllocator() const { return outputAllocator; }
-
     ISecureSocket *createSecureSocket(ISocket *sock)
     {
         {
@@ -972,7 +937,6 @@ public:
         }
         return secureContext->createSecureSocket(sock);
     }
-
     bool isTimeLimitExceeded(unsigned *_remainingMS)
     {
         if (timeLimitMS != WAIT_FOREVER)
@@ -999,7 +963,6 @@ public:
             logctx.CTXLOG("%s: %.*s", wscCallTypeText(), lenText, text.getstr());
         }
     }
-
     inline IXmlToRowTransformer * getRowTransformer() { return rowTransformer; }
     inline const char * wscCallTypeText() const { return wscType == STsoap ? "SOAPCALL" : "HTTPCALL"; }
 
@@ -1009,28 +972,27 @@ protected:
 
     void putRow(const void * row)
     {
-        CriticalBlock block(outputCrit);
         outputQ.enqueue(row);
-        resultAvailable.signal();
     }
-
     void setDone()
     {
-        CriticalBlock block(outputCrit);
-        done++;
-        if (done == numRowThreads)
-            resultAvailable.signal();
+        bool doStop;
+        {
+            SpinBlock sb(outputQLock);
+            done++;
+            doStop = (done == numRowThreads);
+        }
+        if (doStop)
+            outputQ.stop();
     }
-
     void setErrorOwn(IException * e)
     {
-        CriticalBlock block(errorCrit);
+        SpinBlock sb(outputQLock);
         if (error)
             ::Release(e);
         else
             error.setown(e);
     }
-
     void toXML(const byte * self, IXmlWriter & out) { CriticalBlock block(toXmlCrit); helper->toXML(self, out); }
     size32_t transformRow(ARowBuilder & rowBuilder, IColumnProvider * row) 
     { 
@@ -1209,17 +1171,17 @@ void CWSCHelperThread::createXmlSoapQuery(CommonXmlWriter &xmlWriter, ConstPoint
 void CWSCHelperThread::processQuery(ConstPointerArray &inputRows)
 {
     unsigned xmlWriteFlags = 0;
-    unsigned xmlReadFlags = xr_ignoreNameSpaces; 
+    unsigned xmlReadFlags = ptr_ignoreNameSpaces;
     if (master->flags & SOAPFtrim)
         xmlWriteFlags |= XWFtrim;
     if ((master->flags & SOAPFpreserveSpace) == 0)
-        xmlReadFlags |= xr_ignoreWhiteSpace;
+        xmlReadFlags |= ptr_ignoreWhiteSpace;
         XMLWriterType xmlType = !(master->flags & SOAPFencoding) ? WTStandard : WTEncodingData64; 
     CommonXmlWriter *xmlWriter = CreateCommonXmlWriter(xmlWriteFlags, 0, NULL, xmlType);
     if (master->wscType == STsoap)
         createXmlSoapQuery(*xmlWriter, inputRows);
 
-    Owned<IWSCAsyncFor> casyncfor = createWSCAsyncFor(master, *xmlWriter, inputRows, (XmlReaderOptions) xmlReadFlags);
+    Owned<IWSCAsyncFor> casyncfor = createWSCAsyncFor(master, *xmlWriter, inputRows, (PTreeReaderOptions) xmlReadFlags);
     casyncfor->For(master->numUrls, master->numUrlThreads,false,true); // shuffle URLS for poormans load balance
     delete xmlWriter;
 }
@@ -1359,7 +1321,7 @@ private:
     CriticalSection processExceptionCrit;
     StringBuffer responsePath;
     Owned<CSocketDataProvider> dataProvider;
-    XmlReaderOptions options;
+    PTreeReaderOptions options;
     unsigned remainingMS;
 
     inline void checkRoxieAbortMonitor(IRoxieAbortMonitor * roxieAbortMonitor)
@@ -1709,7 +1671,7 @@ private:
     }
 
 public:
-    CWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, XmlReaderOptions _options): xmlWriter(_xmlWriter), inputRows(_inputRows), options(_options)
+    CWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, PTreeReaderOptions _options): xmlWriter(_xmlWriter), inputRows(_inputRows), options(_options)
     {
         master = _master;
         outputAllocator = master->queryOutputAllocator();
@@ -1923,7 +1885,7 @@ public:
     inline virtual IEngineRowAllocator * getOutputAllocator() { return outputAllocator; }
 };
 
-IWSCAsyncFor * createWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, XmlReaderOptions _options)
+IWSCAsyncFor * createWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, PTreeReaderOptions _options)
 {
     return new CWSCAsyncFor(_master, _xmlWriter, _inputRows, _options);
 }

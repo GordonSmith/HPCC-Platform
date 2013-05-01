@@ -823,14 +823,22 @@ void CThorExpandingRowArray::partition(ICompare &compare, unsigned num, Unsigned
 
 offset_t CThorExpandingRowArray::serializedSize()
 {
+    IOutputMetaData *meta = rowIf->queryRowMetaData();
+    IOutputMetaData *diskMeta = meta->querySerializedDiskMeta();
     rowidx_t c = ordinality();
-    assertex(serializer);
     offset_t total = 0;
-    for (rowidx_t i=0; i<c; i++)
+    if (diskMeta->isFixedSize())
+        total = c * diskMeta->getFixedSize();
+    else
     {
+        Owned<IOutputRowSerializer> diskSerializer = diskMeta->createDiskSerializer(rowIf->queryCodeContext(), rowIf->queryActivityId());
         CSizingSerializer ssz;
-        serializer->serialize(ssz, (const byte *)rows[i]);
-        total += ssz.size();
+        for (rowidx_t i=0; i<c; i++)
+        {
+            diskSerializer->serialize(ssz, (const byte *)rows[i]);
+            total += ssz.size();
+            ssz.reset();
+        }
     }
     return total;
 }
@@ -838,16 +846,22 @@ offset_t CThorExpandingRowArray::serializedSize()
 
 memsize_t CThorExpandingRowArray::getMemUsage()
 {
+    roxiemem::IRowManager *rM = activity.queryJob().queryRowManager();
+    IOutputMetaData *meta = rowIf->queryRowMetaData();
+    IOutputMetaData *diskMeta = meta->querySerializedDiskMeta(); // GH->JCS - really I want a internalMeta here.
     rowidx_t c = ordinality();
     memsize_t total = 0;
-    roxiemem::IRowManager *rM = activity.queryJob().queryRowManager();
-    IRecordSize *iRecordSize = rowIf->queryRowMetaData();
-    if (iRecordSize->isFixedSize())
-        total = c * rM->getExpectedFootprint(iRecordSize->getFixedSize(), 0);
+    if (diskMeta->isFixedSize())
+        total = c * rM->getExpectedFootprint(diskMeta->getFixedSize(), 0);
     else
     {
+        CSizingSerializer ssz;
         for (rowidx_t i=0; i<c; i++)
-            total += rM->getExpectedFootprint(iRecordSize->getRecordSize(rows[i]), 0);
+        {
+            serializer->serialize(ssz, (const byte *)rows[i]);
+            total += rM->getExpectedFootprint(ssz.size(), 0);
+            ssz.reset();
+        }
     }
     // NB: worst case, when expanding (see ensure method)
     memsize_t sz = rM->getExpectedFootprint(maxRows * sizeof(void *), 0);
@@ -912,7 +926,7 @@ void CThorExpandingRowArray::serializeCompress(MemoryBuffer &mb)
     fastLZCompressToBuffer(mb,exp.length(), exp.toByteArray());
 }
 
-rowidx_t CThorExpandingRowArray::serializeBlock(MemoryBuffer &mb, size32_t dstmax, rowidx_t idx, rowidx_t count)
+rowidx_t CThorExpandingRowArray::serializeBlock(MemoryBuffer &mb, rowidx_t idx, rowidx_t count, size32_t dstmax, bool hardMax)
 {
     assertex(serializer);
     CMemoryRowSerializer out(mb);
@@ -934,13 +948,17 @@ rowidx_t CThorExpandingRowArray::serializeBlock(MemoryBuffer &mb, size32_t dstma
             WARNLOG("CThorExpandingRowArray::serialize ignoring NULL row");
             warnnull = false;
         }
+        // allows at least one
         if (mb.length()>dstmax)
         {
-            if (ln)
-                mb.setLength(ln);   // make sure one row
+            if (hardMax && ln) // remove last if above limit
+                mb.setLength(ln);
+            else
+                ++ret;
             break;
         }
-        ret++;
+        else
+            ++ret;
     }
     return ret;
 }
@@ -1714,7 +1732,7 @@ ILargeMemLimitNotify *createMultiThorResourceMutex(const char *grpname,CSDSServe
 }
 
 
-class CThorAllocator : public CSimpleInterface, implements IRtlRowCallback, implements IThorAllocator, implements IRowAllocatorMetaActIdCacheCallback
+class CThorAllocator : public CSimpleInterface, implements IThorAllocator, implements IRowAllocatorMetaActIdCacheCallback
 {
 protected:
     mutable Owned<IRowAllocatorMetaActIdCache> allocatorMetaCache;
@@ -1729,13 +1747,11 @@ public:
         allocatorMetaCache.setown(createRowAllocatorCache(this));
         rowManager.setown(roxiemem::createRowManager(memSize, NULL, queryDummyContextLogger(), allocatorMetaCache, false));
         rowManager->setMemoryLimit(memSize, 0==memorySpillAt ? 0 : memSize/100*memorySpillAt);
-        rtlSetReleaseRowHook(this);
     }
     ~CThorAllocator()
     {
         rowManager.clear();
         allocatorMetaCache.clear();
-        rtlSetReleaseRowHook(NULL); // nothing should use it beyond this point anyway
     }
 // roxiemem::IRowAllocatorMetaActIdCacheCallback
     virtual IEngineRowAllocator *createAllocator(IOutputMetaData *meta, unsigned activityId, unsigned id) const
@@ -1753,37 +1769,6 @@ public:
     }
     virtual roxiemem::RoxieHeapFlags queryFlags() const { return flags; }
     virtual bool queryCrc() const { return false; }
-
-// IRtlRowCallback
-    virtual void releaseRow(const void * row) const
-    {
-        ReleaseThorRow(row);
-    }
-    virtual void releaseRowset(unsigned count, byte * * rowset) const
-    {
-        if (rowset)
-        {
-            if (!roxiemem::HeapletBase::isShared(rowset))
-            {
-                byte * * finger = rowset;
-                while (count--)
-                    ReleaseThorRow(*finger++);
-            }
-            ReleaseThorRow(rowset);
-        }
-    }
-    virtual void *linkRow(const void * row) const
-    {
-        if (row) 
-            LinkThorRow(row);
-        return const_cast<void *>(row);
-    }
-    virtual byte * * linkRowset(byte * * rowset) const
-    {
-        if (rowset)
-            LinkThorRow(rowset);
-        return const_cast<byte * *>(rowset);
-    }
 };
 
 // derived to avoid a 'crcChecking' check per getRowAllocator only

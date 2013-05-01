@@ -1021,7 +1021,7 @@ const char *getOpString(node_operator op)
     case no_enth: return "ENTH";
     case no_sample: return "SAMPLE";
     case no_sort: return "SORT";
-    case no_shuffle: return "SHUFFLE";
+    case no_subsort: return "SUBSORT";
     case no_sorted: return "SORTED";
     case no_choosen: return "CHOOSEN";
     case no_choosesets: return "CHOOSESETS";
@@ -1812,7 +1812,7 @@ childDatasetType getChildDatasetType(IHqlExpression * expr)
     case no_cosort:
     case no_keyed:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_stepped:
     case no_transformebcdic:
@@ -2082,7 +2082,7 @@ inline unsigned doGetNumChildTables(IHqlExpression * dataset)
     case no_sample:
     case no_selectnth:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_stepped:
     case no_assertsorted:
@@ -2265,6 +2265,7 @@ inline unsigned doGetNumChildTables(IHqlExpression * dataset)
     case no_parallel:
         return 0;
     case no_quoted:
+    case no_variable:
         return 0;
     case no_mapto:
     case no_compound:
@@ -2374,7 +2375,7 @@ bool definesColumnList(IHqlExpression * dataset)
     case no_section:
     case no_sample:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_stepped:
     case no_assertsorted:
@@ -2526,6 +2527,7 @@ bool definesColumnList(IHqlExpression * dataset)
     case no_cogroup:
     case no_dataset_alias:
     case no_dataset_from_transform:
+    case no_mapto:
         return true;
     case no_select:
     case no_field:
@@ -2919,7 +2921,7 @@ IHqlExpression * ensureExprType(IHqlExpression * expr, ITypeInfo * type, node_op
     }
 
     //MORE: Casts of datasets should create a dataset - but there is no parameter to determine the type from...
-    switch (type->getTypeCode())
+    switch (tc)
     {
     case type_table:
     case type_groupedtable:
@@ -3900,6 +3902,15 @@ unsigned CHqlExpression::getCachedEclCRC()
     case no_sortlist:
         //backward compatibility
         break;
+    case no_attr_expr:
+        {
+            const _ATOM name = queryBody()->queryName();
+            //Horrible backward compatibility "fix" for record crcs - they need to remain the same otherwise files
+            //will be incompatible.
+            if (name == maxLengthAtom || name == xpathAtom || name == cardinalityAtom || name == caseAtom || name == maxCountAtom || name == choosenAtom || name == maxSizeAtom || name == namedAtom || name == rangeAtom || name == xmlDefaultAtom || name == virtualAtom)
+                crc = no_attr;
+            //fallthrough
+        }
     default:
         {
             ITypeInfo * thisType = queryType();
@@ -3952,7 +3963,7 @@ unsigned CHqlExpression::getCachedEclCRC()
     case no_attr_expr:
     case no_attr_link:
         {
-            _ATOM name = queryBody()->queryName();
+            const _ATOM name = queryBody()->queryName();
             if (name == _uid_Atom)
                 return 0;
             const char * nameText = name->str();
@@ -5881,7 +5892,7 @@ void CHqlDataset::cacheParent()
     case no_keyed:
     // change ordering
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_stepped:
     case no_cosort:
@@ -8246,7 +8257,7 @@ static IHqlExpression * cloneFunction(IHqlExpression * expr)
         HqlExprArray attrs;
         unwindChildren(attrs, formal);
         OwnedHqlExpr newFormal = createParameter(formal->queryName(), seq, formal->getType(), attrs);
-        assertex(formal != newFormal);
+        assertex(formal != newFormal || seq == UnadornedParameterIndex);
         replacer.setMapping(formal, newFormal);
     }
     return replacer.transform(expr);
@@ -9989,6 +10000,7 @@ IHqlExpression *createDictionary(node_operator op, HqlExprArray & parms)
         type.setown(makeDictionaryType(makeRowType(createRecordType(&parms.item(0)))));
         break;
     case no_select:
+    case no_mapto:
         type.set(parms.item(1).queryType());
         break;
     case no_addfiles:
@@ -10621,8 +10633,8 @@ static void normalizeCallParameters(HqlExprArray & resolvedActuals, IHqlExpressi
                 }
                 else
                 {
-                    OwnedHqlExpr actualRecord = getUnadornedExpr(actual->queryRecord());
-                    OwnedHqlExpr formalRecord = getUnadornedExpr(::queryOriginalRecord(type));
+                    OwnedHqlExpr actualRecord = getUnadornedRecordOrField(actual->queryRecord());
+                    OwnedHqlExpr formalRecord = getUnadornedRecordOrField(::queryOriginalRecord(type));
                     if (actualRecord && formalRecord && formalRecord->numChildren() && (formalRecord->queryBody() != actualRecord->queryBody()))
                     {
                         //If the actual dataset is derived from the input dataset, then insert a project so types remain correct
@@ -11287,12 +11299,12 @@ IHqlExpression *createDataset(node_operator op, HqlExprArray & parms)
             type.setown(getTypeDistribute(datasetType, newDistribution, NULL));
             break;
         }
-    case no_shuffle:
+    case no_subsort:
         {
             bool isLocal = queryProperty(localAtom, parms) != NULL;
             OwnedHqlExpr normalizedSortOrder = replaceSelector(&parms.item(1), dataset, cachedActiveTableExpr);
             OwnedHqlExpr mappedGrouping = replaceSelector(&parms.item(2), dataset, cachedActiveTableExpr);
-            type.setown(getTypeShuffle(datasetType, mappedGrouping, normalizedSortOrder, isLocal));
+            type.setown(getTypeSubSort(datasetType, mappedGrouping, normalizedSortOrder, isLocal));
             break;
         }
     case no_cosort:
@@ -11345,7 +11357,7 @@ IHqlExpression *createDataset(node_operator op, HqlExprArray & parms)
                 transform = &parms.item(2);
                 globalActivityTransfersRows = true;
                 mapper.setMapping(transform, leftSelect);
-                assertex(recordTypesMatch(recordType, transform->queryRecordType()));
+                assertRecordTypesMatch(recordType, transform->queryRecordType());
                 break;
             case no_normalize:
                 transform = &parms.item(2);
@@ -11638,6 +11650,7 @@ IHqlExpression *createDataset(node_operator op, HqlExprArray & parms)
             break;
         }
     case no_case:
+    case no_mapto:
         //following is wrong, but they get removed pretty quickly so I don't really care
         type.set(parms.item(1).queryType());
         break;
@@ -11952,10 +11965,7 @@ extern IHqlExpression *createRow(node_operator op, HqlExprArray & args)
             ITypeInfo * fieldType = field.queryType();
             type_t fieldTC = fieldType->getTypeCode();
             assertex(fieldTC == type_row);
-            if (fieldTC == type_row)
-                type = LINK(fieldType);
-            else
-                type = makeRowType(LINK(fieldType));
+            type = LINK(fieldType);
             break;
         }
     case no_embedbody:
@@ -11977,6 +11987,7 @@ extern IHqlExpression *createRow(node_operator op, HqlExprArray & args)
         }
     case no_compound:
     case no_case:
+    case no_mapto:
         type = args.item(1).getType();
         break;
     case no_translated:
@@ -13213,6 +13224,11 @@ void PrintLogExprTree(IHqlExpression *expr, const char *caption, bool full)
 static unsigned exportRecord(IPropertyTree *dataNode, IHqlExpression * record, unsigned & offset, bool flatten);
 static unsigned exportRecord(IPropertyTree *dataNode, IHqlExpression * record, bool flatten);
 
+static inline bool isdigit_or_underbar(unsigned char c)
+{
+    return isdigit(c) || c=='_';
+}
+
 unsigned exportField(IPropertyTree *table, IHqlExpression *field, unsigned & offset, bool flatten)
 {
     if (field->isAttribute())
@@ -13246,7 +13262,7 @@ unsigned exportField(IPropertyTree *table, IHqlExpression *field, unsigned & off
     if (!queryOriginalName(type, typeName))
         type->getECLType(typeName);
     f->setProp("@ecltype", typeName.str());
-    while (isdigit((unsigned char)typeName.charAt(typeName.length()-1)))
+    while (isdigit_or_underbar((unsigned char)typeName.charAt(typeName.length()-1)))
         typeName.remove(typeName.length()-1, 1);
     f->setProp("@type", typeName.str());
     f = table->addPropTree(f->queryName(), f);
@@ -15409,8 +15425,8 @@ bool recordTypesMatch(ITypeInfo * left, ITypeInfo * right)
         return true;
 
     //This test compares the real record structure, ignoring names etc.   The code above just short-cicuits this test.
-    OwnedHqlExpr unadornedLeft = getUnadornedExpr(leftRecord);
-    OwnedHqlExpr unadornedRight = getUnadornedExpr(rightRecord);
+    OwnedHqlExpr unadornedLeft = getUnadornedRecordOrField(leftRecord);
+    OwnedHqlExpr unadornedRight = getUnadornedRecordOrField(rightRecord);
     if (unadornedLeft == unadornedRight)
         return true;
 
@@ -15426,7 +15442,7 @@ bool assertRecordTypesMatch(ITypeInfo * left, ITypeInfo * right)
     if (recordTypesMatch(left, right))
         return true;
 
-    EclIR::dump_ir(left, right);
+    EclIR::dbglogIR(2, left, right);
     throwUnexpected();
 }
 

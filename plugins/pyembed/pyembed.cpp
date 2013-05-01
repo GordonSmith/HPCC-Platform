@@ -36,16 +36,6 @@ static const char * compatibleVersions[] = {
 
 static const char *version = "Python2.7 Embed Helper 1.0.0";
 
-static const char * EclDefinition =
-    "EXPORT Language := SERVICE\n"
-    "  boolean getEmbedContext():cpp,pure,namespace='pyembed',entrypoint='getEmbedContext',prototype='IEmbedContext* getEmbedContext()';\n"
-    "  boolean syntaxCheck(const varstring src):cpp,pure,namespace='pyembed',entrypoint='syntaxCheck';\n"
-    "END;"
-    "EXPORT getEmbedContext := Language.getEmbedContext;"
-    "EXPORT syntaxCheck := Language.syntaxCheck;"
-    "EXPORT boolean supportsImport := true;"
-    "EXPORT boolean supportsScript := true;";
-
 extern "C" EXPORT bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
 {
     if (pb->size == sizeof(ECLPluginDefinitionBlockEx))
@@ -58,8 +48,8 @@ extern "C" EXPORT bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
     pb->magicVersion = PLUGIN_VERSION;
     pb->version = version;
     pb->moduleName = "python";
-    pb->ECL = EclDefinition;
-    pb->flags = PLUGIN_DLL_MODULE | PLUGIN_MULTIPLE_VERSIONS;
+    pb->ECL = NULL;
+    pb->flags = PLUGIN_MULTIPLE_VERSIONS;
     pb->description = "Python2.7 Embed Helper";
     return true;
 }
@@ -245,22 +235,41 @@ static class Python27GlobalState
 public:
     Python27GlobalState()
     {
+#ifndef _WIN32
+        // If Py_Initialize is called when stdin is set to a directory, it calls exit()
+        // We don't want that to happen - just disable Python support in such situations
+        struct stat sb;
+        if (fstat(fileno(stdin), &sb) == 0 && S_ISDIR(sb.st_mode))
+        {
+            initialized = false;
+            return;
+        }
+#endif
         // Initialize the Python Interpreter
         Py_Initialize();
         PyEval_InitThreads();
         tstate = PyEval_SaveThread();
+        initialized = true;
     }
     ~Python27GlobalState()
     {
         if (threadContext)
             delete threadContext;   // The one on the main thread won't get picked up by the thread hook mechanism
         threadContext = NULL;
-        PyEval_RestoreThread(tstate);
-        // Finish the Python Interpreter
-        Py_Finalize();
+        if (initialized)
+        {
+            PyEval_RestoreThread(tstate);
+            // Finish the Python Interpreter
+            Py_Finalize();
+        }
+    }
+    bool isInitialized()
+    {
+        return initialized;
     }
 protected:
     PyThreadState *tstate;
+    bool initialized;
 } globalState;
 
 // Each call to a Python function will use a new Python27EmbedFunctionContext object
@@ -739,6 +748,8 @@ public:
     {
         if (!threadContext)
         {
+            if (!globalState.isInitialized())
+                rtlFail(0, "Python not initialized");
             threadContext = new PythonThreadContext;
             threadHookChain = addThreadTermFunc(releaseContext);
         }

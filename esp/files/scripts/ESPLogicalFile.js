@@ -30,6 +30,90 @@ define([
 ], function (declare, arrayUtil, lang, Deferred, ObjectStore, QueryResults, Observable, Stateful,
         WsDfu, FileSpray, ESPUtil, ESPResult) {
 
+    var _dropZoneFiles = {};
+    var DropZoneFileStore = declare(null, {
+        idProperty: "name",
+        netAddress: '',
+        path: '',
+        os: 2,
+        _watched: {},
+
+        constructor: function (options) {
+            declare.safeMixin(this, options);
+            this.netAddress = options.NetAddress;
+            this.path = options.Path;
+            this.os = options.OS;
+        },
+
+        getIdentity: function (object) {
+            return object[this.idProperty];
+        },
+
+        get: function (name) {
+            if (!_dropZoneFiles[name]) {
+                _dropZoneFiles[name] = new dropZoneFile({
+                    name: name
+                });
+            }
+            return _dropZoneFiles[name];
+        },
+
+        query: function (query, options) {
+            var request = {};
+            lang.mixin(request, options.query);
+            if (this.netAddress != '')
+                request['NetAddress'] = this.netAddress;
+            if (this.os)
+                request['OS'] = this.os;
+            if (this.path != '')
+                request['Path'] = this.path;
+
+            var results = FileSpray.GetDropZoneFiles({
+                request: request
+            });
+
+            var deferredResults = new Deferred();
+            deferredResults.total = results.then(function (response) {
+                if (lang.exists("DropZoneFilesResponse.NumFiles", response)) {
+                    return response.DropZoneFilesResponse.NumFiles;
+                }
+                return 0;
+            });
+            var context = this;
+            Deferred.when(results, function (response) {
+                var dropZoneFiles = [];
+                for (key in context._watched) {
+                    context._watched[key].unwatch();
+                }
+                this._watched = {};
+                if (lang.exists("DropZoneFilesResponse.Files.PhysicalFileStruct", response)) {
+                    arrayUtil.forEach(response.DropZoneFilesResponse.Files.PhysicalFileStruct, function (item, index) {
+                        var dropZoneFile = context.get(item.name);
+                        dropZoneFile.updateData(item);
+                        dropZoneFiles.push(dropZoneFile);
+                        context._watched[dropZoneFile.name] = dropZoneFile.watch("changedCount", function (name, oldValue, newValue) {
+                            if (oldValue !== newValue) {
+                                context.notify(dropZoneFile, dropZoneFile.name);
+                            }
+                        });
+                    });
+                }
+                deferredResults.resolve(dropZoneFiles);
+            });
+
+            return QueryResults(deferredResults);
+        }
+    });
+
+    var dropZoneFile = declare([ESPUtil.Singleton], {
+        constructor: function (args) {
+            this.inherited(arguments);
+            declare.safeMixin(this, args);
+            this.dropZoneFile = this;
+        }
+    });
+
+
     var _logicalFiles = {};
 
     var Store = declare(null, {
@@ -136,8 +220,8 @@ define([
                 load: function (response) {
                     if (lang.exists("DFUInfoResponse.FileDetail", response)) {
                         context.updateData(response.DFUInfoResponse.FileDetail);
-                        if (args && args.onGetAll) {
-                            args.onGetAll(response.DFUInfoResponse.FileDetail);
+                        if (args && args.onAfterSend) {
+                            args.onAfterSend(response.DFUInfoResponse.FileDetail);
                         }
                     }
                 }
@@ -197,8 +281,8 @@ define([
                 load: function (response) {
                     if (lang.exists("DFUInfoResponse.FileDetail", response)) {
                         context.updateData(response.DFUInfoResponse.FileDetail);
-                        if (args && args.onGetAll) {
-                            args.onGetAll(response.DFUInfoResponse.FileDetail);
+                        if (args && args.onAfterSend) {
+                            args.onAfterSend(response.DFUInfoResponse.FileDetail);
                         }
                     }
                 }
@@ -240,6 +324,13 @@ define([
         Get: function (name) {
             var store = new Store();
             return store.get(name);
+        },
+
+        CreateDropZoneFileQueryObjectStore: function (options) {
+            var store = new DropZoneFileStore(options);
+            store = Observable(store);
+            var objStore = new ObjectStore({ objectStore: store });
+            return objStore;
         },
 
         CreateLFQueryObjectStore: function (options) {

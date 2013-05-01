@@ -378,6 +378,9 @@ class CSDSException : public CInterface, implements ISDSException
 public:
     IMPLEMENT_IINTERFACE;
 
+    CSDSException(int _errCode) : errCode(_errCode)
+    {
+    }
     CSDSException(int _errCode, const char *_errMsg, va_list &args) : errCode(_errCode)
     {
         if (_errMsg)
@@ -396,17 +399,17 @@ public:
             case SDSExcpt_UnknownConnection:
                 return out.append("Non existent connection id");
             case SDSExcpt_DistributingTransaction:
-                return out.append("Error whilst distributing transaction");
+                return out.append("Error while distributing transaction");
             case SDSExcpt_Reload:
                 return out.append("Failed to reload");
             case SDSExcpt_StoreMismatch:
                 return out.append("Initial data stores do not match each other on different coven servers");
             case SDSExcpt_RequestingStore:
-                return out.append("Error whilst requesting data store from other coven servers");
+                return out.append("Error while requesting data store from other coven servers");
             case SDSExcpt_BadMode:
                 return out.append("Invalid lock mode used");
             case SDSExcpt_LoadInconsistency:
-                return out.append("Inconsistency detected whilst loading store");
+                return out.append("Inconsistency detected while loading store");
             case SDSExcpt_RenameFailure:
                 return out.append("Rename failure");
             case SDSExcpt_UnknownTreeId:
@@ -428,7 +431,7 @@ public:
             case SDSExcpt_ConnectionAbsent:
                 return out.append("Connection missing (aborted)");
             case SDSExcpt_OpeningExternalFile:
-                return out.append("Failed to open external referrence file ");
+                return out.append("Failed to open external reference file ");
             case SDSExcpt_FailedToCommunicateWithServer:
                 return out.append("Failed to communicate to coven server ");
             case SDSExcpt_MissingExternalFile:
@@ -445,6 +448,8 @@ public:
                 return out.append("Store info file not found");
             case SDSExcpt_ClientCacheDirty:
                 return out.append("Dirty client cache members used");
+            case SDSExcpt_LockHeld:
+                return out.append("Lock held");
             default:
                 return out.append("INTERNAL ERROR");
         }
@@ -463,7 +468,8 @@ private:
     StringBuffer errMsg;
 };
 
-ISDSException *MakeSDSException(int errorCode, const char *errorMsg = NULL, ...) __attribute__((format(printf, 2, 3)));
+ISDSException *MakeSDSException(int errorCode, const char *errorMsg, ...) __attribute__((format(printf, 2, 3)));
+ISDSException *MakeSDSException(int errorCode);
 
 inline void throwMbException(const char *errorMsg, MemoryBuffer &mb)
 {

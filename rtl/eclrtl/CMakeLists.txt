@@ -27,6 +27,7 @@ project( eclrtl )
 
 set (    SRCS 
          eclrtl.cpp 
+         rtlbcd.cpp 
          rtldistr.cpp 
          rtlds.cpp 
          rtlint.cpp 
@@ -36,7 +37,23 @@ set (    SRCS
          rtlfield.cpp 
          rtlread.cpp 
          rtltype.cpp 
-         rtlxml.cpp 
+         rtlxml.cpp
+         
+         eclinclude4.hpp
+         eclrtl.hpp
+         eclrtl_imp.hpp
+         rtlbcd.hpp
+         rtldistr.hpp
+         rtlds_imp.hpp
+         rtlfield_imp.hpp
+         rtlkey2.hpp
+         rtlkey.hpp
+         rtlread_imp.hpp
+         rtlsize.hpp
+         rtltype.hpp
+
+         rtlbcdtest.cpp 
+
     )
 
 include_directories ( 
@@ -44,6 +61,7 @@ include_directories (
          ./../../rtl/nbcd 
          ./../../system/include 
          ./../../system/jlib 
+         ./../../roxie/roxiemem
          ./../../testing/unittests
          ${ICU_INCLUDE_DIR}
          ${BOOST_REGEX_INCLUDE_DIR}
@@ -62,13 +80,15 @@ target_link_libraries ( eclrtl
       ${BOOST_REGEX_LIBRARIES}
       ${ICU_LIBRARIES}
       jlib
-      nbcd 
+      nbcd
+      roxiemem
     )
 
 FOREACH( iFILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/eclinclude.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eclinclude4.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eclrtl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eclrtl_imp.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rtlbcd.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rtldistr.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rtlds_imp.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rtlfield_imp.hpp

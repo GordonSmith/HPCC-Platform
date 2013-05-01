@@ -27,6 +27,7 @@
 #include "slwatchdog.hpp"
 #include "thgraphslave.hpp"
 #include "thcompressutil.hpp"
+#include "enginecontext.hpp"
 
 //////////////////////////////////
 
@@ -117,9 +118,9 @@ void CSlaveActivity::setInput(unsigned index, CActivityBase *inputActivity, unsi
     if (!inputActivity)
     {
         Owned<CActivityBase> nullAct = container.factory(TAKnull);
-        outLink.set(((CSlaveActivity *)nullAct.get())->queryOutput(inputOutIdx));
-        // avoid circular ref. leak, this activity is never referenced by graph or container and outputs never cleared elsewhere.
-        nullAct->releaseIOs();
+
+        outLink.set(((CSlaveActivity *)(nullAct.get()))->queryOutput(0)); // NB inputOutIdx irrelevant, null has single 'fake' output
+        nullAct->releaseIOs(); // normally done as graph winds up, clear now to avoid circular dependencies with outputs
     }
     else
         outLink.set(((CSlaveActivity *)inputActivity)->queryOutput(inputOutIdx));
@@ -320,6 +321,8 @@ void CSlaveGraph::initWithActData(MemoryBuffer &in, MemoryBuffer &out)
 {
     CriticalBlock b(progressCrit);
     initialized = true;
+    if (0 == in.length())
+        return;
     activity_id id;
     loop
     {
@@ -363,7 +366,8 @@ void CSlaveGraph::recvStartCtx()
     {
         sentStartCtx = true;
         CMessageBuffer msg;
-        if (!receiveMsg(msg, 0, mpTag, NULL, LONGTIMEOUT))
+
+        if (!graphCancelHandler.recv(queryJob().queryJobComm(), msg, 0, mpTag, NULL, LONGTIMEOUT))
             throw MakeStringException(0, "Error receiving startCtx data for graph: %"GIDPF"d", graphId);
         deserializeStartContexts(msg);
     }
@@ -393,7 +397,8 @@ bool CSlaveGraph::recvActivityInitData(size32_t parentExtractSz, const byte *par
 
         if (syncInitData())
         {
-            if (!receiveMsg(msg, 0, mpTag, NULL, LONGTIMEOUT))
+
+            if (!graphCancelHandler.recv(queryJob().queryJobComm(), msg, 0, mpTag, NULL, LONGTIMEOUT))
                 throw MakeStringException(0, "Error receiving actinit data for graph: %"GIDPF"d", graphId);
             replyTag = msg.getReplyTag();
             msg.read(len);
@@ -424,12 +429,11 @@ bool CSlaveGraph::recvActivityInitData(size32_t parentExtractSz, const byte *par
         }
         try
         {
+            MemoryBuffer actInitData;
             if (len)
-            {
-                MemoryBuffer actInitData;
                 actInitData.append(len, msg.readDirect(len));
-                initWithActData(actInitData, actInitRtnData);
-            }
+            initWithActData(actInitData, actInitRtnData);
+
             if (queryOwner() && !isGlobal())
             {
                 // initialize any for which no data was sent
@@ -527,7 +531,7 @@ void CSlaveGraph::executeSubGraph(size32_t parentExtractSz, const byte *parentEx
     }
     catch (IException *e)
     {
-        GraphPrintLog(e, NULL);
+        GraphPrintLog(e, "In executeSubGraph");
         exception.setown(e);
     }
     if (TAG_NULL != executeReplyTag)
@@ -555,7 +559,7 @@ void CSlaveGraph::create(size32_t parentExtractSz, const byte *parentExtract)
         {
             CMessageBuffer msg;
             // nothing changed if rerunning, unless conditional branches different
-            if (!receiveMsg(msg, 0, mpTag, NULL, LONGTIMEOUT))
+            if (!graphCancelHandler.recv(queryJob().queryJobComm(), msg, 0, mpTag, NULL, LONGTIMEOUT))
                 throw MakeStringException(0, "Error receiving createctx data for graph: %"GIDPF"d", graphId);
             try
             {
@@ -643,7 +647,7 @@ void CSlaveGraph::done()
     }
     catch (IException *e)
     {
-        GraphPrintLog(e, NULL);
+        GraphPrintLog(e, "In CSlaveGraph::done");
         exception.setown(e);
     }
     if (exception.get())
@@ -897,7 +901,7 @@ IThorResult *CSlaveGraph::getGlobalResult(CActivityBase &activity, IRowInterface
 
 ///////////////////////////
 
-class CThorCodeContextSlave : public CThorCodeContextBase
+class CThorCodeContextSlave : public CThorCodeContextBase, implements IEngineContext
 {
     mptag_t mptag;
     Owned<IDistributedFileTransaction> superfiletransaction;
@@ -989,6 +993,19 @@ public:
         job.fireException(e);
     }
     virtual unsigned __int64 getDatasetHash(const char * name, unsigned __int64 hash)   { throwUnexpected(); }      // Should only call from master
+    virtual IEngineContext *queryEngineContext() { return this; }
+// IEngineContext impl.
+    virtual DALI_UID getGlobalUniqueIds(unsigned num, SocketEndpoint *_foreignNode)
+    {
+        if (num==0)
+            return 0;
+        SocketEndpoint foreignNode;
+        if (_foreignNode && !_foreignNode->isNull())
+            foreignNode.set(*_foreignNode);
+        else
+            foreignNode.set(globals->queryProp("@DALISERVERS"));
+        return ::getGlobalUniqueIds(num, &foreignNode);
+    }
 };
 
 class CSlaveGraphTempHandler : public CGraphTempHandler
@@ -1086,13 +1103,11 @@ void CJobSlave::startJob()
         startPerformanceMonitor(pinterval,PerfMonStandard,perfmonhook);
     }
     PrintMemoryStatusLog();
-    unsigned __int64 freeSpace = getFreeSpace(queryBaseDirectory());
-    unsigned __int64 freeSpaceRep = getFreeSpace(queryBaseDirectory(true));
-    PROGLOG("Disk space: %s = %"I64F"d, %s = %"I64F"d", queryBaseDirectory(), freeSpace/0x100000, queryBaseDirectory(true), freeSpaceRep/0x100000);
-
+    logDiskSpace();
     unsigned minFreeSpace = (unsigned)getWorkUnitValueInt("MINIMUM_DISK_SPACE", 0);
     if (minFreeSpace)
     {
+        unsigned __int64 freeSpace = getFreeSpace(queryBaseDirectory());
         if (freeSpace < ((unsigned __int64)minFreeSpace)*0x100000)
         {
             SocketEndpoint ep;
@@ -1187,7 +1202,7 @@ bool ensurePrimary(CActivityBase *activity, IPartDescriptor &partDesc, OwnedIFil
     }
     catch (IException *e)
     {
-        ActPrintLog(&activity->queryContainer(), e, NULL);
+        ActPrintLog(&activity->queryContainer(), e, "In ensurePrimary");
         e->Release();
     }
     unsigned l;

@@ -89,9 +89,46 @@ static void sendSoapException(SafeSocket &client, IException *E, const char *que
 #endif
 }
 
+static void sendJsonException(SafeSocket &client, IException *E, const char *queryName)
+{
+    try
+    {
+        if (!queryName)
+            queryName = "Unknown"; // Exceptions when parsing query XML can leave queryName unset/unknowable....
+
+        StringBuffer response("{");
+        appendfJSONName(response, "%sResponse", queryName).append(" {");
+        appendJSONName(response, "Results").append(" {");
+        appendJSONName(response, "Exception").append(" [{");
+        appendJSONValue(response, "Source", "Roxie");
+        appendJSONValue(response, "Code", E->errorCode());
+        StringBuffer s;
+        appendJSONValue(response, "Message", E->errorMessage(s).str());
+        response.append("}]}}}");
+        client.write(response.str(), response.length());
+    }
+    catch(IException *EE)
+    {
+        StringBuffer error("While reporting exception: ");
+        DBGLOG("%s", EE->errorMessage(error).str());
+        EE->Release();
+    }
+#ifndef _DEBUG
+    catch(...) {}
+#endif
+}
+
+static void sendHttpException(SafeSocket &client, TextMarkupFormat fmt, IException *E, const char *queryName)
+{
+    if (fmt==MarkupFmt_JSON)
+        sendJsonException(client, E, queryName);
+    else
+        sendSoapException(client, E, queryName);
+}
+
 //================================================================================================================
 
-class CSoapRequestAsyncFor : public CInterface, public CAsyncFor
+class CHttpRequestAsyncFor : public CInterface, public CAsyncFor
 {
 private:
     const char *queryName, *queryText;
@@ -100,13 +137,13 @@ private:
     Linked<IQueryFactory> f;
     SafeSocket &client;
     HttpHelper &httpHelper;
-    XmlReaderOptions xmlReadFlags;
+    PTreeReaderOptions xmlReadFlags;
     unsigned &memused;
     unsigned &slaveReplyLen;
     CriticalSection crit;
 
 public:
-    CSoapRequestAsyncFor(const char *_queryName, IQueryFactory *_f, IArrayOf<IPropertyTree> &_requestArray, SafeSocket &_client, HttpHelper &_httpHelper, unsigned &_memused, unsigned &_slaveReplyLen, const char *_queryText, const IRoxieContextLogger &_logctx, XmlReaderOptions _xmlReadFlags) :
+    CHttpRequestAsyncFor(const char *_queryName, IQueryFactory *_f, IArrayOf<IPropertyTree> &_requestArray, SafeSocket &_client, HttpHelper &_httpHelper, unsigned &_memused, unsigned &_slaveReplyLen, const char *_queryText, const IRoxieContextLogger &_logctx, PTreeReaderOptions _xmlReadFlags) :
       f(_f), requestArray(_requestArray), client(_client), httpHelper(_httpHelper), memused(_memused), slaveReplyLen(_slaveReplyLen), logctx(_logctx), xmlReadFlags(_xmlReadFlags)
     {
         queryName = _queryName;
@@ -122,7 +159,7 @@ public:
         StringBuffer error("EXCEPTION: ");
         E->errorMessage(error);
         DBGLOG("%s", error.str());
-        sendSoapException(client, E, queryName);
+        sendHttpException(client, httpHelper.queryContentFormat(), E, queryName);
         E->Release();
     }
 
@@ -131,7 +168,7 @@ public:
         try
         {
             IPropertyTree &request = requestArray.item(idx);
-            Owned<IRoxieServerContext> ctx = f->createContext(&request, client, true, false, false, httpHelper, true, logctx, xmlReadFlags);
+            Owned<IRoxieServerContext> ctx = f->createContext(&request, client, httpHelper.queryContentFormat(), false, false, httpHelper, true, logctx, xmlReadFlags);
             ctx->process();
             ctx->flush(idx);
             CriticalBlock b(crit);
@@ -825,6 +862,15 @@ public:
         }
     }
 
+    virtual void disconnectQueue()
+    {
+        if (queue)
+        {
+            DBGLOG("RoxieWorkUnitListener::disconnectQueue");
+            queue->cancelAcceptConversation();
+        }
+    }
+
     virtual int run()
     {
         running = true;
@@ -845,7 +891,7 @@ public:
                         queue.setown(createJobQueue(queueNames.str()));
                         queue->connect();
                         daliHelper->noteQueuesRunning(queueNames.str());
-                        while (running)
+                        while (running && daliHelper->connected())
                         {
                             Owned<IJobQueueItem> item = queue->dequeue();
                             if (item.get())
@@ -857,7 +903,7 @@ public:
                         }
                         queue.clear();
                     }
-                    catch (IDaliClient_Exception *E)
+                    catch (IException *E)
                     {
                         if (traceLevel)
                             EXCLOG(E, "roxie: Dali connection lost");
@@ -871,7 +917,8 @@ public:
             {
                 if (traceLevel)
                     DBGLOG("roxie: Waiting for dali connection before waiting for queue");
-                daliHelper->waitConnected();
+                while (running && !daliHelper->connected())
+                    Sleep(ROXIE_DALI_CONNECT_TIMEOUT);
             }
         }
         return 0;
@@ -901,6 +948,11 @@ public:
         if (socket)
             socket->cancel_accept();
         return RoxieListener::stop(timeout);
+    }
+
+    virtual void disconnectQueue()
+    {
+        // This is for dali queues only
     }
 
     virtual void stopListening()
@@ -1022,17 +1074,6 @@ protected:
     unsigned qstart;
     time_t startTime;
 
-    inline RoxieQueryStats &getStats(unsigned priority)
-    {
-        switch(priority)
-        {
-        case 0: return loQueryStats;
-        case 1: return hiQueryStats;
-        case 2: return slaQueryStats;
-        default: return unknownQueryStats;
-        }
-    }
-
     void noteQuery(bool failed, unsigned elapsedTime, unsigned priority)
     {
         Owned <IJlibDateTime> now = createDateTimeNow();
@@ -1042,8 +1083,14 @@ protected:
         lastQueryTime = h*10000 + m * 100 + s;
         lastQueryDate = y*10000 + mo * 100 + d;
 
-        RoxieQueryStats &stats = getStats(priority);
-        stats.noteQuery(failed, elapsedTime);
+        switch(priority)
+        {
+        case 0: loQueryStats.noteQuery(failed, elapsedTime); break;
+        case 1: hiQueryStats.noteQuery(failed, elapsedTime); break;
+        case 2: slaQueryStats.noteQuery(failed, elapsedTime); break;
+        default: unknownQueryStats.noteQuery(failed, elapsedTime); return; // Don't include unknown in the combined stats
+        }
+        combinedQueryStats.noteQuery(failed, elapsedTime);
     }
 };
 
@@ -1125,6 +1172,7 @@ public:
             case 1: hiQueryStats.noteActive(); break;
             case 2: slaQueryStats.noteActive(); break;
             }
+            combinedQueryStats.noteActive();
             Owned<IRoxieServerContext> ctx = queryFactory->createContext(wu, logctx);
             try
             {
@@ -1250,16 +1298,31 @@ private:
         }
     }
 
-    void sanitizeQuery(Owned<IPropertyTree> &queryXML, StringAttr &queryName, StringBuffer &saniText, bool isHTTP, const char *&uid, bool &isRequest, bool &isRequestArray, bool &isBlind, bool &isDebug)
+    void sanitizeQuery(Owned<IPropertyTree> &queryXML, StringAttr &queryName, StringBuffer &saniText, HttpHelper &httpHelper, const char *&uid, bool &isRequest, bool &isRequestArray, bool &isBlind, bool &isDebug)
     {
         if (queryXML)
         {
             queryName.set(queryXML->queryName());
             isRequest = false;
             isRequestArray = false;
-            if (isHTTP)
+            if (httpHelper.isHttp())
             {
-                if (stricmp(queryName, "envelope") == 0)
+                if (httpHelper.queryContentFormat()==MarkupFmt_JSON)
+                {
+                    if (strieq(queryName, "__object__"))
+                    {
+                        queryXML.setown(queryXML->getPropTree("*[1]"));
+                        queryName.set(queryXML->queryName());
+                        isRequest = true;
+                        if (!queryXML)
+                            throw MakeStringException(ROXIE_DATA_ERROR, "Malformed JSON request (missing Body)");
+                    }
+                    else if (strieq(queryName, "__array__"))
+                        throw MakeStringException(ROXIE_DATA_ERROR, "JSON request array not implemented");
+                    else
+                        throw MakeStringException(ROXIE_DATA_ERROR, "Malformed JSON request");
+                }
+                else if (strieq(queryName, "envelope"))
                 {
                     queryXML.setown(queryXML->getPropTree("Body/*"));
                     if (!queryXML)
@@ -1301,7 +1364,13 @@ private:
         else
             throw MakeStringException(ROXIE_DATA_ERROR, "Malformed request");
     }
-
+    void parseQueryPTFromString(Owned<IPropertyTree> &queryPT, HttpHelper &httpHelper, const char *text, PTreeReaderOptions options)
+    {
+        if (strieq(httpHelper.queryContentType(), "application/json"))
+            queryPT.setown(createPTreeFromJSONString(text, ipt_caseInsensitive, options));
+        else
+            queryPT.setown(createPTreeFromXMLString(text, ipt_caseInsensitive, options));
+    }
     void doMain(const char *runQuery)
     {
         StringBuffer rawText(runQuery);
@@ -1351,7 +1420,7 @@ readAnother:
             return;
         }
 
-        bool isXml = true;
+        TextMarkupFormat mlFmt = MarkupFmt_XML;
         bool isRaw = false;
         bool isHTTP = httpHelper.isHttp();
         bool isBlocked = false;
@@ -1375,7 +1444,7 @@ readAnother:
             {
                 if (logctx.queryTraceLevel() > 8)
                     logctx.CTXLOG("Got lock request %s", rawText.str());
-                FlushingStringBuffer response(client, false, true, false, false, logctx);
+                FlushingStringBuffer response(client, false, MarkupFmt_XML, false, false, logctx);
                 response.startDataset("Control", NULL, (unsigned) -1);
                 if (!cascade)
                     cascade.setown(new CascadeManager(logctx));
@@ -1388,13 +1457,14 @@ readAnother:
                 unsigned replyLen = 0;
                 client->write(&replyLen, sizeof(replyLen));
                 rawText.clear();
+                unknownQueryStats.noteComplete();
                 goto readAnother;
             }
             else if (strnicmp(rawText.str(), "<control:childlock", 18)==0 && !isalpha(rawText.charAt(18)))
             {
                 if (logctx.queryTraceLevel() > 8)
                     logctx.CTXLOG("Got childlock request %s", rawText.str());
-                FlushingStringBuffer response(client, false, true, false, false, logctx);
+                FlushingStringBuffer response(client, false, MarkupFmt_XML, false, false, logctx);
                 response.startDataset("Control", NULL, (unsigned) -1);
                 if (!cascade)
                     cascade.setown(new CascadeManager(logctx));
@@ -1416,12 +1486,12 @@ readAnother:
                 queryXML.clear();
                 bool doControlQuery = true;
 
-                FlushingStringBuffer response(client, false, true, false, isHTTP, logctx);
+                FlushingStringBuffer response(client, false, MarkupFmt_XML, false, isHTTP, logctx);
                 response.startDataset("Control", NULL, (unsigned) -1);
 
                 if (strnicmp(rawText.str(), "<control:aclupdate", 18)==0 && !isalpha(rawText.charAt(18)))
                 {
-                    queryXml.setown(createPTreeFromXMLString(rawText.str(), ipt_caseInsensitive, (XmlReaderOptions)(xr_ignoreWhiteSpace|xr_ignoreNameSpaces)));
+                    queryXml.setown(createPTreeFromXMLString(rawText.str(), ipt_caseInsensitive, (PTreeReaderOptions)(ptr_ignoreWhiteSpace|ptr_ignoreNameSpaces)));
                     IPropertyTree *aclTree = queryXml->queryPropTree("ACL");
                     if (aclTree)
                     {
@@ -1475,7 +1545,7 @@ readAnother:
             {
                 try
                 {
-                    queryXml.setown(createPTreeFromXMLString(rawText.str(), ipt_caseInsensitive, (XmlReaderOptions)(defaultXmlReadFlags | xr_ignoreNameSpaces)));
+                    parseQueryPTFromString(queryXml, httpHelper, rawText.str(), (PTreeReaderOptions)(defaultXmlReadFlags | ptr_ignoreNameSpaces));
                 }
                 catch (IException *E)
                 {
@@ -1488,7 +1558,7 @@ readAnother:
                 bool isBlind = false;
                 bool isDebug = false;
 
-                sanitizeQuery(queryXml, queryName, sanitizedText, isHTTP, uid, isRequest, isRequestArray, isBlind, isDebug);
+                sanitizeQuery(queryXml, queryName, sanitizedText, httpHelper, uid, isRequest, isRequestArray, isBlind, isDebug);
                 pool->checkAccess(peer, queryName, sanitizedText, isBlind);
                 if (isDebug)
                 {
@@ -1521,7 +1591,7 @@ readAnother:
                         if (!debugCmdHandler.get())
                             debugCmdHandler.setown(new CDebugCommandHandler);
                     }
-                    FlushingStringBuffer response(client, false, true, false, isHTTP, logctx);
+                    FlushingStringBuffer response(client, false, MarkupFmt_XML, false, isHTTP, logctx);
                     response.startDataset("Debug", NULL, (unsigned) -1);
                     debugCmdHandler->doDebugCommand(queryXml, debuggerContext, response);
                 }
@@ -1548,18 +1618,18 @@ readAnother:
                     {
                         queryFactory.setown(globalPackageSetManager->getQuery(queryName, logctx));
                         if (isHTTP)
-                            client->setHttpMode(queryName, isRequestArray);
+                            client->setHttpMode(queryName, isRequestArray, httpHelper.queryContentFormat());
                         if (queryFactory)
                         {
-                            bool stripWhitespace = queryFactory->getDebugValueBool("stripWhitespaceFromStoredDataset", 0 != (xr_ignoreWhiteSpace & defaultXmlReadFlags));
+                            bool stripWhitespace = queryFactory->getDebugValueBool("stripWhitespaceFromStoredDataset", 0 != (ptr_ignoreWhiteSpace & defaultXmlReadFlags));
                             stripWhitespace = queryXml->getPropBool("_stripWhitespaceFromStoredDataset", stripWhitespace);
-                            XmlReaderOptions xmlReadFlags = (XmlReaderOptions)((defaultXmlReadFlags & ~xr_ignoreWhiteSpace) |
-                                                                               (stripWhitespace ? xr_ignoreWhiteSpace : xr_none));
+                            PTreeReaderOptions xmlReadFlags = (PTreeReaderOptions)((defaultXmlReadFlags & ~ptr_ignoreWhiteSpace) |
+                                                                               (stripWhitespace ? ptr_ignoreWhiteSpace : ptr_none));
                             if (xmlReadFlags != defaultXmlReadFlags)
                             {
                                 // we need to reparse input xml, as global whitespace setting has been overridden
-                                queryXml.setown(createPTreeFromXMLString(rawText.str(), ipt_caseInsensitive, (XmlReaderOptions)(xmlReadFlags|xr_ignoreNameSpaces)));
-                                sanitizeQuery(queryXml, queryName, sanitizedText, isHTTP, uid, isRequest, isRequestArray, isBlind, isDebug);
+                                parseQueryPTFromString(queryXml, httpHelper, rawText.str(), (PTreeReaderOptions)(xmlReadFlags | ptr_ignoreNameSpaces));
+                                sanitizeQuery(queryXml, queryName, sanitizedText, httpHelper, uid, isRequest, isRequestArray, isBlind, isDebug);
                             }
                             IArrayOf<IPropertyTree> requestArray;
                             if (isHTTP)
@@ -1601,7 +1671,7 @@ readAnother:
                                     if (stricmp(format, "raw") == 0)
                                     {
                                         isRaw = true;
-                                        isXml = false;
+                                        mlFmt = MarkupFmt_Unknown;
                                         isBlocked = (client != NULL);
                                     }
                                     else if (stricmp(format, "bxml") == 0)
@@ -1611,7 +1681,7 @@ readAnother:
                                     else if (stricmp(format, "ascii") == 0)
                                     {
                                         isRaw = false;
-                                        isXml = false;
+                                        mlFmt = MarkupFmt_Unknown;
                                     }
                                     else if (stricmp(format, "xml") != 0) // xml is the default
                                         throw MakeStringException(ROXIE_INVALID_INPUT, "Unsupported format specified: %s", format);
@@ -1629,14 +1699,15 @@ readAnother:
                             case 2: slaQueryStats.noteActive(); break;
                             }
                             unknownQueryStats.noteComplete();
+                            combinedQueryStats.noteActive();
                             if (isHTTP)
                             {
-                                CSoapRequestAsyncFor af(queryName, queryFactory, requestArray, *client, httpHelper, memused, slavesReplyLen, sanitizedText, logctx, xmlReadFlags);
+                                CHttpRequestAsyncFor af(queryName, queryFactory, requestArray, *client, httpHelper, memused, slavesReplyLen, sanitizedText, logctx, xmlReadFlags);
                                 af.For(requestArray.length(), numRequestArrayThreads);
                             }
                             else
                             {
-                                Owned<IRoxieServerContext> ctx = queryFactory->createContext(queryXml, *client, isXml, isRaw, isBlocked, httpHelper, trim, logctx, xmlReadFlags);
+                                Owned<IRoxieServerContext> ctx = queryFactory->createContext(queryXml, *client, mlFmt, isRaw, isBlocked, httpHelper, trim, logctx, xmlReadFlags);
                                 if (client && !ctx->outputResultsToSocket())
                                 {
                                     unsigned replyLen = 0;
@@ -1708,7 +1779,7 @@ readAnother:
             if (client)
             {
                 if (isHTTP)
-                    sendSoapException(*client, E, queryName);
+                    sendHttpException(*client, mlFmt, E, queryName);
                 else
                     client->sendException("Roxie", code, error.str(), isBlocked, logctx);
             }
@@ -1784,7 +1855,7 @@ readAnother:
                 {
                     if (logctx.intercept)
                     {
-                        FlushingStringBuffer response(client, isBlocked, isXml, isRaw, false, logctx);
+                        FlushingStringBuffer response(client, isBlocked, mlFmt, isRaw, false, logctx);
                         response.startDataset("Tracing", NULL, (unsigned) -1);
                         logctx.outputXML(response);
                     }
@@ -1814,6 +1885,14 @@ readAnother:
 //=================================================================================
 
 IArrayOf<IRoxieListener> socketListeners;
+
+extern void disconnectRoxieQueues()
+{
+    ForEachItemIn(idx, socketListeners)
+    {
+        socketListeners.item(idx).disconnectQueue();
+    }
+}
 
 IPooledThread *RoxieWorkUnitListener::createNew()
 {

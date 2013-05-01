@@ -34,6 +34,7 @@
 #include "hqlpmap.hpp"
 #include "hqlopt.hpp"
 #include "hqlcerrors.hpp"
+#include "hqlscope.hpp"
 #include "hqlsource.ipp"
 #include "hqlvalid.hpp"
 #include "hqlerror.hpp"
@@ -231,12 +232,6 @@ static IHqlExpression * addAttrOwnToDataset(IHqlExpression * dataset, IHqlExpres
 static IHqlExpression * mergeLimitIntoDataset(IHqlExpression * dataset, IHqlExpression * limit)
 {
     return addAttrOwnToDataset(dataset, createAttribute(limitAtom, LINK(limit->queryChild(1)), LINK(limit->queryChild(2))));
-}
-
-void checkDependencyConsistency(WorkflowArray & workflow)
-{
-    ForEachItemIn(icheck, workflow)
-        checkDependencyConsistency(workflow.item(icheck).queryExprs());
 }
 
 //---------------------------------------------------------------------------
@@ -658,7 +653,6 @@ IHqlExpression * HqlThorBoundaryTransformer::createTransformed(IHqlExpression * 
     case no_field:
     case no_constant:
     case no_attr:
-    case no_attr_expr:
     case no_attr_link:
     case no_getresult:
     case no_left:
@@ -992,7 +986,8 @@ void HqlCppTranslator::markThorBoundaries(WorkflowArray & array)
     HqlThorBoundaryTransformer thorTransformer(wu(), targetRoxie(), options.maxRootMaybeThorActions, options.resourceConditionalActions, options.resourceSequential);
     ForEachItemIn(idx, array)
     {
-        HqlExprArray & exprs = array.item(idx).queryExprs();
+        WorkflowItem & cur = array.item(idx);
+        HqlExprArray & exprs = cur.queryExprs();
         HqlExprArray bounded;
 
         thorTransformer.transformRoot(exprs, bounded);
@@ -1197,7 +1192,8 @@ static void normalizeResultFormat(WorkflowArray & workflow, const HqlCppOptions 
 {
     ForEachItemIn(idx, workflow)
     {
-        HqlExprArray & exprs = workflow.item(idx).queryExprs();
+        WorkflowItem & cur = workflow.item(idx);
+        HqlExprArray & exprs = cur.queryExprs();
 
         //Until thor has a way of calling a graph and returning a result we need to call this transformer, so that
         //scalars that need to be evaluated in thor are correctly hoisted.
@@ -1759,7 +1755,7 @@ static IHqlExpression * simplifySortlistComplexity(IHqlExpression * sortlist)
     return NULL;
 }
 
-static IHqlExpression * normalizeIndexBuild(IHqlExpression * expr, bool sortIndexPayload, bool alwaysLocal, bool allowImplicitShuffle)
+static IHqlExpression * normalizeIndexBuild(IHqlExpression * expr, bool sortIndexPayload, bool alwaysLocal, bool allowImplicitSubSort)
 {
     LinkedHqlExpr dataset = expr->queryChild(0);
     IHqlExpression * normalizedDs = dataset->queryNormalizedSelector();
@@ -1880,7 +1876,7 @@ static IHqlExpression * normalizeIndexBuild(IHqlExpression * expr, bool sortInde
             }
         }
 
-        OwnedHqlExpr sorted = ensureSorted(dataset, newsort, expr->hasProperty(localAtom), true, alwaysLocal, allowImplicitShuffle);
+        OwnedHqlExpr sorted = ensureSorted(dataset, newsort, expr->hasProperty(localAtom), true, alwaysLocal, allowImplicitSubSort);
         if (sorted == dataset)
             return NULL;
 
@@ -1950,8 +1946,8 @@ IHqlExpression * ThorHqlTransformer::createTransformed(IHqlExpression * expr)
     case no_assertsorted:
         normalized = normalizeSort(transformed);
         break;
-    case no_shuffle:
-        normalized = normalizeShuffle(transformed);
+    case no_subsort:
+        normalized = normalizeSubSort(transformed);
         break;
     case no_cogroup:
         normalized = normalizeCoGroup(transformed);
@@ -2133,7 +2129,7 @@ IHqlExpression * ThorHqlTransformer::normalizeDedup(IHqlExpression * expr)
             if (hasLocal && translator.targetThor())
             {
                 HqlExprArray dedupArgs;
-                dedupArgs.append(*ensureSortedForGroup(dataset, groupOrder, true, false, options.implicitGroupShuffle));
+                dedupArgs.append(*ensureSortedForGroup(dataset, groupOrder, true, false, options.implicitGroupSubSort));
                 unwindChildren(dedupArgs, expr, 1);
                 removeProperty(dedupArgs, allAtom);
                 return expr->clone(dedupArgs);
@@ -2206,25 +2202,52 @@ IHqlExpression * ThorHqlTransformer::normalizeRollup(IHqlExpression * expr)
 
         if (equalities.ordinality())
         {
-            OwnedHqlExpr groupOrder = createValueSafe(no_sortlist, makeSortListType(NULL), equalities);
+            OwnedHqlExpr left = createSelector(no_left, dataset, querySelSeq(expr));
 
-            if (isPartitionedForGroup(dataset, groupOrder, false))
-                return appendOwnedOperand(expr, createLocalAttribute());
+            //If anything in the join condition references LEFT then the whole condition is currently passed the modified row
+            //so remove any fields that are modified in the transform
+            HqlExprArray ambiguousSelects;
+            if (cond->usesSelector(left))
+                filterAmbiguousRollupCondition(ambiguousSelects, equalities, expr);
 
-            HqlExprArray groupArgs, rollupArgs;
-            groupArgs.append(*LINK(dataset));
-            groupArgs.append(*LINK(groupOrder));
-
-            OwnedHqlExpr group = createDataset(no_group, groupArgs);
-            group.setown(cloneInheritedAnnotations(expr, group));
-            rollupArgs.append(*LINK(group));
-            if (extra)
-                rollupArgs.append(*extra.getClear());
+            if (equalities.ordinality() == 0)
+            {
+                translator.reportWarning(queryLocation(expr), ECODETEXT(HQLWRN_AmbiguousRollupNoGroup));
+            }
             else
-                rollupArgs.append(*createConstant(true));
-            unwindChildren(rollupArgs, expr, 2);
-            OwnedHqlExpr ungroup = createDataset(no_group, expr->clone(rollupArgs), NULL);
-            return cloneInheritedAnnotations(expr, ungroup);
+            {
+                OwnedHqlExpr groupOrder = createValueSafe(no_sortlist, makeSortListType(NULL), equalities);
+
+                if (isPartitionedForGroup(dataset, groupOrder, false))
+                    return appendOwnedOperand(expr, createLocalAttribute());
+
+                //This list can only contain items if the filter is using left/right => expand to an equality
+                IHqlExpression * selector = dataset->queryNormalizedSelector();
+                OwnedHqlExpr right = createSelector(no_right, dataset, querySelSeq(expr));
+                ForEachItemIn(i, ambiguousSelects)
+                {
+                    IHqlExpression * select = &ambiguousSelects.item(i);
+                    OwnedHqlExpr leftSelect = replaceSelector(select, selector, left);
+                    OwnedHqlExpr rightSelect = replaceSelector(select, selector, right);
+                    IHqlExpression * eq = createBoolExpr(no_eq, leftSelect.getClear(), rightSelect.getClear());
+                    extendConditionOwn(extra, no_and, eq);
+                }
+
+                HqlExprArray groupArgs, rollupArgs;
+                groupArgs.append(*LINK(dataset));
+                groupArgs.append(*LINK(groupOrder));
+
+                OwnedHqlExpr group = createDataset(no_group, groupArgs);
+                group.setown(cloneInheritedAnnotations(expr, group));
+                rollupArgs.append(*LINK(group));
+                if (extra)
+                    rollupArgs.append(*extra.getClear());
+                else
+                    rollupArgs.append(*createConstant(true));
+                unwindChildren(rollupArgs, expr, 2);
+                OwnedHqlExpr ungroup = createDataset(no_group, expr->clone(rollupArgs), NULL);
+                return cloneInheritedAnnotations(expr, ungroup);
+            }
         }
     }
 
@@ -2310,7 +2333,7 @@ IHqlExpression * ThorHqlTransformer::normalizeGroup(IHqlExpression * expr)
 
     //First check to see if the dataset is already sorted by the group criteria, or more.
     //The the data could be globally sorted, but not distributed, and this is likely to be more efficient than redistributing...
-    OwnedHqlExpr sorted = ensureSortedForGroup(dataset, sortlist, hasLocal, !translator.targetThor(), options.implicitGroupShuffle);
+    OwnedHqlExpr sorted = ensureSortedForGroup(dataset, sortlist, hasLocal, !translator.targetThor(), options.implicitGroupSubSort);
     if (sorted == dataset)
         return removeProperty(expr, allAtom);
     sorted.setown(cloneInheritedAnnotations(expr, sorted));
@@ -2448,7 +2471,7 @@ IHqlExpression * ThorHqlTransformer::normalizeCoGroup(IHqlExpression * expr)
         {
             IHqlExpression & cur = inputs.item(i);
             OwnedHqlExpr mappedOrder = replaceSelector(bestSortOrder, queryActiveTableSelector(), &cur);
-            sortedInputs.append(*ensureSorted(&cur, mappedOrder, true, true, alwaysLocal, options.implicitShuffle));
+            sortedInputs.append(*ensureSorted(&cur, mappedOrder, true, true, alwaysLocal, options.implicitSubSort));
         }
         HqlExprArray sortedArgs;
         unwindChildren(sortedArgs, bestSortOrder);
@@ -2473,7 +2496,7 @@ IHqlExpression * ThorHqlTransformer::normalizeCoGroup(IHqlExpression * expr)
     return expr->cloneAllAnnotations(grouped);
 }
 
-static IHqlExpression * getNonThorSortedJoinInput(IHqlExpression * joinExpr, IHqlExpression * dataset, HqlExprArray & sorts, bool implicitShuffle)
+static IHqlExpression * getNonThorSortedJoinInput(IHqlExpression * joinExpr, IHqlExpression * dataset, HqlExprArray & sorts, bool implicitSubSort)
 {
     if (!sorts.length())
         return LINK(dataset);
@@ -2490,7 +2513,7 @@ static IHqlExpression * getNonThorSortedJoinInput(IHqlExpression * joinExpr, IHq
     groupOrder.setown(replaceSelector(groupOrder, queryActiveTableSelector(), expr->queryNormalizedSelector()));
 
     //not used for thor, so sort can be local
-    OwnedHqlExpr table = ensureSorted(expr, groupOrder, false, true, true, implicitShuffle);
+    OwnedHqlExpr table = ensureSorted(expr, groupOrder, false, true, true, implicitSubSort);
     if (table != expr)
         table.setown(cloneInheritedAnnotations(joinExpr, table));
 
@@ -2509,7 +2532,7 @@ static bool sameOrGrouped(IHqlExpression * newLeft, IHqlExpression * oldLeft)
     return (newLeft->queryBody() == oldLeft->queryBody());
 }
 
-bool canReorderMatchExistingLocalSort(HqlExprArray & newElements1, HqlExprArray & newElements2, IHqlExpression * ds1, Shared<IHqlExpression> & ds2, const HqlExprArray & elements1, HqlExprArray & elements2, bool canShuffle, bool isLocal, bool alwaysLocal)
+bool canReorderMatchExistingLocalSort(HqlExprArray & newElements1, HqlExprArray & newElements2, IHqlExpression * ds1, Shared<IHqlExpression> & ds2, const HqlExprArray & elements1, HqlExprArray & elements2, bool canSubSort, bool isLocal, bool alwaysLocal)
 {
     newElements1.kill();
     newElements2.kill();
@@ -2518,12 +2541,12 @@ bool canReorderMatchExistingLocalSort(HqlExprArray & newElements1, HqlExprArray 
         if (isAlreadySorted(ds2, newElements2, isLocal||alwaysLocal, true))
             return true;
 
-        if (canShuffle && isWorthShuffling(ds2, newElements2, isLocal||alwaysLocal, true))
+        if (canSubSort && isWorthShuffling(ds2, newElements2, isLocal||alwaysLocal, true))
         {
-            OwnedHqlExpr shuffled = getShuffleSort(ds2, newElements2, isLocal, true, alwaysLocal);
-            if (shuffled)
+            OwnedHqlExpr subsorted = getSubSort(ds2, newElements2, isLocal, true, alwaysLocal);
+            if (subsorted)
             {
-                ds2.swap(shuffled);
+                ds2.swap(subsorted);
                 return true;
             }
         }
@@ -2673,13 +2696,13 @@ IHqlExpression * ThorHqlTransformer::normalizeJoinOrDenormalize(IHqlExpression *
             //Since the distribution and order of global joins is not defined this could probably be used for non-local as well.
             LinkedHqlExpr newLeftDs = leftDs;
             LinkedHqlExpr newRightDs = rightDs;
-            bool canShuffle = options.shuffleLocalJoinConditions;
+            bool canSubSort = options.subsortLocalJoinConditions;
             bool reordered = canReorderMatchExistingLocalSort(sortedLeft, sortedRight, newLeftDs, newRightDs,
-                                                              leftSorts, rightSorts, canShuffle, isLocal, alwaysLocal);
-            //If allowed to shuffle then try the otherway around
-            if (!reordered && canShuffle)
+                                                              leftSorts, rightSorts, canSubSort, isLocal, alwaysLocal);
+            //If allowed to subsort then try the otherway around
+            if (!reordered && canSubSort)
                 reordered = canReorderMatchExistingLocalSort(sortedRight, sortedLeft, newRightDs, newLeftDs,
-                                                             rightSorts, leftSorts, canShuffle, isLocal, alwaysLocal);
+                                                             rightSorts, leftSorts, canSubSort, isLocal, alwaysLocal);
 
             if (reordered)
             {
@@ -2742,8 +2765,8 @@ IHqlExpression * ThorHqlTransformer::normalizeJoinOrDenormalize(IHqlExpression *
             return expr->clone(args);
         }
 
-        OwnedHqlExpr newLeft = getNonThorSortedJoinInput(expr, leftDs, leftSorts, options.implicitShuffle);
-        OwnedHqlExpr newRight = getNonThorSortedJoinInput(expr, rightDs, rightSorts, options.implicitShuffle);
+        OwnedHqlExpr newLeft = getNonThorSortedJoinInput(expr, leftDs, leftSorts, options.implicitSubSort);
+        OwnedHqlExpr newRight = getNonThorSortedJoinInput(expr, rightDs, rightSorts, options.implicitSubSort);
         try
         {
             if ((leftDs != newLeft) || (rightDs != newRight))
@@ -2800,15 +2823,15 @@ IHqlExpression * ThorHqlTransformer::normalizeJoinOrDenormalize(IHqlExpression *
         }
     }
 
-    if (isThorCluster(targetClusterType) && isLocal && options.implicitJoinShuffle)
+    if (isThorCluster(targetClusterType) && isLocal && options.implicitJoinSubSort)
     {
         IHqlExpression * noSortAttr = expr->queryProperty(noSortAtom);
         OwnedHqlExpr newLeft;
         OwnedHqlExpr newRight;
         if (!userPreventsSort(noSortAttr, no_left))
-            newLeft.setown(getShuffleSort(leftDs, leftSorts, isLocal, true, alwaysLocal));
+            newLeft.setown(getSubSort(leftDs, leftSorts, isLocal, true, alwaysLocal));
         if (!userPreventsSort(noSortAttr, no_right))
-            newRight.setown(getShuffleSort(rightDs, rightSorts, isLocal, true, alwaysLocal));
+            newRight.setown(getSubSort(rightDs, rightSorts, isLocal, true, alwaysLocal));
         if (newLeft || newRight)
         {
             HqlExprArray args;
@@ -2925,18 +2948,18 @@ IHqlExpression * ThorHqlTransformer::normalizeSort(IHqlExpression * expr)
     if (op == no_sorted)
         return normalizeSortSteppedIndex(expr, sortedAtom);
 
-    //NOTE: We can't convert a global sort to a shuffle because that will change the distribution
-    if (options.implicitShuffle && (isLocal || alwaysLocal) && (op != no_assertsorted))
+    //NOTE: We can't convert a global sort to a subsort because that will change the distribution
+    if (options.implicitSubSort && (isLocal || alwaysLocal) && (op != no_assertsorted))
     {
-        OwnedHqlExpr shuffled = getShuffleSort(dataset, sortlist, isLocal, false, alwaysLocal);
-        if (shuffled)
-            return dataset->cloneAllAnnotations(shuffled);
+        OwnedHqlExpr subsorted = getSubSort(dataset, sortlist, isLocal, false, alwaysLocal);
+        if (subsorted)
+            return dataset->cloneAllAnnotations(subsorted);
     }
     return NULL;
 }
 
 
-IHqlExpression * ThorHqlTransformer::normalizeShuffle(IHqlExpression * expr)
+IHqlExpression * ThorHqlTransformer::normalizeSubSort(IHqlExpression * expr)
 {
     IHqlExpression * dataset = expr->queryChild(0);
     IHqlExpression * sortlist = expr->queryChild(1);
@@ -2955,7 +2978,7 @@ IHqlExpression * ThorHqlTransformer::normalizeShuffle(IHqlExpression * expr)
     }
 
     if (translator.targetThor() && !expr->hasProperty(localAtom))
-        return convertShuffleToGroupedSort(expr);
+        return convertSubSortToGroupedSort(expr);
 
     return NULL;
 }
@@ -3275,9 +3298,6 @@ IHqlExpression * ThorHqlTransformer::normalizeTableToAggregate(IHqlExpression * 
     HqlExprArray aggregateAssigns;
     HqlExprArray extraAssigns;
 
-    IHqlExpression * maxLength = queryRecordProperty(record, maxLengthAtom);
-    if (maxLength)
-        aggregateFields.append(*LINK(maxLength));
     bool extraSelectNeeded = false;
     OwnedHqlExpr self = getSelf(expr);
     ForEachChild(idx, transform)
@@ -3337,7 +3357,7 @@ IHqlExpression * ThorHqlTransformer::normalizeTableToAggregate(IHqlExpression * 
         newGroupBy = createSortList(newGroupElement);
     }
 
-    IHqlExpression * aggregateRecord = extraSelectNeeded ? translator.createRecordInheritMaxLength(aggregateFields, record) : LINK(record);
+    IHqlExpression * aggregateRecord = extraSelectNeeded ? createRecord(aggregateFields) : LINK(record);
     OwnedHqlExpr aggregateSelf = getSelf(aggregateRecord);
     replaceAssignSelector(aggregateAssigns, aggregateSelf);
     IHqlExpression * aggregateTransform = createValue(no_newtransform, makeTransformType(aggregateRecord->getType()), aggregateAssigns);
@@ -3407,7 +3427,7 @@ IHqlExpression * ThorHqlTransformer::normalizeTableGrouping(IHqlExpression * exp
                     ds.setown(createDataset(no_group, ds.getClear(), NULL));
                     ds.setown(cloneInheritedAnnotations(expr, ds));
                 }
-                OwnedHqlExpr sorted = ensureSortedForGroup(ds, newsort, expr->hasProperty(localAtom), !translator.targetThor(), options.implicitGroupShuffle);
+                OwnedHqlExpr sorted = ensureSortedForGroup(ds, newsort, expr->hasProperty(localAtom), !translator.targetThor(), options.implicitGroupSubSort);
 
                 //For thor a global grouped aggregate would transfer elements between nodes so it is still likely to
                 //be more efficient to do a hash aggregate.  Even better would be to check the distribution
@@ -4215,7 +4235,6 @@ bool CompoundSourceTransformer::needToCloneLimit(IHqlExpression * expr, node_ope
         return false;
     case HThorCluster:
         return (sourceOp != no_compound_indexread) || (op != no_limit);
-    case ThorCluster:
     case ThorLCRCluster:
         return true;
     default:
@@ -4465,7 +4484,7 @@ static IHqlExpression * queryNormalizedAggregateParameter(IHqlExpression * expr)
                 return expr;
             break;
         case no_sort:
-        case no_shuffle:
+        case no_subsort:
         case no_distribute:
             break;
         default:
@@ -5376,10 +5395,7 @@ IHqlExpression * WorkflowTransformer::extractWorkflow(IHqlExpression * untransfo
                 {
                     if (queryLocationIndependent(prevValue) != queryLocationIndependent(value))
                     {
-#ifdef _DEBUG
-                        debugFindFirstDifference(prevValue->queryBody(), value->queryBody());
-                        debugFindFirstDifference(queryLocationIndependent(prevValue), queryLocationIndependent(value));
-#endif
+                        EclIR::dbglogIR(2, queryLocationIndependent(prevValue), queryLocationIndependent(value));
                         if (curOp == no_stored)
                             throwError1(HQLERR_DuplicateStoredDefinition, s.str());
                         else
@@ -7052,11 +7068,9 @@ void ExplicitGlobalTransformer::doAnalyseExpr(IHqlExpression * expr)
             if (filename)
                 getExprECL(filename, s);
             translator.WARNINGAT1(queryActiveLocation(expr), HQLWRN_OutputDependendOnScope, s.str());
+
 #if 0
-            HqlExprCopyArray scopeUsed;
-            expr->gatherTablesUsed(NULL, &scopeUsed);
-            ForEachItemIn(i, scopeUsed)
-                dbglogExpr(&scopeUsed.item(i));
+            checkIndependentOfScope(expr);
 #endif
         }
         break;
@@ -10127,7 +10141,6 @@ HqlTreeNormalizer::HqlTreeNormalizer(HqlCppTranslator & _translator) : NewHqlTra
     const HqlCppOptions & translatorOptions = translator.queryOptions();
     options.removeAsserts = !translatorOptions.checkAsserts;
     options.commonUniqueNameAttributes = translatorOptions.commonUniqueNameAttributes;
-    options.simplifySelectorSequence = !translatorOptions.preserveUniqueSelector && !translatorOptions.detectAmbiguousSelector && !translatorOptions.allowAmbiguousSelector;
     options.sortIndexPayload = translatorOptions.sortIndexPayload;
     options.allowSections = translatorOptions.allowSections;
     options.normalizeExplicitCasts = translatorOptions.normalizeExplicitCasts;
@@ -10135,8 +10148,7 @@ HqlTreeNormalizer::HqlTreeNormalizer(HqlCppTranslator & _translator) : NewHqlTra
     options.outputRowsAsDatasets = translator.targetRoxie();
     options.constantFoldNormalize = translatorOptions.constantFoldNormalize;
     options.allowActivityForKeyedJoin = translatorOptions.allowActivityForKeyedJoin;
-    options.implicitShuffle = translatorOptions.implicitBuildIndexShuffle;
-    options.transformCaseToChoose = translatorOptions.transformCaseToChoose;
+    options.implicitSubSort = translatorOptions.implicitBuildIndexSubSort;
     errors = translator.queryErrors();
     nextSequenceValue = 1;
 }
@@ -10486,7 +10498,7 @@ IHqlExpression * HqlTreeNormalizer::transformCaseToChoose(IHqlExpression * expr)
     //For the moment only convert datasets to choose format.  (Partly to test implementation.)
     //Datarows are unlikely to benefit, and will cause additional work.
     //Converting actions has implications for needing new activity kinds, and support in thor.
-    if (!expr->isDataset() || !options.transformCaseToChoose)
+    if (!expr->isDataset())
         return transformCaseToIfs(expr);
 
     unsigned max = numRealChildren(expr);
@@ -10598,7 +10610,7 @@ IHqlExpression * HqlTreeNormalizer::transformMap(IHqlExpression * expr)
 {
     unsigned max = numRealChildren(expr);
     OwnedHqlExpr elseExpr = transform(expr->queryChild(max-1));
-    for (unsigned idx = max-1; idx-- != 0; idx)
+    for (unsigned idx = max-1; idx-- != 0; )
     {
         IHqlExpression * cur = expr->queryChild(idx);
         elseExpr.setown(createIf(transform(cur->queryChild(0)), transform(cur->queryChild(1)), elseExpr.getClear()));
@@ -11835,7 +11847,7 @@ IHqlExpression * HqlTreeNormalizer::createTransformedBody(IHqlExpression * expr)
             OwnedHqlExpr transformed = Parent::createTransformed(expr);
             loop
             {
-                IHqlExpression * ret = normalizeIndexBuild(transformed, options.sortIndexPayload, !translator.targetThor(), options.implicitShuffle);
+                IHqlExpression * ret = normalizeIndexBuild(transformed, options.sortIndexPayload, !translator.targetThor(), options.implicitSubSort);
                 if (!ret)
                     return LINK(transformed);
                 transformed.setown(ret);
@@ -11905,10 +11917,6 @@ IHqlExpression * HqlTreeNormalizer::createTransformedBody(IHqlExpression * expr)
 #ifdef USE_SELSEQ_UID
             if (name == _selectorSequence_Atom)
             {
-                //Purely for testing what effect adding the unique sequences has on the parse time
-                if (options.simplifySelectorSequence)
-                    return createDummySelectorSequence();
-
                 //Ensure parameterised sequences generate a unique sequence number...
                 //Not sure the following is really necessary, but will reduce in memory tree size....
                 //also saves complications from having weird attributes in the tree
@@ -11916,10 +11924,24 @@ IHqlExpression * HqlTreeNormalizer::createTransformedBody(IHqlExpression * expr)
                 {
                     //Make sure we ignore any line number information on the parameters mangled with the uid - otherwise
                     //they may create too many unique ids.
-                    IHqlExpression * normalForm = queryLocationIndependent(expr);
+                    OwnedHqlExpr transformed = Parent::createTransformed(expr);
+                    IHqlExpression * normalForm = queryLocationIndependent(transformed);
+
+                    OwnedHqlExpr ret;
                     if (normalForm != expr)
-                        return transform(normalForm);
-                    return createSelectorSequence();
+                    {
+                        IHqlExpression * mapped = queryAlreadyTransformed(normalForm);
+                        if (!mapped)
+                        {
+                            ret.setown(createSelectorSequence());
+                            setTransformed(normalForm, ret);
+                        }
+                        else
+                            ret.set(mapped);
+                    }
+                    else
+                        ret.setown(createSelectorSequence());
+                    return ret.getClear();
                 }
             }
 #endif
@@ -11929,7 +11951,7 @@ IHqlExpression * HqlTreeNormalizer::createTransformedBody(IHqlExpression * expr)
             //If f(a + b) is then optimized to b this can lead to incompatible selectors, since
             //a and b are "compatible", but not identical.
             //This then causes chaos, so strip them as a precaution... but it is only a partial solution.
-            if (name == maxLengthAtom)
+            if (name == maxLengthAtom || name == maxCountAtom)
                 return transformChildrenNoAnnotations(expr);
             break;
         }

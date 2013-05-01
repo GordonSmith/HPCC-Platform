@@ -2332,6 +2332,57 @@ void checkDependencyConsistency(const HqlExprArray & exprs)
 
 //---------------------------------------------------------------------------
 
+static HqlTransformerInfo selectConsistencyCheckerInfo("SelectConsistencyChecker");
+class SelectConsistencyChecker  : public NewHqlTransformer
+{
+public:
+    SelectConsistencyChecker() : NewHqlTransformer(selectConsistencyCheckerInfo)
+    {
+    }
+
+    virtual void analyseExpr(IHqlExpression * expr)
+    {
+        if (alreadyVisited(expr))
+            return;
+
+        if (expr->getOperator() == no_select)
+            checkSelect(expr);
+
+        NewHqlTransformer::analyseExpr(expr);
+    }
+
+    virtual void analyseSelector(IHqlExpression * expr)
+    {
+        if (expr->getOperator() == no_select)
+            checkSelect(expr);
+
+        NewHqlTransformer::analyseSelector(expr);
+    }
+
+protected:
+    void checkSelect(IHqlExpression * expr)
+    {
+        IHqlExpression * ds = expr->queryChild(0);
+        IHqlExpression * field = expr->queryChild(1);
+        IHqlSimpleScope * scope = ds->queryRecord()->querySimpleScope();
+        OwnedHqlExpr match = scope->lookupSymbol(field->queryName());
+        if (match != field)
+        {
+            EclIR::dbglogIR(2, field, match.get());
+            throw MakeStringException(ERR_RECURSIVE_DEPENDENCY, "Inconsistent select - field doesn't match parent record's field");
+        }
+    }
+};
+
+
+void checkSelectConsistency(IHqlExpression * expr)
+{
+    SelectConsistencyChecker checker;
+    checker.analyse(expr, 0);
+}
+
+//---------------------------------------------------------------------------
+
 void DependencyGatherer::doGatherDependencies(IHqlExpression * expr)
 {
     if (expr->queryTransformExtra())
@@ -2805,10 +2856,16 @@ IHqlExpression * getInverse(IHqlExpression * op)
 {
     node_operator opKind = op->getOperator();
     if (opKind == no_not)
-        return LINK(op->queryChild(0));
-    else if (opKind == no_constant)
+    {
+        IHqlExpression * arg0 = op->queryChild(0);
+        if (arg0->isBoolean())
+            return LINK(arg0);
+    }
+
+    if (opKind == no_constant)
         return createConstant(!op->queryValue()->getBoolValue());
-    else if (opKind == no_alias_scope)
+
+    if (opKind == no_alias_scope)
     {
         HqlExprArray args;
         args.append(*getInverse(op->queryChild(0)));
@@ -2830,7 +2887,8 @@ IHqlExpression * getInverse(IHqlExpression * op)
         return createBoolExpr(no_if, LINK(op->queryChild(0)), getInverse(op->queryChild(1)), getInverse(op->queryChild(2)));
     }
 
-    return createValue(no_not, makeBoolType(), LINK(op));
+    Owned<ITypeInfo> boolType = makeBoolType();
+    return createValue(no_not, LINK(boolType), ensureExprType(op, boolType));
 }
 
 IHqlExpression * getNormalizedCondition(IHqlExpression * expr)
@@ -3169,30 +3227,6 @@ void SubStringHelper::init(IHqlExpression * _src, IHqlExpression * range)
     
     if (isStringOrData && srcType->getSize() == INFINITE_LENGTH)
         infiniteString = true;
-}
-
-
-bool hasMaxLength(IHqlExpression * record)
-{
-    ForEachChild(i, record)
-    {
-        IHqlExpression * cur = record->queryChild(i);
-        switch (cur->getOperator())
-        {
-        case no_record:
-            //inherited maxlength?
-            if (hasMaxLength(cur))
-                return true;
-            break;
-        case no_attr:
-        case no_attr_expr:
-        case no_attr_link:
-            if (cur->queryName() == maxLengthAtom)
-                return true;
-            break;
-        }
-    }
-    return false;
 }
 
 
@@ -4059,7 +4093,6 @@ extern HQL_API IHqlExpression * convertScalarAggregateToDataset(IHqlExpression *
         return NULL;
     }
 
-    //more: InheritMaxlength
     OwnedHqlExpr field;
     if ((newop == no_mingroup || newop == no_maxgroup) && (arg->getOperator() == no_select))
         field.set(arg->queryChild(1));                  // inherit maxlength etc...
@@ -5504,7 +5537,7 @@ IHqlExpression * createSelectMapRow(IErrorReceiver * errors, ECLlocation & locat
     OwnedHqlExpr record = getDictionarySearchRecord(dict->queryRecord());
     TempTableTransformer transformer(errors, location, true);
     OwnedHqlExpr newTransform = transformer.createTempTableTransform(values, record);
-    return createRow(no_selectmap, dict, createRow(no_createrow, newTransform.getClear()));
+    return createRow(no_selectmap, LINK(dict), createRow(no_createrow, newTransform.getClear()));
 }
 
 IHqlExpression *createINDictExpr(IErrorReceiver * errors, ECLlocation & location, IHqlExpression *expr, IHqlExpression *dict)
@@ -5512,7 +5545,7 @@ IHqlExpression *createINDictExpr(IErrorReceiver * errors, ECLlocation & location
     OwnedHqlExpr record = getDictionarySearchRecord(dict->queryRecord());
     TempTableTransformer transformer(errors, location, true);
     OwnedHqlExpr newTransform = transformer.createTempTableTransform(expr, record);
-    return createBoolExpr(no_indict, createRow(no_createrow, newTransform.getClear()), dict);
+    return createBoolExpr(no_indict, createRow(no_createrow, newTransform.getClear()), LINK(dict));
 }
 
 IHqlExpression *createINDictRow(IErrorReceiver * errors, ECLlocation & location, IHqlExpression *row, IHqlExpression *dict)
@@ -5520,7 +5553,7 @@ IHqlExpression *createINDictRow(IErrorReceiver * errors, ECLlocation & location,
     OwnedHqlExpr record = getDictionarySearchRecord(dict->queryRecord());
     Owned<ITypeInfo> rowType = makeRowType(record->getType());
     OwnedHqlExpr castRow = ensureExprType(row, rowType);
-    return createBoolExpr(no_indict, castRow.getClear(), dict);
+    return createBoolExpr(no_indict, castRow.getClear(), LINK(dict));
 }
 
 IHqlExpression * convertTempRowToCreateRow(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * expr)
@@ -6129,7 +6162,6 @@ WarningProcessor::WarningProcessor()
 { 
     firstLocalOnWarning = 0; 
     activeSymbol = NULL; 
-//  addGlobalOnWarning(WRN_RECORDDEFAULTMAXLENGTH, errorAtom);
 }
 
 

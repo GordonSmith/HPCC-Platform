@@ -946,8 +946,6 @@ bool HqlCppTranslator::canBuildOptimizedCount(BuildCtx & ctx, IHqlExpression * d
         }
         break;
     default:
-        if (!options.tempDatasetsUseLinkedRows)
-            break;
         if (!alwaysEvaluatesToBound(dataset))
             break;
         //fall through
@@ -1655,7 +1653,6 @@ IHqlExpression * HqlCppTranslator::getResourcedChildGraph(BuildCtx & ctx, IHqlEx
     case HThorCluster:
         csfFlags |= CSFcompoundSpill;
         break;
-    case ThorCluster:
     case ThorLCRCluster:
         //Don't compound spills inside a child query because it can cause non remote projects to become remote
         //And we'll also probably be using the roxie code to implement
@@ -2304,10 +2301,6 @@ void HqlCppTranslator::doBuildDataset(BuildCtx & ctx, IHqlExpression * expr, CHq
                 {
                     if (record != serializedRecord)
                         throwError(HQLERR_LinkedDatasetNoContext);
-                    format = FormatBlockedDataset;
-                }
-                else if ((record == serializedRecord) && !options.tempDatasetsUseLinkedRows)
-                {
                     format = FormatBlockedDataset;
                 }
                 else
@@ -4895,14 +4888,14 @@ IReferenceSelector * HqlCppTranslator::buildDatasetSelectMap(BuildCtx & ctx, IHq
 
     //MORE: This should really be a createDictionarySelector call.
     Owned<IHqlCppDatasetCursor> cursor = createDatasetSelector(ctx, dictionary);
-    BoundRow * row = cursor->buildSelectMap(ctx, expr);
+    Owned<BoundRow> row = cursor->buildSelectMap(ctx, expr);
 
     if (!row)
     {
         CHqlBoundExpr boundCleared;
         buildDefaultRow(ctx, dictionary, boundCleared);
         OwnedHqlExpr defaultRowPtr = getPointer(boundCleared.expr);
-        row = bindRow(ctx, expr, defaultRowPtr);
+        row.setown(bindRow(ctx, expr, defaultRowPtr));
     }
 
     return createReferenceSelector(row);
@@ -4910,12 +4903,12 @@ IReferenceSelector * HqlCppTranslator::buildDatasetSelectMap(BuildCtx & ctx, IHq
 
 //---------------------------------------------------------------------------
 
-IHqlExpression * HqlCppTranslator::buildGetLocalResult(BuildCtx & ctx, IHqlExpression * expr, bool preferLinkedRows)
+IHqlExpression * HqlCppTranslator::buildGetLocalResult(BuildCtx & ctx, IHqlExpression * expr)
 {
     IHqlExpression * graphId = expr->queryChild(1);
     IHqlExpression * resultNum = expr->queryChild(2);
     Linked<ITypeInfo> exprType = queryUnqualifiedType(expr->queryType());
-    if (preferLinkedRows && !hasLinkCountedModifier(exprType))
+    if (!hasLinkCountedModifier(exprType))
         exprType.setown(makeAttributeModifier(LINK(exprType), getLinkCountedAttr()));
 
     if (expr->hasProperty(externalAtom))
@@ -4937,9 +4930,7 @@ IHqlExpression * HqlCppTranslator::buildGetLocalResult(BuildCtx & ctx, IHqlExpre
         args.append(*LINK(resultNum));
         if (expr->isDictionary())
             return bindFunctionCall(getChildQueryDictionaryResultAtom, args, exprType);
-        if (preferLinkedRows)
-            return bindFunctionCall(getChildQueryLinkedResultAtom, args, exprType);
-        return bindFunctionCall(getChildQueryResultAtom, args, exprType);
+        return bindFunctionCall(getChildQueryLinkedResultAtom, args, exprType);
     }
 
     assertex(activeActivities.ordinality());
@@ -4961,9 +4952,7 @@ IHqlExpression * HqlCppTranslator::buildGetLocalResult(BuildCtx & ctx, IHqlExpre
     args.append(*LINK(resultNum));
     if (expr->isDictionary())
         return bindFunctionCall(getLocalDictionaryResultAtom, args, exprType);
-    if (preferLinkedRows)
-        return bindFunctionCall(getLocalLinkedResultAtom, args, exprType);
-    return bindFunctionCall(getLocalResultAtom, args, exprType);
+    return bindFunctionCall(getLocalLinkedResultAtom, args, exprType);
 }
 
 void HqlCppTranslator::doBuildAssignGetGraphResult(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr)
@@ -4971,10 +4960,9 @@ void HqlCppTranslator::doBuildAssignGetGraphResult(BuildCtx & ctx, const CHqlBou
     if (expr->hasProperty(_streaming_Atom))
         throwError(HQLERR_LoopTooComplexForParallel);
 
-    bool isTargetLinkCounted = hasLinkCountedModifier(target.queryType());
     if (expr->hasProperty(externalAtom))
     {
-        OwnedHqlExpr call = buildGetLocalResult(ctx, expr, isTargetLinkCounted);
+        OwnedHqlExpr call = buildGetLocalResult(ctx, expr);
         buildExprAssign(ctx, target, call);
         return;
     }
@@ -4989,7 +4977,7 @@ void HqlCppTranslator::doBuildAssignGetGraphResult(BuildCtx & ctx, const CHqlBou
         return;
     }
 
-    OwnedHqlExpr call = buildGetLocalResult(ctx, expr, isTargetLinkCounted);
+    OwnedHqlExpr call = buildGetLocalResult(ctx, expr);
     buildExprAssign(ctx, target, call);
 }
 
@@ -5009,9 +4997,7 @@ void HqlCppTranslator::doBuildExprGetGraphResult(BuildCtx & ctx, IHqlExpression 
         }
     }
 
-    bool useLinkCounted = recordRequiresLinkCount(expr->queryRecord()) || options.tempDatasetsUseLinkedRows;
-
-    OwnedHqlExpr call = buildGetLocalResult(ctx, expr, useLinkCounted);
+    OwnedHqlExpr call = buildGetLocalResult(ctx, expr);
     switch (expr->queryType()->getTypeCode())
     {
     case type_row:

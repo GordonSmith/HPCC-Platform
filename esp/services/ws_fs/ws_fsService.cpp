@@ -353,7 +353,7 @@ static void DeepAssign(IEspContext &context, IConstDFUWorkUnit *src, IEspDFUWork
         if(rowtag.length() > 0)
             dest.setRowTag(rowtag.str());
 
-        if (version > 1.03 && (file->getFormat() == DFUff_csv))
+        if (version >= 1.04 && (file->getFormat() == DFUff_csv))
         {
             StringBuffer separate, terminate, quote, escape;
             file->getCsvOptions(separate,terminate,quote, escape);
@@ -363,7 +363,7 @@ static void DeepAssign(IEspContext &context, IConstDFUWorkUnit *src, IEspDFUWork
                 dest.setSourceCsvTerminate(terminate.str());
             if(quote.length() > 0)
                 dest.setSourceCsvQuote(quote.str());
-            if((version > 1.04) && (escape.length() > 0))
+            if((version >= 1.05) && (escape.length() > 0))
                 dest.setSourceCsvEscape(escape.str());
         }
     }
@@ -871,7 +871,6 @@ bool CFileSprayEx::onGetDFUWorkunits(IEspContext &context, IEspGetDFUWorkunits &
             } while (clusters->next());
         }
 
-        __int64 cachehint=0;
         __int64 pagesize = req.getPageSize();
         __int64 pagefrom = req.getPageStartFrom();
         __int64 displayFrom = 0;
@@ -949,11 +948,16 @@ bool CFileSprayEx::onGetDFUWorkunits(IEspContext &context, IEspGetDFUWorkunits &
 
         filters[filterCount] = DFUsf_term;
 
+        __int64 cacheHint = req.getCacheHint();
+        if (cacheHint < 0) //Not set yet
+            cacheHint = 0;
 
         IArrayOf<IEspDFUWorkunit> result;
         Owned<IDFUWorkUnitFactory> factory = getDFUWorkUnitFactory();
-        unsigned numWUs = factory->numWorkUnitsFiltered(filters, filterbuf.bufferBase());
-        Owned<IConstDFUWorkUnitIterator> itr = factory->getWorkUnitsSorted(sortorder, filters, filterbuf.bufferBase(), (int) displayFrom, (int) pagesize+1, req.getOwner(), &cachehint);
+        unsigned numWUs;
+        Owned<IConstDFUWorkUnitIterator> itr = factory->getWorkUnitsSorted(sortorder, filters, filterbuf.bufferBase(), (int) displayFrom, (int) pagesize+1, req.getOwner(), &cacheHint, &numWUs);
+        if (version >= 1.07)
+            resp.setCacheHint(cacheHint);
 
         //unsigned actualCount = 0;
         itr->first();

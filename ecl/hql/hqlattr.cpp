@@ -295,7 +295,7 @@ unsigned getOperatorMetaFlags(node_operator op)
     case no_fetch:
     case no_join:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_dedup:
     case no_enth:
@@ -1255,7 +1255,7 @@ ITypeInfo * getSerializedForm(ITypeInfo * type, _ATOM variation)
             IHqlExpression * serializedRecord = querySerializedForm(record, variation);
             if (record == serializedRecord)
                 return LINK(type);
-            return cloneModifiers(type, serializedRecord->getType());
+            return cloneModifiers(type, serializedRecord->queryType());
         }
     case type_row:
     case type_transform:
@@ -1362,7 +1362,12 @@ IHqlExpression * HqlUnadornedNormalizer::createTransformed(IHqlExpression * expr
             {
                 IHqlExpression * cur = expr->queryChild(idx);
                 if (cur->isAttribute())
-                    children.append(*transform(cur));
+                {
+                    IHqlExpression * mapped = transform(cur);
+                    children.append(*mapped);
+                    if (mapped != cur)
+                        same = false;
+                }
                 else
                     same = false;
             }
@@ -1611,7 +1616,7 @@ bool isLocalActivity(IHqlExpression * expr)
     case no_cogroup:
     case no_cosort:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_topn:
     case no_iterate:
@@ -1815,7 +1820,7 @@ bool localChangesActivityAction(IHqlExpression * expr)
     case no_cogroup:
     case no_cosort:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_topn:
     case no_iterate:
@@ -2458,7 +2463,7 @@ IHqlExpression * calcRowInformation(IHqlExpression * expr)
     case no_assertgrouped:
     case no_assertdistributed:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_nohoist:
     case no_section:
     case no_sectioninput:
@@ -2854,6 +2859,7 @@ IHqlExpression * calcRowInformation(IHqlExpression * expr)
     case no_param:
     case no_anon:
     case no_nofold:             // assume nothing - to stop subsequent optimizations
+    case no_delayedselect:
         info.setUnknown(RCMdisk);
         break;
     case no_parse:
@@ -3166,6 +3172,9 @@ unsigned getMaxRecordSize(IHqlExpression * record, unsigned defaultMaxRecordSize
         OwnedHqlExpr folded = foldHqlExpression(value);
         assertex(folded);
         maxSize = (unsigned)getIntValue(folded);
+        unsigned minSize = getIntValue(minSizeExpr);
+        if (maxSize < minSize)
+            maxSize = minSize;
         usedDefault = true;
     }
     else
@@ -3322,7 +3331,12 @@ IHqlExpression * getPackedRecord(IHqlExpression * expr)
     return LINK(packed);
 }
 
-IHqlExpression * getUnadornedExpr(IHqlExpression * expr)
+/*
+ * This function can be called while parsing (or later) to find a "normalized" version of a record or a field.
+ * It ignores default values for fields, and removes named symbols/ other location specific information - so
+ * that identical records defined in macros etc. are treated as identical.
+ */
+IHqlExpression * getUnadornedRecordOrField(IHqlExpression * expr)
 {
     if (!expr)
         return NULL;
@@ -3340,8 +3354,9 @@ inline bool isAlwaysLocationIndependent(IHqlExpression * expr)
     case no_param:
     case no_quoted:
     case no_variable:
-    case no_attr:
         return true;
+    case no_attr:
+        return (expr->numChildren() == 0);
     }
     return false;
 }
@@ -3394,7 +3409,12 @@ IHqlExpression * HqlLocationIndependentNormalizer::doCreateTransformed(IHqlExpre
     switch (op)
     {
     case no_attr:
-        return LINK(expr);
+        {
+            //Original attributes cause chaos => remove all children from attributes
+            if (expr->numChildren() != 0)
+                return createAttribute(expr->queryName());
+            return LINK(expr);
+        }
     case no_field:
         {
             //Remove the default values from fields since they just confuse.
@@ -3404,7 +3424,12 @@ IHqlExpression * HqlLocationIndependentNormalizer::doCreateTransformed(IHqlExpre
             {
                 IHqlExpression * cur = expr->queryChild(idx);
                 if (cur->isAttribute())
-                    children.append(*transform(cur));
+                {
+                    IHqlExpression * mapped = transform(cur);
+                    children.append(*mapped);
+                    if (mapped != cur)
+                        same = false;
+                }
                 else
                     same = false;
             }

@@ -3513,7 +3513,7 @@ IHqlExpression* HqlGram::checkServiceDef(IHqlScope* serviceScope,_ATOM name, IHq
                 attrs = createComma(attrs, createAttribute(entrypointAtom, args));
                 hasEntrypoint = true;
             }
-            else if (name == libraryAtom)
+            else if (name == libraryAtom || name == pluginAtom)
             {
                 bool invalid = false;
                 if (attr->numChildren()==0)
@@ -3529,7 +3529,7 @@ IHqlExpression* HqlGram::checkServiceDef(IHqlScope* serviceScope,_ATOM name, IHq
                 }
 
                 if (invalid)
-                    reportError(ERR_SVC_INVALIDLIBRARY,errpos,"Invalid library: can not be empty");
+                    reportError(ERR_SVC_INVALIDLIBRARY,errpos,"Invalid %s: can not be empty", name->getAtomNamePtr());
             }
             else if (name == includeAtom)
             {
@@ -4064,8 +4064,8 @@ IHqlExpression * HqlGram::createIndirectSelect(IHqlExpression * lhs, IHqlExpress
         if (match == field)
             return createSelect(lhs, LINK(match), errpos);
 
-        OwnedHqlExpr normalizedMatch = getUnadornedExpr(match);
-        OwnedHqlExpr normalizedField = getUnadornedExpr(field);
+        OwnedHqlExpr normalizedMatch = getUnadornedRecordOrField(match);
+        OwnedHqlExpr normalizedField = getUnadornedRecordOrField(field);
         if (normalizedMatch == normalizedField)
             return createSelect(lhs, LINK(match), errpos);
     }
@@ -7160,7 +7160,6 @@ static void unwindExtraFields(HqlExprArray & fields, IHqlExpression * expr)
 
 IHqlExpression * HqlGram::createRecordUnion(IHqlExpression * left, IHqlExpression * right, const attribute & errpos)
 {
-    //MORE: maxlength should be handled better - but should really be specified on the fields.
     RecordFieldDifference compare(left, *this, errpos);
     OwnedHqlExpr extra = ::createRecordExcept(right, compare);
 
@@ -7199,7 +7198,6 @@ IHqlExpression * HqlGram::createIndexFromRecord(IHqlExpression * record, IHqlExp
 void HqlGram::inheritRecordMaxLength(IHqlExpression * dataset, SharedHqlExpr & record)
 {
     IHqlExpression * maxLength = queryRecordProperty(dataset->queryRecord(), maxLengthAtom);
-//  if (maxLength && isVariableSizeRecord(record) && !queryRecordProperty(record, maxLengthAtom))
     if (maxLength && !queryRecordProperty(record, maxLengthAtom))
     {
         HqlExprArray fields;
@@ -7843,7 +7841,7 @@ void HqlGram::expandPayload(HqlExprArray & fields, IHqlExpression * payload, IHq
     }
 }
 
-void HqlGram::mergeDictionaryPayload(SharedHqlExpr & record, SharedHqlExpr & payload, const attribute & errpos)
+void HqlGram::mergeDictionaryPayload(OwnedHqlExpr & record, IHqlExpression * payload, const attribute & errpos)
 {
     checkRecordIsValid(errpos, record.get());
     IHqlSimpleScope * scope = record->querySimpleScope();
@@ -7933,12 +7931,24 @@ void HqlGram::modifyIndexPayloadRecord(SharedHqlExpr & record, SharedHqlExpr & p
     record.setown(createRecord(fields));
 }
 
-void HqlGram::extractRecordFromExtra(SharedHqlExpr & record, SharedHqlExpr & extra)
+// Because of some oddities of the grammar, the 'record' and 'attributes' expected by an index statement
+// come through with some of the latter attached to the former.
+// For historical reasons, the payload attribute in particular may be either attached to the record via a no_comma,
+// or be an attribute of the record itself.
+// Either way, for an index statement, we want to pull it out of the record param and into the extra param
+
+void HqlGram::extractIndexRecordAndExtra(SharedHqlExpr & record, SharedHqlExpr & extra)
 {
     while (record->getOperator() == no_comma)
     {
         extra.setown(createComma(LINK(record->queryChild(1)), extra.getClear()));
         record.set(record->queryChild(0));
+    }
+    IHqlExpression *payload = record->queryProperty(_payload_Atom);
+    if (payload)
+    {
+        extra.setown(createComma(extra.getClear(), LINK(payload)));
+        record.setown(removeProperty(record, _payload_Atom));
     }
 }
 
@@ -8061,7 +8071,7 @@ void HqlGram::checkDistributer(attribute & err, HqlExprArray & args)
             unsigned inputKeyedFields = firstPayloadField(input->queryRecord(), inputPayload ? (unsigned)getIntValue(inputPayload->queryChild(0)) : 1);
             if (numKeyedFields != inputKeyedFields)
                 reportError(ERR_DISTRIBUTED_MISSING, err, "Index and DISTRIBUTE(index) have different numbers of keyed fields");
-            checkRecordTypes(args.item(0).queryRecord(), cur.queryChild(0)->queryRecord(), err, numKeyedFields);
+            checkRecordTypesSimilar(args.item(0).queryRecord(), cur.queryChild(0)->queryRecord(), err, numKeyedFields);
         }
     }
 }
@@ -8108,7 +8118,7 @@ void HqlGram::checkValidPipeRecord(const attribute & errpos, IHqlExpression * re
         checkValidCsvRecord(errpos, record);
 }
 
-int HqlGram::checkRecordTypes(IHqlExpression *left, IHqlExpression *right, attribute &atr, unsigned maxFields)
+int HqlGram::checkRecordTypesSimilar(IHqlExpression *left, IHqlExpression *right, const attribute &atr, unsigned maxFields)
 {
     if (recordTypesMatch(left, right)) 
         return 0;
@@ -8177,15 +8187,15 @@ int HqlGram::checkRecordTypes(IHqlExpression *left, IHqlExpression *right, attri
         }
         
         // recursive call to check sub fields.
-        if(lchildrectype && rchildrectype && checkRecordTypes(lfield, rfield, atr) != 0) 
-            return -1;
+        if(lchildrectype && rchildrectype)
+            return checkRecordTypesSimilar(lfield, rfield, atr);
     }
 
     return 0;
 }
 
 
-bool HqlGram::checkRecordCreateTransform(HqlExprArray & assigns, IHqlExpression *leftExpr, IHqlExpression *leftSelect, IHqlExpression *rightExpr, IHqlExpression *rightSelect, attribute &atr)
+bool HqlGram::checkRecordCreateTransform(HqlExprArray & assigns, IHqlExpression *leftExpr, IHqlExpression *leftSelect, IHqlExpression *rightExpr, IHqlExpression *rightSelect, const attribute &atr)
 {
     if (leftExpr->getOperator() != rightExpr->getOperator())
     {
@@ -8264,15 +8274,16 @@ bool HqlGram::checkRecordCreateTransform(HqlExprArray & assigns, IHqlExpression 
 }
 
 
-IHqlExpression * HqlGram::checkEnsureRecordsMatch(IHqlExpression * left, IHqlExpression * right, attribute & errpos, bool rightIsRow)
+IHqlExpression * HqlGram::checkEnsureRecordsMatch(IHqlExpression * left, IHqlExpression * right, const attribute & errpos, bool rightIsRow)
 {
-    checkRecordTypes(left, right, errpos);
-
     //Need to add a project to make the field names correct, otherwise problems occur if one the left side is optimized away,
     //because that causes the record type and fields to change.
     if (recordTypesMatch(left, right)) 
         return LINK(right);
-    
+
+    if (checkRecordTypesSimilar(left, right, errpos) != 0)
+        return LINK(left); // error conditional - return something compatible with left
+
     HqlExprArray assigns;
     OwnedHqlExpr seq = createActiveSelectorSequence(right, NULL);
     OwnedHqlExpr rightSelect = createSelector(no_left, right, seq);
@@ -8292,14 +8303,53 @@ IHqlExpression * HqlGram::checkEnsureRecordsMatch(IHqlExpression * left, IHqlExp
         return createDataset(no_hqlproject, args);
 }
 
+void HqlGram::ensureMapToRecordsMatch(OwnedHqlExpr & defaultExpr, HqlExprArray & args, const attribute & errpos, bool isRow)
+{
+    //The record of the final result should match the record of the first argument.
+    IHqlExpression * expected = (args.ordinality() != 0) ? &args.item(0) : defaultExpr.get();
+    bool groupingDiffers = false;
+    ForEachItemIn(i, args)
+    {
+        IHqlExpression & mapTo = args.item(i);
+        IHqlExpression * value = mapTo.queryChild(1);
+        if (isGrouped(value) != isGrouped(expected))
+            groupingDiffers = true;
+        OwnedHqlExpr checked = checkEnsureRecordsMatch(expected, value, errpos, isRow);
+        if (value != checked)
+        {
+            args.replace(*replaceChild(&mapTo, 1, checked), i);
+            reportWarning(ERR_TYPE_INCOMPATIBLE, errpos.pos, "Datasets in list have slightly different records");
+        }
+    }
+
+    if (defaultExpr)
+    {
+        if (isGrouped(defaultExpr) != isGrouped(expected))
+            groupingDiffers = true;
+        OwnedHqlExpr checked = checkEnsureRecordsMatch(expected, defaultExpr, errpos, isRow);
+        if (defaultExpr != checked)
+        {
+            defaultExpr.set(checked);
+            reportWarning(ERR_TYPE_INCOMPATIBLE, errpos.pos, "Default value has a slightly different record");
+        }
+    }
+
+    if (groupingDiffers)
+        reportError(ERR_GROUPING_MISMATCH, errpos, "Branches of the condition have different grouping");
+}
+
 void HqlGram::checkMergeSortOrder(attribute &atr, IHqlExpression *ds1, IHqlExpression *ds2, IHqlExpression * sortorder)
 {
     if (!recordTypesMatch(ds1, ds2)) 
         reportError(ERR_TYPE_INCOMPATIBLE, atr, "Datasets in list must have identical records");
     return;
-    checkRecordTypes(ds1, ds2, atr);
-    // MORE - should check that sort orders match
-    // but tricky because they don't have to apply to the same records...
+}
+
+void HqlGram::checkRecordTypesMatch(IHqlExpression *ds1, IHqlExpression *ds2, const attribute &errpos)
+{
+    if (!recordTypesMatch(ds1, ds2))
+        reportError(ERR_TYPE_INCOMPATIBLE, errpos, "Arguments must have the same record type");
+    return;
 }
 
 IHqlExpression * HqlGram::createScopedSequenceExpr()
@@ -9585,7 +9635,6 @@ IHqlExpression * HqlGram::createIffDataset(IHqlExpression * record, IHqlExpressi
 
 IHqlExpression * HqlGram::createIff(attribute & condAttr, attribute & leftAttr, attribute & rightAttr)
 {
-    //MORE: PromoteIfType should ideally add a maxlength to the type if possible.
     ITypeInfo * type = checkPromoteIfType(leftAttr, rightAttr);
     OwnedHqlExpr left = leftAttr.getExpr();
     OwnedHqlExpr right = rightAttr.getExpr();
@@ -10166,6 +10215,7 @@ static void getTokenText(StringBuffer & msg, int token)
     case NOTHOR: msg.append("NOTHOR"); break;
     case NOTIFY: msg.append("NOTIFY"); break;
     case NOTRIM: msg.append("NOTRIM"); break;
+    case NOXPATH: msg.append("NOXPATH"); break;
     case OF: msg.append("OF"); break;
     case OMITTED: msg.append("OMITTED"); break;
     case ONCE: msg.append("ONCE"); break;
@@ -10249,7 +10299,6 @@ static void getTokenText(StringBuffer & msg, int token)
     case HTTPHEADER: msg.append("HTTPHEADER"); break;
     case PROXYADDRESS: msg.append("PROXYADDRESS"); break;
     case HTTPCALL: msg.append("HTTPCALL"); break;
-    case SHUFFLE: msg.append("SHUFFLE"); break;
     case SOAPCALL: msg.append("SOAPCALL"); break;
     case SORT: msg.append("SORT"); break;
     case SORTED: msg.append("SORTED"); break;
@@ -10259,6 +10308,7 @@ static void getTokenText(StringBuffer & msg, int token)
     case STEPPED: msg.append("STEPPED"); break;
     case STORED: msg.append("STORED"); break;
     case STREAMED: msg.append("STREAMED"); break;
+    case SUBSORT: msg.append("SUBSORT"); break;
     case SUCCESS: msg.append("SUCCESS"); break;
     case SUM: msg.append("SUM"); break;
     case SWAPPED: msg.append("SWAPPED"); break;
@@ -10448,7 +10498,7 @@ void HqlGram::simplifyExpected(int *expected)
                        GROUP, GROUPED, KEYED, UNGROUP, JOIN, PULL, ROLLUP, ITERATE, PROJECT, NORMALIZE, PIPE, DENORMALIZE, CASE, MAP, 
                        HTTPCALL, SOAPCALL, LIMIT, PARSE, FAIL, MERGE, PRELOAD, ROW, TOPN, ALIAS, LOCAL, NOFOLD, NOHOIST, NOTHOR, IF, GLOBAL, __COMMON__, __COMPOUND__, TOK_ASSERT, _EMPTY_,
                        COMBINE, ROWS, REGROUP, XMLPROJECT, SKIP, LOOP, CLUSTER, NOLOCAL, REMOTE, PROCESS, ALLNODES, THISNODE, GRAPH, MERGEJOIN, STEPPED, NONEMPTY, HAVING,
-                       TOK_CATCH, '@', SECTION, WHEN, IFF, COGROUP, HINT, INDEX, PARTITION, AGGREGATE, SHUFFLE, TOK_ERROR, CHOOSE, 0);
+                       TOK_CATCH, '@', SECTION, WHEN, IFF, COGROUP, HINT, INDEX, PARTITION, AGGREGATE, SUBSORT, TOK_ERROR, CHOOSE, 0);
     simplify(expected, EXP, ABS, SIN, COS, TAN, SINH, COSH, TANH, ACOS, ASIN, ATAN, ATAN2, 
                        COUNT, CHOOSE, MAP, CASE, IF, HASH, HASH32, HASH64, HASHMD5, CRC, LN, TOK_LOG, POWER, RANDOM, ROUND, ROUNDUP, SQRT, 
                        TRUNCATE, LENGTH, TRIM, INTFORMAT, REALFORMAT, ASSTRING, TRANSFER, MAX, MIN, EVALUATE, SUM,
@@ -10871,7 +10921,6 @@ IHqlExpression* HqlGram::createDefJoinTransform(IHqlExpression* left,IHqlExpress
         // create result record
         CHqlRecord * newRec = (CHqlRecord *)createRecord();
 
-        //MORE: maxlength should be handled better
         expandDefJoinAttrs(newRec, leftRecord);
         expandDefJoinAttrs(newRec, rightRecord);
         //Clone left - including ifblocks etc.

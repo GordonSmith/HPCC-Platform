@@ -417,7 +417,7 @@ sudo -u hpcc cp /etc/HPCCSystems/source/NewEnvironment.xml /etc/HPCCSystems/envi
             the first node is considered the head node and is used for this
             task, but this is up to you).</para>
 
-            <programlisting>sudo configmgr</programlisting>
+            <programlisting>sudo /opt/HPCCSystems/sbin/configmgr</programlisting>
 
             <para><graphic
             fileref="images/gs_img_configmgrStart.jpg" /></para>
@@ -1519,7 +1519,8 @@ sudo -u hpcc cp /etc/HPCCSystems/source/NewEnvironment.xml /etc/HPCCSystems/envi
                     <row>
                       <entry><emphasis>traceLevel</emphasis></entry>
 
-                      <entry>The value ***</entry>
+                      <entry>The trace level value determines the amount of
+                      detail to write to log files.</entry>
                     </row>
                   </tbody>
                 </tgroup>
@@ -1529,7 +1530,11 @@ sudo -u hpcc cp /etc/HPCCSystems/source/NewEnvironment.xml /etc/HPCCSystems/envi
           <sect4>
             <title>EclCC Server Process Options</title>
 
-            <para>To add a custom option, rt-click and select add.</para>
+            <para>To add a custom option, rt-click and select add. These
+            options are passed to the eclcc compiler. </para>
+
+            <para>See the ECL Compiler chapter in the Client Tools manual for
+            details.</para>
 
             <!--This feature allows the user to configure any options pertinent to the Ecl CC Server Process -->
 
@@ -1816,7 +1821,7 @@ sudo -u hpcc cp /etc/HPCCSystems/source/NewEnvironment.xml /etc/HPCCSystems/envi
             <title>Esp - myesp AuthenticationTab</title>
 
             <para>This section describes the Esp - myesp Service
-            Authentication tab. </para>
+            Authentication tab.</para>
 
             <para><graphic fileref="images/CM-img08-3.jpg"
             vendor="configmgrSS" /></para>
@@ -1832,6 +1837,13 @@ sudo -u hpcc cp /etc/HPCCSystems/source/NewEnvironment.xml /etc/HPCCSystems/envi
                       <entry>Attribute name</entry>
 
                       <entry>Definition</entry>
+                    </row>
+
+                    <row>
+                      <entry><emphasis>htpasswdFile</emphasis></entry>
+
+                      <entry>the htpasswd file used for htpasswd
+                      authentication</entry>
                     </row>
 
                     <row>
@@ -2679,8 +2691,8 @@ sudo -u hpcc cp /etc/HPCCSystems/source/NewEnvironment.xml /etc/HPCCSystems/envi
               <listitem>
                 <?dbfo keep-together="always"?>
 
-                <para>Select the <emphasis role="bold">Swap Master</emphasis>
-                option.</para>
+                <para>Select the <emphasis role="bold">Replace
+                Master</emphasis> option.</para>
 
                 <para><graphic fileref="images/CM-111-2.jpg"
                 vendor="configmgrSS" /></para>
@@ -2976,7 +2988,7 @@ sudo -u hpcc cp /etc/HPCCSystems/source/NewEnvironment.xml /etc/HPCCSystems/envi
                     <row>
                       <entry><emphasis>SSHretries</emphasis></entry>
 
-                      <entry>The number of times...</entry>
+                      <entry>The number of retries</entry>
                     </row>
 
                     <row>
@@ -3130,16 +3142,6 @@ sudo -u hpcc cp /etc/HPCCSystems/source/NewEnvironment.xml /etc/HPCCSystems/envi
             <para>This tab allows you to add any notes pertinent to the
             component's configuration. This can be useful to keep a record of
             changes and to communicate this information to peers.</para>
-          </sect4>
-
-          <sect4>
-            <title>Swap Master</title>
-
-            <para>The swap master option now allows you to easily swap out the
-            Thor Master.***</para>
-
-            <para><graphic fileref="images/CM-186.jpg"
-            vendor="configmgrSS" /></para>
           </sect4>
         </sect3>
 

@@ -1,5 +1,5 @@
 /*##############################################################################
-#    HPCC SYSTEMS software Copyright (C) 2012 HPCC Systems.
+#    HPCC SYSTEMS software Copyright (C) 2013 HPCC Systems.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -39,8 +39,8 @@ if the supplied pointer was not from the roxiemem heap. Usually an OwnedRoxieStr
 
 //Should be incremented whenever the virtuals in the context or a helper are changed, so
 //that a work unit can't be rerun.  Try as hard as possible to retain compatibility.
-#define ACTIVITY_INTERFACE_VERSION      143
-#define MIN_ACTIVITY_INTERFACE_VERSION  143             //minimum value that is compatible with current interface - without using selectInterface
+#define ACTIVITY_INTERFACE_VERSION      149
+#define MIN_ACTIVITY_INTERFACE_VERSION  149             //minimum value that is compatible with current interface - without using selectInterface
 
 typedef unsigned char byte;
 
@@ -143,6 +143,7 @@ interface IRecordSize : public IInterface
 {
     virtual size32_t getRecordSize(const void *rec) = 0;
     virtual size32_t getFixedSize() const = 0;
+    virtual size32_t getMinRecordSize() const = 0;
     inline bool isFixedSize()      const { return getFixedSize()!=0; }
     inline bool isVariableSize()   const { return getFixedSize()==0; }
 };
@@ -166,6 +167,8 @@ public:
     virtual void outputEndNested(const char *fieldname) = 0;
     virtual void outputSetAll() = 0;
     virtual void outputUtf8(unsigned len, const char *field, const char *fieldname) = 0;
+    virtual void outputBeginArray(const char *fieldname) = 0;
+    virtual void outputEndArray(const char *fieldname) = 0;
     inline void outputCString(const char *field, const char *fieldname) { outputString((size32_t)strlen(field), field, fieldname); }
 };
 
@@ -390,7 +393,6 @@ interface IOutputMetaData : public IRecordSize
     inline bool isGrouped()                 { return (getMetaFlags() & MDFgrouped) != 0; }
     inline bool hasXML()                    { return (getMetaFlags() & MDFhasxml) != 0; }
 
-    virtual size32_t getMinRecordSize() const = 0;
     virtual void toXML(const byte * self, IXmlWriter & out) = 0;
     virtual unsigned getVersion() const = 0;
     virtual unsigned getMetaFlags() = 0;
@@ -478,7 +480,6 @@ interface IResourceContext
 //Provided by engine=>can extent
 interface IEclGraphResults : public IInterface
 {
-    virtual void getResult(size32_t & retSize, void * & ret, unsigned id) = 0;
     virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id) = 0;
     virtual void getDictionaryResult(size32_t & tcount, byte * * & tgt, unsigned id) = 0;
 };
@@ -490,13 +491,6 @@ interface IThorChildGraph : public IInterface
     virtual IEclGraphResults * evaluate(unsigned parentExtractSize, const byte * parentExtract) = 0;
 };
 
-interface ILocalGraph : public IInterface
-{
-    virtual void getResult(unsigned & len, void * & data, unsigned id) = 0;
-    virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id) = 0;
-    virtual void getDictionaryResult(size32_t & tcount, byte * * & tgt, unsigned id) = 0;
-};
-
 //NB: New methods must always be added at the end of this interface to retain backward compatibility
 interface IContextLogger;
 interface IDebuggableContext;
@@ -504,6 +498,7 @@ interface IDistributedFileTransaction;
 interface IUserDescriptor;
 interface IHThorArg;
 interface IHThorHashLookupInfo;
+interface IEngineContext;
 
 interface ICodeContext : public IResourceContext
 {
@@ -576,7 +571,7 @@ interface ICodeContext : public IResourceContext
     virtual void executeGraph(const char * graphName, bool realThor, size32_t parentExtractSize, const void * parentExtract) = 0;
     virtual unsigned getGraphLoopCounter() const { return 0; }
     virtual IThorChildGraph * resolveChildQuery(__int64 activityId, IHThorArg * colocal) = 0;
-    virtual ILocalGraph * resolveLocalQuery(__int64 activityId) { return NULL; }
+    virtual IEclGraphResults * resolveLocalQuery(__int64 activityId) { return NULL; }
 
     // Logging etc
 
@@ -599,6 +594,7 @@ interface ICodeContext : public IResourceContext
 
     virtual void getExternalResultRaw(unsigned & tlen, void * & tgt, const char * wuid, const char * stepname, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) = 0;    // shouldn't really be here, but it broke thor.
     virtual char * queryIndexMetaData(char const * lfn, char const * xpath) = 0;
+    virtual IEngineContext *queryEngineContext() = 0;
 };
 
 
@@ -800,7 +796,6 @@ enum ThorActivityKind
     TAKchildcase,
     TAKremotegraph,
     TAKlibrarycall,
-    TAKrawiterator,
     TAKlocalstreamread,
     TAKprocess,
     TAKgraphloop,
@@ -840,7 +835,7 @@ enum ThorActivityKind
     TAKcaseaction,
     TAKwhen_dataset,
     TAKwhen_action,
-    TAKshuffle,
+    TAKsubsort,
     TAKindexgroupexists,
     TAKindexgroupcount,
     TAKhashdistributemerge,
@@ -986,7 +981,7 @@ enum ActivityInterfaceEnum
     TAIstreamediteratorarg_1,
     TAIexternal_1,
     TAIinlinetablearg_1,
-    TAIshuffleextra_1,
+    TAIsubsortextra_1,
     TAIdictionaryworkunitwritearg_1,
     TAIdictionaryresultwritearg_1,
 
@@ -1359,8 +1354,13 @@ struct IHThorLinkedRawIteratorArg : public IHThorArg
 };
 
 
+enum {
+    RFrolledismatchleft = 0x00001,      // Is the value of left passed to matches() the result of the rollup?
+};
+
 struct IHThorRollupArg : public IHThorArg
 {
+    virtual unsigned getFlags() = 0;
     virtual bool matches(const void * _left, const void * _right) = 0;
     virtual size32_t transform(ARowBuilder & rowBuilder, const void * _left, const void * _right) = 0;
 };
@@ -1531,12 +1531,12 @@ struct IHThorTopNArg : public IHThorSortArg, public IHThorTopNExtra
     COMMON_NEWTHOR_FUNCTIONS
 };
 
-struct IHThorShuffleExtra : public IInterface
+struct IHThorSubSortExtra : public IInterface
 {
     virtual bool isSameGroup(const void * _left, const void * _right) = 0;
 };
 
-struct IHThorShuffleArg : public IHThorSortArg, public IHThorShuffleExtra
+struct IHThorSubSortArg : public IHThorSortArg, public IHThorSubSortExtra
 {
     COMMON_NEWTHOR_FUNCTIONS
 };
@@ -2745,6 +2745,7 @@ struct IGlobalCodeContext
 struct IEclProcess : public IInterface
 {
     virtual int perform(IGlobalCodeContext * gctx, unsigned wfid) = 0;
+    virtual unsigned getActivityVersion() const = 0;
 };
 
 

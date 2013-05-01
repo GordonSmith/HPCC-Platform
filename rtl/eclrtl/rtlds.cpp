@@ -163,7 +163,7 @@ void RtlLimitedFixedDatasetBuilder::flushDataset()
 RtlVariableDatasetBuilder::RtlVariableDatasetBuilder(IRecordSize & _recordSize)
 {
     recordSize = &_recordSize;
-    maxRowSize = recordSize->getRecordSize(NULL); // initial size
+    maxRowSize = recordSize->getMinRecordSize(); // initial size
 }
 
 
@@ -574,9 +574,8 @@ void RtlLinkedDictionaryBuilder::appendOwn(const void * source)
             const void *entry = table[rowidx];
             if (entry && compare->docompare(source, entry)==0)
             {
-                rowAllocator->releaseRow(entry);
-                usedCount--;
-                entry = NULL;
+                rowAllocator->releaseRow(source);
+                break;
             }
             if (!entry)
             {
@@ -1004,6 +1003,7 @@ public:
     {
         unsigned pos = offset;
         offset += sizeof(size32_t);
+        builder.ensureCapacity(offset, "");
         return pos;
     }
 

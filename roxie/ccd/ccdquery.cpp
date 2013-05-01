@@ -492,8 +492,6 @@ protected:
             return createRoxieServerPipeWriteActivityFactory(id, subgraphId, *this, helperFactory, kind, usageCount(node), isRootAction(node));
         case TAKpull:
             throwUnexpected(); //code generator strips for non-thor
-        case TAKrawiterator:
-            return createRoxieServerRawIteratorActivityFactory(id, subgraphId, *this, helperFactory, kind);
         case TAKlinkedrawiterator:
             return createRoxieServerLinkedRawIteratorActivityFactory(id, subgraphId, *this, helperFactory, kind);
         case TAKremoteresult:
@@ -1195,7 +1193,7 @@ public:
         throwUnexpected();   // only implemented in derived slave class
     }
 
-    virtual IRoxieServerContext *createContext(IPropertyTree *xml, SafeSocket &client, bool isXml, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, const IRoxieContextLogger &_logctx, XmlReaderOptions xmlReadFlags) const
+    virtual IRoxieServerContext *createContext(IPropertyTree *xml, SafeSocket &client, TextMarkupFormat mlFmt, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, const IRoxieContextLogger &_logctx, PTreeReaderOptions xmlReadFlags) const
     {
         throwUnexpected();   // only implemented in derived server class
     }
@@ -1277,6 +1275,7 @@ public:
     virtual void noteQuery(time_t startTime, bool failed, unsigned elapsed, unsigned memused, unsigned slavesReplyLen, unsigned bytesOut)
     {
         queryStats->noteQuery(startTime, failed, elapsed, memused, slavesReplyLen, bytesOut);
+        queryGlobalQueryStatsAggregator()->noteQuery(startTime, failed, elapsed, memused, slavesReplyLen, bytesOut);
     }
 
     virtual void addDependency(unsigned sourceIdx, unsigned sourceId, unsigned targetId, int controlId, const char *edgeId, ActivityArray * activities)
@@ -1313,10 +1312,10 @@ public:
         return activities;
     }
 
-    virtual IRoxieServerContext *createContext(IPropertyTree *context, SafeSocket &client, bool isXml, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, const IRoxieContextLogger &_logctx, XmlReaderOptions _xmlReadFlags) const
+    virtual IRoxieServerContext *createContext(IPropertyTree *context, SafeSocket &client, TextMarkupFormat mlFmt, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, const IRoxieContextLogger &_logctx, PTreeReaderOptions _xmlReadFlags) const
     {
         checkSuspended();
-        return createRoxieServerContext(context, this, client, isXml, isRaw, isBlocked, httpHelper, trim, priority, _logctx, _xmlReadFlags);
+        return createRoxieServerContext(context, this, client, mlFmt, isRaw, isBlocked, httpHelper, trim, priority, _logctx, _xmlReadFlags);
     }
 
     virtual IRoxieServerContext *createContext(IConstWorkUnit *wu, const IRoxieContextLogger &_logctx) const
@@ -1342,6 +1341,25 @@ public:
     }
 };
 
+static void checkWorkunitVersionConsistency(const IQueryDll *dll)
+{
+    assertex(dll->queryWorkUnit());
+    unsigned wuVersion = dll->queryWorkUnit()->getCodeVersion();
+    if (wuVersion > ACTIVITY_INTERFACE_VERSION || wuVersion < MIN_ACTIVITY_INTERFACE_VERSION)
+        throw MakeStringException(ROXIE_MISMATCH, "Workunit was compiled for eclhelper interface version %d, this roxie requires version %d..%d", wuVersion, MIN_ACTIVITY_INTERFACE_VERSION, ACTIVITY_INTERFACE_VERSION);
+
+    EclProcessFactory processFactory = (EclProcessFactory) dll->queryDll()->getEntry("createProcess");
+    if (processFactory)
+    {
+        Owned<IEclProcess> process = processFactory();
+        assertex(process);
+        if (process->getActivityVersion() != wuVersion)
+            throw MakeStringException(ROXIE_MISMATCH, "Inconsistent interface versions.  Workunit was created using eclcc for version %u, but the c++ compiler used version %u", wuVersion, process->getActivityVersion());
+    }
+    else
+        throw MakeStringException(ROXIE_MISMATCH, "Workunit did not export createProcess function");
+}
+
 extern IQueryFactory *createServerQueryFactory(const char *id, const IQueryDll *dll, const IHpccPackage &package, const IPropertyTree *stateInfo)
 {
     CriticalBlock b(CQueryFactory::queryCreateLock);
@@ -1352,8 +1370,8 @@ extern IQueryFactory *createServerQueryFactory(const char *id, const IQueryDll *
         ::Release(dll);
         return cached;
     }
+    checkWorkunitVersionConsistency(dll);
     Owned<ISharedOnceContext> sharedOnceContext;
-    assertex(dll->queryWorkUnit());
     IPropertyTree *workflow = dll->queryWorkUnit()->queryWorkflowTree();
     if (workflow && workflow->hasProp("Item[@mode='once']"))
         sharedOnceContext.setown(new CSharedOnceContext);
@@ -1612,6 +1630,7 @@ IQueryFactory *createSlaveQueryFactory(const char *id, const IQueryDll *dll, con
         ::Release(dll);
         return cached;
     }
+    checkWorkunitVersionConsistency(dll);
     Owned<IQueryFactory> serverFactory = createServerQueryFactory(id, LINK(dll), package, stateInfo); // Should always find a cached one
     Owned<CSlaveQueryFactory> newFactory = new CSlaveQueryFactory(id, dll, dynamic_cast<const IRoxiePackage&>(package), hashValue, channel, serverFactory->querySharedOnceContext());
     newFactory->load(stateInfo);

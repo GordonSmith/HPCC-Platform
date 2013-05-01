@@ -28,6 +28,7 @@
 #include "hqlwcpp.hpp"
 #include "hqltrans.ipp"
 #include "hqlusage.hpp"
+#include "eclrtl.hpp"
 
 #define DEBUG_TIMER(name, time)                     if (options.addTimingToWorkunit) { timeReporter->addTiming(name, time); }
 #define DEBUG_TIMERX(timeReporter, name, time)      if (timeReporter) { timeReporter->addTiming(name, time); }
@@ -534,7 +535,6 @@ struct HqlCppOptions
     unsigned            maxRecordSize;
     unsigned            inlineStringThreshold;
     unsigned            maxRootMaybeThorActions;
-    unsigned            maxStaticRowSize;
     unsigned            maxLocalRowSize;
     unsigned            insertProjectCostLevel;
     unsigned            dfaRepeatMax;
@@ -556,10 +556,10 @@ struct HqlCppOptions
     unsigned            complexClassesThreshold;
     unsigned            complexClassesActivityFilter;
     CompilerType        targetCompiler;
+    DBZaction           divideByZeroAction;
     bool                peephole;
     bool                foldConstantCast;
     bool                optimizeBoolReturn;
-    bool                checkRowOverflow;
     bool                freezePersists;
     bool                checkRoxieRestrictions;
     bool                checkThorRestrictions;
@@ -611,11 +611,8 @@ struct HqlCppOptions
     bool                preventSteppedSplit;
     bool                canGenerateSimpleAction;
     bool                minimizeActivityClasses;
-    bool                includeHelperInGraph;
-    bool                supportsLinkedChildRows;
     bool                minimizeSkewBeforeSpill;
     bool                createSerializeForUnknownSize;
-    bool                tempDatasetsUseLinkedRows;
     bool                implicitLinkedChildRows;
     bool                mainRowsAreLinkCounted;
     bool                allowSections;
@@ -624,7 +621,6 @@ struct HqlCppOptions
     bool                sortIndexPayload;
     bool                foldFilter;
     bool                finalizeAllRows;
-    bool                finalizeAllVariableRows;
     bool                optimizeGraph;
     bool                optimizeChildGraph ;
     bool                orderDiskFunnel;
@@ -638,8 +634,6 @@ struct HqlCppOptions
     bool                generateLogicalGraph;
     bool                generateLogicalGraphOnly;
     bool                globalAutoHoist;
-    bool                useLinkedRawIterator;
-    bool                useLinkedNormalize;
     bool                expandRepeatAnyAsDfa;
     bool                unlimitedResources;
     bool                hasResourceUseMpForDistribute;
@@ -658,7 +652,6 @@ struct HqlCppOptions
     bool                combineTrivialStored;
     bool                combineAllStored;
     bool                allowStoredDuplicate;
-    bool                preserveUniqueSelector;
     bool                allowScopeMigrate;
     bool                supportFilterProject;
     bool                normalizeExplicitCasts;
@@ -691,10 +684,7 @@ struct HqlCppOptions
     bool                addLibraryInputsToGraph;
     bool                showRecordCountInGraph;
     bool                serializeRowsetInExtract;
-    bool                optimizeInSegmentMonitor;
-    bool                supportDynamicRows;
     bool                testIgnoreMaxLength;
-    bool                limitMaxLength;
     bool                trackDuplicateActivities;               // for diagnosing problems with code becoming duplicated
     bool                showActivitySizeInGraph;
     bool                addLocationToCpp;
@@ -709,22 +699,23 @@ struct HqlCppOptions
     bool                createImplicitAliases;
     bool                combineSiblingGraphs;
     bool                optimizeSharedGraphInputs;
-    bool                supportsShuffleActivity;  // Does the target engine support SHUFFLE?
-    bool                implicitShuffle;  // convert sort when partially sortted to shuffle (group,sort,ungroup)
-    bool                implicitBuildIndexShuffle;  // use shuffle when building indexes?
-    bool                implicitJoinShuffle;  // use shuffle for paritially sorted join inputs when possible
-    bool                implicitGroupShuffle;  // use shuffle if some sort conditions match when grouping
-    bool                implicitGroupHashAggregate;  // convert aggreate(sort(x,a),{..},a,d) to aggregate(group(sort(x,a),a_,{},d))
+    bool                supportsSubSortActivity;  // Does the target engine support SUBSORT?
+    bool                implicitSubSort;  // convert sort when partially sorted to subsort (group,sort,ungroup)
+    bool                implicitBuildIndexSubSort;  // use subsort when building indexes?
+    bool                implicitJoinSubSort;  // use subsort for partially sorted join inputs when possible
+    bool                implicitGroupSubSort;  // use subsort if some sort conditions match when grouping
+    bool                implicitGroupHashAggregate;  // convert aggregate(sort(x,a),{..},a,d) to aggregate(group(sort(x,a),a_,{},d))
     bool                implicitGroupHashDedup;
     bool                reportFieldUsage;
     bool                reportFileUsage;
-    bool                shuffleLocalJoinConditions;
+    bool                subsortLocalJoinConditions;
     bool                projectNestedTables;
     bool                showSeqInGraph;
     bool                normalizeSelectorSequence;
-    bool                transformCaseToChoose;
     bool                removeXpathFromOutput;
     bool                canLinkConstantRows;
+    bool                checkAmbiguousRollupCondition;
+    bool                paranoidCheckSelects;
 };
 
 //Any information gathered while processing the query should be moved into here, rather than cluttering up the translator class
@@ -917,7 +908,6 @@ public:
     void generateStatistics(const char * targetDir, const char * varient);
 
             unsigned getHints()                             { return hints; }
-    inline  bool checkForRowOverflow() const                { return options.checkRowOverflow; }
     inline bool queryEvaluateCoLocalRowInvariantInExtract() const { return options.evaluateCoLocalRowInvariantInExtract; }
     inline byte notifyOptimizedProjectsLevel()              { return options.notifyOptimizedProjects; }
     inline bool generateAsserts() const                     { return options.checkAsserts; }
@@ -1016,7 +1006,6 @@ public:
     unsigned getMaxRecordSize(IHqlExpression * record);
     IHqlExpression * getRecordSize(IHqlExpression * dataset);
     unsigned getCsvMaxLength(IHqlExpression * csvAttr);
-    IHqlExpression * createRecordInheritMaxLength(HqlExprArray & fields, IHqlExpression * donor);
     void ensureRowSerializer(StringBuffer & serializerName, BuildCtx & ctx, IHqlExpression * record, _ATOM format, _ATOM kind);
     void ensureRowPrefetcher(StringBuffer & prefetcherName, BuildCtx & ctx, IHqlExpression * record);
     IHqlExpression * createSerializer(BuildCtx & ctx, IHqlExpression * record, _ATOM format, _ATOM kind);
@@ -1143,6 +1132,7 @@ public:
 
     void buildExprAssignViaType(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr, ITypeInfo * type);
     void buildExprAssignViaString(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr, unsigned len);
+    void doBuildDivideByZero(BuildCtx & ctx, const CHqlBoundTarget * target, IHqlExpression * zero, CHqlBoundExpr * bound);
 
     void doBuildAssignAddSets(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * value);
     void doBuildAssignAggregate(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr);
@@ -1444,7 +1434,6 @@ public:
     ABoundActivity * doBuildActivityPrefetchProject(BuildCtx & ctx, IHqlExpression * expr);
     ABoundActivity * doBuildActivityProject(BuildCtx & ctx, IHqlExpression * expr);
     ABoundActivity * doBuildActivityProcess(BuildCtx & ctx, IHqlExpression * expr);
-    ABoundActivity * doBuildActivityRawChildDataset(BuildCtx & ctx, IHqlExpression * expr);
     ABoundActivity * doBuildActivityRegroup(BuildCtx & ctx, IHqlExpression * expr);
     ABoundActivity * doBuildActivityRemote(BuildCtx & ctx, IHqlExpression * expr, bool isRoot);
     ABoundActivity * doBuildActivityReturnResult(BuildCtx & ctx, IHqlExpression * expr, bool isRoot);
@@ -1575,7 +1564,7 @@ public:
     IHqlExpression * doBuildRegexFindInstance(BuildCtx & ctx, IHqlExpression * compiled, IHqlExpression * search, bool cloneSearch);
     
     IHqlExpression * doCreateGraphLookup(BuildCtx & declarectx, BuildCtx & resolvectx, unique_id_t id, const char * activity, bool isChild);
-    IHqlExpression * buildGetLocalResult(BuildCtx & ctx, IHqlExpression * expr, bool preferLinkedRows);
+    IHqlExpression * buildGetLocalResult(BuildCtx & ctx, IHqlExpression * expr);
 
     IHqlExpression * queryOptimizedExists(BuildCtx & ctx, IHqlExpression * expr, IHqlExpression * dataset);
     void doBuildAssignAggregateLoop(BuildCtx & ctx, const CHqlBoundTarget & target, IHqlExpression * expr, IHqlExpression * dataset, IHqlExpression * doneFirstVar);
@@ -1873,6 +1862,8 @@ public:
     void checkNormalized(HqlExprArray & exprs);
     void checkNormalized(BuildCtx & ctx, IHqlExpression * expr);
 
+    void checkAmbiguousRollupCondition(IHqlExpression * expr);
+
 protected:
     HqlCppInstance *    code;
     IHqlScope *         internalScope;
@@ -2028,7 +2019,6 @@ extern bool filterIsTableInvariant(IHqlExpression * expr);
 extern bool mustEvaluateInContext(BuildCtx & ctx, IHqlExpression * expr);
 extern const char * boolToText(bool value);
 extern GraphLocalisation queryActivityLocalisation(IHqlExpression * expr);
-extern void checkDependencyConsistency(WorkflowArray & workflow);
 extern bool isGraphIndependent(IHqlExpression * expr, IHqlExpression * graph);
 extern IHqlExpression * adjustBoundIntegerValues(IHqlExpression * left, IHqlExpression * right, bool subtract);
 extern bool isNullAssign(const CHqlBoundTarget & target, IHqlExpression * expr);
