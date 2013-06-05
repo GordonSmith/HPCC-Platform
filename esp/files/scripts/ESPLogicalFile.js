@@ -36,7 +36,7 @@ define([
     var Store = declare([ESPRequest.Store], {
         service: "WsDfu",
         action: "DFUQuery",
-        responseQualifier: "DFULogicalFiles.DFULogicalFile",
+        responseQualifier: "DFUQueryResponse.DFULogicalFiles.DFULogicalFile",
         responseTotalQualifier: "NumFiles",
         idProperty: "Name",
         startProperty: "PageStartFrom",

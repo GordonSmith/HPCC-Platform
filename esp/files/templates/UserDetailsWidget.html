@@ -1,0 +1,36 @@
+<div class="${baseClass}">
+    <div id="${id}BorderContainer" class="${baseClass}BorderContainer" style="width: 100%; height: 100%" data-dojo-type="dijit.layout.BorderContainer">
+        <div data-dojo-props="region: 'center'" data-dojo-type="dijit.layout.ContentPane" >
+            <div id="${id}_Myaccount" style="width: 100%; height: 50%" data-dojo-type="dijit.layout.BorderContainer">
+                <div id="${id}Toolbar" class="topPanel" style="padding: 0px; overflow: hidden" data-dojo-props="region: 'top'" data-dojo-type="dijit.Toolbar">
+                    <div id="${id}Refresh" data-dojo-attach-event="onClick:_onRefresh" data-dojo-props="iconClass:'iconRefresh'" data-dojo-type="dijit.form.Button">Refresh</div>
+                    <span data-dojo-type="dijit.ToolbarSeparator"></span>
+                    <div id="" data-dojo-attach-event="onClick:" data-dojo-type="dijit.form.Button">Save</div>
+                    <div id="" data-dojo-attach-event="onClick:" data-dojo-type="dijit.form.Button">Clear</div>
+                </div>
+                <div data-dojo-props="region: 'center'" data-dojo-type="dijit.layout.ContentPane" >
+                    <div id="${id}EditForm" style="width:45%; float:left;border:dashed 1px rgb(157, 207, 255);padding:0px 20px 20px 20px;" data-dojo-type="dijit.form.Form">
+                        <div data-dojo-props="cols:2" data-dojo-type="dojox.layout.TableContainer">
+                            <h2>Edit User</h2>
+                            <input id="${id}UsersUsername" title="Username:" name="username" readonly="readonly" colspan="2" data-dojo-props="trim: true, readonly: true," data-dojo-type="dijit.form.TextBox" />
+                            <input id="${id}UsersFirstName" title="First Name:" name="firstname" colspan="2" data-dojo-props="trim: true, placeHolder:'john'" data-dojo-type="dijit.form.TextBox" />
+                            <input id="${id}UsersLastName" title="Last Name:" name="lastname" colspan="2" data-dojo-props="trim: true, placeHolder:'smith'" data-dojo-type="dijit.form.TextBox" />
+                        </div>
+                    </div>
+                    <div id="" style="width:48%; float:left;border:dashed 1px rgb(157, 207, 255);padding:0px 20px 20px 20px;margin-left:20px;" data-dojo-type="dijit.form.Form">
+                        <div data-dojo-props="cols:2" data-dojo-type="dojox.layout.TableContainer">
+                            <h2>Change Password</h2>
+                            <input id="" title="Username:" name="username" readonly="readonly" colspan="2" data-dojo-props="trim: true, readonly: true," data-dojo-type="dijit.form.TextBox" />
+                            <input id="${id}NewPassword" title="New&nbsp;password:" name="newPassword" type="password" pwType="new" colspan="2" required="true" data-dojo-type="dijit.form.ValidationTextBox" />
+                            <input id="${id}VerifyPassword" title="Retype&nbsp;new&nbsp;password:" name="newPasswordRetype" type="password" pwType="verify" colspan="2" required="true" data-dojo-type="dijit.form.ValidationTextBox" />
+                        </div>
+                    </div>
+                </div>
+                <div id="${id}Members" data-dojo-type="MembersWidget" data-dojo-props="region: 'bottom',  splitter: true,  minsize: '120'"></div>
+            </div>
+
+           
+        </div>
+
+    </div>
+</div>

@@ -288,11 +288,11 @@ define([
             },
 
             _hasResponseContent: function(response) {
-                return lang.exists(this.action + "Response." + this.responseQualifier, response);
+                return lang.exists(this.responseQualifier, response);
             },
 
             _getResponseContent: function(response) {
-                return lang.getObject(this.action + "Response." + this.responseQualifier, false, response);
+                return lang.getObject(this.responseQualifier, false, response);
             },
 
             query: function (query, options) {
@@ -323,7 +323,7 @@ define([
                 var context = this;
                 deferredResults.total = results.then(function (response) {
                     if (context.responseTotalQualifier) {
-                        return lang.getObject(context.action + "Response." + context.responseTotalQualifier, false, response);
+                        return lang.getObject(context.responseTotalQualifier, false, response);
                     } else if (context._hasResponseContent(response)) {
                         return context._getResponseContent(response).length;
                     }

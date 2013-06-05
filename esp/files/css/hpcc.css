@@ -112,6 +112,14 @@ form h2{
     color:rgb(22, 22, 22);
 }
 
+table td{
+    vertical-align: top;
+}
+
+form table label{
+    width:13em;
+}
+
 /* Double-color dashed line */
         
 hr.dashedLine {
@@ -239,6 +247,23 @@ margin-left:-20px;
     width: 64em;
 }
 
+.claro .dijitReadOnly *{
+    background-color: rgb(219, 219, 219);
+    background-image: url("../imgs/lock.png");
+    background-position: right center;
+    background-repeat: no-repeat;
+    background-size: 20px auto;
+}
+
+.claro .dijitReadOnly .dijitTextBoxReadOnlyFocused{
+    background-color: rgb(219, 219, 219);
+}
+
+.claro .dijitReadOnly .dijitInputInner {
+    color: rgb(122, 122, 122)
+}
+
+
 .smallForm .dijitValidationTextBoxLabel {
     width: auto;
 }
@@ -343,6 +368,13 @@ margin-left:-20px;
     color: white;
 }
 
+.ValidationError{
+    color:red;
+    font-weight:bold;
+    margin-bottom:10px;
+
+}
+
 .WarningCell{
     background: yellow;
 }
@@ -363,4 +395,8 @@ margin-left:-20px;
     left: 0;
     right: 0;
     height: auto;
+}
+
+.bottomFormButtons{
+    margin-top:20px;
 }

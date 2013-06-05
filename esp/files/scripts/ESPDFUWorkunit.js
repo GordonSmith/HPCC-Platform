@@ -32,7 +32,7 @@ define([
     var Store = declare([ESPRequest.Store], {
         service: "FileSpray",
         action: "GetDFUWorkunits",
-        responseQualifier: "results.DFUWorkunit",
+        responseQualifier: "GetDFUWorkunitsResponse.results.DFUWorkunit",
         responseTotalQualifier: "NumWUs",
         idProperty: "ID",
         startProperty: "PageStartFrom",
