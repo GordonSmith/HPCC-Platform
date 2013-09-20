@@ -345,10 +345,10 @@ enum _node_operator {
         no_crc,
         no_return_stmt,
         no_update,    
-        no_shuffle,
+        no_subsort,
         no_chooseds,
         no_alias,
-    no_unused19,
+        no_datasetfromdictionary,
     no_unused20,
     no_unused21,
     no_unused22,
@@ -357,12 +357,12 @@ enum _node_operator {
         no_dataset_from_transform,
         no_childquery,
         no_unknown,
-        no_inlinedictionary,
+        no_createdictionary,
         no_indict,
         no_countdict,
         no_any,
-        no_userdictionary,
-        no_newuserdictionary,
+        no_existsdict,
+    no_unused101,
     no_unused25,
     no_unused28,  
     no_unused29,
@@ -435,7 +435,7 @@ enum _node_operator {
         no_rshift,
         no_colon,
         no_setworkflow_cond,
-        no_recovering,
+        no_unused102,
         no_unused15,
         no_random,
         no_select,
@@ -595,7 +595,7 @@ enum _node_operator {
         no_blob2id,
         no_anon,
         no_projectrow,
-        no_cppbody,
+        no_embedbody,
         no_sortpartition,
         no_define,
         no_globalscope,
@@ -1332,7 +1332,7 @@ extern HQL_API IHqlExpression * createPureVirtual(ITypeInfo * type);
 extern HQL_API IHqlExpression * cloneOrLink(IHqlExpression * expr, HqlExprArray & children);
 extern HQL_API IHqlExpression * createConstantOne();
 extern HQL_API IHqlExpression * createLocalAttribute();
-extern HQL_API bool isNullExpr(IHqlExpression * expr, ITypeInfo * type);
+extern HQL_API bool isNullExpr(IHqlExpression * expr, IHqlExpression * field);
 inline bool isNull(IHqlExpression * expr)       { return expr->getOperator() == no_null; }
 inline bool isNullAction(IHqlExpression * expr) { return isNull(expr) && expr->isAction(); }
 inline bool isFail(IHqlExpression * expr)       { return expr->getOperator() == no_fail; }
@@ -1473,8 +1473,8 @@ extern HQL_API IHqlExpression * queryTable(IHqlExpression * dataset);
 extern HQL_API node_operator queryTableMode(IHqlExpression * expr);
 
 // Code for producing simplified records that the file viewer can cope with
-extern HQL_API ITypeInfo * getSimplifiedType(ITypeInfo * type, bool isConditional, bool isSerialized);
-extern HQL_API IHqlExpression * getSimplifiedRecord(IHqlExpression * record, bool isKey);
+extern HQL_API ITypeInfo * getSimplifiedType(ITypeInfo * type, bool isConditional, bool isSerialized, _ATOM serialForm);
+extern HQL_API IHqlExpression * getFileViewerRecord(IHqlExpression * record, bool isKey);
 extern HQL_API IHqlExpression * getRecordMappingTransform(node_operator op, IHqlExpression * tgt, IHqlExpression * src, IHqlExpression * sourceSelector);
 extern HQL_API IHqlExpression * getSimplifiedTransform(IHqlExpression * tgt, IHqlExpression * src, IHqlExpression * sourceSelector);
 extern HQL_API IHqlExpression * removeVirtualAttributes(IHqlExpression * record);
@@ -1510,8 +1510,8 @@ extern HQL_API bool isActivityIndependentOfScope(IHqlExpression * expr);
 extern HQL_API bool exprReferencesDataset(IHqlExpression * expr, IHqlExpression * dataset);
 extern HQL_API bool canEvaluateInScope(const HqlExprCopyArray & activeScopes, IHqlExpression * expr);
 extern HQL_API bool canEvaluateInScope(const HqlExprCopyArray & activeScopes, const HqlExprCopyArray & required);
-extern HQL_API IHqlExpression * ensureDeserialized(IHqlExpression * expr, ITypeInfo * type);
-extern HQL_API IHqlExpression * ensureSerialized(IHqlExpression * expr);
+extern HQL_API IHqlExpression * ensureDeserialized(IHqlExpression * expr, ITypeInfo * type, _ATOM serialForm);
+extern HQL_API IHqlExpression * ensureSerialized(IHqlExpression * expr, _ATOM serialForm);
 extern HQL_API bool isDummySerializeDeserialize(IHqlExpression * expr);
 
 extern HQL_API unsigned getRepeatMax(IHqlExpression * expr);
@@ -1565,6 +1565,7 @@ extern HQL_API bool hasUninheritedAttribute(IHqlExpression * field);
 extern HQL_API IHqlExpression * extractChildren(IHqlExpression * value);
 extern HQL_API IHqlExpression * queryOnlyField(IHqlExpression * record);
 extern HQL_API bool recordTypesMatch(ITypeInfo * left, ITypeInfo * right);
+extern HQL_API bool assertRecordTypesMatch(ITypeInfo * left, ITypeInfo * right);
 extern HQL_API bool recordTypesMatch(IHqlExpression * left, IHqlExpression * right);
 extern HQL_API bool recordTypesMatchIgnorePayload(IHqlExpression *left, IHqlExpression *right);
 extern HQL_API IHqlExpression * queryOriginalRecord(IHqlExpression * expr);
@@ -1581,6 +1582,8 @@ extern HQL_API IHqlExpression * queryRecordProperty(IHqlExpression * record, _AT
 extern HQL_API bool isExported(IHqlExpression * expr);
 extern HQL_API bool isShared(IHqlExpression * expr);
 extern HQL_API bool isImport(IHqlExpression * expr);
+
+extern HQL_API IECLError * queryAnnotatedWarning(const IHqlExpression * expr);
 
 extern HQL_API bool isPublicSymbol(IHqlExpression * expr);
 extern HQL_API ITypeInfo * getSumAggType(IHqlExpression * arg);

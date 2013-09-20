@@ -21,6 +21,9 @@
 #include "ccd.hpp"
 #include "ccdquery.hpp"
 #include "ccdstate.hpp"
+#include "ccdserver.hpp"
+#include "ccdcontext.hpp"
+#include "ccddebug.hpp"
 #include "ccdactivities.hpp"
 #include "ccdqueue.ipp"
 #include "ccdsnmp.hpp"
@@ -43,6 +46,7 @@ size32_t diskReadBufferSize = 0x10000;
 
 using roxiemem::OwnedRoxieRow;
 using roxiemem::OwnedConstRoxieRow;
+using roxiemem::OwnedRoxieString;
 using roxiemem::IRowManager;
 
 #define maxContinuationSize 48000 // note - must fit in the 2-byte length field... but also needs to be possible to send back from Roxie server->slave in one packet
@@ -207,7 +211,7 @@ public:
     {
         if (!childQueries.length())
             logctx.setDebuggerActive(false);
-        if (meta.needsDestruct() || meta.needsSerialize() || childQueries.length())
+        if (meta.needsDestruct() || meta.needsSerializeDisk() || childQueries.length())
         {
             Owned<IRoxieSlaveContext> queryContext = queryFactory.createSlaveContext(logctx, packet);
             ForEachItemIn(idx, childQueries)
@@ -323,7 +327,7 @@ protected:
 
     virtual bool needsRowAllocator()
     {
-        return meta.needsSerialize() || meta.isVariableSize();
+        return meta.needsSerializeDisk() || meta.isVariableSize();
     }
 
     virtual void onCreate()
@@ -340,8 +344,8 @@ protected:
             queryContext.setown(basefactory->createChildQueries(basehelper, childGraphs, NULL, logctx, packet));
         if (!queryContext)
             queryContext.setown(basefactory->createSlaveContext(logctx, packet));
-        if (meta.needsSerialize())
-            serializer.setown(meta.createRowSerializer(queryContext->queryCodeContext(), basefactory->queryId()));
+        if (meta.needsSerializeDisk())
+            serializer.setown(meta.createDiskSerializer(queryContext->queryCodeContext(), basefactory->queryId()));
         if (needsRowAllocator())
             rowAllocator.setown(getRowAllocator(meta.queryOriginal(), basefactory->queryId()));
         unsigned parentExtractSize;
@@ -353,7 +357,10 @@ protected:
         if (variableFileName) // note - in keyed join with dependent index case, kj itself won't have variableFileName but indexread might
         {
             CDateTime cacheDate(serializedCreate);
-            varFileInfo.setown(querySlaveDynamicFileCache()->lookupDynamicFile(logctx, queryDynamicFileName(), cacheDate, &packet->queryHeader(), isOpt, true));
+            unsigned checksum;
+            serializedCreate.read(checksum);
+            OwnedRoxieString fname(queryDynamicFileName());
+            varFileInfo.setown(querySlaveDynamicFileCache()->lookupDynamicFile(logctx, fname, cacheDate, checksum, &packet->queryHeader(), isOpt, true));
             setVariableFileInfo();
         }
     }
@@ -460,7 +467,7 @@ public:
         return queryContext->queryCodeContext()->loadResource(id);
     }
 
-    // Gets and sets should not happen - they can only happen in the main Roxie server context
+    // Sets should not happen - they can only happen in the main Roxie server context
 
     virtual void setResultBool(const char *name, unsigned sequence, bool value) { throwUnexpected(); }
     virtual void setResultData(const char *name, unsigned sequence, int len, const void * data) { throwUnexpected(); }
@@ -475,33 +482,74 @@ public:
     virtual void setResultVarString(const char * name, unsigned sequence, const char * value) { throwUnexpected(); }
     virtual void setResultVarUnicode(const char * name, unsigned sequence, UChar const * value) { throwUnexpected(); }
 
-    virtual bool getResultBool(const char * name, unsigned sequence) { throwUnexpected(); }
-    virtual void getResultData(unsigned & tlen, void * & tgt, const char * name, unsigned sequence) { throwUnexpected(); }
-    virtual void getResultDecimal(unsigned tlen, int precision, bool isSigned, void * tgt, const char * stepname, unsigned sequence) { throwUnexpected(); }
-    virtual void getResultRaw(unsigned & tlen, void * & tgt, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) { throwUnexpected(); }
-    virtual void getResultSet(bool & isAll, size32_t & tlen, void * & tgt, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) { throwUnexpected(); }
-    virtual __int64 getResultInt(const char * name, unsigned sequence) { throwUnexpected(); }
-    virtual double getResultReal(const char * name, unsigned sequence) { throwUnexpected(); }
-    virtual void getResultString(unsigned & tlen, char * & tgt, const char * name, unsigned sequence) { throwUnexpected(); }
-    virtual void getResultStringF(unsigned tlen, char * tgt, const char * name, unsigned sequence) { throwUnexpected(); }
-    virtual void getResultUnicode(unsigned & tlen, UChar * & tgt, const char * name, unsigned sequence) { throwUnexpected(); }
-    virtual char *getResultVarString(const char * name, unsigned sequence) { throwUnexpected(); }
-    virtual UChar *getResultVarUnicode(const char * name, unsigned sequence) { throwUnexpected(); }
+    // Some gets are allowed though (e.g. for ONCE values)
+
+    virtual bool getResultBool(const char * name, unsigned sequence)
+    {
+        return queryContext->queryCodeContext()->getResultBool(name, sequence);
+    }
+    virtual void getResultData(unsigned & tlen, void * & tgt, const char * name, unsigned sequence)
+    {
+        queryContext->queryCodeContext()->getResultData(tlen, tgt, name, sequence);
+    }
+    virtual void getResultDecimal(unsigned tlen, int precision, bool isSigned, void * tgt, const char * stepname, unsigned sequence)
+    {
+        queryContext->queryCodeContext()->getResultDecimal(tlen, precision, isSigned, tgt, stepname, sequence);
+    }
+    virtual void getResultRaw(unsigned & tlen, void * & tgt, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer)
+    {
+        queryContext->queryCodeContext()->getResultRaw(tlen, tgt, name, sequence, xmlTransformer, csvTransformer);
+    }
+    virtual void getResultSet(bool & isAll, size32_t & tlen, void * & tgt, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer)
+    {
+        queryContext->queryCodeContext()->getResultSet(isAll, tlen, tgt, name, sequence, xmlTransformer, csvTransformer);
+    }
+    virtual __int64 getResultInt(const char * name, unsigned sequence)
+    {
+        return queryContext->queryCodeContext()->getResultInt(name, sequence);
+    }
+    virtual double getResultReal(const char * name, unsigned sequence)
+    {
+        return queryContext->queryCodeContext()->getResultReal(name, sequence);
+    }
+    virtual void getResultString(unsigned & tlen, char * & tgt, const char * name, unsigned sequence)
+    {
+        queryContext->queryCodeContext()->getResultString(tlen, tgt, name, sequence);
+    }
+    virtual void getResultStringF(unsigned tlen, char * tgt, const char * name, unsigned sequence)
+    {
+        queryContext->queryCodeContext()->getResultStringF(tlen, tgt, name, sequence);
+    }
+    virtual void getResultUnicode(unsigned & tlen, UChar * & tgt, const char * name, unsigned sequence)
+    {
+        queryContext->queryCodeContext()->getResultUnicode(tlen, tgt, name, sequence);
+    }
+    virtual char *getResultVarString(const char * name, unsigned sequence)
+    {
+        return queryContext->queryCodeContext()->getResultVarString(name, sequence);
+    }
+    virtual UChar *getResultVarUnicode(const char * name, unsigned sequence)
+    {
+        return queryContext->queryCodeContext()->getResultVarUnicode(name, sequence);
+    }
+    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * name, unsigned sequence, IEngineRowAllocator * _rowAllocator, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer)
+    {
+        return queryContext->queryCodeContext()->getResultRowset(tcount, tgt, name, sequence, _rowAllocator, isGrouped, xmlTransformer, csvTransformer);
+    }
+    virtual void getResultDictionary(size32_t & tcount, byte * * & tgt, IEngineRowAllocator * _rowAllocator, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer, IHThorHashLookupInfo * hasher)
+    {
+        return queryContext->queryCodeContext()->getResultDictionary(tcount, tgt, _rowAllocator, name, sequence, xmlTransformer, csvTransformer, hasher);
+    }
+
     virtual unsigned getResultHash(const char * name, unsigned sequence) { throwUnexpected(); }
-    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * name, unsigned sequence, IEngineRowAllocator * _rowAllocator, IOutputRowDeserializer * deserializer, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) { throwUnexpected(); }
 
     // Not yet thought about these....
 
     virtual char *getWuid() { throwUnexpected(); } // caller frees return string.
     virtual void getExternalResultRaw(unsigned & tlen, void * & tgt, const char * wuid, const char * stepname, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) { throwUnexpected(); }  // shouldn't really be here, but it broke thor.
-    virtual char *getDaliServers() { throwUnexpected(); } // caller frees return string.
     virtual void executeGraph(const char * graphName, bool realThor, size32_t parentExtractSize, const void * parentExtract) { throwUnexpected(); }
     virtual unsigned __int64 getDatasetHash(const char * name, unsigned __int64 hash)   { throwUnexpected(); return 0; }
-    virtual unsigned getRecoveringCount() { throwUnexpected(); }
 
-    virtual __int64 countDiskFile(const char * lfn, unsigned recordSize) { throwUnexpected(); }
-    virtual __int64 countIndex(__int64 activityId, IHThorCountIndexArg & arg) { throwUnexpected(); }
-    virtual __int64 countDiskFile(__int64 activityId, IHThorCountFileArg & arg) { throwUnexpected(); }      // only used for roxie...
     virtual char * getExpandLogicalName(const char * logicalName) { throwUnexpected(); }
     virtual void addWuException(const char * text, unsigned code, unsigned severity) { throwUnexpected(); }
     virtual void addWuAssertFailure(unsigned code, const char * text, const char * filename, unsigned lineno, unsigned column, bool isAbort) { throwUnexpected(); }
@@ -542,6 +590,14 @@ public:
     {
         return queryContext->queryCodeContext()->getRowAllocator(meta, activityId); 
     }
+    virtual const char *cloneVString(const char *str) const
+    {
+        return queryContext->queryCodeContext()->cloneVString(str);
+    }
+    virtual const char *cloneVString(size32_t len, const char *str) const
+    {
+        return queryContext->queryCodeContext()->cloneVString(len, str);
+    }
     virtual void getRowXML(size32_t & lenResult, char * & result, IOutputMetaData & info, const void * row, unsigned flags)
     {
         convertRowToXML(lenResult, result, info, row, flags);
@@ -550,6 +606,7 @@ public:
     {
         return createRowFromXml(rowAllocator, len, utf8, xmlTransformer, stripWhitespace);
     }
+    virtual IEngineContext *queryEngineContext() { return NULL; }
 };
 
 //================================================================================================
@@ -776,7 +833,7 @@ public:
         forceUnkeyed(_forceUnkeyed)
     {
         helper = (IHThorDiskReadBaseArg *) basehelper;
-        variableFileName = (helper->getFlags() & (TDXvarfilename|TDXdynamicfilename)) != 0;
+        variableFileName = allFilesDynamic || ((helper->getFlags() & (TDXvarfilename|TDXdynamicfilename)) != 0);
         isOpt = (helper->getFlags() & TDRoptional) != 0;
         diskSize.set(helper->queryDiskRecordSize());
         processed = 0;
@@ -919,12 +976,12 @@ public:
         : CSlaveActivityFactory(_graphNode, _subgraphId, _queryFactory, _helperFactory)
     {
         Owned<IHThorDiskReadBaseArg> helper = (IHThorDiskReadBaseArg *) helperFactory();
-        bool variableFileName = (helper->getFlags() & (TDXvarfilename|TDXdynamicfilename)) != 0;
+        bool variableFileName = allFilesDynamic || ((helper->getFlags() & (TDXvarfilename|TDXdynamicfilename)) != 0);
         if (!variableFileName)
         {
             bool isOpt = (helper->getFlags() & TDRoptional) != 0;
-            const char *fileName = helper->getFileName();
-            datafile.setown(_queryFactory.queryPackage().lookupFileName(fileName, isOpt, true));
+            OwnedRoxieString fileName(helper->getFileName());
+            datafile.setown(_queryFactory.queryPackage().lookupFileName(fileName, isOpt, true, _queryFactory.queryWorkUnit()));
             if (datafile)
             {
                 unsigned channel = queryFactory.queryChannel();
@@ -1362,7 +1419,7 @@ public:
     UnkeyedVariableRecordProcessor(IInMemoryIndexCursor *_cursor, CRoxieDiskReadActivity &_owner, IDirectReader *_reader)
       : UnkeyedRecordProcessor(_cursor, _owner, _reader), deserializeSource(_reader)
     {
-        prefetcher.setown(owner.diskSize.queryOriginal()->createRowPrefetcher(owner.queryContext->queryCodeContext(), owner.basefactory->queryId()));
+        prefetcher.setown(owner.diskSize.queryOriginal()->createDiskPrefetcher(owner.queryContext->queryCodeContext(), owner.basefactory->queryId()));
     }
 
     virtual void doQuery(IMessagePacker *output, unsigned processed, unsigned __int64 rowLimit, unsigned __int64 stopAfter)
@@ -1562,7 +1619,8 @@ public:
         unsigned totalSizeSent = 0;
 #endif
         Linked<IXmlToRowTransformer> rowTransformer = helper->queryTransformer();
-        Owned<IXMLParse> xmlParser = createXMLParse(*reader->querySimpleStream(), helper->queryIteratorPath(), *this, (0 != (TDRxmlnoroot & helper->getFlags()))?xr_noRoot:xr_none, (helper->getFlags() & TDRusexmlcontents) != 0);
+        OwnedRoxieString xmlIterator(helper->getXmlIteratorPath());
+        Owned<IXMLParse> xmlParser = createXMLParse(*reader->querySimpleStream(), xmlIterator, *this, (0 != (TDRxmlnoroot & helper->getFlags()))?ptr_noRoot:ptr_none, (helper->getFlags() & TDRusexmlcontents) != 0);
         while (!aborted)
         {
             //call to next() will callback on the IXmlSelect interface
@@ -1818,7 +1876,7 @@ public:
     UnkeyedNormalizeRecordProcessor(IInMemoryIndexCursor *_cursor, CRoxieDiskNormalizeActivity &_owner, IDirectReader *_reader) 
         : NormalizeRecordProcessor(_cursor, _owner), reader(_reader), deserializeSource(_reader)
     {
-        prefetcher.setown(owner.diskSize.queryOriginal()->createRowPrefetcher(owner.queryContext->queryCodeContext(), owner.basefactory->queryId()));
+        prefetcher.setown(owner.diskSize.queryOriginal()->createDiskPrefetcher(owner.queryContext->queryCodeContext(), owner.basefactory->queryId()));
     }
 
     virtual void doQuery(IMessagePacker *output, unsigned processed, unsigned __int64 rowLimit, unsigned __int64 stopAfter)
@@ -2097,7 +2155,7 @@ public:
     UnkeyedVariableCountRecordProcessor(IInMemoryIndexCursor *_cursor, CRoxieDiskCountActivity &_owner, IDirectReader *_reader)
         : UnkeyedCountRecordProcessor(_cursor, _owner, _reader), deserializeSource(reader)
     {
-        prefetcher.setown(owner.diskSize.queryOriginal()->createRowPrefetcher(owner.queryContext->queryCodeContext(), owner.basefactory->queryId()));
+        prefetcher.setown(owner.diskSize.queryOriginal()->createDiskPrefetcher(owner.queryContext->queryCodeContext(), owner.basefactory->queryId()));
     }
 
     // This version is used for variable size rows 
@@ -2317,10 +2375,10 @@ public:
     {
         helper = (IHThorDiskAggregateArg *) basehelper;
         onCreate();
-        if (meta.needsSerialize())
+        if (meta.needsSerializeDisk())
         {
             // MORE - avoiding serializing to dummy would be more efficient...
-            deserializer.setown(meta.createRowDeserializer(queryContext->queryCodeContext(), basefactory->queryId()));
+            deserializer.setown(meta.createDiskDeserializer(queryContext->queryCodeContext(), basefactory->queryId()));
         }
         CRoxieDiskAggregateActivity *part0 = new CRoxieDiskAggregateActivity(_logctx, _packet, _hFactory, _aFactory, _manager, 0, numParallel, false);
         parts.append(*part0);
@@ -2578,7 +2636,7 @@ public:
     UnkeyedVariableAggregateRecordProcessor(IInMemoryIndexCursor *_cursor, CRoxieDiskAggregateActivity &_owner, IDirectReader *_reader) 
         : UnkeyedAggregateRecordProcessor(_cursor, _owner, _reader), deserializeSource(_reader)
     {
-        prefetcher.setown(owner.diskSize.queryOriginal()->createRowPrefetcher(owner.queryContext->queryCodeContext(), owner.basefactory->queryId()));
+        prefetcher.setown(owner.diskSize.queryOriginal()->createDiskPrefetcher(owner.queryContext->queryCodeContext(), owner.basefactory->queryId()));
     }
 
     virtual void doQuery(IMessagePacker *output, unsigned processed, unsigned __int64 rowLimit, unsigned __int64 stopAfter)
@@ -2713,10 +2771,10 @@ public:
     {
         onCreate();
         resultAggregator.start(rowAllocator);
-        if (meta.needsSerialize())
+        if (meta.needsSerializeDisk())
         {
             // MORE - avoiding serializing to dummy would be more efficient...
-            deserializer.setown(meta.createRowDeserializer(queryContext->queryCodeContext(), basefactory->queryId()));
+            deserializer.setown(meta.createDiskDeserializer(queryContext->queryCodeContext(), basefactory->queryId()));
         }
         CRoxieDiskGroupAggregateActivity *part0 = new CRoxieDiskGroupAggregateActivity(_logctx, _packet, _hFactory, _aFactory, _manager, 0, numParallel, false);
         parts.append(*part0);
@@ -2938,7 +2996,7 @@ public:
                                                  ICodeContext *ctx, unsigned activityId)
     : UnkeyedGroupAggregateRecordProcessor(_cursor, _results, _helper, _reader), deserializeSource(_reader)
     {
-        prefetcher.setown(helper.queryDiskRecordSize()->createRowPrefetcher(ctx, activityId));
+        prefetcher.setown(helper.queryDiskRecordSize()->createDiskPrefetcher(ctx, activityId));
     }
 
     virtual void doQuery(IMessagePacker *output, unsigned processed, unsigned __int64 rowLimit, unsigned __int64 stopAfter)
@@ -3013,11 +3071,12 @@ public:
         m.setBuffer(indexLayoutSize, indexLayoutMeta.getdata());
         activityMeta.setown(deserializeRecordMeta(m, true));
         layoutTranslators.setown(new TranslatorArray);
-        bool variableFileName = (helper->getFlags() & (TIRvarfilename|TIRdynamicfilename)) != 0;
+        bool variableFileName = allFilesDynamic || ((helper->getFlags() & (TIRvarfilename|TIRdynamicfilename)) != 0);
         if (!variableFileName)
         {
             bool isOpt = (helper->getFlags() & TIRoptional) != 0;
-            datafile.setown(queryFactory.queryPackage().lookupFileName(helper->getFileName(), isOpt, true));
+            OwnedRoxieString indexName(helper->getFileName());
+            datafile.setown(queryFactory.queryPackage().lookupFileName(indexName, isOpt, true, queryFactory.queryWorkUnit()));
             if (datafile)
                 keyArray.setown(datafile->getKeyArray(activityMeta, layoutTranslators, isOpt, queryFactory.queryChannel(), queryFactory.getEnableFieldTranslation()));
         }
@@ -3110,6 +3169,7 @@ protected:
     unsigned steppingLength;
     unsigned short numSkipFields;
     unsigned numSeeks;
+    bool seeksAreEof;
     bool lastRowCompleteMatch;
     CIndexTransformCallback callback;
 
@@ -3167,7 +3227,7 @@ public:
         stepExtra(SSEFreadAhead, NULL)
     {
         indexHelper = (IHThorIndexReadBaseArg *) basehelper;
-        variableFileName = (indexHelper->getFlags() & (TIRvarfilename|TIRdynamicfilename)) != 0;
+        variableFileName = allFilesDynamic || ((indexHelper->getFlags() & (TIRvarfilename|TIRdynamicfilename)) != 0);
         isOpt = (indexHelper->getFlags() & TDRoptional) != 0;
         inputData = NULL;
         inputCount = 0;
@@ -3176,6 +3236,7 @@ public:
         keyprocessed = 0;
         numSkipFields = 0;
         lastRowCompleteMatch = true; // default is we only return complete matches....
+        seeksAreEof = false;
         steppingLength = 0;
         steppingRow = NULL;
         numSeeks = 0;
@@ -3188,21 +3249,34 @@ public:
             smartStepInfoValue += sizeof(unsigned short);
             unsigned flags = * (unsigned short *) smartStepInfoValue;
             smartStepInfoValue += sizeof(unsigned short);
+            seeksAreEof = * (bool *) smartStepInfoValue;
+            smartStepInfoValue += sizeof(bool);
             numSeeks = * (unsigned *) smartStepInfoValue;
             smartStepInfoValue += sizeof(unsigned);
             assertex(numSeeks); // Given that we put the first seek in here to there should always be at least one!
             steppingRow = smartStepInfoValue; // the first of them...
             stepExtra.set(flags, NULL);
-#ifdef _DEBUG
-            logctx.CTXLOG("%d seek rows provided", numSeeks);
-            for (unsigned i = 0; i < numSeeks; i++)
+            if (logctx.queryTraceLevel() > 10)
             {
-                StringBuffer b;
-                for (unsigned j = 0; j < steppingLength; j++)
-                    b.appendf("%02x ", steppingRow[i*steppingLength + j]);
-                logctx.CTXLOG("Seek row %d: %s", i+1, b.str());
+                logctx.CTXLOG("%d seek rows provided. mismatch(%d) readahead(%d) onlyfirst(%d)", numSeeks,
+                             (int)stepExtra.returnMismatches(), (int)stepExtra.readAheadManyResults(), (int)stepExtra.onlyReturnFirstSeekMatch());
+
+                if (logctx.queryTraceLevel() > 15)
+                {
+                    for (unsigned i = 0; i < numSeeks; i++)
+                    {
+                        StringBuffer b;
+                        for (unsigned j = 0; j < steppingLength; j++)
+                            b.appendf("%02x ", steppingRow[i*steppingLength + j]);
+                        logctx.CTXLOG("Seek row %d: %s", i+1, b.str());
+                    }
+                }
             }
-#endif
+        }
+        else
+        {
+            if (logctx.queryTraceLevel() > 10)
+                logctx.CTXLOG("0 seek rows provided.");
         }
     }
 
@@ -3449,11 +3523,24 @@ public:
                         }
                         if (diff >= 0)
                         {
+                            if (diff > 0 && seeksAreEof)
+                            {
+                                assertex(!steppingRow);
+                                break;
+                            }
                             rowBuilder.ensureRow();
                             transformedSize = readHelper->transform(rowBuilder, keyRow);
                             callback.finishedRow();
                             if (transformedSize)
                             {
+                                if (logctx.queryTraceLevel() > 15)
+                                {
+                                    StringBuffer b;
+                                    for (unsigned j = 0; j < (steppingLength ? steppingLength : 6); j++)
+                                        b.appendf("%02x ", keyRow[steppingOffset + j]);
+                                    logctx.CTXLOG("Returning seek row %s", b.str());
+                                }
+
                                 // Did get a match
                                 processed++;
                                 if (limit && processed > limit)
@@ -3515,7 +3602,9 @@ public:
                             }
                             else
                             {
-                                // MORE - this is actually pretty fatal fo smart-stepping case
+                                // This is actually pretty fatal for smart-stepping case
+                                if (logctx.queryTraceLevel())
+                                    logctx.CTXLOG("Indexread unable to return partial result set");
                                 continuationFailed = true;
                             }
                         }
@@ -3531,7 +3620,11 @@ public:
         if (tlk) // a very early abort can mean it is NULL.... MORE is this the right place to put it or should it be inside the loop??
         {
             if (logctx.queryTraceLevel() > 10 && !aborted)
+            {
                 logctx.CTXLOG("Indexread returning result set %d rows from %d seeks, %d scans, %d skips", processed-processedBefore, tlk->querySeeks(), tlk->queryScans(), tlk->querySkips());
+                if (steppingOffset)
+                    logctx.CTXLOG("Indexread return: steppingOffset %d, steppingRow %p, stepExtra.returnMismatches() %d",steppingOffset, steppingRow, (int) stepExtra.returnMismatches());
+            }
             logctx.noteStatistic(STATS_ACCEPTED, processed-processedBefore, 1);
             logctx.noteStatistic(STATS_REJECTED, skipped, 1);
         }
@@ -4209,11 +4302,12 @@ public:
     {
         Owned<IHThorFetchBaseArg> helper = (IHThorFetchBaseArg *) helperFactory();
         IHThorFetchContext * fetchContext = static_cast<IHThorFetchContext *>(helper->selectInterface(TAIfetchcontext_1));
-        bool variableFileName = (fetchContext->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0;
+        bool variableFileName = allFilesDynamic || ((fetchContext->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0);
         if (!variableFileName)
         {
             bool isOpt = (fetchContext->getFetchFlags() & FFdatafileoptional) != 0;
-            datafile.setown(_queryFactory.queryPackage().lookupFileName(fetchContext->getFileName(), isOpt, true));
+            OwnedRoxieString fname(fetchContext->getFileName());
+            datafile.setown(_queryFactory.queryPackage().lookupFileName(fname, isOpt, true, _queryFactory.queryWorkUnit()));
             if (datafile)
                 fileArray.setown(datafile->getIFileIOArray(isOpt, queryFactory.queryChannel()));
         }
@@ -4257,7 +4351,7 @@ public:
         helper = (IHThorFetchBaseArg *) basehelper;
         fetchContext = static_cast<IHThorFetchContext *>(helper->selectInterface(TAIfetchcontext_1));
         base = 0;
-        variableFileName = (fetchContext->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0;
+        variableFileName = allFilesDynamic || ((fetchContext->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0);
         isOpt = (fetchContext->getFetchFlags() & FFdatafileoptional) != 0;
         onCreate();
         inputData = (char *) serializedCreate.readDirect(0);
@@ -4352,7 +4446,7 @@ public:
         IHThorFetchContext * fetchContext = static_cast<IHThorFetchContext *>(helper->selectInterface(TAIfetchcontext_1));
         IOutputMetaData *diskMeta = fetchContext->queryDiskRecordSize();
         diskAllocator.setown(getRowAllocator(diskMeta, basefactory->queryId()));
-        rowDeserializer.setown(diskMeta->createRowDeserializer(queryContext->queryCodeContext(), basefactory->queryId()));
+        rowDeserializer.setown(diskMeta->createDiskDeserializer(queryContext->queryCodeContext(), basefactory->queryId()));
     }
 
     virtual size32_t doFetch(ARowBuilder & rowBuilder, offset_t pos, offset_t rawpos, void *inputData)
@@ -4557,11 +4651,12 @@ public:
         m.setBuffer(indexLayoutSize, indexLayoutMeta.getdata());
         activityMeta.setown(deserializeRecordMeta(m, true));
         layoutTranslators.setown(new TranslatorArray);
-        bool variableFileName = (helper->getJoinFlags() & (JFvarindexfilename|JFdynamicindexfilename)) != 0;
+        bool variableFileName = allFilesDynamic || ((helper->getJoinFlags() & (JFvarindexfilename|JFdynamicindexfilename)) != 0);
         if (!variableFileName)
         {
             bool isOpt = (helper->getJoinFlags() & JFindexoptional) != 0;
-            datafile.setown(_queryFactory.queryPackage().lookupFileName(helper->getIndexFileName(), isOpt, true));
+            OwnedRoxieString indexFileName(helper->getIndexFileName());
+            datafile.setown(_queryFactory.queryPackage().lookupFileName(indexFileName, isOpt, true, _queryFactory.queryWorkUnit()));
             if (datafile)
                 keyArray.setown(datafile->getKeyArray(activityMeta, layoutTranslators, isOpt, queryFactory.queryChannel(), queryFactory.getEnableFieldTranslation()));
         }
@@ -4598,7 +4693,7 @@ public:
         : factory(_aFactory), CRoxieKeyedActivity(_logctx, _packet, _hFactory, _aFactory)
     {
         helper = (IHThorKeyedJoinArg *) basehelper;
-        variableFileName = (helper->getJoinFlags() & (JFvarindexfilename|JFdynamicindexfilename)) != 0;
+        variableFileName = allFilesDynamic || ((helper->getJoinFlags() & (JFvarindexfilename|JFdynamicindexfilename)) != 0);
         inputDone = 0;
         processed = 0;
         candidateCount = 0;
@@ -4902,12 +4997,12 @@ public:
     {
         Owned<IHThorKeyedJoinArg> helper = (IHThorKeyedJoinArg *) helperFactory();
         assertex(helper->diskAccessRequired());
-        bool variableFileName = (helper->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0;
+        bool variableFileName = allFilesDynamic || ((helper->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0);
         if (!variableFileName)
         {
             bool isOpt = (helper->getFetchFlags() & FFdatafileoptional) != 0;
-            const char *fileName = helper->getFileName();
-            datafile.setown(_queryFactory.queryPackage().lookupFileName(fileName, isOpt, true));
+            OwnedRoxieString fileName(helper->getFileName());
+            datafile.setown(_queryFactory.queryPackage().lookupFileName(fileName, isOpt, true, _queryFactory.queryWorkUnit()));
             if (datafile)
                 fileArray.setown(datafile->getIFileIOArray(isOpt, queryFactory.queryChannel()));
         }
@@ -4955,7 +5050,7 @@ public:
         // MORE - no continuation row support?
         base = 0;
         helper = (IHThorKeyedJoinArg *) basehelper;
-        variableFileName = (helper->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0;
+        variableFileName = allFilesDynamic || ((helper->getFetchFlags() & (FFvarfilename|FFdynamicfilename)) != 0);
         onCreate();
         inputData = (const char *) serializedCreate.readDirect(0);
         inputLimit = inputData + (serializedCreate.length() - serializedCreate.getPos());
@@ -4992,7 +5087,7 @@ bool CRoxieKeyedJoinFetchActivity::process()
     unsigned skipped = 0;
     unsigned __int64 rowLimit = helper->getRowLimit();
     unsigned totalSizeSent = 0;
-    Owned<IOutputRowDeserializer> rowDeserializer = helper->queryDiskRecordSize()->createRowDeserializer(queryContext->queryCodeContext(), basefactory->queryId());
+    Owned<IOutputRowDeserializer> rowDeserializer = helper->queryDiskRecordSize()->createDiskDeserializer(queryContext->queryCodeContext(), basefactory->queryId());
     Owned<IEngineRowAllocator> diskAllocator = getRowAllocator(helper->queryDiskRecordSize(), basefactory->queryId());
     RtlDynamicRowBuilder diskRowBuilder(diskAllocator);
 
@@ -5256,13 +5351,13 @@ public:
             bool isOpt = _graphNode.getPropBool("att[@name='_isOpt']/@value") || pretendAllOpt;
             if (queryNodeIndexName(_graphNode))
             {
-                indexfile.setown(_queryFactory.queryPackage().lookupFileName(queryNodeIndexName(_graphNode), isOpt, true));
+                indexfile.setown(_queryFactory.queryPackage().lookupFileName(queryNodeIndexName(_graphNode), isOpt, true, _queryFactory.queryWorkUnit()));
                 if (indexfile)
                     keyArray.setown(indexfile->getKeyArray(NULL, &layoutTranslators, isOpt, queryFactory.queryChannel(), queryFactory.getEnableFieldTranslation()));
             }
             if (queryNodeFileName(_graphNode))
             {
-                datafile.setown(_queryFactory.queryPackage().lookupFileName(queryNodeFileName(_graphNode), isOpt, true));
+                datafile.setown(_queryFactory.queryPackage().lookupFileName(queryNodeFileName(_graphNode), isOpt, true, _queryFactory.queryWorkUnit()));
                 if (datafile)
                     fileArray.setown(datafile->getIFileIOArray(isOpt, queryFactory.queryChannel()));
             }

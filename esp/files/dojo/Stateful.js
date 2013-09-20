@@ -5,7 +5,7 @@
 */
 
 //>>built
-define("dojo/Stateful",["./_base/declare","./_base/lang","./_base/array","dojo/when"],function(_1,_2,_3,_4){
+define("dojo/Stateful",["./_base/declare","./_base/lang","./_base/array","./when"],function(_1,_2,_3,_4){
 return _1("dojo.Stateful",null,{_attrPairNames:{},_getAttrNames:function(_5){
 var _6=this._attrPairNames;
 if(_6[_5]){

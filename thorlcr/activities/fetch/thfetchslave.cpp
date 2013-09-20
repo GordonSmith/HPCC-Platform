@@ -174,8 +174,8 @@ public:
     {
         fposHash = new CFPosHandler(*iFetchHandler, offsetCount, offsetTable);
         keyIn.set(_keyIn);
-        distributor = createHashDistributor(&owner, owner.queryContainer().queryJob().queryJobComm(), tag, keyRowIf, abortSoon, false, this);
-        keyOutStream.setown(distributor->connect(keyIn, fposHash, NULL));
+        distributor = createHashDistributor(&owner, owner.queryContainer().queryJob().queryJobComm(), tag, abortSoon, false, this);
+        keyOutStream.setown(distributor->connect(keyRowIf, keyIn, fposHash, NULL));
     }
     virtual IRowStream *queryOutput() { return this; }
     virtual IFileIO *queryPartIO(unsigned part) { assertex(part<files); return fPosMultiPartTable[part].file->queryFileIO(); }
@@ -623,8 +623,8 @@ public:
         {
             streams[f].setown(createBufferedIOStream(fetchStream->queryPartIO(f)));
             // NB: the index is based on path iteration matches, so on lookup the elements start at positioned stream
-            // i.e. queryIteratorPath not used here.
-            parsers[f].setown(createXMLParse(*streams[f], "/", *xmlSelect, xr_none, ((IHThorXmlFetchArg *)fetchBaseHelper)->requiresContents()));
+            // i.e. getXmlIteratorPath not used (or supplied) here.
+            parsers[f].setown(createXMLParse(*streams[f], "/", *xmlSelect, ptr_none, ((IHThorXmlFetchArg *)fetchBaseHelper)->requiresContents()));
         }
     }
     virtual size32_t fetch(ARowBuilder & rowBuilder, const void *keyRow, unsigned filePartIndex, unsigned __int64 localFpos, unsigned __int64 fpos)

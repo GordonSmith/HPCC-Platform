@@ -72,7 +72,7 @@ class IndexWriteSlaveActivity  : public ProcessSlaveActivity, public ISmartBuffe
     bool buildTlk, inputStopped, active;
     bool sizeSignalled;
     bool isLocal, singlePartKey, reportOverflow, fewcapwarned, refactor;
-    unsigned __int64 initTotalCount, totalCount;
+    unsigned __int64 totalCount;
 
     size32_t maxDiskRecordSize, lastRowSize, firstRowSize;
     MemoryBuffer rowBuff;
@@ -95,25 +95,30 @@ class IndexWriteSlaveActivity  : public ProcessSlaveActivity, public ISmartBuffe
             stopInput(input);
         }
     }
+    void init()
+    {
+        inputStopped = false;
+        sizeSignalled = false;
+        totalCount = 0;
+        lastRowSize = firstRowSize = 0;
+        replicateDone = 0;
+        fewcapwarned = false;
+        needFirstRow = true;
+        receivingTag2 = false;
+    }
 public:
     IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
 
     IndexWriteSlaveActivity(CGraphElementBase *_container) : ProcessSlaveActivity(_container)
     {
         helper = static_cast <IHThorIndexWriteArg *> (queryHelper());
-        sizeSignalled = false;
-        initTotalCount = totalCount = 0;
-        maxDiskRecordSize = lastRowSize = firstRowSize = 0;
-        replicateDone = 0;
+        init();
+        maxDiskRecordSize = 0;
         active = false;
         isLocal = false;
         buildTlk = true;
         singlePartKey = false;
-        fewcapwarned = false;
-        inputStopped = false;
         refactor = false;
-        needFirstRow = true;
-        receivingTag2 = false;
         enableTlkPart0 = (0 != container.queryJob().getWorkUnitValueInt("enableTlkPart0", globals->getPropBool("@enableTlkPart0", true)));
         reInit = (0 != (TIWvarfilename & helper->getFlags()));
     }
@@ -145,7 +150,8 @@ public:
                     tlkDesc.setown(deserializePartFileDescriptor(data));
                 else if (!isLocal) // exising tlk then..
                 {
-                    assertex(helper->getDistributeIndexName());
+                    OwnedRoxieString diName(helper->getDistributeIndexName());
+                    assertex(diName.get());
                     tlkDesc.setown(deserializePartFileDescriptor(data));
                     unsigned c;
                     data.read(c);
@@ -161,11 +167,11 @@ public:
                         }
                     }
                     if (!existingTlkIFile)
-                        throw MakeThorException(TE_FileNotFound, "Top level key part does not exist, for key: %s", helper->getDistributeIndexName());
+                        throw MakeThorException(TE_FileNotFound, "Top level key part does not exist, for key: %s", diName.get());
                 }
             }
         }
-        assertex(!(helper->queryDiskRecordSize()->getMetaFlags() & MDFneedserialize));
+        assertex(!(helper->queryDiskRecordSize()->getMetaFlags() & MDFneedserializedisk));
         maxDiskRecordSize = helper->queryDiskRecordSize()->isVariableSize() ? KEYBUILD_MAXLENGTH : helper->queryDiskRecordSize()->getFixedSize();
         // NB: the max [ecl] length is not used, other than setting a max field in the header.
         // However, legacy systems (<=702) check that query rec length == key rec len.
@@ -209,9 +215,15 @@ public:
             StringBuffer name(nameLen, nameBuff);
             StringBuffer value(valueLen, valueBuff);
             if(*nameBuff == '_' && strcmp(name, "_nodeSize") != 0)
-                throw MakeActivityException(this, 0, "Invalid name %s in user metadata for index %s (names beginning with underscore are reserved)", name.str(), helper->getFileName());
+            {
+                OwnedRoxieString fname(helper->getFileName());
+                throw MakeActivityException(this, 0, "Invalid name %s in user metadata for index %s (names beginning with underscore are reserved)", name.str(), fname.get());
+            }
             if(!validateXMLTag(name.str()))
-                throw MakeActivityException(this, 0, "Invalid name %s in user metadata for index %s (not legal XML element name)", name.str(), helper->getFileName());
+            {
+                OwnedRoxieString fname(helper->getFileName());
+                throw MakeActivityException(this, 0, "Invalid name %s in user metadata for index %s (not legal XML element name)", name.str(), fname.get());
+            }
             if(!metadata) metadata.setown(createPTree("metadata"));
             metadata->setProp(name.str(), value.str());
         }
@@ -292,10 +304,11 @@ public:
     void process()
     {
         ActPrintLog("INDEXWRITE: Start");
+        init();
 
         ThorDataLinkMetaInfo info;
         inputs.item(0)->getMetaInfo(info);
-        outRowAllocator.set(queryJob().getRowAllocator(helper->queryDiskRecordSize(), container.queryId()));
+        outRowAllocator.setown(queryJob().getRowAllocator(helper->queryDiskRecordSize(), container.queryId()));
         if (refactor)
         {
             assertex(isLocal);

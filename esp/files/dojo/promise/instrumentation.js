@@ -58,6 +58,8 @@ return true;
 });
 if(_f.length){
 _10=setTimeout(_17,_f[0].timestamp+_11-now);
+}else{
+_10=false;
 }
 };
 return function(_19){

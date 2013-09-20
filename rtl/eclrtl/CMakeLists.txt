@@ -27,6 +27,7 @@ project( eclrtl )
 
 set (    SRCS 
          eclrtl.cpp 
+         rtlbcd.cpp 
          rtldistr.cpp 
          rtlds.cpp 
          rtlint.cpp 
@@ -36,16 +37,32 @@ set (    SRCS
          rtlfield.cpp 
          rtlread.cpp 
          rtltype.cpp 
-         rtlxml.cpp 
-         workflow.cpp 
+         rtlxml.cpp
+         
+         eclinclude4.hpp
+         eclrtl.hpp
+         eclrtl_imp.hpp
+         rtlbcd.hpp
+         rtldistr.hpp
+         rtlds_imp.hpp
+         rtlfield_imp.hpp
+         rtlkey2.hpp
+         rtlkey.hpp
+         rtlread_imp.hpp
+         rtlsize.hpp
+         rtltype.hpp
+
+         rtlbcdtest.cpp 
+
     )
 
 include_directories ( 
          ./../../rtl/include 
          ./../../rtl/nbcd 
          ./../../system/include 
-         ./../../common/workunit
          ./../../system/jlib 
+         ./../../roxie/roxiemem
+         ./../../testing/unittests
          ${ICU_INCLUDE_DIR}
          ${BOOST_REGEX_INCLUDE_DIR}
     )
@@ -58,17 +75,20 @@ else ()
 endif ()
 
 HPCC_ADD_LIBRARY( eclrtl SHARED ${SRCS} )
-install ( TARGETS eclrtl RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION ${ARCHIVE_DIR} )
+install ( TARGETS eclrtl RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION componentfiles/cl/lib )
 target_link_libraries ( eclrtl 
       ${BOOST_REGEX_LIBRARIES}
       ${ICU_LIBRARIES}
       jlib
-      nbcd 
+      nbcd
+      roxiemem
     )
 
 FOREACH( iFILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/eclinclude4.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eclrtl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eclrtl_imp.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rtlbcd.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rtldistr.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rtlds_imp.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rtlfield_imp.hpp

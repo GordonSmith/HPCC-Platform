@@ -15,13 +15,15 @@
 ############################################################################## */
 define([
     "dojo/_base/declare",
+    "dojo/_base/lang",
     "dojo/_base/sniff",
     "dojo/_base/array",
     "dojo/dom",
     "dojo/dom-construct",
     "dojo/on",
+    "dojo/has",
     "dojo/store/Memory",
-    "dojo/data/ObjectStore",
+    "dojo/store/Observable",
 
     "dijit/layout/_LayoutWidget",
     "dijit/_TemplatedMixin",
@@ -32,19 +34,34 @@ define([
     "dijit/registry",
     "dijit/Dialog",
 
-    "dojox/grid/DataGrid",
+    "dojox/html/entities",
+
+    "dgrid/OnDemandGrid",
+    "dgrid/Keyboard",
+    "dgrid/Selection",
+    "dgrid/selector",
+    "dgrid/extensions/ColumnResizer",
+    "dgrid/extensions/DijitRegistry",
 
     "hpcc/GraphWidget",
+    "hpcc/ESPUtil",
     "hpcc/ESPWorkunit",
+    "hpcc/TimingGridWidget",
     "hpcc/TimingTreeMapWidget",
 
     "dojo/text!../templates/GraphPageWidget.html",
 
-    "dijit/form/Select",
-    "dijit/form/TextBox"
-], function (declare, sniff, array, dom, domConstruct, on, Memory, ObjectStore,
+    "dijit/PopupMenuItem",
+    "dijit/Menu",
+    "dijit/MenuItem",
+    "dijit/MenuSeparator",
+    "dijit/form/TextBox",
+    "dijit/form/DropDownButton"
+], function (declare, lang, sniff, arrayUtil, dom, domConstruct, on, has, Memory, Observable,
             _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, BorderContainer, TabContainer, ContentPane, registry, Dialog,
-            DataGrid, GraphWidget, ESPWorkunit, TimingTreeMapWidget,
+            entities,
+            OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry,
+            GraphWidget, ESPUtil, ESPWorkunit, TimingGridWidget, TimingTreeMapWidget,
             template) {
     return declare("GraphPageWidget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
@@ -57,15 +74,16 @@ define([
         main: null,
         overview: null,
         local: null,
-        graphSelect: null,
         timingGrid: null,
         timingTreeMap: null,
+        subgraphsGrid: null,
         verticesGrid: null,
         edgesGrid: null,
         findField: null,
         findText: "",
         found: [],
         foundIndex: 0,
+        initalized: false,
 
         buildRendering: function (args) {
             this.inherited(arguments);
@@ -73,11 +91,19 @@ define([
 
         postCreate: function (args) {
             this.inherited(arguments);
-            this._initControls();
+            this.borderContainer = registry.byId(this.id + "BorderContainer");
+            this.rightBorderContainer = registry.byId(this.id + "RightBorderContainer");
+            this.findField = registry.byId(this.id + "FindField");
+            this._initGraphControls();
+            this._initTimings();
         },
 
         startup: function (args) {
             this.inherited(arguments);
+
+            this._initSubgraphs();
+            this._initVertices();
+            this._initEdges();
 
             var splitter = this.borderContainer.getSplitter("right");
             this.main.watchSplitter(splitter);
@@ -89,12 +115,7 @@ define([
             this.overview.watchSplitter(splitter);
             this.local.watchSplitter(splitter);
 
-            this.main.watchSelect(this.graphSelect);
-            this.overview.watchSelect(this.graphSelect);
-            this.local.watchSelect(this.graphSelect);
-
-            this.overview.watchStyleChange();
-            this.local.watchStyleChange();
+            this.main.watchSelect(registry.byId(this.id + "AdvancedMenu"));
         },
 
         resize: function (args) {
@@ -107,17 +128,6 @@ define([
         },
 
         //  Implementation  ---
-        _initControls: function () {
-            this.borderContainer = registry.byId(this.id + "BorderContainer");
-            this.rightBorderContainer = registry.byId(this.id + "RightBorderContainer");
-            this.findField = registry.byId(this.id + "FindField");
-            this._initGraphControls();
-            this._initGraphSelect()
-            this._initTimings();
-            this._initVertices();
-            this._initEdges();
-        },
-
         _initGraphControls: function () {
             var context = this;
             this.main = registry.byId(this.id + "MainGraphWidget");
@@ -125,7 +135,8 @@ define([
                 context.syncSelectionFrom(context.main);
             };
             this.main.onLayoutFinished = function () {
-                context.wu.setGraphSvg(context.graphName, context.main.svg);
+                //  TODO:  Could be too expensive  ---
+                //context.wu.setGraphSvg(context.graphName, context.main.svg);
             };
 
             this.overview = registry.byId(this.id + "MiniGraphWidget");
@@ -147,87 +158,81 @@ define([
             };
         },
 
-        _initGraphSelect: function () {
-            this.graphSelect = registry.byId(this.id + "GraphSelect");
-            var context = this;
-            this.graphSelect.onChange = function () {
-                context.graphName = this.getValue();
-                context.loadGraph(context.wu, context.graphName);
-                context.timingGrid.setQuery({
-                    GraphName: context.graphName
-                });
-                context.timingTreeMap.loadTimers(context.wu.timers, context.graphName);
-            }
-        },
-
         _initTimings: function () {
             this.timingGrid = registry.byId(this.id + "TimingsGrid");
 
             var context = this;
-            this.timingGrid.on("RowClick", function (evt) {
+            this.timingGrid.onClick = function (items) {
                 context.syncSelectionFrom(context.timingGrid);
-            }, true);
+            };
 
-            this.timingGrid.on("RowDblClick", function (evt) {
-                var idx = evt.rowIndex;
-                var item = this.getItem(idx);
-                if (this.store.getValue(item, "SubGraphId")) {
-                    var subgraphID = this.store.getValue(item, "SubGraphId");
-                    var mainItem = context.main.getItem(subgraphID);
-                    context.main.centerOnItem(mainItem, true);
-                }
-            }, true);
+            this.timingGrid.onDblClick = function (item) {
+                var subgraphID = item.SubGraphId;
+                var mainItem = context.main.getItem(subgraphID);
+                context.main.centerOnItem(mainItem, true);
+            };
 
             this.timingTreeMap = registry.byId(this.id + "TimingsTreeMap");
             this.timingTreeMap.onClick = function (value) {
                 context.syncSelectionFrom(context.timingTreeMap);
             }
             this.timingTreeMap.onDblClick = function (value) {
-                var mainItem = context.main.getItem(value.subGraphId);
+                var mainItem = context.main.getItem(value.SubGraphId);
                 context.main.centerOnItem(mainItem, true);
             }
         },
 
         _initItemGrid: function (grid) {
             var context = this;
-            grid.on("RowClick", function (evt) {
+            grid.on(".dgrid-row:click", function (evt) {
                 context.syncSelectionFrom(grid);
-            }, true);
-
-            var context = this;
-            grid.on("RowDblClick", function (evt) {
-                var idx = evt.rowIndex;
-                var item = this.getItem(idx);
-                if (this.store.getValue(item, "_globalID")) {
-                    var globalID = this.store.getValue(item, "_globalID");
-                    var mainItem = context.main.getItem(globalID);
+            });
+            grid.on(".dgrid-row:dblclick", function (evt) {
+                var item = grid.row(evt).data;
+                if (item._globalID) {
+                    var mainItem = context.main.getItem(item._globalID);
                     context.main.centerOnItem(mainItem, true);
                 }
+            });
+        },
 
-            }, true);
+        _initSubgraphs: function () {
+            var store = new Memory({
+                idProperty: "id",
+                data: []
+            });
+            this.subgraphsStore = Observable(store);
+            this.subgraphsGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
+                store: this.subgraphsStore
+            }, this.id + "SubgraphsGrid");
+
+            this._initItemGrid(this.subgraphsGrid);
         },
 
         _initVertices: function () {
-            this.verticesGrid = registry.byId(this.id + "VerticesGrid");
+            var store = new Memory({
+                idProperty: "id",
+                data: []
+            });
+            this.verticesStore = Observable(store);
+            this.verticesGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
+                store: this.verticesStore
+            }, this.id + "VerticesGrid");
+
             this._initItemGrid(this.verticesGrid);
         },
 
         _initEdges: function () {
-            this.edgesGrid = registry.byId(this.id + "EdgesGrid");
-            this._initItemGrid(this.edgesGrid);
-        },
-
-        _initProperties: function () {
-            this.propertyGrid = new DataGrid({
-                //store: objStore,
-                query: { id: "*" },
-                structure: [
-                { name: "Property", field: "key", width: "auto" },
-                { name: "Value", field: "value", width: "auto" }
-                ]
+            var store = new Memory({
+                idProperty: "id",
+                data: []
             });
-            this.propertyGrid.placeAt(this.id + "Properties");
-            this.propertyGrid.startup();
+            this.edgesStore = Observable(store);
+            this.edgesGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
+                store: this.edgesStore
+            }, this.id + "EdgesGrid");
+
+            this._initItemGrid(this.edgesGrid);
         },
 
         _onLayout: function () {
@@ -271,11 +276,62 @@ define([
             this._doFind(true);
         },
 
-        init: function (params) {
-            this.graphName = params.GraphName;
-            this.wu = new ESPWorkunit({
-                wuid: params.Wuid
+        _showDialog: function(params) {
+            myDialog = new Dialog(params);
+            if (has("chrome")) {
+                this.main.hide();
+                this.overview.hide();
+                this.local.hide();
+
+                var context = this;
+                myDialog.connect(myDialog, "hide", function (e) {
+                    context.main.show();
+                    context.overview.show();
+                    context.local.show();
+                });
+            }
+            myDialog.show();
+        },
+
+        _onAbout: function () {
+            this._showDialog({
+                title: "About HPCC Systems Graph Control",
+                content: "Version:  " + this.main.getVersion() + "<br/>" + this.main.getResourceLinks(),
+                style: "width: 320px"
             });
+        },
+
+        _onGetSVG: function () {
+            this._showDialog({
+                title: "SVG Source",
+                content: entities.encode(this.main.getSVG())
+            });
+        },
+
+        _onRenderSVG: function () {
+            var context = this
+            this.main.localLayout(function (svg) {
+                context._showDialog({
+                    title: "Rendered SVG",
+                    content: svg
+                });
+            });
+        },
+
+        _onGetXGMML: function () {
+            this._showDialog({
+                title: "XGMML",
+                content: entities.encode(this.main.getXGMML())
+            });
+        },
+
+        init: function (params) {
+            if (this.initalized) {
+                return;
+            }
+            this.initalized = true;
+            this.graphName = params.GraphName;
+            this.wu = ESPWorkunit.Get(params.Wuid);
 
             var firstLoad = true;
             var context = this;
@@ -286,30 +342,22 @@ define([
                     onGetGraphs: function (graphs) {
                         if (firstLoad == true) {
                             firstLoad = false;
-                            context.loadGraphSelect(graphs);
+                            context.loadGraph(context.wu, context.graphName);
                         } else {
                             context.refreshGraph(context.wu, context.graphName);
                         }
-                    },
-                    onGetTimers: function (timers) {
-                        context.loadTimings(timers);
                     }
                 });
             });
-        },
 
-        loadGraphSelect: function (graphs) {
-            this.graphSelect.options = [];
-            for (var i = 0; i < graphs.length; ++i) {
-                if (!this.graphName) {
-                    this.graphName = graphs[i].Name;
-                }
-                this.graphSelect.options.push({
-                    label: graphs[i].Name + (graphs[i].Time ? " (" + graphs[i].Time + ")" : ""),
-                    value: graphs[i].Name
-                });
-            }
-            this.graphSelect.setValue(this.graphName);
+            this.timingGrid.init(lang.mixin({
+                query: this.graphName
+            }, params));
+
+            this.timingTreeMap.init(lang.mixin({
+                query: this.graphName
+            }, params));
+
         },
 
         loadGraph: function (wu, graphName) {
@@ -318,6 +366,7 @@ define([
                 context.main.setMessage("Loading Data...");
                 context.main.loadXGMML(xgmml);
                 context.overview.loadXGMML(context.main.getLocalisedXGMML([0]));
+                context.loadSubgraphs();
                 context.loadVertices();
                 context.loadEdges();
                 if (svg) {
@@ -337,22 +386,39 @@ define([
             var context = this;
             wu.fetchGraphXgmmlByName(graphName, function (xgmml) {
                 context.main.mergeXGMML(xgmml);
+                context.loadSubgraphs();
                 context.loadVertices();
                 context.loadEdges();
             });
         },
 
-        loadTimings: function (timers) {
-            var store = new Memory({ data: timers });
-            var dataStore = new ObjectStore({ objectStore: store });
-            this.timingGrid.setStore(dataStore);
-            this.timingGrid.setQuery({
-                GraphName: this.graphName
-            });
+        loadSubgraphs: function () {
+            var subgraphs = this.main.getSubgraphsWithProperties();
+
+            var layoutMap = [];
+            for (var i = 0; i < subgraphs.length; ++i) {
+                for (var key in subgraphs[i]) {
+                    if (key != "id" && key.substring(0, 1) != "_") {
+                        layoutMap[key] = true;
+                    }
+                }
+            }
+
+            var layout = [
+                { label: "ID", field: "id", width: 50 }
+            ];
+
+            for (var key in layoutMap) {
+                layout.push({ label: key, field: key, width: 100 });
+            }
+
+            this.subgraphsStore.setData(subgraphs);
+            this.subgraphsGrid.set("columns", layout);
+            this.subgraphsGrid.refresh();
         },
 
         loadVertices: function () {
-            var vertices = this.main.plugin.getVerticesWithProperties();
+            var vertices = this.main.getVerticesWithProperties();
 
             var layoutMap = [];
             for (var i = 0; i < vertices.length; ++i) {
@@ -363,27 +429,23 @@ define([
                 }
             }
 
-            var layout = [[
-                { 'name': 'ID', 'field': 'id', 'width': '50px' },
-                { 'name': 'Label', 'field': 'label', 'width': '150px' }
-            ]];
+            var layout = [
+                { label: "ID", field: "id", width: 50 },
+                { label: "Label", field: "label", width: 150 }
+            ];
 
             for (var key in layoutMap) {
-                layout[0].push({ 'name': key, 'field': key, 'width': '200px' });
+                layout.push({ label: key, field: key, width: 200 });
             }
-            layout[0].push({ 'name': "ECL", 'field': "ecl", 'width': '1024px' });
+            layout.push({ label: "ECL", field: "ecl", width: 1024 });
 
-            var store = new Memory({ data: vertices });
-            var dataStore = new ObjectStore({ objectStore: store });
-            this.verticesGrid.setStructure(layout);
-            this.verticesGrid.setStore(dataStore);
-            this.verticesGrid.setQuery({
-                id: "*"
-            });
+            this.verticesStore.setData(vertices);
+            this.verticesGrid.set("columns", layout);
+            this.verticesGrid.refresh();
         },
 
         loadEdges: function () {
-            var edges = this.main.plugin.getEdgesWithProperties();
+            var edges = this.main.getEdgesWithProperties();
 
             var layoutMap = [];
             for (var i = 0; i < edges.length; ++i) {
@@ -394,82 +456,73 @@ define([
                 }
             }
 
-            var layout = [[
-                { 'name': 'ID', 'field': 'id', 'width': '50px' }
-            ]];
+            var layout = [
+                { label: "ID", field: "id", width: 50 }
+            ];
 
             for (var key in layoutMap) {
-                layout[0].push({ 'name': key, 'field': key, 'width': '100px' });
+                layout.push({ label: key, field: key, width: 100 });
             }
 
-            var store = new Memory({ data: edges });
-            var dataStore = new ObjectStore({ objectStore: store });
-            this.edgesGrid.setStructure(layout);
-            this.edgesGrid.setStore(dataStore);
-            this.edgesGrid.setQuery({
-                id: "*"
-            });
+            this.edgesStore.setData(edges);
+            this.edgesGrid.set("columns", layout);
+            this.edgesGrid.refresh();
         },
 
         syncSelectionFrom: function (sourceControl) {
-            var selItems = [];
-            if (sourceControl == this.timingGrid) {
-                var items = sourceControl.selection.getSelected();
+            var selectedGlobalIDs = [];
+
+            //  Get Selected Items  ---
+            if (sourceControl == this.timingGrid || sourceControl == this.timingTreeMap) {
+                var items = sourceControl.getSelected();
                 for (var i = 0; i < items.length; ++i) {
                     if (items[i].SubGraphId) {
-                        selItems.push(items[i].SubGraphId);
+                        selectedGlobalIDs.push(items[i].SubGraphId);
                     }
                 }
-            } else if (sourceControl == this.timingTreeMap) {
-                selItems.push(sourceControl.lastSelection.subGraphId);
-            } else if (sourceControl == this.verticesGrid || sourceControl == this.edgesGrid) {
-                var items = sourceControl.selection.getSelected();
+            } else if (sourceControl == this.verticesGrid || sourceControl == this.edgesGrid || sourceControl == this.subgraphsGrid) {
+                var items = sourceControl.getSelected();
                 for (var i = 0; i < items.length; ++i) {
                     if (items[i]._globalID) {
-                        selItems.push(items[i]._globalID);
+                        selectedGlobalIDs.push(items[i]._globalID);
                     }
                 }
             } else {
-                selItems = sourceControl.getSelectionAsGlobalID();
+                selectedGlobalIDs = sourceControl.getSelectionAsGlobalID();
             }
 
-            if (sourceControl != this.timingGrid && this.timingGrid.store) {
-                for (var i = 0; i < this.timingGrid.rowCount; ++i) {
-                    var row = this.timingGrid.getItem(i);
-                    this.timingGrid.selection.setSelected(i, (row.SubGraphId && array.indexOf(selItems, row.SubGraphId) != -1));
-                }
+            //  Set Selected Items  ---
+            if (sourceControl != this.timingGrid) {
+                this.timingGrid.setSelectedAsGlobalID(selectedGlobalIDs);
             }
             if (sourceControl != this.timingTreeMap) {
-                //TODO - Not sure if this is currently possible.
+                this.timingTreeMap.setSelectedAsGlobalID(selectedGlobalIDs);
+            }
+            if (sourceControl != this.subgraphsGrid && this.subgraphsGrid.store) {
+                this.subgraphsGrid.setSelection(selectedGlobalIDs);
             }
             if (sourceControl != this.verticesGrid && this.verticesGrid.store) {
-                for (var i = 0; i < this.verticesGrid.rowCount; ++i) {
-                    var row = this.verticesGrid.getItem(i);
-                    this.verticesGrid.selection.setSelected(i, (row._globalID && array.indexOf(selItems, row._globalID) != -1));
-                }
+                this.verticesGrid.setSelection(selectedGlobalIDs);
             }
             if (sourceControl != this.edgesGrid && this.edgesGrid.store) {
-                for (var i = 0; i < this.edgesGrid.rowCount; ++i) {
-                    var row = this.edgesGrid.getItem(i);
-                    this.edgesGrid.selection.setSelected(i, (row._globalID && array.indexOf(selItems, row._globalID) != -1));
-                }
+                this.edgesGrid.setSelection(selectedGlobalIDs);
             }
             if (sourceControl != this.main) {
-                this.main.setSelectedAsGlobalID(selItems);
+                this.main.setSelectedAsGlobalID(selectedGlobalIDs);
             }
             if (sourceControl != this.overview) {
-                this.overview.setSelectedAsGlobalID(selItems);
+                this.overview.setSelectedAsGlobalID(selectedGlobalIDs);
             }
 
             var mainItems = [];
-            for (var i = 0; i < selItems.length; ++i) {
-                mainItems.push(this.main.getItem(selItems[i]));
+            for (var i = 0; i < selectedGlobalIDs.length; ++i) {
+                mainItems.push(this.main.getItem(selectedGlobalIDs[i]));
             }
 
             if (sourceControl != this.local) {
                 var xgmml = this.main.getLocalisedXGMML(mainItems, 2);
                 this.local.loadXGMML(xgmml);
-                this.local.setSelectedAsGlobalID(selItems);
+                this.local.setSelectedAsGlobalID(selectedGlobalIDs);
             }
 
             var propertiesDom = dom.byId(this.id + "Properties");
@@ -477,15 +530,6 @@ define([
             for (var i = 0; i < mainItems.length; ++i) {
                 this.main.displayProperties(mainItems[i], propertiesDom);
             }
-        },
-
-        showHelpAbout: function () {
-            myDialog = new Dialog({
-                title: "About Graph sourceControl",
-                content: "Version:  " + main.getVersion(),
-                style: "width: 300px"
-            });
-            myDialog.show();
         },
 
         resetPage: function () {

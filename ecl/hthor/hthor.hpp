@@ -104,9 +104,8 @@ extern HTHOR_API IHThorActivity *createSelfJoinActivity(IAgentContext &, unsigne
 extern HTHOR_API IHThorActivity *createLookupJoinActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorHashJoinArg & arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createAllJoinActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorAllJoinArg & arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createWorkUnitWriteActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorWorkUnitWriteArg &arg, ThorActivityKind kind);
+extern HTHOR_API IHThorActivity *createDictionaryWorkUnitWriteActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorDictionaryWorkUnitWriteArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createFirstNActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorFirstNArg &arg, ThorActivityKind kind);
-extern HTHOR_API IHThorActivity *createCountActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorCountArg &arg, ThorActivityKind kind);
-extern HTHOR_API IHThorActivity *createTempTableActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorTempTableArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createInlineTableActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorInlineTableArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createConcatActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorFunnelArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createApplyActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorApplyArg &arg, ThorActivityKind kind);
@@ -181,6 +180,7 @@ extern HTHOR_API IHThorActivity *createXmlReadActivity(IAgentContext &, unsigned
 extern HTHOR_API IHThorActivity *createLocalResultReadActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorLocalResultReadArg &arg, ThorActivityKind kind, __int64 graphId);
 extern HTHOR_API IHThorActivity *createLocalResultWriteActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorLocalResultWriteArg &arg, ThorActivityKind kind, __int64 graphId);
 extern HTHOR_API IHThorActivity *createLocalResultSpillActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorLocalResultSpillArg &arg, ThorActivityKind kind, __int64 graphId);
+extern HTHOR_API IHThorActivity *createDictionaryResultWriteActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorDictionaryResultWriteArg &arg, ThorActivityKind kind, __int64 graphId);
 extern HTHOR_API IHThorActivity *createCombineActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorCombineArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createRollupGroupActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorRollupGroupArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createRegroupActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorRegroupArg &arg, ThorActivityKind kind);
@@ -188,7 +188,6 @@ extern HTHOR_API IHThorActivity *createCombineGroupActivity(IAgentContext &, uns
 extern HTHOR_API IHThorActivity *createLoopActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorLoopArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createGraphLoopActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorGraphLoopArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createCaseActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorCaseArg &arg, ThorActivityKind kind);
-extern HTHOR_API IHThorActivity *createRawIteratorActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorRawIteratorArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createLinkedRawIteratorActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorLinkedRawIteratorArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createProcessActivity(IAgentContext &, unsigned _activityId, unsigned _subgraphId, IHThorProcessArg &arg, ThorActivityKind kind);
 extern HTHOR_API IHThorActivity *createLibraryCallActivity(IAgentContext &_agent, unsigned _activityId, unsigned _subgraphId, IHThorLibraryCallArg &arg, ThorActivityKind kind, IPropertyTree * node);
@@ -216,7 +215,6 @@ extern HTHOR_API IHThorException * makeHThorException(ThorActivityKind kind, uns
 extern HTHOR_API IHThorException * makeHThorException(ThorActivityKind kind, unsigned activityId, unsigned subgraphId, IException * exc, char const * extra);
 
 extern HTHOR_API IEngineRowAllocator * createHThorRowAllocator(roxiemem::IRowManager & _rowManager, IOutputMetaData * _meta, unsigned _activityId, unsigned _allocatorId);
-extern HTHOR_API IRtlRowCallback * queryHThorRtlRowCallback();
 
 
 #endif // HTHOR_INCL

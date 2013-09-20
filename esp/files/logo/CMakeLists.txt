@@ -14,10 +14,13 @@
 #    limitations under the License.
 ################################################################################
 
-FOREACH( iFILES
+set ( LOGO_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/ln_small.gif
     ${CMAKE_CURRENT_SOURCE_DIR}/seisint_small.gif
     ${CMAKE_CURRENT_SOURCE_DIR}/slogo.gif
 )
-    Install( FILES ${iFILES} DESTINATION componentfiles/files/logo COMPONENT Runtime )
-ENDFOREACH ( iFILES )
+
+FOREACH( iFile ${LOGO_FILES} )
+    Install( FILES ${iFile} DESTINATION componentfiles/files/logo COMPONENT Runtime )
+ENDFOREACH ( iFile )
+

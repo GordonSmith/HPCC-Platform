@@ -292,8 +292,8 @@ ecl deploy --target=roxie --name=FindPersonService libW20120224-125557.so
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -513,8 +513,8 @@ ecl publish --target=roxie --name=FindPersonService --no-activate findperson.ecl
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -638,8 +638,8 @@ ecl unpublish roxie "FindpersonService*"
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -785,8 +785,8 @@ ecl run --target=thor --input="&lt;request&gt;&lt;LName&gt;JONES&lt;/LName&gt;&l
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -922,8 +922,8 @@ ecl run --target=thor --input="&lt;request&gt;&lt;LName&gt;JONES&lt;/LName&gt;&l
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -1005,8 +1005,8 @@ ecl run --target=thor --input="&lt;request&gt;&lt;LName&gt;JONES&lt;/LName&gt;&l
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -1137,8 +1137,8 @@ ecl queries list roxie --target=roxie --show=A </programlisting>
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -1189,9 +1189,9 @@ ecl queries copy //192.168.1.10:8010/thor/findperson thor
 
                   <entry>Copies a query from one queryset to another. A query
                   can be copied from one HPCC environment to another by using
-                  a path which begins with '//' followed by the IP and Port of
-                  the source EclWatch and then followed by the source queryset
-                  and query.</entry>
+                  a path which begins with '//' followed by the IP or hostname
+                  and Port of the source EclWatch and then followed by the
+                  source queryset and query.</entry>
                 </row>
 
                 <row>
@@ -1294,8 +1294,8 @@ ecl queries copy //192.168.1.10:8010/thor/findperson thor
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -1417,8 +1417,8 @@ ecl queries copy //192.168.1.10:8010/thor/findperson thor
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -1446,13 +1446,14 @@ ecl queries copy //192.168.1.10:8010/thor/findperson thor
       <sect2 id="eclpackageadd" role="brk">
         <title>ecl packagemap add</title>
 
-        <para><emphasis role="bold">ecl packagemap add [options]
+        <para><emphasis role="bold">ecl packagemap add [--daliip][options]
         &lt;target&gt; &lt;filename&gt;</emphasis></para>
 
         <para>Examples:</para>
 
         <programlisting>ecl packagemap add  -s=192.168.1.10 roxie mypackagemap.pkg
 ecl packagemap add roxie mypackagemap.pkg --overwrite
+ecl packagemap add roxie mypackagemap.pkg --daliip=192.168.11.11
 </programlisting>
 
         <para></para>
@@ -1498,6 +1499,13 @@ ecl packagemap add roxie mypackagemap.pkg --overwrite
                 </row>
 
                 <row>
+                  <entry>--daliip=</entry>
+
+                  <entry>IP address or hostname of the remote Dali to use for
+                  logical file lookups</entry>
+                </row>
+
+                <row>
                   <entry><emphasis role="bold">Options</emphasis></entry>
                 </row>
 
@@ -1509,112 +1517,16 @@ ecl packagemap add roxie mypackagemap.pkg --overwrite
                 </row>
 
                 <row>
-                  <entry> -A, --activate</entry>
+                  <entry>-A, --activate</entry>
 
                   <entry>Activates packagemap</entry>
                 </row>
 
                 <row>
-                  <entry>-v, --verbose</entry>
+                  <entry>--pmid=&lt;packagemapid&gt;</entry>
 
-                  <entry>Output additional tracing information</entry>
-                </row>
-
-                <row>
-                  <entry>-s, --server</entry>
-
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
-                </row>
-
-                <row>
-                  <entry>--port</entry>
-
-                  <entry>The eclwatch services port (Default is 8010)</entry>
-                </row>
-
-                <row>
-                  <entry>-u, --username</entry>
-
-                  <entry>The username (if necessary)</entry>
-                </row>
-
-                <row>
-                  <entry>-pw, --password</entry>
-
-                  <entry>The password (if necessary)</entry>
-                </row>
-              </tbody>
-            </tgroup>
-          </informaltable></para>
-      </sect2>
-
-      <sect2 id="eclpackagecopyfiles" role="brk">
-        <title>ecl packagemap copyFiles</title>
-
-        <para><emphasis role="bold">ecl packagemap copyFiles &lt;target&gt;
-        &lt;filename&gt; [options]</emphasis></para>
-
-        <para>Examples:</para>
-
-        <programlisting>ecl packagemap copyFiles myroxie  mypackagemap.pkg
-ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
-</programlisting>
-
-        <para></para>
-
-        <para><informaltable colsep="0" frame="none" rowsep="0">
-            <tgroup cols="2">
-              <colspec align="left" colwidth="125.55pt" />
-
-              <colspec colwidth="384.85pt" />
-
-              <tbody>
-                <row>
-                  <entry>ecl packagemap copyFiles</entry>
-
-                  <entry>The copyFiles command will copy any file listed in
-                  the packagemap that is not currently known on the cluster.
-                  This will NOT load the packagemap information</entry>
-                </row>
-
-                <row>
-                  <entry><emphasis role="bold">Actions</emphasis></entry>
-                </row>
-
-                <row>
-                  <entry>copyFiles</entry>
-
-                  <entry>Copy missing data files to the appropriate
-                  cluster</entry>
-                </row>
-
-                <row>
-                  <entry><emphasis role="bold">Arguments</emphasis></entry>
-                </row>
-
-                <row>
-                  <entry>target</entry>
-
-                  <entry>The target to which files are to be copied</entry>
-                </row>
-
-                <row>
-                  <entry><emphasis role="bold">Options</emphasis></entry>
-                </row>
-
-                <row>
-                  <entry>-O, --overwrite</entry>
-
-                  <entry>Whether to overwrite existing information - true if
-                  present</entry>
-                </row>
-
-                <row>
-                  <entry>--daliip</entry>
-
-                  <entry>IP Address of of the source Dali to use for file
-                  lookups</entry>
+                  <entry>id of package map - defaults to filename if not
+                  specified</entry>
                 </row>
 
                 <row>
@@ -1626,8 +1538,8 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -1667,7 +1579,7 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
 
         <para><informaltable colsep="0" frame="none" rowsep="0">
             <tgroup cols="2">
-              <colspec align="left" colwidth="125.55pt" />
+              <colspec align="left" colwidth="175.55pt" />
 
               <colspec colwidth="384.85pt" />
 
@@ -1701,8 +1613,8 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -1741,7 +1653,7 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
 
         <para><informaltable colsep="0" frame="none" rowsep="0">
             <tgroup cols="2">
-              <colspec align="left" colwidth="125.55pt" />
+              <colspec align="left" colwidth="175.55pt" />
 
               <colspec colwidth="384.85pt" />
 
@@ -1784,8 +1696,8 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -1824,7 +1736,7 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
 
         <para><informaltable colsep="0" frame="none" rowsep="0">
             <tgroup cols="2">
-              <colspec align="left" colwidth="125.55pt" />
+              <colspec align="left" colwidth="175.55pt" />
 
               <colspec colwidth="384.85pt" />
 
@@ -1866,8 +1778,8 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -1951,8 +1863,8 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -2037,8 +1949,147 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
+                </row>
+
+                <row>
+                  <entry>--port</entry>
+
+                  <entry>The eclwatch services port (Default is 8010)</entry>
+                </row>
+
+                <row>
+                  <entry>-u, --username</entry>
+
+                  <entry>The username (if necessary)</entry>
+                </row>
+
+                <row>
+                  <entry>-pw, --password</entry>
+
+                  <entry>The password (if necessary)</entry>
+                </row>
+              </tbody>
+            </tgroup>
+          </informaltable></para>
+      </sect2>
+
+      <sect2 id="eclpackagevalidate" role="brk">
+        <title>ecl packagemap validate</title>
+
+        <para><emphasis role="bold">ecl packagemap validate &lt;target&gt;
+        [&lt;filename&gt;] </emphasis></para>
+
+        <para>Examples:</para>
+
+        <programlisting>ecl packagemap validate roxie mypackagemap.pkg
+ecl packagemap validate roxie --active</programlisting>
+
+        <para>The packagemap validate command verifies that :</para>
+
+        <itemizedlist>
+          <listitem>
+            <para>Referenced superkeys have subfiles defined (warns if no
+            subfiles exist)</para>
+          </listitem>
+
+          <listitem>
+            <para>All referenced queries exist in the current Roxie
+            queryset</para>
+          </listitem>
+
+          <listitem>
+            <para>All Roxie queries are defined in the package</para>
+          </listitem>
+        </itemizedlist>
+
+        <para>The result will also list any files that are used by queries but
+        not mapped in the packagemap.</para>
+
+        <para>Filename, --active, and --pmid are mutually exclusive. The
+        --active or --pmid options validate a packagemap that has already been
+        added instead of a local file.</para>
+
+        <para>The --queryid option checks the files in a query instead of all
+        the queries in the target queryset. This is quicker when you only need
+        to validate the files for a single query. <informaltable colsep="0"
+            frame="none" rowsep="0">
+            <tgroup cols="2">
+              <colspec align="left" colwidth="175.55pt" />
+
+              <colspec colwidth="384.85pt" />
+
+              <tbody>
+                <row>
+                  <entry>ecl packagemap validate</entry>
+
+                  <entry>Calls the packagemap validate command.</entry>
+                </row>
+
+                <row>
+                  <entry><emphasis role="bold">Actions</emphasis></entry>
+                </row>
+
+                <row>
+                  <entry>validate</entry>
+
+                  <entry>Validates packagemap info</entry>
+                </row>
+
+                <row>
+                  <entry><emphasis role="bold">Arguments</emphasis></entry>
+                </row>
+
+                <row>
+                  <entry>filename</entry>
+
+                  <entry>The filename containing the packagemap info to
+                  validate</entry>
+                </row>
+
+                <row>
+                  <entry>target</entry>
+
+                  <entry>The target containing the packagemap to
+                  validate</entry>
+                </row>
+
+                <row>
+                  <entry><emphasis role="bold">Options</emphasis></entry>
+                </row>
+
+                <row>
+                  <entry>-v, --verbose</entry>
+
+                  <entry>Output additional tracing information</entry>
+                </row>
+
+                <row>
+                  <entry>-s, --server</entry>
+
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
+                </row>
+
+                <row>
+                  <entry>--active</entry>
+
+                  <entry>Validates the packagemap that is active for the given
+                  target</entry>
+                </row>
+
+                <row>
+                  <entry>--pmid=&lt;packagemapid&gt;</entry>
+
+                  <entry>Validates the given packagemap</entry>
+                </row>
+
+                <row>
+                  <entry>--queryid</entry>
+
+                  <entry>Validate the files for the given queryid if they are
+                  mapped in the packagemap</entry>
                 </row>
 
                 <row>
@@ -2102,8 +2153,8 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -2167,8 +2218,8 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -2232,8 +2283,8 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>
@@ -2297,8 +2348,8 @@ ecl packagemap copyFiles myroxie  mypackagemap.pkg --daliip=192.168.1.3
                 <row>
                   <entry>-s, --server</entry>
 
-                  <entry>The IP Address of ESP server running eclwatch
-                  services</entry>
+                  <entry>The IP Address or hostname of ESP server running
+                  eclwatch services</entry>
                 </row>
 
                 <row>

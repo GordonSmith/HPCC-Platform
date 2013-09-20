@@ -1078,16 +1078,16 @@ IAuthMap * CLdapSecManager::createFeatureMap(IPropertyTree * authconfig)
     return feature_authmap;
 }
 
-bool CLdapSecManager::updateUser(ISecUser& user, const char* newPassword)
+bool CLdapSecManager::updateUserPassword(ISecUser& user, const char* newPassword, const char* currPassword)
 {
     // Authenticate User first
-    if(!authenticate(&user))
+    if(!authenticate(&user) && user.getAuthenticateStatus() != AS_PASSWORD_VALID_BUT_EXPIRED)
     {
         return false;
     }
 
     //Update password if authenticated
-    bool ok = m_ldap_client->updateUser(user, newPassword);
+    bool ok = m_ldap_client->updateUserPassword(user, newPassword, currPassword);
     if(ok && m_permissionsCache.isCacheEnabled() && !m_usercache_off)
     {
         m_permissionsCache.removeFromUserCache(user);
@@ -1104,9 +1104,9 @@ bool CLdapSecManager::updateUser(const char* type, ISecUser& user)
     return ok;
 }
 
-bool CLdapSecManager::updateUser(const char* username, const char* newPassword)
+bool CLdapSecManager::updateUserPassword(const char* username, const char* newPassword)
 {
-    return m_ldap_client->updateUser(username, newPassword);
+    return m_ldap_client->updateUserPassword(username, newPassword);
 }
 
 void CLdapSecManager::getAllGroups(StringArray & groups)
@@ -1216,6 +1216,19 @@ bool CLdapSecManager::getUserInfo(ISecUser& user, const char* infotype)
     return m_ldap_client->getUserInfo(user, infotype);
 }
 
+bool CLdapSecManager::createUserScopes()
+{
+    Owned<ISecUserIterator> it = getAllUsers();
+    it->first();
+    while(it->isValid())
+    {
+        ISecUser &user = it->get();
+        if (!m_ldap_client->createUserScope(user))
+            PROGLOG("Error creating scope for user '%s'", user.getName());
+        it->next();
+    }
+    return true;
+}
 
 extern "C"
 {

@@ -38,6 +38,8 @@
 #include "commonext.hpp"
 #include "thorcommon.hpp"
 
+using roxiemem::OwnedRoxieString;
+
 //---------------------------------------------------------------------------
 
 static IHThorActivity * createActivity(IAgentContext & agent, unsigned activityId, unsigned subgraphId, unsigned graphId, ThorActivityKind kind, bool isLocal, bool isGrouped, IHThorArg & arg, IPropertyTree * node, EclGraphElement * graphElement)
@@ -98,13 +100,12 @@ static IHThorActivity * createActivity(IAgentContext & agent, unsigned activityI
         return createGroupActivity(agent, activityId, subgraphId, (IHThorGroupArg &)arg, kind);
     case TAKworkunitwrite:
         return createWorkUnitWriteActivity(agent, activityId, subgraphId, (IHThorWorkUnitWriteArg &)arg, kind);
+    case TAKdictionaryworkunitwrite:
+        return createDictionaryWorkUnitWriteActivity(agent, activityId, subgraphId, (IHThorDictionaryWorkUnitWriteArg &)arg, kind);
     case TAKfunnel:
         return createConcatActivity(agent, activityId, subgraphId, (IHThorFunnelArg &)arg, kind);
     case TAKapply:
         return createApplyActivity(agent, activityId, subgraphId, (IHThorApplyArg &)arg, kind);
-    case TAKtemptable:
-    case TAKtemprow:
-        return createTempTableActivity(agent, activityId, subgraphId, (IHThorTempTableArg &)arg, kind);
     case TAKinlinetable:
         return createInlineTableActivity(agent, activityId, subgraphId, (IHThorInlineTableArg &)arg, kind);
     case TAKnormalize:
@@ -194,8 +195,6 @@ static IHThorActivity * createActivity(IAgentContext & agent, unsigned activityI
         return createSoapDatasetActionActivity(agent, activityId, subgraphId, (IHThorSoapActionArg &)arg, kind);
     case TAKchilditerator:          
         return createChildIteratorActivity(agent, activityId, subgraphId, (IHThorChildIteratorArg &)arg, kind);
-    case TAKrawiterator:            
-        return createRawIteratorActivity(agent, activityId, subgraphId, (IHThorRawIteratorArg &)arg, kind);
     case TAKlinkedrawiterator:
         return createLinkedRawIteratorActivity(agent, activityId, subgraphId, (IHThorLinkedRawIteratorArg &)arg, kind);
     case TAKrowresult:          
@@ -261,6 +260,8 @@ static IHThorActivity * createActivity(IAgentContext & agent, unsigned activityI
         return createLocalResultReadActivity(agent, activityId, subgraphId, (IHThorLocalResultReadArg &)arg, kind, graphId);
     case TAKlocalresultwrite:
         return createLocalResultWriteActivity(agent, activityId, subgraphId, (IHThorLocalResultWriteArg &)arg, kind, graphId);
+    case TAKdictionaryresultwrite:
+        return createDictionaryResultWriteActivity(agent, activityId, subgraphId, (IHThorDictionaryResultWriteArg &)arg, kind, graphId);
     case TAKlocalresultspill:
         return createLocalResultSpillActivity(agent, activityId, subgraphId, (IHThorLocalResultSpillArg &)arg, kind, graphId);
     case TAKcombine:
@@ -354,7 +355,7 @@ bool EclGraphElement::alreadyUpToDate(IAgentContext & agent)
         throw makeWrappedException(e);
     }
 
-    StringAttr filename;
+    OwnedRoxieString filename;
     unsigned eclCRC;
     unsigned __int64 totalCRC;
     switch (kind)
@@ -594,6 +595,9 @@ bool EclGraphElement::prepare(IAgentContext & agent, const byte * parentExtract,
                     return branches.item(whichBranch).prepare(agent, parentExtract, checkDependencies);
                 return true;
             }
+#if 1
+        // This may feel like a worthwhile opimization, but it causes issues with through spill activities.
+        // However, disabling it causes issues with unwanted side effects getting evaluated
         case TAKfilter:
         case TAKfiltergroup:
         case TAKfilterproject:
@@ -621,9 +625,10 @@ bool EclGraphElement::prepare(IAgentContext & agent, const byte * parentExtract,
                 }
                 break;
             }
+#endif
 #if 1
         //This doesn't really work - we really need to switch over to a similar create(),start()/stop(),reset() structure as roxie.
-        //Howver that is far from trivial, so for the moment conditional statements won't be supported by hthor.
+        //However that is far from trivial, so for the moment conditional statements won't be supported by hthor.
         case TAKifaction:
             {
                 Owned<IHThorArg> helper = createHelper(agent, NULL);
@@ -670,7 +675,7 @@ bool EclGraphElement::prepare(IAgentContext & agent, const byte * parentExtract,
             }
         }
 
-        if (!isEof)    //dont prepare unnecessary branches
+        if (!isEof)    //don't prepare unnecessary branches
         {
             ForEachItemIn(i1, branches)
             {
@@ -978,6 +983,7 @@ void EclSubGraph::execute(const byte * parentExtract)
             wu->setTimerInfo(timer.str(), NULL, msTick()-startTime, 1, 0);
         }
     }
+    agent->updateWULogfile();//Update workunit logfile name in case of rollover
 }
 
 
@@ -1057,12 +1063,13 @@ IHThorGraphResult * EclSubGraph::createGraphLoopResult(IEngineRowAllocator * own
     return graphLoopResults->createResult(ownedRowsetAllocator);
 }
 
-void EclSubGraph::getResult(unsigned & len, void * & data, unsigned id)
+void EclSubGraph::getLinkedResult(unsigned & count, byte * * & ret, unsigned id)
 {
-    localResults->queryResult(id)->getResult(len, data);
+    localResults->queryResult(id)->getLinkedResult(count, ret);
 }
 
-void EclSubGraph::getLinkedResult(unsigned & count, byte * * & ret, unsigned id)
+
+void EclSubGraph::getDictionaryResult(unsigned & count, byte * * & ret, unsigned id)
 {
     localResults->queryResult(id)->getLinkedResult(count, ret);
 }
@@ -1270,11 +1277,6 @@ const void * UninitializedGraphResult::queryRow(unsigned whichRow)
     throw MakeStringException(99, "Graph Result %d accessed before it is created", id);
 }
 
-void UninitializedGraphResult::getResult(unsigned & lenResult, void * & result)
-{
-    throw MakeStringException(99, "Graph Result %d accessed before it is created", id);
-}
-
 void UninitializedGraphResult::getLinkedResult(unsigned & count, byte * * & ret)
 {
     throw MakeStringException(99, "Graph Result %d accessed before it is created", id);
@@ -1301,41 +1303,6 @@ const void * GraphResult::queryRow(unsigned whichRow)
     if (rows.isItem(whichRow))
         return rows.item(whichRow);
     return NULL;
-}
-
-void GraphResult::getResult(unsigned & lenResult, void * & result)
-{
-    IOutputMetaData * outputMeta = meta;
-    unsigned fixedSize = outputMeta->getFixedSize();
-
-    bool grouped = outputMeta->isGrouped();
-    MemoryBuffer rowdata;
-    unsigned max = rows.ordinality();
-    unsigned i;
-    for (i = 0; i < max; i++)
-    {
-        const void * nextrec = rows.item(i);
-        size32_t thisSize = fixedSize ? fixedSize : outputMeta->getRecordSize(nextrec);
-        rowdata.append(thisSize, nextrec);
-        if (grouped)
-        {
-            bool eog = false;
-            if (rows.isItem(i+1))
-            {
-                if (!rows.item(i+1))
-                {
-                    eog = true;
-                    i++;
-                }
-            }
-            else
-                eog = true;
-            rowdata.append(eog);
-        }
-    }
-
-    lenResult = rowdata.length();
-    result = rowdata.detach();
 }
 
 void GraphResult::getLinkedResult(unsigned & count, byte * * & ret)
@@ -1424,7 +1391,7 @@ IThorChildGraph * EclGraph::resolveChildQuery(unsigned subgraphId)
 
 
 //NB: resolveLocalQuery (unlike children) can't link otherwise you get a cicular dependency.
-ILocalGraph * EclGraph::resolveLocalQuery(unsigned subgraphId)
+IEclGraphResults * EclGraph::resolveLocalQuery(unsigned subgraphId)
 {
     return idToGraph(subgraphId);
 }
@@ -1535,11 +1502,11 @@ void EclAgent::executeThorGraph(const char * graphName)
                 while (!sem.wait(10000))
                 {
                     wu.forceReload();
-                    if (WUStatePaused != wu.getState())
+                    if (WUStatePaused != wu.getState() || wu.aborting())
                     {
                         SCMStringBuffer str;
                         wu.getStateDesc(str);
-                        PROGLOG("Aborting pause job %s, state changed to : %s", wuid.get(), str.str()); 
+                        PROGLOG("Aborting pause job %s, state : %s", wuid.get(), str.str());
                         ret = false;
                         break;
                     }
@@ -1553,7 +1520,7 @@ void EclAgent::executeThorGraph(const char * graphName)
         if (WUStatePaused == queryWorkUnit()->getState()) // check initial state - and wait if paused
         {
             if (!workunitResumeHandler.wait())
-                return;
+                throw new WorkflowException(0,"User abort requested", 0, WorkflowException::ABORT, MSGAUD_user);
         }
         {
             Owned <IWorkUnit> w = updateWorkUnit();
@@ -1708,11 +1675,38 @@ void EclAgent::executeThorGraph(const char * graphName)
     while (resubmit); // if pause interrupted job (i.e. with pausenow action), resubmit graph
 }
 
+//In case of logfile rollover, update workunit logfile name(s) stored
+//in SDS/WorkUnits/{WUID}/Process/EclAgent/myeclagent<log>
+void EclAgent::updateWULogfile()
+{
+    if (logMsgHandler && config->hasProp("@name"))
+    {
+        StringBuffer logname;
+        bool ok = logMsgHandler->getLogName(logname);
+        if (ok)
+        {
+            RemoteFilename rlf;
+            rlf.setLocalPath(logname);
+            rlf.getRemotePath(logname.clear());
+
+            Owned <IWorkUnit> w = updateWorkUnit();
+            w->addProcess("EclAgent", config->queryProp("@name"), logname.str());
+        }
+        else
+        {
+            DBGLOG("ERROR: Unable to query logfile name");
+            assertex(ok);
+        }
+    }
+}
+
 void EclAgent::executeGraph(const char * graphName, bool realThor, size32_t parentExtractSize, const void * parentExtract)
 {
     assertex(parentExtractSize == 0);
     if (realThor)
     {
+        if (isStandAloneExe)
+            throw MakeStringException(0, "Cannot execute Thor Graph in standalone mode");
         executeThorGraph(graphName);
     }
     else
@@ -1733,12 +1727,12 @@ void EclAgent::executeGraph(const char * graphName, bool realThor, size32_t pare
             if (guillotineTimeout)
                 abortmonitor->setGuillotineTimeout(guillotineTimeout);
             activeGraph->execute(NULL);
+            updateWULogfile();//Update workunit logfile name in case of rollover
             if (guillotineTimeout)
                 abortmonitor->setGuillotineTimeout(0);
             if (debugContext)
                 debugContext->checkBreakpoint(DebugStateGraphEnd, NULL, graphName);
             activeGraph.clear();
-
             if (debugContext)
             {
                 if (isAborting)
@@ -1795,7 +1789,7 @@ IThorChildGraph * EclAgent::resolveChildQuery(__int64 subgraphId, IHThorArg * co
     throwUnexpected();
 }
 
-ILocalGraph * EclAgent::resolveLocalQuery(__int64 activityId) 
+IEclGraphResults * EclAgent::resolveLocalQuery(__int64 activityId)
 { 
     throwUnexpected();
 }

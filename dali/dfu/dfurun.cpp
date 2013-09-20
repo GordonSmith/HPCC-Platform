@@ -166,7 +166,7 @@ class CDFUengine: public CInterface, implements IDFUengine
                 PROGLOG("ABORT notified");
             abort = true;
         }
-    } abortnotify;
+    };
 
 
     class cDFUlistener: public Thread
@@ -462,7 +462,7 @@ public:
     void startListener(const char *queuename,CSDSServerStatus *serverstatus)
     {
         PROGLOG("DFU server waiting on queue %s",queuename);
-        cDFUlistener *lt = new cDFUlistener(this,queuename,false,serverstatus, 1000*60);
+        cDFUlistener *lt = new cDFUlistener(this,queuename,false,serverstatus);
         listeners.append(*lt);
         lt->start();
     }
@@ -1244,7 +1244,7 @@ public:
                                     oldfile.clear();
                                     if (!options->getOverwrite())
                                         throw MakeStringException(-1,"Destination file %s already exists and overwrite not specified",tmp.str());
-                                    fdir.removePhysical(tmp.str(),userdesc,NULL,NULL);
+                                    fdir.removeEntry(tmp.str(),userdesc);
                                 }
                             }
                             StringBuffer jobname;
@@ -1405,7 +1405,7 @@ public:
                         if (options->getNoDelete())
                             fdir.removeEntry(tmp.str(),userdesc);
                         else
-                            fdir.removePhysical(tmp.str(),userdesc,NULL,NULL);
+                            fdir.removeEntry(tmp.str(),userdesc);
                         Audit("REMOVE",userdesc,tmp.clear(),NULL);
                         runningconn.clear();
                     }
@@ -1443,8 +1443,7 @@ public:
                         newfile.clear();
                         StringBuffer fromname(srcName);
                         srcFile.clear();
-                        if (!queryDistributedFileDirectory().renamePhysical(fromname.str(),toname.str(),userdesc,NULL))
-                            throw MakeStringException(-1,"rename failed"); // could do with better error here
+                        queryDistributedFileDirectory().renamePhysical(fromname.str(),toname.str(),userdesc,NULL);
                         StringBuffer timetaken;
                         timetaken.appendf("%dms",msTick()-start);
                         progress->setDone(timetaken.str(),0,true);

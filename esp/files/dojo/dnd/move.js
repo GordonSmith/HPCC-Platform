@@ -37,7 +37,7 @@ this.constraints=function(){
 return box;
 };
 }});
-var _10=_1("dnd.move.parentConstrainedMoveable",_7,{area:"content",constructor:function(_11,_12){
+var _10=_1("dojo.dnd.move.parentConstrainedMoveable",_7,{area:"content",constructor:function(_11,_12){
 var _13=_12&&_12.area;
 this.constraints=function(){
 var n=this.node.parentNode,s=_3.getComputedStyle(n),mb=_2.getMarginBox(n,s);

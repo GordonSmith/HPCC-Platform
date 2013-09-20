@@ -18,6 +18,7 @@
 #define HQLATTR_HPP
 
 #include "hqlexpr.hpp"
+#include "workunit.hpp"
 
 #define MAX_MAXLENGTH (INFINITE_LENGTH-1)
 
@@ -39,12 +40,17 @@ extern HQL_API bool increasesRowSize(IHqlExpression * expr);
 extern HQL_API bool isVariableSizeRecord(IHqlExpression * record);
 inline bool isFixedSizeRecord(IHqlExpression * record) { return !isVariableSizeRecord(record); }
 
+extern HQL_API bool recordRequiresLinkCount(IHqlExpression * expr);
 extern HQL_API bool recordRequiresDestructor(IHqlExpression * expr);
-extern HQL_API bool recordRequiresSerialization(IHqlExpression * expr);
-extern HQL_API IHqlExpression * getSerializedForm(IHqlExpression * expr);
-extern HQL_API ITypeInfo * getSerializedForm(ITypeInfo * type);
+extern HQL_API bool recordRequiresSerialization(IHqlExpression * expr, _ATOM serializeForm);
+extern HQL_API bool typeRequiresDeserialization(ITypeInfo * type, _ATOM serializeForm); // or can we use the serialized form directly
+extern HQL_API bool recordSerializationDiffers(IHqlExpression * expr, _ATOM serializeForm1, _ATOM serializeForm2);
+extern HQL_API IHqlExpression * getSerializedForm(IHqlExpression * expr, _ATOM variation);
+extern HQL_API ITypeInfo * getSerializedForm(ITypeInfo * type, _ATOM variation);
 extern HQL_API IHqlExpression * getPackedRecord(IHqlExpression * expr);
-extern HQL_API IHqlExpression * getUnadornedExpr(IHqlExpression * expr);
+
+//This returns a record that compares equal with another result if the normalized records will compare equal
+extern HQL_API IHqlExpression * getUnadornedRecordOrField(IHqlExpression * expr);
 
 extern HQL_API IHqlExpression * queryUID(IHqlExpression * expr);
 extern HQL_API IHqlExpression * querySelf(IHqlExpression * record);
@@ -73,6 +79,6 @@ extern HQL_API void getRecordCountText(StringBuffer & result, IHqlExpression * e
 extern HQL_API IHqlExpression * queryRecordCountInfo(IHqlExpression * expr);
 extern HQL_API IHqlExpression * getRecordCountInfo(IHqlExpression * expr);
 extern HQL_API bool hasNoMoreRowsThan(IHqlExpression * expr, __int64 limit);
-extern HQL_API bool spillToWorkunitNotFile(IHqlExpression * expr);
+extern HQL_API bool spillToWorkunitNotFile(IHqlExpression * expr, ClusterType platform);
 
 #endif

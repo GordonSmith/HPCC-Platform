@@ -21,13 +21,14 @@
 
 #include "thorxmlread.hpp"
 #include "thorxmlwrite.hpp"
-
 #include "thorcommon.ipp"
 #include "thorsoapcall.hpp"
 
 #include "securesocket.hpp"
-
 #include "eclrtl.hpp"
+#include "roxiemem.hpp"
+
+using roxiemem::OwnedRoxieString;
 
 #ifndef _WIN32
 #include <stdexcept>
@@ -150,7 +151,7 @@ public:
     {
         char *p;
 
-        if (p = strstr(urltext, "://"))
+        if ((p = strstr(urltext, "://")) != NULL)
         {
             *p = 0;
             p += 3; // skip past the colon-slash-slash
@@ -160,7 +161,7 @@ public:
         else
             throw MakeStringException(-1, "Malformed URL");
 
-        if (p = strchr(urltext, '@'))
+        if ((p = strchr(urltext, '@')) != NULL)
         {
             // extract username & password
             *p = 0;
@@ -170,7 +171,7 @@ public:
             urltext = p;
         }
 
-        if (p = strchr(urltext, ':'))
+        if ((p = strchr(urltext, ':')) != NULL)
         {
             // extract the port
             *p = 0;
@@ -180,7 +181,7 @@ public:
 
             host.append(urltext);
 
-            if (p = strchr(p, '/'))
+            if ((p = strchr(p, '/')) != NULL)
                 path.append(p);
             else
                 path.append("/");
@@ -195,7 +196,7 @@ public:
             else
                 throw MakeStringException(-1, "Unsupported access method");
 
-            if (p = strchr(urltext, '/'))
+            if ((p = strchr(urltext, '/')) != NULL)
             {
                 *p = 0;
                 p++;
@@ -579,7 +580,7 @@ interface IWSCAsyncFor: public IInterface
 };
 
 class CWSCHelper;
-IWSCAsyncFor * createWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, XmlReaderOptions _options);
+IWSCAsyncFor * createWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, PTreeReaderOptions _options);
 
 //=================================================================================================
 
@@ -685,18 +686,17 @@ public:
 class CWSCHelper : public CInterface, implements IWSCHelper
 {
 private:
-    QueueOf<const void, false> outputQ;                     // all access is protected by outputCrit
-    CriticalSection outputCrit, errorCrit, toXmlCrit, transformCrit, onfailCrit, timeoutCrit;
+    SimpleInterThreadQueueOf<const void, true> outputQ;
+    SpinLock outputQLock;
+    CriticalSection toXmlCrit, transformCrit, onfailCrit, timeoutCrit;
     unsigned done;
-    InterruptableSemaphore resultAvailable;
-    bool complete;
     Linked<ClientCertificate> clientCert;
 
     static CriticalSection secureContextCrit;
     static Owned<ISecureSocketContext> secureContext;
 
     CTimeMon timeLimitMon;
-    bool timeLimitExceeded;
+    bool complete, timeLimitExceeded;
     IRoxieAbortMonitor * roxieAbortMonitor;
 
 protected:
@@ -704,6 +704,8 @@ protected:
     WSCType wscType;
 
 public:
+    IMPLEMENT_IINTERFACE;
+
     CWSCHelper(IWSCRowProvider *_rowProvider, IEngineRowAllocator * _outputAllocator, const char *_authToken, WSCMode _wscMode, ClientCertificate *_clientCert, const IContextLogger &_logctx, IRoxieAbortMonitor *_roxieAbortMonitor, WSCType _wscType)
         : logctx(_logctx), outputAllocator(_outputAllocator), clientCert(_clientCert), roxieAbortMonitor(_roxieAbortMonitor)
     {
@@ -717,6 +719,7 @@ public:
         callHelper = rowProvider->queryCallHelper();  //MORE: This should not be done this way!! Should use extra as below.
         helperExtra = static_cast<IHThorSoapCallExtra*>(helper->selectInterface(TAIsoapcallextra_1));
         flags = helper->getFlags();
+        OwnedRoxieString s;
 
         authToken.append(_authToken);
 
@@ -730,56 +733,36 @@ public:
         logXML = (flags & SOAPFlog) != 0;
         logUserMsg = (flags & SOAPFlogusermsg) != 0;
 
-        IHThorWebServiceCallExtra2 * helperExtra2 = static_cast<IHThorWebServiceCallExtra2*>(helper->selectInterface(TAIsoapcallextra_2));
-        if (helperExtra2)
-        {
-            double dval = helperExtra2->getTimeoutMS();//double, indicating seconds and nanoseconds.
-            if (dval == -1.0)//not provided
-                timeoutMS = 300*1000; // 300 second default
-            else if (dval == 0)
-                timeoutMS = WAIT_FOREVER;
-            else
-                timeoutMS = dval * 1000;
-
-            dval = helperExtra2->getTimeLimitMS();
-            if (dval <= 0.0)
-                timeLimitMS = WAIT_FOREVER;
-            else
-                timeLimitMS = dval * 1000;
-        }
+        double dval = helper->getTimeout(); // In seconds, but may include fractions of a second...
+        if (dval == -1.0) //not provided
+            timeoutMS = 300*1000; // 300 second default
+        else if (dval == 0)
+            timeoutMS = WAIT_FOREVER;
         else
-        {
-            timeoutMS = helper->getTimeout();//get timeout, in seconds
-            if (timeoutMS == (unsigned)-1)
-                timeoutMS = 300*1000; // 300 second default
-            else if (timeoutMS == 0)
-                timeoutMS = WAIT_FOREVER;
-            else
-                timeoutMS *= 1000;
+            timeoutMS = dval * 1000;
 
-            timeLimitMS = helper->getTimeLimit();
-            if (timeLimitMS == 0  ||  timeLimitMS == (unsigned)-1)
-                timeLimitMS = WAIT_FOREVER;	//default
-            else
-                timeLimitMS *= 1000;
-        }
+        dval = helper->getTimeLimit();
+        if (dval <= 0.0)
+            timeLimitMS = WAIT_FOREVER;
+        else
+            timeLimitMS = dval * 1000;
 
         if (wscType == STsoap)
         {
-            soapaction.set(helper->querySoapAction());
+            soapaction.set(s.setown(helper->getSoapAction()));
             if(soapaction.get() && !isValidHttpValue(soapaction.get()))
                 throw MakeStringException(-1, "SOAPAction value contained illegal characters: %s", soapaction.get());
 
-            httpHeaderName.set(helper->queryHttpHeaderName());
+            httpHeaderName.set(s.setown(helper->getHttpHeaderName()));
             if(httpHeaderName.get() && !isValidHttpValue(httpHeaderName.get()))
                 throw MakeStringException(-1, "HTTPHEADER name contained illegal characters: %s", httpHeaderName.get());
 
-            httpHeaderValue.set(helper->queryHttpHeaderValue());
+            httpHeaderValue.set(s.setown(helper->getHttpHeaderValue()));
             if(httpHeaderValue.get() && !isValidHttpValue(httpHeaderValue.get()))
                 throw MakeStringException(-1, "HTTPHEADER value contained illegal characters: %s", httpHeaderValue.get());
 
             StringAttr proxyAddress;
-            proxyAddress.set(helper->queryProxyAddress());
+            proxyAddress.set(s.setown(helper->getProxyAddress()));
             if (!proxyAddress.isEmpty())
             {
                 UrlListParser proxyUrlListParser(proxyAddress);
@@ -790,11 +773,11 @@ public:
             if ((flags & SOAPFliteral) && (flags & SOAPFencoding))
                 throw MakeStringException(0, "SOAPCALL 'LITERAL' and 'ENCODING' options are mutually exclusive");
 
-            header.set(helper->queryHeader());
-            footer.set(helper->queryFooter());
+            header.set(s.setown(helper->getHeader()));
+            footer.set(s.setown(helper->getFooter()));
             if(flags & SOAPFnamespace)
             {
-                char const * ns = helper->queryNamespaceName();
+                OwnedRoxieString ns = helper->getNamespaceName();
                 if(ns && *ns)
                     xmlnamespace.set(ns);
             }
@@ -809,13 +792,14 @@ public:
 
         if (callHelper)
         {
-            char const * ipath = callHelper->queryInputIteratorPath();
+            OwnedRoxieString iteratorPath(callHelper->getInputIteratorPath());
+            char const * ipath = iteratorPath;
             if(ipath && (*ipath == '/'))
                 ++ipath;
             inputpath.set(ipath);
         }
         
-        service.set(helper->queryService());
+        service.set(s.setown(helper->getService()));
         service.trim();
 
         if (wscType == SThttp)
@@ -823,21 +807,19 @@ public:
             service.toUpperCase();  //GET/PUT/POST
             if (strcmp(service.str(), "GET"))
                 throw MakeStringException(0, "HTTPCALL Only 'GET' service supported");
-            acceptType.set(helper->queryAcceptType());// text/html, text/xml, etc
+            OwnedRoxieString acceptTypeSupplied(helper->getAcceptType()); // text/html, text/xml, etc
+            acceptType.set(acceptTypeSupplied);
             acceptType.trim();
             acceptType.toLowerCase();
         }
 
-        if(callHelper)
-        {
+        if (callHelper)
             rowTransformer = callHelper->queryInputTransformer();
-        }
         else
-        {
             rowTransformer = NULL;
-        }
 
-        UrlListParser urlListParser(helper->queryHosts());
+        OwnedRoxieString hosts(helper->getHosts());
+        UrlListParser urlListParser(hosts);
         if ((numUrls = urlListParser.getUrls(urlArray)) > 0)
         {
             if (wscMode == SCrow)
@@ -879,100 +861,68 @@ public:
         for (unsigned i=0; i<numRowThreads; i++)
             threads.append(*new CWSCHelperThread(this));
     }
-
-    IMPLEMENT_IINTERFACE;
-
     ~CWSCHelper()
     {
         complete = true;
         waitUntilDone();
         threads.kill();
-        while (outputQ.ordinality())
-            outputAllocator->releaseRow(outputQ.dequeue());
     }
-
     void waitUntilDone()
     {
         ForEachItemIn(i,threads)
             threads.item(i).join();
+        loop
+        {
+            const void *row = outputQ.dequeueNow();
+            if (!row)
+                break;
+            outputAllocator->releaseRow(row);
+        }
+        outputQ.reset();
     }
-
     void start()
     {
         if (timeLimitMS != WAIT_FOREVER)
             timeLimitMon.reset(timeLimitMS);
 
+        done = 0;
+        complete = aborted = timeLimitExceeded = false;
+
         ForEachItemIn(i,threads)
             threads.item(i).start();
     }
-
     void abort()
     {
         aborted = true;
         complete = true;
-        resultAvailable.signal();
+        outputQ.stop();
     }
-
-    size32_t __deprecated__getRow(void *buffer)
-    {
-        const void * row = getRow();
-        if (row)
-        {
-            size32_t sizeGot = outputAllocator->queryOutputMeta()->getRecordSize(row);
-            memcpy(buffer, row, sizeGot);
-            outputAllocator->releaseRow(row);
-            return sizeGot;
-        }
-        return 0;
-    }
-
     const void * getRow()
     {
-        if (complete) return NULL;
+        if (complete)
+            return NULL;
         loop
         {
-            resultAvailable.wait();
+            const void *row = outputQ.dequeue();
             if (aborted)
                 break;
-            {
-                CriticalBlock block(outputCrit);
-                if (outputQ.ordinality())
-                {
-                    return outputQ.dequeue();
-                }
-                else if ((done == numRowThreads))
-                {
-                    complete = true;
-                    if (error.get())
-                        throw error.getLink();
-                    break;
-                }
-                // should never get here
-            }
+            if (row)
+                return row;
+            // should only be here if setDone() triggered
+            complete = true;
+            Owned<IException> e = getError();
+            if (e)
+                throw e.getClear();
+            break;
         }
         return NULL;
     }
-
-    bool rowAvailable()
-    {
-        CriticalBlock block(outputCrit);
-        return (outputQ.ordinality() > 0);
-    }
-
-    bool queryDone()
-    {
-        CriticalBlock block(outputCrit);
-        return (done == numRowThreads);
-    }
-
     IException * getError()
     {
-        CriticalBlock block(errorCrit);
+        SpinBlock sb(outputQLock);
         return error.getLink();
     }
-
     inline IEngineRowAllocator * queryOutputAllocator() const { return outputAllocator; }
-
     ISecureSocket *createSecureSocket(ISocket *sock)
     {
         {
@@ -987,7 +937,6 @@ public:
         }
         return secureContext->createSecureSocket(sock);
     }
-
     bool isTimeLimitExceeded(unsigned *_remainingMS)
     {
         if (timeLimitMS != WAIT_FOREVER)
@@ -1014,7 +963,6 @@ public:
             logctx.CTXLOG("%s: %.*s", wscCallTypeText(), lenText, text.getstr());
         }
     }
-
     inline IXmlToRowTransformer * getRowTransformer() { return rowTransformer; }
     inline const char * wscCallTypeText() const { return wscType == STsoap ? "SOAPCALL" : "HTTPCALL"; }
 
@@ -1024,28 +972,33 @@ protected:
 
     void putRow(const void * row)
     {
-        CriticalBlock block(outputCrit);
+        assertex(row);
         outputQ.enqueue(row);
-        resultAvailable.signal();
     }
-
     void setDone()
     {
-        CriticalBlock block(outputCrit);
-        done++;
-        if (done == numRowThreads)
-            resultAvailable.signal();
+        bool doStop;
+        {
+            SpinBlock sb(outputQLock);
+            done++;
+            doStop = (done == numRowThreads);
+        }
+        if (doStop)
+        {
+            // Note - Don't stop the queue - that effectively discards what's already on there,
+            // which is not what we want.
+            // Instead, push a NULL to indicate the end of the output.
+            outputQ.enqueue(NULL);
+        }
     }
-
     void setErrorOwn(IException * e)
     {
-        CriticalBlock block(errorCrit);
+        SpinBlock sb(outputQLock);
         if (error)
             ::Release(e);
         else
             error.setown(e);
     }
-
     void toXML(const byte * self, IXmlWriter & out) { CriticalBlock block(toXmlCrit); helper->toXML(self, out); }
     size32_t transformRow(ARowBuilder & rowBuilder, IColumnProvider * row) 
     { 
@@ -1224,17 +1177,17 @@ void CWSCHelperThread::createXmlSoapQuery(CommonXmlWriter &xmlWriter, ConstPoint
 void CWSCHelperThread::processQuery(ConstPointerArray &inputRows)
 {
     unsigned xmlWriteFlags = 0;
-    unsigned xmlReadFlags = xr_ignoreNameSpaces; 
+    unsigned xmlReadFlags = ptr_ignoreNameSpaces;
     if (master->flags & SOAPFtrim)
         xmlWriteFlags |= XWFtrim;
     if ((master->flags & SOAPFpreserveSpace) == 0)
-        xmlReadFlags |= xr_ignoreWhiteSpace;
+        xmlReadFlags |= ptr_ignoreWhiteSpace;
         XMLWriterType xmlType = !(master->flags & SOAPFencoding) ? WTStandard : WTEncodingData64; 
     CommonXmlWriter *xmlWriter = CreateCommonXmlWriter(xmlWriteFlags, 0, NULL, xmlType);
     if (master->wscType == STsoap)
         createXmlSoapQuery(*xmlWriter, inputRows);
 
-    Owned<IWSCAsyncFor> casyncfor = createWSCAsyncFor(master, *xmlWriter, inputRows, (XmlReaderOptions) xmlReadFlags);
+    Owned<IWSCAsyncFor> casyncfor = createWSCAsyncFor(master, *xmlWriter, inputRows, (PTreeReaderOptions) xmlReadFlags);
     casyncfor->For(master->numUrls, master->numUrlThreads,false,true); // shuffle URLS for poormans load balance
     delete xmlWriter;
 }
@@ -1374,7 +1327,7 @@ private:
     CriticalSection processExceptionCrit;
     StringBuffer responsePath;
     Owned<CSocketDataProvider> dataProvider;
-    XmlReaderOptions options;
+    PTreeReaderOptions options;
     unsigned remainingMS;
 
     inline void checkRoxieAbortMonitor(IRoxieAbortMonitor * roxieAbortMonitor)
@@ -1724,7 +1677,7 @@ private:
     }
 
 public:
-    CWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, XmlReaderOptions _options): xmlWriter(_xmlWriter), inputRows(_inputRows), options(_options)
+    CWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, PTreeReaderOptions _options): xmlWriter(_xmlWriter), inputRows(_inputRows), options(_options)
     {
         master = _master;
         outputAllocator = master->queryOutputAllocator();
@@ -1938,7 +1891,7 @@ public:
     inline virtual IEngineRowAllocator * getOutputAllocator() { return outputAllocator; }
 };
 
-IWSCAsyncFor * createWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, XmlReaderOptions _options)
+IWSCAsyncFor * createWSCAsyncFor(CWSCHelper * _master, CommonXmlWriter &_xmlWriter, ConstPointerArray &_inputRows, PTreeReaderOptions _options)
 {
     return new CWSCAsyncFor(_master, _xmlWriter, _inputRows, _options);
 }

@@ -13,7 +13,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 ################################################################################
-HPCC_ADD_SUBDIRECTORY (commonext)
 HPCC_ADD_SUBDIRECTORY (deftype)
 HPCC_ADD_SUBDIRECTORY (dllserver)
 HPCC_ADD_SUBDIRECTORY (environment)
@@ -21,7 +20,6 @@ HPCC_ADD_SUBDIRECTORY (fileview2 "PLATFORM")
 HPCC_ADD_SUBDIRECTORY (monitoring "PLATFORM")
 HPCC_ADD_SUBDIRECTORY (remote)
 HPCC_ADD_SUBDIRECTORY (roxiecommlib)
-HPCC_ADD_SUBDIRECTORY (roxiehelper)
 HPCC_ADD_SUBDIRECTORY (roxiemanager "PLATFORM")
 HPCC_ADD_SUBDIRECTORY (thorhelper)
 HPCC_ADD_SUBDIRECTORY (workunit)

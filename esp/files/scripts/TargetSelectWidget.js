@@ -14,26 +14,30 @@
 #    limitations under the License.
 ############################################################################## */
 require([
-	"dojo/_base/declare",
-	"dojo/_base/xhr",
-	"dojo/dom",
+    "dojo/_base/declare",
+    "dojo/_base/lang",
+    "dojo/_base/array",
+    "dojo/dom",
 
-	"dijit/layout/_LayoutWidget",
-	"dijit/_TemplatedMixin",
-	"dijit/_WidgetsInTemplateMixin",
-	"dijit/form/Select",
-	"dijit/registry",
+    "dijit/layout/_LayoutWidget",
+    "dijit/_TemplatedMixin",
+    "dijit/_WidgetsInTemplateMixin",
+    "dijit/form/Select",
+    "dijit/registry",
 
-	"hpcc/ESPBase",
-	"dojo/text!./templates/TargetSelectWidget.html"
-], function (declare, xhr, dom,
-					_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, Select, registry,
-					ESPBase, template) {
+    "hpcc/WsTopology",
+
+    "dojo/text!./templates/TargetSelectWidget.html"
+], function (declare, lang, arrayUtil, dom,
+    _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, Select, registry,
+    WsTopology,
+    template) {
     return declare("TargetSelectWidget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
         baseClass: "TargetSelectWidget",
 
         targetSelectControl: null,
+        name: "",
         _value: "",
 
         postCreate: function (args) {
@@ -56,15 +60,56 @@ require([
             this.targetSelectControl.onChange = function () {
                 context.onChange(this.get("value"));
             };
-            this.loadTargets();
+        },
+
+        init: function (params) {
+            if (this.initalized)
+                return;
+            this.initalized = true;
+
+            if (params.Target) {
+                this._value = params.Target;
+            }
+            if (params.includeBlank) {
+                this.includeBlank = params.includeBlank;
+            }
+            if (params.Groups === true) {
+                this.loadGroups();
+            } else if (params.DropZones === true) {
+                this.loadDropZones();
+            } else {
+                this.loadTargets();
+            }
+            if (params.callback) {
+                this.callback = params.callback;
+            }
+            if (params.includeBlank) {
+            }
         },
 
         onChange: function (target) {
             this._value = target;
+            this._valueItem = null;
+            var context = this;
+            var idx = arrayUtil.forEach(this.targetSelectControl.options, function(item, idx) {
+                if (item.value === context._value) {
+                    context._valueItem = item;
+                }
+            });
+            if (this.callback) {
+                this.callback(this._value, this._valueItem);
+            }
         },
 
         setValue: function (target) {
-            if (target && this._value != target) {
+            if (target !== null && this._value != target) {
+                this._value = target;
+                this.targetSelectControl.set("value", target);
+            }
+        },
+
+        _setValueAttr: function (target) {
+            if (target !== null && this._value != target) {
                 this._value = target;
                 this.targetSelectControl.set("value", target);
             }
@@ -74,43 +119,103 @@ require([
             return this._value;
         },
 
-        loadTargets: function () {
-            var base = new ESPBase({
-            });
-            var request = {
-                rawxml_: true
-            };
+        _getValueAttr: function () {
+            return this._value;
+        },
+
+        loadDropZones: function () {
             var context = this;
-            xhr.post({
-                url: base.getBaseURL("WsTopology") + "/TpTargetClusterQuery",
-                handleAs: "xml",
-                content: request,
-                load: function (xmlDom) {
-                    var targetData = base.getValues(xmlDom, "TpTargetCluster");
-
-                    context.targetSelectControl.options = [];
-                    var has_hthor = false;
-                    for (var i = 0; i < targetData.length; ++i) {
-                        context.targetSelectControl.options.push({
-                            label: targetData[i].Name,
-                            value: targetData[i].Name
-                        });
-                        if (targetData[i].Name == "hthor") {
-                            has_hthor = true;
+            WsTopology.TpServiceQuery({
+                load: function (response) {
+                    if (lang.exists("TpServiceQueryResponse.ServiceList.TpDropZones.TpDropZone", response)) {
+                        var targetData = response.TpServiceQueryResponse.ServiceList.TpDropZones.TpDropZone;
+                        context.targetSelectControl.options = [];
+                        if (context.includeBlank) {
+                            context.targetSelectControl.options.push({
+                                label: "",
+                                value: ""
+                            });
                         }
-                    }
+                        for (var i = 0; i < targetData.length; ++i) {
+                            context.targetSelectControl.options.push({
+                                label: targetData[i].Name,
+                                value: targetData[i].Name,
+                                machine: targetData[i].TpMachines.TpMachine[0]
+                            });
+                        }
 
-                    if (context._value == "") {
-                        if (has_hthor) {
-                            context.setValue("hthor");
-                        } else {
+                        if (context._value == "") {
                             context._value = context.targetSelectControl.options[0].value;
                         }
-                    } else {
                         context.targetSelectControl.set("value", context._value);
                     }
-                },
-                error: function () {
+                }
+            });
+        },
+
+        loadGroups: function () {
+            var context = this;
+            WsTopology.TpGroupQuery({
+                load: function (response) {
+                    if (lang.exists("TpGroupQueryResponse.TpGroups.TpGroup", response)) {
+                        var targetData = response.TpGroupQueryResponse.TpGroups.TpGroup;
+                        context.targetSelectControl.options = [];
+                        if (context.includeBlank) {
+                            context.targetSelectControl.options.push({
+                                label: "",
+                                value: ""
+                            });
+                        }
+                        for (var i = 0; i < targetData.length; ++i) {
+                            context.targetSelectControl.options.push({
+                                label: targetData[i].Name,
+                                value: targetData[i].Name
+                            });
+                        }
+
+                        if (context._value == "") {
+                            context._value = context.targetSelectControl.options[0].value;
+                        }
+                        context.targetSelectControl.set("value", context._value);
+                    }
+                }
+            });
+        },
+
+        loadTargets: function () {
+            var context = this;
+            WsTopology.TpTargetClusterQuery({
+                load: function (response) {
+                    if (lang.exists("TpTargetClusterQueryResponse.TpTargetClusters.TpTargetCluster", response)) {
+                        var targetData = response.TpTargetClusterQueryResponse.TpTargetClusters.TpTargetCluster;
+                        context.targetSelectControl.options = [];
+                        if (context.includeBlank) {
+                            context.targetSelectControl.options.push({
+                                label: "",
+                                value: ""
+                            });
+                        }
+                        var has_hthor = false;
+                        for (var i = 0; i < targetData.length; ++i) {
+                            context.targetSelectControl.options.push({
+                                label: targetData[i].Name,
+                                value: targetData[i].Name
+                            });
+                            if (targetData[i].Name == "hthor") {
+                                has_hthor = true;
+                            }
+                        }
+
+                        if (!context.includeBlank && context._value == "") {
+                            if (has_hthor) {
+                                context.setValue("hthor");
+                            } else {
+                                context._value = context.targetSelectControl.options[0].value;
+                            }
+                        } else {
+                            context.targetSelectControl.set("value", context._value);
+                        }
+                    }
                 }
             });
         }

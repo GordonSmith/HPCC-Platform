@@ -30,6 +30,7 @@
 #include "ccddali.hpp"
 #include "thorcommon.ipp"
 #include "roxierow.hpp"
+#include "package.h"
 
 class TranslatorArray : public CInterface, implements IInterface
 {
@@ -61,7 +62,7 @@ interface IActivityGraph : extends IInterface
     virtual void noteException(IException *E) = 0;
     virtual void checkAbort() = 0;
     virtual IThorChildGraph * queryChildGraph() = 0;
-    virtual ILocalGraph * queryLocalGraph() = 0;
+    virtual IEclGraphResults * queryLocalGraph() = 0;
     virtual IRoxieServerChildGraph * queryLoopGraph() = 0;
     virtual IRoxieServerChildGraph * createGraphLoopInstance(unsigned loopCounter, unsigned parentExtractSize, const byte * parentExtract, const IRoxieContextLogger &logctx) = 0;
     virtual const char *queryName() const = 0;
@@ -69,6 +70,13 @@ interface IActivityGraph : extends IInterface
 
 interface IRoxiePackage;
 interface IDeserializedResultStore;
+
+interface ISharedOnceContext : extends IInterface
+{
+    virtual IPropertyTree &queryOnceContext(const IQueryFactory *queryFactory, const IRoxieContextLogger &_logctx) const = 0;
+    virtual IDeserializedResultStore &queryOnceResultStore() const = 0;
+    virtual void checkOnceDone(const IQueryFactory *queryFactory, const IRoxieContextLogger &_logctx) const = 0;
+};
 
 interface IQueryFactory : extends IInterface
 {
@@ -91,10 +99,12 @@ interface IQueryFactory : extends IInterface
     virtual unsigned queryChannel() const = 0;
     virtual ILoadedDllEntry *queryDll() const = 0;
     virtual bool getEnableFieldTranslation() const = 0;
+    virtual IConstWorkUnit *queryWorkUnit() const = 0;
+    virtual ISharedOnceContext *querySharedOnceContext() const = 0;
+    virtual IDeserializedResultStore &queryOnceResultStore() const = 0;
+    virtual IPropertyTree &queryOnceContext(const IRoxieContextLogger &logctx) const = 0;
 
     virtual const IRoxiePackage &queryPackage() const = 0;
-    virtual IPropertyTree &queryOnceContext() const = 0;
-    virtual IDeserializedResultStore &queryOnceResultStore() const = 0;
     virtual void getActivityMetrics(StringBuffer &reply) const = 0;
 
     virtual IPropertyTree *cloneQueryXGMML() const = 0;
@@ -105,7 +115,7 @@ interface IQueryFactory : extends IInterface
     virtual int getDebugValueInt(const char * propname, int defVal) const = 0;
     virtual bool getDebugValueBool(const char * propname, bool defVal) const = 0;
 
-    virtual IRoxieServerContext *createContext(IPropertyTree *xml, SafeSocket &client, bool isXml, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, const IRoxieContextLogger &_logctx, XmlReaderOptions xmlReadFlags) const = 0;
+    virtual IRoxieServerContext *createContext(IPropertyTree *xml, SafeSocket &client, TextMarkupFormat mlFmt, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, const IRoxieContextLogger &_logctx, PTreeReaderOptions xmlReadFlags) const = 0;
     virtual IRoxieServerContext *createContext(IConstWorkUnit *wu, const IRoxieContextLogger &_logctx) const = 0;
     virtual void noteQuery(time_t startTime, bool failed, unsigned elapsed, unsigned memused, unsigned slavesReplyLen, unsigned bytesOut) = 0;
     virtual IPropertyTree *getQueryStats(time_t from, time_t to) = 0;
@@ -122,10 +132,15 @@ class ActivityArray : public CInterface
     bool multiInstance;
     bool delayed;
     bool library;
+    bool sequential;
     unsigned libraryGraphId;
 
 public:
-    ActivityArray(bool _multiInstance, bool _delayed, bool _library) { multiInstance = _multiInstance; delayed = _delayed; library = _library; libraryGraphId = 0; }
+    ActivityArray(bool _multiInstance, bool _delayed, bool _library, bool _sequential)
+     : multiInstance(_multiInstance), delayed(_delayed), library(_library), sequential(_sequential)
+    {
+        libraryGraphId = 0;
+    }
 
     unsigned findActivityIndex(unsigned id);
     unsigned recursiveFindActivityIndex(unsigned id);
@@ -138,6 +153,7 @@ public:
     inline bool isMultiInstance() const { return multiInstance; }
     inline bool isDelayed() const { return delayed; }
     inline bool isLibrary() const { return library; }
+    inline bool isSequential() const { return sequential; }
     inline unsigned getLibraryGraphId() const { return libraryGraphId; }
 };
 MAKEPointerArray(ActivityArray, ActivityArrayArray);
@@ -226,14 +242,12 @@ extern const IQueryDll *createQueryDll(const char *dllName);
 extern const IQueryDll *createExeQueryDll(const char *exeName);
 extern const IQueryDll *createWuQueryDll(IConstWorkUnit *wu);
 
-interface IRoxieLibraryLookupContext;
-
 extern IRecordLayoutTranslator *createRecordLayoutTranslator(const char *logicalName, IDefRecordMeta const * diskMeta, IDefRecordMeta const * activityMeta);
-extern IQueryFactory *createServerQueryFactory(const char *id, const IQueryDll *dll, const IRoxiePackage &package, const IPropertyTree *stateInfo, IRoxieLibraryLookupContext *libraryContext);
-extern IQueryFactory *createSlaveQueryFactory(const char *id, const IQueryDll *dll, const IRoxiePackage &package, unsigned _channelNo, const IPropertyTree *stateInfo, IRoxieLibraryLookupContext *libraryContext);
+extern IQueryFactory *createServerQueryFactory(const char *id, const IQueryDll *dll, const IHpccPackage &package, const IPropertyTree *stateInfo);
+extern IQueryFactory *createSlaveQueryFactory(const char *id, const IQueryDll *dll, const IHpccPackage &package, unsigned _channelNo, const IPropertyTree *stateInfo);
 extern IQueryFactory *getQueryFactory(hash64_t hashvalue, unsigned channel);
-extern IQueryFactory *createServerQueryFactoryFromWu(IConstWorkUnit *wu, IRoxieLibraryLookupContext *libraryContext);
-extern IQueryFactory *createSlaveQueryFactoryFromWu(IConstWorkUnit *wu, unsigned channelNo, IRoxieLibraryLookupContext *libraryContext);
+extern IQueryFactory *createServerQueryFactoryFromWu(IConstWorkUnit *wu);
+extern IQueryFactory *createSlaveQueryFactoryFromWu(IConstWorkUnit *wu, unsigned channelNo);
 
 inline unsigned findParentId(IPropertyTree &node)
 {

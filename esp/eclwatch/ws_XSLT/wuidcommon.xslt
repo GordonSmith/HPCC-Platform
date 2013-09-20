@@ -46,7 +46,7 @@
                   &nbsp;
                   <a href="/esp/iframe?esp_iframe_title=ECL Workunit XML - {$wuid}&amp;inner=/WsWorkunits/WUFile%3fWuid%3d{$wuid}%26Type%3dXML" >XML</a>
                   &nbsp;
-                  <a href="/esp/iframe?esp_iframe_title=ECL Playground - {$wuid}&amp;inner=/esp/files/ECLPlayground.htm%3fWuid%3d{$wuid}%26Target%3d{Cluster}" >ECL Playground</a>
+                  <a href="/esp/iframe?esp_iframe_title=ECL Playground - {$wuid}&amp;inner=/esp/files/stub.htm%3fWidget%3dECLPlaygroundWidget%26Wuid%3d{$wuid}%26Target%3d{Cluster}" >ECL Playground</a>
                 </xsl:otherwise>
               </xsl:choose>
             </td>
@@ -399,7 +399,7 @@
                   Results: (<xsl:value-of select="ResultCount"/>)
                 </A>
                 &nbsp;-&nbsp;
-                <a href="/esp/iframe?esp_iframe_title=Results - {$wuid}&amp;inner=/esp/files/ECLPlaygroundResults.htm%3fWuid%3d{$wuid}" >Show</a>
+                <a href="/esp/iframe?esp_iframe_title=Results - {$wuid}&amp;inner=/esp/files/stub.htm%3fWidget%3dResultsWidget%26Wuid%3d{$wuid}%26TabPosition%3dtop" >Show</a>
               </div>
             </div>
             <div id="Results" class="wusectioncontent">
@@ -445,8 +445,6 @@
                 <A href="javascript:void(0)" onclick="toggleElement('SourceFiles');" id="explinksourcefiles" class="wusectionexpand">
                   Files: (<xsl:value-of select="SourceFileCount"/>)
                 </A>
-                &nbsp;-&nbsp;
-                <a href="/esp/iframe?esp_iframe_title=Results - {$wuid}&amp;inner=/esp/files/ECLPlaygroundResults.htm%3fWuid%3d{$wuid}%26SourceFiles%3dtrue" >Show</a>
               </div>
             </div>
 
@@ -526,8 +524,6 @@
                 <A href="javascript:void(0)" onclick="toggleElement('Graphs');" id="explinkgraphs" class="wusectionexpand">
                   Graphs: (<xsl:value-of select="GraphCount"/>)
                 </A>
-                &nbsp;-&nbsp;
-                <a href="/esp/iframe?esp_iframe_title=Graphs - {$wuid}&amp;inner=/esp/files/WUGraph.htm%3fWuid%3d{$wuid}" >Show</a>
               </div>
             </div>
           </div>
@@ -572,8 +568,6 @@
                 <A href="javascript:void(0)" onclick="toggleElement('Timers');" id="explinktimers" class="wusectionexpand">
                   Timings: (<xsl:value-of select="TimerCount"/>)
                 </A>
-                &nbsp;-&nbsp;
-                <a href="/esp/iframe?esp_iframe_title=Timers - {$wuid}&amp;inner=/esp/files/WUTimings.htm%3fWuid%3d{$wuid}" >Show</a>							
               </div>
             </div>
             <div id="Timers" class="wusectioncontent">
@@ -603,21 +597,26 @@
         </p>
       </xsl:if>
 
-      <xsl:if test="string-length(Query/Text)">
+      <xsl:if test="string-length(Query/Text) or string-length(Query/QueryMainDefinition)">
         <div>
           <div class="wugroup">
               <div class="WuGroupHdrLeft">
                 <A href="javascript:void(0)" onclick="toggleElement('querysection');" id="explinkquerysection" class="wusectionexpand">Query: (1)</A>
-                &nbsp;-&nbsp;
-                <a href="/esp/iframe?esp_iframe_title=Query - {$wuid}&amp;inner=/esp/files/WUSource.htm%3fWuid%3d{$wuid}" >Show</a>							
               </div>
           </div>
           <div id="querysection" class="wusectioncontent">
-            <div>
-              <textarea id="query" readonly="true" wrap="off" rows="10" STYLE="width:600">
-                <xsl:value-of select="Query/Text"/>
-              </textarea>
-            </div>
+              <xsl:if test="string-length(Query/Text)">
+                  <div>
+                      <textarea id="query" readonly="true" wrap="off" rows="10" STYLE="width:600">
+                          <xsl:value-of select="Query/Text"/>
+                      </textarea>
+                  </div>
+              </xsl:if>
+              <xsl:if test="string-length(Query/QueryMainDefinition)">
+                  <div>
+                      <b>QueryMainDefinition: </b><xsl:value-of select="Query/QueryMainDefinition"/>
+                  </div>
+              </xsl:if>
           </div>
         </div>
       </xsl:if>
@@ -905,8 +904,8 @@
             </td>
             <td>
               <form action="/WsWorkunits/WUResubmit?Wuids_i1={$wuid}" method="post">
-                <input type="submit" name="Resubmit" value="Resubmit" class="sbutton" title="Resubmit workunit">
-                  <xsl:if test="number(AccessFlag) &lt; 7 or State!='aborted' and State!='failed' and State!='completed' and State!='archived'">
+                <input type="submit" name="Recover" value="Recover" class="sbutton" title="Attempt to resume running workunit from where it stopped">
+                  <xsl:if test="number(AccessFlag) &lt; 7 or State!='aborted' and State!='failed'">
                     <xsl:attribute name="disabled">disabled</xsl:attribute>
                   </xsl:if>
                 </input>
@@ -914,7 +913,7 @@
             </td>
             <td>
               <form action="/WsWorkunits/WUResubmit?Wuids_i1={$wuid}&amp;ResetWorkflow=1" method="post">
-                <input type="submit" name="RestartWU" value="Restart" title="Clean and rerun the workunit" class="sbutton">
+                <input type="submit" name="Resubmit" value="Resubmit" title="Clean and rerun the workunit" class="sbutton">
                   <xsl:if test="number(AccessFlag) &lt; 7 or State!='aborted' and State!='failed' and State!='completed' and State!='archived'">
                     <xsl:attribute name="disabled">disabled</xsl:attribute>
                   </xsl:if>
@@ -1075,18 +1074,12 @@
         <xsl:if test="number(IsSupplied)"> supplied</xsl:if>
       </td>
      <xsl:choose>
-       <xsl:when test="number(ShowFileContent) and string-length(Link)">
+       <xsl:when test="((string-length(FileName) &lt; 1) or number(ShowFileContent)) and string-length(Link)">
           <td>
             <a href="javascript:void(0);" onclick="getLink(document.getElementById('ECL_Result_{position()}'), '/WsWorkunits/WUResult?Wuid={$wuid}&amp;Sequence={Link}');return false;">
               <xsl:value-of select="Value"/>
             </a>
           </td>
-          <xsl:variable name="resultname" select="Name"/>
-          <xsl:for-each select="/WUInfoResponse/ResultViews/View">
-            <td>
-              <a href="javascript:void(0);" onclick="getLink(document.getElementById('ECL_Result_{$position}'), '/WsWorkunits/WUResultView?Wuid={$wuid}&amp;ResultName={$resultname}&amp;ViewName={.}');return false;"><xsl:value-of select="."/></a>
-            </td>
-          </xsl:for-each>
           <td>
             <a href="javascript:void(0);" onclick="getLink(document.getElementById('ECL_Result_{position()}'), '/WsWorkunits/WUResultBin?Format=zip&amp;Wuid={$wuid}&amp;Sequence={Link}');return false;">.zip</a>
           </td>
@@ -1103,6 +1096,12 @@
               </a>
             </xsl:if>
           </td>
+          <xsl:variable name="resultname" select="Name"/>
+          <xsl:for-each select="/WUInfoResponse/ResultViews/View">
+            <td>
+              <a href="javascript:void(0);" onclick="getLink(document.getElementById('ECL_Result_{$position}'), '/WsWorkunits/WUResultView?Wuid={$wuid}&amp;ResultName={$resultname}&amp;ViewName={.}');return false;"><xsl:value-of select="."/></a>
+            </td>
+          </xsl:for-each>
         </xsl:when>
         <xsl:when test="number(ShowFileContent) and string-length(FileName)">
           <td>
@@ -1110,6 +1109,9 @@
               <xsl:value-of select="Value"/>
             </a>
           </td>
+          <td/>
+          <td/>
+          <td/>
           <td>
             <xsl:if test="string-length(FileName)">
               <a href="/WsDfu/DFUInfo?Name={FileName}" >
@@ -1124,26 +1126,30 @@
             <xsl:value-of select="Value"/>
             <xsl:text disable-output-escaping="yes"><![CDATA[ </span>]]></xsl:text>
          </td>
-            <td>
-              <xsl:if test="string-length(FileName)">
-                 <a href="/WsDfu/DFUInfo?Name={FileName}" >
+         <td/>
+         <td/>
+         <td/>
+         <td>
+            <xsl:if test="string-length(FileName)">
+                <a href="/WsDfu/DFUInfo?Name={FileName}" >
                     <xsl:value-of select="FileName"/>
-                 </a>
-              </xsl:if>
-            </td>
+                </a>
+            </xsl:if>
+         </td>
        </xsl:when>
        <xsl:otherwise>
-            <td/>
-            <td/>
-            <td/>
+         <td/>
+         <td/>
+         <td/>
+         <td/>
          <td><xsl:value-of select="Value"/></td>
-            <td>
-              <xsl:if test="string-length(FileName)">
-                 <a href="/WsDfu/DFUInfo?Name={FileName}" >
+         <td>
+            <xsl:if test="string-length(FileName)">
+                <a href="/WsDfu/DFUInfo?Name={FileName}" >
                     <xsl:value-of select="FileName"/>
-                 </a>
-              </xsl:if>
-            </td>
+                </a>
+            </xsl:if>
+         </td>
        </xsl:otherwise>
      </xsl:choose>
     </tr>
@@ -1244,6 +1250,19 @@
           </a>
         </td>
       </xsl:if>
+      <xsl:if test="(Type = 'xml') or (Type = 'hint')">
+        <td>
+          <a href="/esp/iframe?esp_iframe_title=ECL Workunit - {$wuid} - {Description}&amp;inner=
+                   /WsWorkunits/WUFile%3fWuid%3d{$wuid}%26Name%3d{Name}%26IPAddress%3d{IPAddress}%26Description%3d{Description}%26Type%3dXML" >
+            <xsl:value-of select="Description"/>
+          </a>
+        </td>
+        <td>
+          <a href="javascript:void(0)" onclick="getOptions('{Description}', '/WsWorkunits/WUFile/{Name}?Wuid={$wuid}&amp;Name={Name}&amp;IPAddress={IPAddress}&amp;Description={Description}&amp;Type=xml', false); return false;">
+            download
+          </a>
+        </td>
+      </xsl:if>
       <xsl:if test="Type = 'res'">
         <td>
           <a href="/WsWorkunits/WUFile/res.txt?Wuid={$wuid}&amp;Type=res">res.txt</a>
@@ -1254,25 +1273,25 @@
       </xsl:if>
       <xsl:if test="starts-with(Type, 'ThorLog')">
         <td>
-          <a href="/WsWorkunits/WUFile/ThorLog?Wuid={$wuid}&amp;Process={Description}&amp;Type={Type}"
+          <a href="/WsWorkunits/WUFile/ThorLog?Wuid={$wuid}&amp;Name={Name}&amp;Type={Type}"
                         >
             thormaster.log: <xsl:value-of select="Name"/>
           </a>
         </td>
         <td>
-          <a href="javascript:void(0)" onclick="getOptions('thormaster.log', '/WsWorkunits/WUFile/ThorLog?Wuid={$wuid}&amp;Process={Description}&amp;Type={Type}', false); return false;">
+          <a href="javascript:void(0)" onclick="getOptions('thormaster.log', '/WsWorkunits/WUFile/ThorLog?Wuid={$wuid}&amp;Name={Name}&amp;Type={Type}', false); return false;">
             download
           </a>
         </td>
       </xsl:if>
       <xsl:if test="Type = 'EclAgentLog'">
         <td>
-          <a href="/WsWorkunits/WUFile/EclAgentLog?Wuid={$wuid}&amp;Process={Description}&amp;Type=EclAgentLog">
+          <a href="/WsWorkunits/WUFile/EclAgentLog?Wuid={$wuid}&amp;Name={Name}&amp;Type=EclAgentLog">
               eclagent.log: <xsl:value-of select="Name"/>
           </a>
         </td>
         <td>
-          <a href="javascript:void(0)" onclick="getOptions('eclagent.log', '/WsWorkunits/WUFile/EclAgentLog?Wuid={$wuid}&amp;Process={Description}&amp;Type=EclAgentLog', false); return false;">
+          <a href="javascript:void(0)" onclick="getOptions('eclagent.log', '/WsWorkunits/WUFile/EclAgentLog?Wuid={$wuid}&amp;Name={Name}&amp;Type=EclAgentLog', false); return false;">
             download
           </a>
         </td>

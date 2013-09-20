@@ -50,7 +50,6 @@
 #endif
 
 typedef unsigned char byte;
-typedef unsigned __int64 hash64_t;
 interface IEngineRowAllocator;
 interface IOutputMetaData;
 interface IOutputRowSerializer;
@@ -61,15 +60,9 @@ interface IException;
 class StringBuffer;
 class MemoryBuffer;
 
-//-----------------------------------------------------------------------------
+enum DBZaction { DBZnone, DBZzero, DBZnan, DBZfail }; // Different actions on divide by zero
 
-interface IRtlRowCallback
-{
-    virtual void releaseRow(const void * row) const = 0;
-    virtual void releaseRowset(unsigned count, byte * * rowset) const = 0;
-    virtual void * linkRow(const void * row) const = 0;
-    virtual byte * * linkRowset(byte * * rowset) const = 0;
-};
+//-----------------------------------------------------------------------------
 
 // RegEx Compiler for ansii  strings (uses BOOST)
 interface IStrRegExprFindInstance
@@ -353,6 +346,9 @@ ECLRTL_API unsigned rtlRankedFromOrder(unsigned index, unsigned num, const void 
 
 ECLRTL_API void rtlEcho(unsigned len, const char * src);    // useful for testing.
 
+const unsigned int HASH32_INIT = 0x811C9DC5;
+const unsigned __int64 HASH64_INIT = I64C(0xcbf29ce484222325);
+
 ECLRTL_API unsigned rtlHashData( unsigned length, const void *_k, unsigned initval);
 ECLRTL_API unsigned rtlHashString( unsigned length, const char *_k, unsigned initval);
 ECLRTL_API unsigned rtlHashUnicode(unsigned length, UChar const * k, unsigned initval);
@@ -386,6 +382,7 @@ ECLRTL_API void rtlFail(int code, const char *msg);
 ECLRTL_API void rtlSysFail(int code, const char *msg);
 ECLRTL_API void rtlFailUnexpected();
 ECLRTL_API void rtlFailOnAssert();
+ECLRTL_API void rtlFailDivideByZero();
 
 ECLRTL_API void rtlReportFieldOverflow(unsigned size, unsigned max, const char * name);
 ECLRTL_API void rtlReportRowOverflow(unsigned size, unsigned max);
@@ -424,6 +421,7 @@ ECLRTL_API void rtlWriteInt6(void * data, unsigned __int64 value);
 ECLRTL_API void rtlWriteInt7(void * data, unsigned __int64 value);
 inline void rtlWriteInt8(void * data, unsigned value) { *(unsigned __int64 *)data = value; }
 inline void rtlWriteSize32t(void * data, unsigned value) { *(size32_t *)data = value; }
+ECLRTL_API void rtlWriteInt(void * self, __int64 val, unsigned length);
 
 inline int rtlReadSwapInt1(const void * data) { return *(signed char *)data; }
 ECLRTL_API int rtlReadSwapInt2(const void * data);
@@ -495,11 +493,6 @@ ECLRTL_API void * rtlLinkRow(const void * row);
 ECLRTL_API void rtlReleaseRowset(unsigned count, byte * * rowset);
 ECLRTL_API byte * * rtlLinkRowset(byte * * rowset);
 
-// argument is not linked, and must remain until closedown, or called with NULL.  Returns the previous value.  
-// Not thread safe, but shouldn't need to be.
-ECLRTL_API IRtlRowCallback * rtlSetReleaseRowHook(IRtlRowCallback * hook);      
-
-
 ECLRTL_API void ensureRtlLoaded();      // call this to create a static link to the rtl...
 
 ECLRTL_API void outputXmlString(unsigned len, const char *field, const char *fieldname, StringBuffer &out);
@@ -527,6 +520,10 @@ ECLRTL_API void outputXmlAttrUDecimal(const void *field, unsigned size, unsigned
 ECLRTL_API void outputXmlAttrUnicode(unsigned len, const UChar *field, const char *fieldname, StringBuffer &out);
 ECLRTL_API void outputXmlAttrUtf8(unsigned len, const char *field, const char *fieldname, StringBuffer &out);
 
+ECLRTL_API void outputJsonDecimal(const void *field, unsigned digits, unsigned precision, const char *fieldname, StringBuffer &out);
+ECLRTL_API void outputJsonUDecimal(const void *field, unsigned digits, unsigned precision, const char *fieldname, StringBuffer &out);
+ECLRTL_API void outputJsonUnicode(unsigned len, const UChar *field, const char *fieldname, StringBuffer &out);
+
 ECLRTL_API void deserializeRaw(unsigned size, void *record, MemoryBuffer & in);
 ECLRTL_API void deserializeDataX(size32_t & len, void * & data, MemoryBuffer &in);
 ECLRTL_API void deserializeStringX(size32_t & len, char * & data, MemoryBuffer &in);
@@ -538,6 +535,7 @@ ECLRTL_API UChar * deserializeVUnicodeX(MemoryBuffer &in);
 ECLRTL_API void deserializeQStrX(size32_t & len, char * & data, MemoryBuffer &out);
 ECLRTL_API void deserializeRowsetX(size32_t & count, byte * * & data, IEngineRowAllocator * _rowAllocator, IOutputRowDeserializer * deserializer, MemoryBuffer &in);
 ECLRTL_API void deserializeGroupedRowsetX(size32_t & count, byte * * & data, IEngineRowAllocator * _rowAllocator, IOutputRowDeserializer * deserializer, MemoryBuffer &in);
+ECLRTL_API void deserializeDictionaryX(size32_t & count, byte * * & rowset, IEngineRowAllocator * _rowAllocator, IOutputRowDeserializer * deserializer, MemoryBuffer &in);
 
 ECLRTL_API byte * rtlDeserializeRow(IEngineRowAllocator * rowAllocator, IOutputRowDeserializer * deserializer, const void * src);
 ECLRTL_API byte * rtlDeserializeBufferRow(IEngineRowAllocator * rowAllocator, IOutputRowDeserializer * deserializer, MemoryBuffer & buffer);
@@ -553,6 +551,7 @@ ECLRTL_API void serializeQStrX(size32_t len, const char * data, MemoryBuffer &ou
 ECLRTL_API void serializeRowsetX(size32_t count, byte * * data, IOutputRowSerializer * serializer, MemoryBuffer &out);
 ECLRTL_API void serializeGroupedRowsetX(size32_t count, byte * * data, IOutputRowSerializer * serializer, MemoryBuffer &out);
 ECLRTL_API void serializeRow(const void * row, IOutputRowSerializer * serializer, MemoryBuffer & out);
+ECLRTL_API void serializeDictionaryX(size32_t count, byte * * rows, IOutputRowSerializer * serializer, MemoryBuffer & buffer);
 
 ECLRTL_API void serializeFixedString(unsigned len, const char *field, MemoryBuffer &out);
 ECLRTL_API void serializeLPString(unsigned len, const char *field, MemoryBuffer &out);
@@ -587,6 +586,7 @@ ECLRTL_API double rtlACos(double x);
 ECLRTL_API double rtlASin(double x);
 
 ECLRTL_API bool rtlIsValidReal(unsigned size, const void * data);
+ECLRTL_API double rtlCreateRealNull();
 
 ECLRTL_API unsigned rtlQStrLength(unsigned size);
 ECLRTL_API unsigned rtlQStrSize(unsigned length);
@@ -728,5 +728,42 @@ ECLRTL_API unsigned rtlTick();
 ECLRTL_API unsigned rtlDelayReturn(unsigned value, unsigned sleepTime);
 
 ECLRTL_API bool rtlGPF();
+
+//-----------------------------------------------------------------------------
+
+interface IEmbedFunctionContext : extends IInterface
+{
+    virtual void bindBooleanParam(const char *name, bool val) = 0;
+    virtual void bindDataParam(const char *name, size32_t len, const void *val) = 0;
+    virtual void bindRealParam(const char *name, double val) = 0;
+    virtual void bindSignedParam(const char *name, __int64 val) = 0;
+    virtual void bindUnsignedParam(const char *name, unsigned __int64 val) = 0;
+    virtual void bindStringParam(const char *name, size32_t len, const char *val) = 0;
+    virtual void bindVStringParam(const char *name, const char *val) = 0;
+    virtual void bindUTF8Param(const char *name, size32_t chars, const char *val) = 0;
+    virtual void bindUnicodeParam(const char *name, size32_t chars, const UChar *val) = 0;
+
+    virtual void bindSetParam(const char *name, int elemType, size32_t elemSize, bool isAll, size32_t totalBytes, void *setData) = 0;
+
+    virtual bool getBooleanResult() = 0;
+    virtual void getDataResult(size32_t &len, void * &result) = 0;
+    virtual double getRealResult() = 0;
+    virtual __int64 getSignedResult() = 0;
+    virtual unsigned __int64 getUnsignedResult() = 0;
+    virtual void getStringResult(size32_t &len, char * &result) = 0;
+    virtual void getUTF8Result(size32_t &chars, char * &result) = 0;
+    virtual void getUnicodeResult(size32_t &chars, UChar * &result) = 0;
+    virtual void getSetResult(bool & __isAllResult, size32_t & __resultBytes, void * & __result, int elemType, size32_t elemSize) = 0;
+
+    virtual void importFunction(size32_t len, const char *function) = 0;
+    virtual void compileEmbeddedScript(size32_t len, const char *script) = 0;
+    virtual void callFunction() = 0;
+};
+
+interface IEmbedContext : extends IInterface
+{
+    virtual IEmbedFunctionContext *createFunctionContext(bool isImport, const char *options) = 0;
+    // MORE - add syntax checked here!
+};
 
 #endif

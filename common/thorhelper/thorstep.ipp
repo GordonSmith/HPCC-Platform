@@ -29,26 +29,6 @@ enum
     MJFalwaysoptimize       = 0x80000000,
 };
 
-class OwnedLCRow
-{
-public:
-    inline OwnedLCRow(const void * _row) { row = _row; }
-    inline ~OwnedLCRow() { kill(); }
-
-    inline operator const void * () const { return row; }
-    inline const void * get() const { return row; }
-    inline void clear() { kill(); row = NULL; }
-    inline void set(const void * value) { rtlLinkRow(value); kill(); row = value; }
-    inline void setown(const void * value) { kill(); row = value; }
-    inline const void * getClear() { const void * ret = row; row = NULL; return ret; }
-
-protected:
-    inline void kill() { if (row) rtlReleaseRow(row); }
-
-protected:
-    const void * row;
-};
-
 //---------------------------------------------------------------------------
 
 //It would make a lot of sense for the following interfaces to be identical...
@@ -85,10 +65,10 @@ public:
     void intersect(IInputSteppingMeta * inputMeta);
     void init(ISteppingMeta * meta, bool _postFiltered)
     {
-        init(meta->getNumFields(), meta->queryFields(), meta->queryCompare(), meta->queryDistance(), _postFiltered);
+        init(meta->getNumFields(), meta->queryFields(), meta->queryCompare(), meta->queryDistance(), _postFiltered, 0);
     }
 
-    void init(unsigned _numFields, const CFieldOffsetSize * _fields, IRangeCompare * _rangeCompare, IDistanceCalculator * _distance, bool _postFiltered)
+    void init(unsigned _numFields, const CFieldOffsetSize * _fields, IRangeCompare * _rangeCompare, IDistanceCalculator * _distance, bool _postFiltered, unsigned flags)
     {
         hadStepExtra = false;
         numFields = _numFields;
@@ -96,7 +76,15 @@ public:
         rangeCompare = _rangeCompare;
         distance = _distance;
         postFiltered = _postFiltered;
+        stepFlags = flags;
+        priority = 1.0e+300;
     }
+    void intersectPriority(double value)
+    {
+        if (priority > value)
+            priority = value;
+    }
+    void removePriority() { stepFlags &= ~SSFhaspriority; }
     void setDistributed() { distributed = true; }
     void setExtra(IHThorSteppedSourceExtra * extra)
     {
@@ -131,7 +119,7 @@ public:
         return postFiltered;
     }
 
-    virtual unsigned getSteppedFlags() { return stepFlags; }
+    virtual unsigned getSteppedFlags() const { return stepFlags; }
     virtual double getPriority() { return priority; }
 
 protected:
@@ -619,6 +607,7 @@ protected:
         if (hasCandidates())
             finishCandidates();
     }
+    void connectRemotePriorityInputs();
     bool createConjunctionOptimizer();
     void setCandidateRow(const void * row, bool inputsMayBeEmpty, const bool * matched);
 

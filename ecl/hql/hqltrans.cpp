@@ -616,6 +616,7 @@ ITypeInfo * HqlTransformerBase::transformType(ITypeInfo * type)
     case type_token:
     case type_groupedtable:
     case type_table:
+    case type_dictionary:
         {
             ITypeInfo * childType = type->queryChildType();
             OwnedITypeInfo newChildType = safeTransformType(childType);
@@ -3375,7 +3376,7 @@ void ScopedTransformer::analyseChildren(IHqlExpression * expr)
     case no_setgraphresult:
     case no_setgraphloopresult:
     case no_extractresult:
-    case no_newuserdictionary:
+    case no_createdictionary:
         {
             IHqlExpression * dataset = expr->queryChild(0);
             pushScope();
@@ -3753,7 +3754,7 @@ IHqlExpression * ScopedTransformer::createTransformed(IHqlExpression * expr)
     case no_setgraphresult:
     case no_setgraphloopresult:
     case no_extractresult:
-    case no_newuserdictionary:
+    case no_createdictionary:
         {
             IHqlExpression * dataset = expr->queryChild(0);
             pushScope();

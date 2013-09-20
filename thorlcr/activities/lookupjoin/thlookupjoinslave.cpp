@@ -25,6 +25,7 @@
 #include "thbufdef.hpp"
 #include "jbuff.hpp"
 #include "jset.hpp"
+#include "jisem.hpp"
 
 #include "thorxmlwrite.hpp"
 
@@ -45,12 +46,13 @@ class CSendItem : public CSimpleInterface
 {
     CMessageBuffer msg;
     broadcast_code code;
-    unsigned origin;
+    unsigned origin, headerLen;
 public:
     CSendItem(broadcast_code _code, unsigned _origin) : code(_code), origin(_origin)
     {
         msg.append((unsigned)code);
         msg.append(origin);
+        headerLen = msg.length();
     }
     CSendItem(CMessageBuffer &_msg)
     {
@@ -59,6 +61,7 @@ public:
         msg.read(origin);
     }
     unsigned length() const { return msg.length(); }
+    void reset() { msg.setLength(headerLen); }
     CMessageBuffer &queryMsg() { return msg; }
     broadcast_code queryCode() const { return code; }
     unsigned queryOrigin() const { return origin; }
@@ -83,64 +86,134 @@ class CBroadcaster : public CSimpleInterface
     CActivityBase &activity;
     mptag_t mpTag;
     unsigned myNode, slaves;
-    Owned<IBitSet> slavesStopped;
     IBCastReceive *recvInterface;
-    Semaphore allDoneSem;
-    CriticalSection allDoneLock;
-    bool allDone, allDoneWaiting, allRequestStop, stopping;
+    InterruptableSemaphore allDoneSem;
+    CriticalSection allDoneLock, bcastOtherCrit;
+    bool allDone, allDoneWaiting, allRequestStop, stopping, stopRecv;
     Owned<IBitSet> slavesDone, slavesStopping;
 
     class CRecv : implements IThreaded
     {
         CBroadcaster &broadcaster;
-        CThreaded threaded;
+        CThreadedPersistent threaded;
+        bool aborted;
     public:
-        CRecv(CBroadcaster &_broadcaster) : threaded("CBroadcaster::CRecv"), broadcaster(_broadcaster)
+        CRecv(CBroadcaster &_broadcaster) : threaded("CBroadcaster::CRecv", this), broadcaster(_broadcaster)
         {
+            aborted = false;
         }
-        void start() { threaded.init(this); }
+        void start()
+        {
+            aborted = false;
+            threaded.start();
+        }
+        void abort(bool join)
+        {
+            if (aborted)
+                return;
+            aborted = true;
+            broadcaster.cancelReceive();
+            if (join)
+                threaded.join();
+        }
+        void wait()
+        {
+            threaded.join();
+        }
     // IThreaded
-        virtual void main() { broadcaster.recvLoop(); }
+        virtual void main()
+        {
+            try
+            {
+                broadcaster.recvLoop();
+            }
+            catch (IException *e)
+            {
+                EXCLOG(e, "CRecv");
+                abort(false);
+                broadcaster.cancel(e);
+                e->Release();
+            }
+        }
     } receiver;
     class CSend : implements IThreaded
     {
         CBroadcaster &broadcaster;
-        CThreaded threaded;
+        CThreadedPersistent threaded;
         SimpleInterThreadQueueOf<CSendItem, true> broadcastQueue;
-    public:
-        CSend(CBroadcaster &_broadcaster) : threaded("CBroadcaster::CSend"), broadcaster(_broadcaster)
+        Owned<IException> exception;
+        bool aborted;
+        void clearQueue()
         {
-        }
-        ~CSend()
-        {
-            stop();
-        }
-        void addBlock(CSendItem *sendItem)
-        {
-            broadcastQueue.enqueue(sendItem); // will block if queue full
-        }
-        void start() { threaded.init(this); }
-        void stop()
-        {
-            broadcastQueue.stop();
             loop
             {
                 Owned<CSendItem> sendItem = broadcastQueue.dequeueNow();
                 if (NULL == sendItem)
                     break;
             }
+        }
+    public:
+        CSend(CBroadcaster &_broadcaster) : threaded("CBroadcaster::CSend", this), broadcaster(_broadcaster)
+        {
+            aborted = false;
+        }
+        ~CSend()
+        {
+            clearQueue();
+        }
+        void addBlock(CSendItem *sendItem)
+        {
+            if (exception)
+            {
+                if (sendItem)
+                    sendItem->Release();
+                throw exception.getClear();
+            }
+            broadcastQueue.enqueue(sendItem); // will block if queue full
+        }
+        void start()
+        {
+            aborted = false;
+            exception.clear();
+            threaded.start();
+        }
+        void abort(bool join)
+        {
+            if (aborted)
+                return;
+            aborted = true;
+            broadcastQueue.stop();
+            clearQueue();
+            if (join)
+                threaded.join();
+        }
+        void wait()
+        {
+            ActPrintLog(&broadcaster.activity, "CSend::wait(), messages to send: %d", broadcastQueue.ordinality());
+            addBlock(NULL);
             threaded.join();
         }
     // IThreaded
         virtual void main()
         {
-            while (!broadcaster.activity.queryAbortSoon())
+            try
             {
-                Owned<CSendItem> sendItem = broadcastQueue.dequeue();
-                if (NULL == sendItem)
-                    break;
-                broadcaster.broadcastToOthers(sendItem);
+                while (!broadcaster.activity.queryAbortSoon())
+                {
+                    Owned<CSendItem> sendItem = broadcastQueue.dequeue();
+                    if (NULL == sendItem)
+                        break;
+                    broadcaster.broadcastToOthers(sendItem);
+                }
             }
+            catch (IException *e)
+            {
+                EXCLOG(e, "CSend");
+                exception.setown(e);
+                abort(false);
+                broadcaster.cancel(e);
+            }
+            ActPrintLog(&broadcaster.activity, "Sender stopped");
         }
     } sender;
 
@@ -188,6 +261,7 @@ class CBroadcaster : public CSimpleInterface
         unsigned psuedoNode = (myNode<origin) ? slaves-origin+myNode : myNode-origin;
         CMessageBuffer replyMsg;
         // sends to all in 1st pass, then waits for ack from all
+        CriticalBlock b(bcastOtherCrit);
         for (unsigned sendRecv=0; sendRecv<2 && !activity.queryAbortSoon(); sendRecv++)
         {
             unsigned i = 0;
@@ -203,7 +277,7 @@ class CBroadcaster : public CSimpleInterface
                 if (0 == sendRecv) // send
                 {
 #ifdef _TRACEBROADCAST
-                    ActPrintLog(&activity, "Broadcast node %d Sending to node %d size %d", myNode, t, sendLen);
+                    ActPrintLog(&activity, "Broadcast node %d Sending to node %d, origin %d, size %d, code=%d", myNode, t, origin, sendLen, (unsigned)sendItem->queryCode());
 #endif
                     CMessageBuffer &msg = sendItem->queryMsg();
                     msg.setReplyTag(rt); // simulate sendRecv
@@ -212,7 +286,7 @@ class CBroadcaster : public CSimpleInterface
                 else // recv reply
                 {
 #ifdef _TRACEBROADCAST
-                    ActPrintLog(&activity, "Broadcast node %d Sent to node %d size %d received ack", myNode, t, sendLen);
+                    ActPrintLog(&activity, "Broadcast node %d Sent to node %d, origin %d, size %d, code=%d - received ack", myNode, t, origin, sendLen, (unsigned)sendItem->queryCode());
 #endif
                     if (!activity.receiveMsg(replyMsg, t, rt))
                         break;
@@ -221,10 +295,15 @@ class CBroadcaster : public CSimpleInterface
         }
     }
     // called by CRecv thread
+    void cancelReceive()
+    {
+        stopRecv = true;
+        activity.cancelReceiveMsg(RANK_ALL, mpTag);
+    }
     void recvLoop()
     {
         CMessageBuffer msg;
-        while (!activity.queryAbortSoon())
+        while (!stopRecv && !activity.queryAbortSoon())
         {
             rank_t sendRank;
             if (!activity.receiveMsg(msg, RANK_ALL, mpTag, &sendRank))
@@ -232,6 +311,9 @@ class CBroadcaster : public CSimpleInterface
             mptag_t replyTag = msg.getReplyTag();
             CMessageBuffer ackMsg;
             Owned<CSendItem> sendItem = new CSendItem(msg);
+#ifdef _TRACEBROADCAST
+            ActPrintLog(&activity, "Broadcast node %d received from node %d, origin node %d, size %d, code=%d", myNode, (unsigned)sendRank, sendItem->queryOrigin(), sendItem->length(), (unsigned)sendItem->queryCode());
+#endif
             comm.send(ackMsg, sendRank, replyTag); // send ack
             sender.addBlock(sendItem.getLink());
             assertex(myNode != sendItem->queryOrigin());
@@ -243,15 +325,20 @@ class CBroadcaster : public CSimpleInterface
                     if (slaveStop(sendItem->queryOrigin()-1) || allDone)
                     {
                         recvInterface->bCastReceive(NULL); // signal last
-                        return; // finished
+                        ActPrintLog(&activity, "recvLoop, received last slaveStop");
+                        // NB: this slave has nothing more to receive.
+                        // However the sender will still be re-broadcasting some packets, including these stop packets
+                        return;
                     }
                     break;
                 }
                 case bcast_sendStopping:
+                {
                     slavesStopping->set(sendItem->queryOrigin()-1, true);
                     // allRequestStop=true, if I'm stopping and all others have requested also
                     allRequestStop = slavesStopping->scan(0, false) == slaves;
                     // fall through
+                }
                 case bcast_send:
                 {
                     if (!allRequestStop) // don't care if all stopping
@@ -266,7 +353,7 @@ class CBroadcaster : public CSimpleInterface
 public:
     CBroadcaster(CActivityBase &_activity) : activity(_activity), receiver(*this), sender(*this), comm(_activity.queryJob().queryJobComm())
     {
-        allDone = allDoneWaiting = allRequestStop = stopping = false;
+        allDone = allDoneWaiting = allRequestStop = stopping = stopRecv = false;
         myNode = activity.queryJob().queryMyRank();
         slaves = activity.queryJob().querySlaves();
         slavesDone.setown(createBitSet());
@@ -280,6 +367,7 @@ public:
         if (stopping)
             slavesStopping->set(myNode-1, true);
         recvInterface = _recvInterface;
+        stopRecv = false;
         mpTag = _mpTag;
         receiver.start();
         sender.start();
@@ -307,12 +395,25 @@ public:
         }
         allDoneSem.wait();
     }
-    void cancel()
+    void end()
+    {
+        waitReceiverDone();
+        receiver.wait(); // terminates when received stop from all others
+        sender.wait(); // terminates when any remaining packets, including final stop packets have been re-broadcast
+    }
+    void cancel(IException *e=NULL)
     {
         allDoneWaiting = false;
         allDone = true;
-        sender.stop();
-        allDoneSem.signal();
+        receiver.abort(true);
+        sender.abort(true);
+        if (e)
+        {
+            allDoneSem.interrupt(LINK(e));
+            activity.fireException(LINK(e));
+        }
+        else
+            allDoneSem.signal();
     }
     bool send(CSendItem *sendItem)
     {
@@ -321,6 +422,7 @@ public:
     }
     void final()
     {
+        ActPrintLog(&activity, "CBroadcaster::final()");
         Owned<CSendItem> sendItem = newSendItem(bcast_stop);
         send(sendItem);
     }
@@ -424,12 +526,13 @@ class CLookupJoinActivity : public CSlaveActivity, public CThorDataLink, impleme
      */
     class CRowProcessor : implements IThreaded
     {
-        CThreaded threaded;
+        CThreadedPersistent threaded;
         CLookupJoinActivity &owner;
         bool stopped;
         SimpleInterThreadQueueOf<CSendItem, true> blockQueue;
+        Owned<IException> exception;
     public:
-        CRowProcessor(CLookupJoinActivity &_owner) : threaded("CRowProcessor"), owner(_owner)
+        CRowProcessor(CLookupJoinActivity &_owner) : threaded("CRowProcessor", this), owner(_owner)
         {
             stopped = false;
             blockQueue.setLimit(MAX_QUEUE_BLOCKS);
@@ -445,28 +548,65 @@ class CLookupJoinActivity : public CSlaveActivity, public CThorDataLink, impleme
             }
             wait();
         }
-        void start() { threaded.init(this); }
+        void start()
+        {
+            stopped = false;
+            exception.clear();
+            threaded.start();
+        }
+        void abort()
+        {
+            if (!stopped)
+            {
+                stopped = true;
+                blockQueue.enqueue(NULL);
+            }
+        }
         void wait() { threaded.join(); }
         void addBlock(CSendItem *sendItem)
         {
+            if (exception)
+            {
+                if (sendItem)
+                    sendItem->Release();
+                throw exception.getClear();
+            }
             blockQueue.enqueue(sendItem); // will block if queue full
         }
     // IThreaded
         virtual void main()
         {
-            while (!stopped)
+            try
             {
-                Owned<CSendItem> sendItem = blockQueue.dequeue();
-                if (NULL == sendItem)
-                    break;
-                MemoryBuffer expandedMb;
-                ThorExpand(sendItem->queryMsg(), expandedMb);
-                owner.processRHSRows(sendItem->queryOrigin(), expandedMb);
+                while (!stopped)
+                {
+                    Owned<CSendItem> sendItem = blockQueue.dequeue();
+                    if (stopped || (NULL == sendItem))
+                        break;
+                    MemoryBuffer expandedMb;
+                    ThorExpand(sendItem->queryMsg(), expandedMb);
+                    owner.processRHSRows(sendItem->queryOrigin(), expandedMb);
+                }
+            }
+            catch (IException *e)
+            {
+                exception.setown(e);
+                EXCLOG(e, "CRowProcessor");
             }
         }
     } rowProcessor;
 
-
+    void clearRHS()
+    {
+        ht.kill();
+        rhs.kill();
+        ForEachItemIn(a, rhsNodeRows)
+        {
+            CThorExpandingRowArray *rows = rhsNodeRows.item(a);
+            if (rows)
+                rows->kill();
+        }
+    }
 protected:
     joinkind_t joinKind;
     StringAttr joinStr;
@@ -693,17 +833,19 @@ public:
         gotOtherROs.signal();
         cancelReceiveMsg(RANK_ALL, mpTag);
         broadcaster.cancel();
+        rowProcessor.abort();
     }
     virtual void stop()
     {
         if (!gotRHS)
             getRHS(true);
-        rhs.kill();
+        clearRHS();
         stopRightInput();
         stopInput(left);
         dataLinkStop();
         left.clear();
         right.clear();
+        broadcaster.reset();
     }
     inline bool match(const void *lhs, const void *rhsrow)
     {
@@ -1128,6 +1270,7 @@ public:
                 if (!broadcaster.send(sendItem))
                     break;
                 mb.clear();
+                sendItem->reset();
             }
         }
         catch (IException *e)
@@ -1193,7 +1336,7 @@ public:
                 rowProcessor.start();
                 broadcaster.start(this, mpTag, stopping);
                 sendRHS();
-                broadcaster.waitReceiverDone();
+                broadcaster.end();
                 rowProcessor.wait();
             }
             else if (!stopping)
@@ -1218,7 +1361,7 @@ public:
             exception->errorMessage(errStr);
             errStr.append(")");
             IException *e2 = MakeActivityException(this, TE_TooMuchData, "%s", errStr.str());
-            ActPrintLog(e2, NULL);
+            ActPrintLog(e2);
             throw e2;
         }
     }
@@ -1241,7 +1384,7 @@ public:
         else // local
         {
             if (RCUNSET != rhsTotalCount)
-                rhsRows = rhsTotalCount;
+                rhsRows = (rowidx_t)rhsTotalCount;
             else // all join, or lookup if total count unkown
                 rhsRows = rhs.ordinality();
         }

@@ -194,6 +194,15 @@
                       </xs:appinfo>
                     </xs:annotation>
                   </xs:attribute>
+                  <xs:attribute name="name" type="xs:string" use="required" default="ACLrule">
+                    <xs:annotation>
+                      <xs:appinfo>
+                        <tooltip>Name of this Access Control Rule.</tooltip>
+                        <title>Name</title>
+                        <colIndex>7</colIndex>
+                      </xs:appinfo>
+                    </xs:annotation>
+                  </xs:attribute>
                   <xs:attribute name="error" type="xs:string" use="optional" default="">
                     <xs:annotation>
                       <xs:appinfo>
@@ -385,6 +394,7 @@
           </xs:appinfo>
         </xs:annotation>
       </xs:attribute>
+      <xs:attributeGroup ref="LDAP"/>
       <xs:attributeGroup ref="Options"/>
       <xs:attributeGroup ref="Tracing"/>
       <xs:attributeGroup ref="UDP"/>
@@ -397,11 +407,28 @@
       <xs:field xpath="@name"/>
     </xs:key>
   </xs:element>
-  <xs:attributeGroup name="Options">
-    <xs:attribute name="allowRoxieOnDemand" type="xs:boolean" use="optional" default="false">
+ <xs:attributeGroup name="LDAP">
+    <xs:attribute name="ldapUser" type="xs:string" use="optional" default="roxie">
       <xs:annotation>
         <xs:appinfo>
-          <tooltip>allow roxie to load, run, add queries meant to be run 1 time (no file data copies for these queries</tooltip>
+          <tooltip>Specifies the user name for LDAP file access checking.</tooltip>
+        </xs:appinfo>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="ldapPassword" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:appinfo>
+          <viewType>password</viewType>
+          <tooltip>Specifies the password for LDAP file access checking.</tooltip>
+        </xs:appinfo>
+      </xs:annotation>
+    </xs:attribute>
+ </xs:attributeGroup>
+ <xs:attributeGroup name="Options">
+    <xs:attribute name="allFilesDynamic" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:appinfo>
+          <tooltip>If enabled, files will be resolved per-query and not locked between queries</tooltip>
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>
@@ -506,20 +533,6 @@
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>
-    <xs:attribute name="deleteUnneededFiles" type="xs:boolean" use="optional" default="false">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>delete data files and query dlls when query is deleted from roxie</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
-    </xs:attribute>
-    <xs:attribute name="enableForceKeyDiffCopy" type="xs:boolean" use="optional" default="false">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>Enable / Disable always copying key diff files to roxie.</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
-    </xs:attribute>
     <xs:attribute name="enableKeyDiff" type="xs:boolean" use="optional" default="true">
       <xs:annotation>
         <xs:appinfo>
@@ -533,13 +546,6 @@
                 <tooltip>Enable use of syslog for monitoring.</tooltip>
             </xs:appinfo>
         </xs:annotation>
-    </xs:attribute>
-    <xs:attribute name="enableSNMP" type="xs:boolean" use="optional" default="true">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>Enable SNMP monitoring/control interface</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
     </xs:attribute>
     <xs:attribute name="flushJHtreeCacheOnOOM" type="xs:boolean" use="optional" default="true">
       <xs:annotation>
@@ -562,7 +568,7 @@
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>
-    <xs:attribute name="lazyOpen" use="optional" default="false">
+    <xs:attribute name="lazyOpen" use="optional" default="smart">
         <xs:annotation>
           <xs:appinfo>
             <tooltip>Delay opening files until first use. Select smart to use lazy mode only after a restart</tooltip>
@@ -578,21 +584,6 @@
           <xs:enumeration value="smart"/>
         </xs:restriction>
       </xs:simpleType>
-    </xs:attribute>
-    <xs:attribute name="ldapUser" type="xs:string" use="optional" default="roxie">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>Specifies the user name for LDAP file access checking.</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
-    </xs:attribute>
-    <xs:attribute name="ldapPassword" type="xs:string" use="optional">
-      <xs:annotation>
-        <xs:appinfo>
-          <viewType>password</viewType>
-          <tooltip>Specifies the password for LDAP file access checking.</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
     </xs:attribute>
     <xs:attribute name="localFilesExpire" type="xs:integer" use="optional" default="-1">
       <xs:annotation>
@@ -671,17 +662,17 @@
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>
+    <xs:attribute name="preloadOnceData" type="xs:boolean" use="optional" default="true">
+      <xs:annotation>
+        <xs:appinfo>
+          <tooltip>Evaluate : ONCE sections of queries at query load time</tooltip>
+        </xs:appinfo>
+      </xs:annotation>
+    </xs:attribute>
     <xs:attribute name="remoteFilesExpire" type="xs:integer" use="optional" default="3600000">
       <xs:annotation>
         <xs:appinfo>
           <tooltip>Period (in ms) of inactivity before a remote datafile handle is closed</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
-    </xs:attribute>
-    <xs:attribute name="resolveFilesInPackage" type="xs:boolean" use="optional" default="false">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>Allow for resolving of file references in a package, but not known to roxie.</tooltip>
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>
@@ -725,6 +716,13 @@
       <xs:annotation>
         <xs:appinfo>
           <tooltip>Maximum amount of memory available for row data in all active queries</tooltip>
+        </xs:appinfo>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="heapUseHugePages" type="xs:boolean" default="false">
+      <xs:annotation>
+        <xs:appinfo>
+          <tooltip>Allow roxie to use memory from huge pages if they have been configured.</tooltip>
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>
@@ -1032,13 +1030,6 @@
     </xs:attribute>
   </xs:attributeGroup>
   <xs:attributeGroup name="Debug">
-    <xs:attribute name="channel0onPrimary" type="xs:boolean" use="optional" default="true">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>Will favor primary agents to handle requests multicasted on channel 0 </tooltip>
-        </xs:appinfo>
-      </xs:annotation>
-    </xs:attribute>
     <xs:attribute name="checkCompleted" type="xs:boolean" use="optional" default="true">
       <xs:annotation>
         <xs:appinfo>
@@ -1046,24 +1037,10 @@
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>
-      <xs:attribute name="checkingHeap" type="xs:nonNegativeInteger" use="optional" default="0">
-          <xs:annotation>
-              <xs:appinfo>
-                  <tooltip>Use additional checks in roxie heap to detect corruption, overwrites, use after release etc (slow). Level 2 is VERY slow</tooltip>
-              </xs:appinfo>
-          </xs:annotation>
-      </xs:attribute>
       <xs:attribute name="checkPrimaries" type="xs:boolean" use="optional" default="true">
       <xs:annotation>
         <xs:appinfo>
           <tooltip>Verify that topology specifies a different agent first for each channel</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
-    </xs:attribute>
-    <xs:attribute name="checkVersion" type="xs:boolean" use="optional" default="true">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>check compiled version of dll before loading it</tooltip>
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>
@@ -1123,13 +1100,6 @@
               </xs:appinfo>
           </xs:annotation>
       </xs:attribute>
-      <xs:attribute name="diskReadStable" type="xs:boolean" use="optional" default="true">
-          <xs:annotation>
-              <xs:appinfo>
-                  <tooltip>Force diskreads to return in stable order</tooltip>
-              </xs:appinfo>
-          </xs:annotation>
-      </xs:attribute>
       <xs:attribute name="doIbytiDelay" type="xs:boolean" use="optional" default="true">
       <xs:annotation>
         <xs:appinfo>
@@ -1172,13 +1142,6 @@
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>
-    <xs:attribute name="indexReadStable" type="xs:boolean" use="optional" default="true">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>Force indexreads to return in stable order</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
-    </xs:attribute>
     <xs:attribute name="initIbytiDelay" type="xs:nonNegativeInteger" use="optional" default="100">
       <xs:annotation>
         <xs:appinfo>
@@ -1190,20 +1153,6 @@
       <xs:annotation>
         <xs:appinfo>
           <tooltip>Set to true if using jumbo frames (MTU=9000) on the network.</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
-    </xs:attribute>
-    <xs:attribute name="keyedJoinFlowLimit" type="xs:nonNegativeInteger" use="optional" default="1000">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>Number of keyed join groups permitted (per active activity) before blocking</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
-    </xs:attribute>
-    <xs:attribute name="keyedJoinStable" type="xs:boolean" use="optional" default="true">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>Force keyed joins to return results in stable order</tooltip>
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>
@@ -1288,13 +1237,6 @@
       <xs:annotation>
         <xs:appinfo>
           <tooltip>Enable single-threaded local keyed joins</tooltip>
-        </xs:appinfo>
-      </xs:annotation>
-    </xs:attribute>
-    <xs:attribute name="smartSteppingChunkRows" type="xs:nonNegativeInteger" use="optional" default="100">
-      <xs:annotation>
-        <xs:appinfo>
-          <tooltip>Fetch up to N rows per request when global-smartstepping</tooltip>
         </xs:appinfo>
       </xs:annotation>
     </xs:attribute>

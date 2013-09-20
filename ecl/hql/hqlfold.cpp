@@ -312,6 +312,8 @@ static IHqlExpression * compareLists(node_operator op, IHqlExpression * leftList
     {
         IValue * leftValue = leftList->queryChild(i)->queryValue();
         IValue * rightValue = rightList->queryChild(i)->queryValue();
+        if (!leftValue || !rightValue)
+            return NULL;
         order = orderValues(leftValue, rightValue);
         if (order != 0)
             return createCompareResult(op, order);
@@ -421,7 +423,7 @@ static IHqlExpression * optimizeCompare(IHqlExpression * expr)
     if ((rightOp == no_all) && leftChild->isConstant())
         return createCompareResult(op, -1);
     
-    if ((leftOp == no_list) && (rightOp == no_list))
+    if (((leftOp == no_sortlist) || (leftOp == no_list)) && ((rightOp == no_sortlist) || (rightOp == no_list)))
         return compareLists(op, leftChild, rightChild);
 
     IValue * leftValue = leftChild->queryValue();
@@ -1590,10 +1592,10 @@ static IHqlExpression * foldHashXX(IHqlExpression * expr)
     switch (op)
     {
     case no_hash32:
-        hashCode = 0x811C9DC5;
+        hashCode = HASH32_INIT;
         break;
     case no_hash64:
-        hashCode = I64C(0xcbf29ce484222325);
+        hashCode = HASH64_INIT;
         break;
     }
 
@@ -1747,9 +1749,23 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
             return applyBinaryFold(expr, multiplyValues);
         }
     case no_div:
-        return applyBinaryFold(expr, divideValues);
     case no_modulus:
-        return applyBinaryFold(expr, modulusValues);
+        {
+            IValue * leftValue = expr->queryChild(0)->queryValue();
+            IValue * rightValue = expr->queryChild(1)->queryValue();
+            if (leftValue && rightValue)
+            {
+                DBZaction onZero = (foldOptions & HFOforcefold) ? DBZfail : DBZnone;
+                IValue * res;
+                if (op == no_div)
+                    res = divideValues(leftValue, rightValue, onZero);
+                else
+                    res = modulusValues(leftValue, rightValue, onZero);
+                if (res)
+                    return createConstant(res);
+            }
+            return LINK(expr);
+        }
     case no_concat:
         return applyBinaryFold(expr, concatValues);
     case no_band:
@@ -1948,6 +1964,10 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
             }
             break;
         }
+    case no_indict:
+        if (isNull(expr->queryChild(1)))
+            return createConstant(false);
+        break;
     case no_in:
     case no_notin:
         {
@@ -2702,7 +2722,7 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
                         if (alreadyDone.find(*condValue) == NotFound)
                         {
                             alreadyDone.append(*condValue);
-                            args2.append(*createValue(no_mapto, LINK(condValue), LINK(mapValue)));
+                            args2.append(*createValue(no_mapto, mapValue->getType(), LINK(condValue), LINK(mapValue)));
                         }
                     }
                 }
@@ -3002,12 +3022,22 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
         {
             IHqlExpression * child = expr->queryChild(0);
             node_operator childOp = child->getOperator();
-            switch (childOp)
+            // Can't optimize count of a dictionary in general, since the input dataset may contain duplicates which will be removed.
+            switch (child->getOperator())
             {
-            case no_inlinedictionary:
-                if (isPureInlineDataset(child))
-                    return createConstant(expr->queryType()->castFrom(false, (__int64)child->queryChild(0)->numChildren()));
-                break;
+            case no_null:
+                return createConstant(0);
+            }
+            break;
+        }
+    case no_existsdict:
+        {
+            IHqlExpression * child = expr->queryChild(0);
+            node_operator childOp = child->getOperator();
+            switch (child->getOperator())
+            {
+            case no_null:
+                return createConstant(false);
             }
             break;
         }
@@ -3096,6 +3126,7 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
     case no_sumlist:
         {
             IHqlExpression * child = expr->queryChild(0);
+            OwnedHqlExpr folded;
             switch (child->getOperator())
             {
             case no_null:
@@ -3122,12 +3153,17 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
                         }
                     }
                     if (ok)
-                    {
-                        return createConstant(sum.getClear());
-                    }
+                        folded.setown(createConstant(sum.getClear()));
                 }
+
                 if (child->numChildren() == 1)
-                    return expr->cloneAllAnnotations(child->queryChild(0));
+                    folded.set(child->queryChild(0));
+
+                if (folded)
+                {
+                    OwnedHqlExpr cast = ensureExprType(folded, expr->queryType());
+                    return expr->cloneAllAnnotations(cast);
+                }
                 break;
             }
             break;
@@ -3242,7 +3278,7 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
             if (child->isRecord())
             {
                 //Need to be careful to use the serialized record - otherwise record size can be inconsistent
-                OwnedHqlExpr record = getSerializedForm(child);
+                OwnedHqlExpr record = getSerializedForm(child, diskAtom);
                 if (expr->hasProperty(maxAtom))
                 {
                     if (maxRecordSizeCanBeDerived(record))
@@ -3335,7 +3371,7 @@ IHqlExpression * NullFolderMixin::foldNullDataset(IHqlExpression * expr)
             break;
         }
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
         {
             //If action does not change the type information, then it can't have done anything...
@@ -3410,7 +3446,10 @@ IHqlExpression * NullFolderMixin::foldNullDataset(IHqlExpression * expr)
                 if (leftIsNull)
                     cvtRightProject = true;
                 else if (rightIsNull)
+                {
                     cvtLeftProject = true;
+                    reason = "JOIN(ds,<empty>)";
+                }
             }
 
             //JOIN with false condition - can occur once constants are folded.
@@ -3429,16 +3468,37 @@ IHqlExpression * NullFolderMixin::foldNullDataset(IHqlExpression * expr)
 
             //JOIN, left outer, keep(1) with no reference to RIGHT in the transform => convert to a project!
             //again can occur once the implicit project has started getting to work.
-            //May need to worry about limit side-effects....
-            if (isSpecificJoin(expr, leftouterAtom) && matchesConstantValue(queryPropertyChild(expr, keepAtom, 0), 1))
+            if (!cvtLeftProject)
             {
-                IHqlExpression * selSeq = querySelSeq(expr);
-                OwnedHqlExpr right = createSelector(no_right, rhs, selSeq);
-                IHqlExpression * transform = expr->queryChild(3);
-                if (!exprReferencesDataset(transform, right))
+                const char * potentialLeftProjectReason = NULL;
+                if (isSpecificJoin(expr, leftouterAtom))
                 {
-                    cvtLeftProject = true;
-                    reason = "JOIN(,LEFT OUTER,KEEP(1))";
+                    if (matchesConstantValue(queryPropertyChild(expr, keepAtom, 0), 1))
+                        potentialLeftProjectReason = "JOIN(,LEFT OUTER,KEEP(1))";
+                    else if (expr->hasProperty(lookupAtom) && !expr->hasProperty(manyAtom))
+                        potentialLeftProjectReason = "JOIN(,LEFT OUTER,SINGLE LOOKUP)";
+                    else if (hasNoMoreRowsThan(expr, 1))
+                        potentialLeftProjectReason = "JOIN(<single-row>,LEFT OUTER)";
+                }
+
+                if (potentialLeftProjectReason)
+                {
+                    //This cannot match if the transform contains a skip - since that would
+                    IHqlExpression * selSeq = querySelSeq(expr);
+                    OwnedHqlExpr right = createSelector(no_right, rhs, selSeq);
+                    IHqlExpression * transform = expr->queryChild(3);
+                    if (!exprReferencesDataset(transform, right))
+                    {
+                        cvtLeftProject = true;
+                        reason = potentialLeftProjectReason;
+                    }
+
+                    if (cvtLeftProject && (expr->getOperator() == no_denormalize))
+                    {
+                        //Denormalize with no match will not call the transform, so we can't convert that to a project
+                        if (containsSkip(transform))
+                            cvtLeftProject = false;
+                    }
                 }
             }
 
@@ -3460,10 +3520,7 @@ IHqlExpression * NullFolderMixin::foldNullDataset(IHqlExpression * expr)
                 args.append(*newTransform.getClear());
                 args.append(*LINK(selSeq));
                 OwnedHqlExpr ret = createDataset(no_hqlproject, args);
-                if (reason)
-                    DBGLOG("Folder: Replace %s with PROJECT", reason);
-                else
-                    DBGLOG("Folder: Replace JOIN(ds,<empty>) with PROJECT");
+                DBGLOG("Folder: Replace %s with PROJECT", reason);
                 return ret.getClear();
             }
 
@@ -3573,7 +3630,7 @@ IHqlExpression * NullFolderMixin::foldNullDataset(IHqlExpression * expr)
             break;
         }
     case no_newusertable:
-        if (isNullProject(expr, false))
+        if (isNullProject(expr, false, false))
             return removeParentNode(expr);
         if (isNull(child))
         {
@@ -3744,6 +3801,14 @@ IHqlExpression * NullFolderMixin::foldNullDataset(IHqlExpression * expr)
         if (isNull(child) && isNull(expr->queryChild(1)))
             return replaceWithNull(expr);
         break;
+    case no_createdictionary:
+        if (isNull(child))
+            return replaceWithNull(expr);
+        break;
+    case no_selectmap:
+        if (isNull(child))
+            return replaceWithNullRow(child);
+        break;
     case no_selectnth:
 //      if (isNull(child) || isZero(expr->queryChild(1)))
         if (isNull(child))
@@ -3760,7 +3825,7 @@ IHqlExpression * NullFolderMixin::foldNullDataset(IHqlExpression * expr)
     case no_hqlproject:
     case no_projectrow:
         {
-            if (isNullProject(expr, false))
+            if (isNullProject(expr, false, false))
                 return removeParentNode(expr);
             if (isNull(child))
                 return replaceWithNull(expr);
@@ -4718,6 +4783,15 @@ IHqlExpression * CExprFolderTransformer::doFoldTransformed(IHqlExpression * unfo
         if (getBoolValue(expr->queryChild(0), false))
             return createValue(no_null, makeVoidType());
         break;
+    case no_sequential:
+    case no_parallel:
+        if (expr->numChildren() == 1)
+        {
+            if (expr->queryChild(0)->isAttribute())
+                return createValue(no_null, makeVoidType());
+            return removeParentNode(expr);
+        }
+        break;
     }
 
     return LINK(expr);
@@ -5396,7 +5470,7 @@ HqlConstantPercolator * CExprFolderTransformer::gatherConstants(IHqlExpression *
     case no_libraryinput:
     case no_translated:
     case no_id2blob:
-    case no_cppbody:
+    case no_embedbody:
     case no_pipe:
     case no_keyindex:
     case no_newkeyindex:
@@ -5514,7 +5588,7 @@ HqlConstantPercolator * CExprFolderTransformer::gatherConstants(IHqlExpression *
     case no_keyeddistribute:
     case no_cosort:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_assertsorted:
     case no_topn:
@@ -5568,6 +5642,7 @@ HqlConstantPercolator * CExprFolderTransformer::gatherConstants(IHqlExpression *
     case no_stepped:
     case no_cluster:
     case no_datasetfromrow:
+    case no_datasetfromdictionary:
     case no_filtergroup:
     case no_section:
     case no_sectioninput:
@@ -5578,6 +5653,7 @@ HqlConstantPercolator * CExprFolderTransformer::gatherConstants(IHqlExpression *
     case no_outofline:
     case no_owned_ds:
     case no_dataset_alias:
+    case no_createdictionary:
         exprMapping.set(gatherConstants(expr->queryChild(0)));
         break;
     case no_normalizegroup:
@@ -5588,12 +5664,6 @@ HqlConstantPercolator * CExprFolderTransformer::gatherConstants(IHqlExpression *
         //all bets are off.
         break;
 
-    case no_newuserdictionary:
-    case no_userdictionary:
-    case no_inlinedictionary:
-    case no_selectmap:
-        // MORE - maybe should be something here?
-        break;
 
     case no_selectnth:
         {
@@ -5703,6 +5773,7 @@ HqlConstantPercolator * CExprFolderTransformer::gatherConstants(IHqlExpression *
             exprMapping.set(gatherConstants(expr->queryChild(0)));
         break;
 
+    case no_selectmap:
     case no_select:
     case no_record:
         break;

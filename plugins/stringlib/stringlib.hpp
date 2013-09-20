@@ -34,8 +34,12 @@
 #include "hqlplugins.hpp"
 
 extern "C" {
+
+#ifdef STRINGLIB_EXPORTS
 STRINGLIB_API bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb);
 STRINGLIB_API void setPluginContext(IPluginContext * _ctx);
+#endif
+
 STRINGLIB_API void STRINGLIB_CALL slStringFilterOut(unsigned & tgtLen, char * & tgt, unsigned srcLen, const char * src, unsigned hitLen, const char * hit);
 STRINGLIB_API void STRINGLIB_CALL slStringFilter(unsigned & tgtLen, char * & tgt, unsigned srcLen, const char * src, unsigned hitLen, const char * hit);
 STRINGLIB_API void STRINGLIB_CALL slStringSubsOut(unsigned & tgtLen, char * & tgt, unsigned srcLen, const char * src, unsigned hitLen, const char * hit, unsigned newCharLen, const char * newChar);
@@ -71,8 +75,6 @@ STRINGLIB_API bool STRINGLIB_CALL slStringWildMatch(unsigned srcLen, const char 
 STRINGLIB_API bool STRINGLIB_CALL slStringWildExactMatch(unsigned srcLen, const char * src, unsigned patLen, const char * pat, bool noCase);
 STRINGLIB_API bool STRINGLIB_CALL slStringContains(unsigned srcLen, const char * src, unsigned sampleLen, const char * sample, bool noCase);
 STRINGLIB_API void STRINGLIB_CALL slStringExtractMultiple(unsigned & tgtLen, char * & tgt, unsigned srcLen, const char * src, unsigned __int64 mask);
-STRINGLIB_API unsigned STRINGLIB_CALL slEditDistance(unsigned leftLen, const char * left, unsigned rightLen, const char * right);
-STRINGLIB_API bool STRINGLIB_CALL slEditDistanceWithinRadius(unsigned leftLen, const char * left, unsigned rightLen, const char * right, unsigned radius);
 STRINGLIB_API unsigned STRINGLIB_CALL slEditDistanceV2(unsigned leftLen, const char * left, unsigned rightLen, const char * right);
 STRINGLIB_API bool STRINGLIB_CALL slEditDistanceWithinRadiusV2(unsigned leftLen, const char * left, unsigned rightLen, const char * right, unsigned radius);
 STRINGLIB_API void STRINGLIB_CALL slStringGetNthWord(unsigned & tgtLen, char * & tgt, unsigned srcLen, const char * src, unsigned n);
@@ -87,4 +89,7 @@ STRINGLIB_API unsigned STRINGLIB_CALL slMatchDate(size32_t lenS, const char * s,
 STRINGLIB_API void STRINGLIB_CALL slFormatDate(size32_t & __lenResult, char * & __result, unsigned date, const char * format);
 }
 
+namespace nsStringlib {
+extern STRINGLIB_API unsigned editDistanceV3(unsigned leftLen, const char * left, unsigned rightLen, const char * right, unsigned radius);
+}
 #endif

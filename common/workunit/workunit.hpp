@@ -207,6 +207,7 @@ interface IConstWUGraph : extends IInterface
     virtual IStringVal & getTypeName(IStringVal & ret) const = 0;
     virtual WUGraphType getType() const = 0;
     virtual IPropertyTree * getXGMMLTree(bool mergeProgress) const = 0;
+    virtual IPropertyTree * getXGMMLTreeRaw() const = 0;
     virtual bool isValid() const = 0;
 };
 
@@ -214,8 +215,9 @@ interface IConstWUGraph : extends IInterface
 interface IWUGraph : extends IConstWUGraph
 {
     virtual void setXGMML(const char * text) = 0;
-    virtual void setXGMMLTree(IPropertyTree * tree) = 0;
+    virtual void setXGMMLTree(IPropertyTree * tree, bool compress=true) = 0;
     virtual void setName(const char * name) = 0;
+    virtual void setLabel(const char * name) = 0;
     virtual void setType(WUGraphType type) = 0;
 };
 
@@ -532,11 +534,11 @@ interface IConstWUExceptionIterator : extends IScmIterator
     virtual IConstWUException & query() = 0;
 };
 
-enum ClusterType { NoCluster, ThorCluster, HThorCluster, RoxieCluster, ThorLCRCluster };
+enum ClusterType { NoCluster, HThorCluster, RoxieCluster, ThorLCRCluster };
 
 extern WORKUNIT_API ClusterType getClusterType(const char * platform, ClusterType dft = NoCluster);
-extern WORKUNIT_API const char *clusterTypeString(ClusterType clusterType);
-inline bool isThorCluster(ClusterType type) { return (type == ThorCluster) || (type == ThorLCRCluster); }
+extern WORKUNIT_API const char *clusterTypeString(ClusterType clusterType, bool lcrSensitive);
+inline bool isThorCluster(ClusterType type) { return (type == ThorLCRCluster); }
 
 //! IClusterInfo
 interface IConstWUClusterInfo : extends IInterface
@@ -955,7 +957,7 @@ interface IWorkUnit : extends IConstWorkUnit
     virtual void setStateEx(const char * text) = 0;
     virtual void setAgentSession(__int64 sessionId) = 0;
     virtual void setAgentPID(unsigned pid) = 0;
-    virtual void setTimerInfo(const char * name, const char * instance, unsigned ms, unsigned count, unsigned max) = 0;
+    virtual void setTimerInfo(const char * name, const char * instance, unsigned ms, unsigned count, unsigned __int64 max) = 0;
     virtual void setTracingValue(const char * propname, const char * value) = 0;
     virtual void setTracingValueInt(const char * propname, int value) = 0;
     virtual void setUser(const char * value) = 0;
@@ -985,6 +987,7 @@ interface IWorkUnit : extends IConstWorkUnit
     virtual void setCodeVersion(unsigned version, const char * buildVersion, const char * eclVersion) = 0;
     virtual void setBilled(bool value) = 0;
     virtual void deleteTempFiles(const char * graph, bool deleteOwned, bool deleteJobOwned) = 0;
+    virtual void deleteTemporaries() = 0;
     virtual void addDiskUsageStats(__int64 avgNodeUsage, unsigned minNode, __int64 minNodeUsage, unsigned maxNode, __int64 maxNodeUsage, __int64 graphId) = 0;
     virtual void setCloneable(bool value) = 0;
     virtual void setIsClone(bool value) = 0;
@@ -1097,7 +1100,7 @@ interface IWorkUnitFactory : extends IInterface
     virtual IConstWorkUnitIterator * getWorkUnitsByECL(const char * ecl) = 0;
     virtual IConstWorkUnitIterator * getWorkUnitsByCluster(const char * cluster) = 0;
     virtual IConstWorkUnitIterator * getWorkUnitsByXPath(const char * xpath) = 0;
-    virtual IConstWorkUnitIterator * getWorkUnitsSorted(WUSortField * sortorder, WUSortField * filters, const void * filterbuf, unsigned startoffset, unsigned maxnum, const char * queryowner, __int64 * cachehint) = 0;
+    virtual IConstWorkUnitIterator * getWorkUnitsSorted(WUSortField * sortorder, WUSortField * filters, const void * filterbuf, unsigned startoffset, unsigned maxnum, const char * queryowner, __int64 * cachehint, unsigned *total) = 0;
     virtual unsigned numWorkUnits() = 0;
     virtual unsigned numWorkUnitsFiltered(WUSortField * filters, const void * filterbuf) = 0;
     virtual void descheduleAllWorkUnits() = 0;
@@ -1120,7 +1123,7 @@ interface IWorkflowScheduleConnection : extends IInterface
 interface IExtendedWUInterface
 {
     virtual unsigned calculateHash(unsigned prevHash) = 0;
-    virtual void copyWorkUnit(IConstWorkUnit *cached) = 0;
+    virtual void copyWorkUnit(IConstWorkUnit *cached, bool all) = 0;
     virtual bool archiveWorkUnit(const char *base,bool del,bool ignoredllerrors,bool deleteOwned) = 0;
     virtual void packWorkUnit(bool pack=true) = 0;
     
@@ -1150,6 +1153,7 @@ extern WORKUNIT_API bool validateTargetClusterName(const char *clustname);
 extern WORKUNIT_API IConstWUClusterInfo* getTargetClusterInfo(const char *clustname);
 typedef IArrayOf<IConstWUClusterInfo> CConstWUClusterInfoArray;
 extern WORKUNIT_API unsigned getEnvironmentClusterInfo(CConstWUClusterInfoArray &clusters);
+extern WORKUNIT_API unsigned getEnvironmentClusterInfo(IPropertyTree* environmentRoot, CConstWUClusterInfoArray &clusters);
 extern WORKUNIT_API void getRoxieProcessServers(const char *process, SocketEndpointArray &servers);
 
 
@@ -1166,9 +1170,9 @@ extern WORKUNIT_API IWorkUnitFactory * getWorkUnitFactory();
 extern WORKUNIT_API IWorkUnitFactory * getSecWorkUnitFactory(ISecManager &secmgr, ISecUser &secuser);
 extern WORKUNIT_API IWorkUnitFactory * getWorkUnitFactory(ISecManager *secmgr, ISecUser *secuser);
 extern WORKUNIT_API ILocalWorkUnit* createLocalWorkUnit();
-extern WORKUNIT_API IStringVal& exportWorkUnitToXML(const IConstWorkUnit *wu, IStringVal &str);
-extern WORKUNIT_API StringBuffer &exportWorkUnitToXML(const IConstWorkUnit *wu, StringBuffer &str);
-extern WORKUNIT_API void exportWorkUnitToXMLFile(const IConstWorkUnit *wu, const char * filename, unsigned extraXmlFlags);
+extern WORKUNIT_API IStringVal& exportWorkUnitToXML(const IConstWorkUnit *wu, IStringVal &str, bool unpack);
+extern WORKUNIT_API StringBuffer &exportWorkUnitToXML(const IConstWorkUnit *wu, StringBuffer &str, bool unpack);
+extern WORKUNIT_API void exportWorkUnitToXMLFile(const IConstWorkUnit *wu, const char * filename, unsigned extraXmlFlags, bool unpack);
 extern WORKUNIT_API void submitWorkUnit(const char *wuid, const char *username, const char *password);
 extern WORKUNIT_API void abortWorkUnit(const char *wuid);
 extern WORKUNIT_API void submitWorkUnit(const char *wuid, ISecManager *secmgr, ISecUser *secuser);
@@ -1206,8 +1210,9 @@ enum WUQueryActivationOptions
     MAKE_ACTIVATE_LOAD_DATA_ONLY = 5
 };
 
+extern WORKUNIT_API int calcPriorityValue(const IPropertyTree * p);  // Calls to this should really go through the workunit interface.
 
-extern WORKUNIT_API IPropertyTree * addNamedQuery(IPropertyTree * queryRegistry, const char * name, const char * wuid, const char * dll, bool library);       // result not linked
+extern WORKUNIT_API IPropertyTree * addNamedQuery(IPropertyTree * queryRegistry, const char * name, const char * wuid, const char * dll, bool library, const char *userid);       // result not linked
 extern WORKUNIT_API void removeNamedQuery(IPropertyTree * queryRegistry, const char * id);
 extern WORKUNIT_API void removeWuidFromNamedQueries(IPropertyTree * queryRegistry, const char * wuid);
 extern WORKUNIT_API void removeDllFromNamedQueries(IPropertyTree * queryRegistry, const char * dll);
@@ -1223,16 +1228,16 @@ extern WORKUNIT_API IPropertyTree * getQueryRegistryRoot();
 
 extern WORKUNIT_API void setQueryCommentForNamedQuery(IPropertyTree * queryRegistry, const char *id, const char *queryComment);
 
-extern WORKUNIT_API void setQuerySuspendedState(IPropertyTree * queryRegistry, const char * name, bool suspend);
+extern WORKUNIT_API void setQuerySuspendedState(IPropertyTree * queryRegistry, const char * name, bool suspend, const char *userid);
 
 extern WORKUNIT_API IPropertyTree * addNamedPackageSet(IPropertyTree * packageRegistry, const char * name, IPropertyTree *packageInfo, bool overWrite);     // result not linked
 extern WORKUNIT_API void removeNamedPackage(IPropertyTree * packageRegistry, const char * id);
 extern WORKUNIT_API IPropertyTree * getPackageSetRegistry(const char * wsEclId, bool readonly);
 
-extern WORKUNIT_API void addQueryToQuerySet(IWorkUnit *workunit, const char *querySetName, const char *queryName, IPropertyTree *packageInfo, WUQueryActivationOptions activateOption, StringBuffer &newQueryId);
+extern WORKUNIT_API void addQueryToQuerySet(IWorkUnit *workunit, const char *querySetName, const char *queryName, IPropertyTree *packageInfo, WUQueryActivationOptions activateOption, StringBuffer &newQueryId, const char *userid);
 extern WORKUNIT_API bool removeQuerySetAlias(const char *querySetName, const char *alias);
 extern WORKUNIT_API void addQuerySetAlias(const char *querySetName, const char *alias, const char *id);
-extern WORKUNIT_API void setSuspendQuerySetQuery(const char *querySetName, const char *id, bool suspend);
+extern WORKUNIT_API void setSuspendQuerySetQuery(const char *querySetName, const char *id, bool suspend, const char *userid);
 extern WORKUNIT_API void deleteQuerySetQuery(const char *querySetName, const char *id);
 extern WORKUNIT_API const char *queryIdFromQuerySetWuid(const char *querySetName, const char *wuid, IStringVal &id);
 extern WORKUNIT_API void removeQuerySetAliasesFromNamedQuery(const char *querySetName, const char * id);

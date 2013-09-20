@@ -120,7 +120,7 @@ void ProcessSlaveActivity::main()
             }
             _e->Release();
         }
-        ActPrintLog(e, NULL);
+        ActPrintLog(e);
         exception.setown(e);
     }
     catch (std::exception & es)
@@ -255,6 +255,8 @@ CActivityBase *createChildGroupAggregateSlave(CGraphElementBase *container);
 CActivityBase *createChildThroughNormalizeSlave(CGraphElementBase *container);
 CActivityBase *createWhenSlave(CGraphElementBase *container);
 CActivityBase *createIfActionSlave(CGraphElementBase *container);
+CActivityBase *createDictionaryWorkunitWriteSlave(CGraphElementBase *container);
+CActivityBase *createDictionaryResultWriteSlave(CGraphElementBase *container);
 
 
 class CGenericSlaveGraphElement : public CSlaveGraphElement
@@ -461,6 +463,12 @@ public:
             case TAKworkunitwrite:
                 ret = createWorkUnitWriteSlave(this);
                 break;
+            case TAKdictionaryworkunitwrite:
+                ret = createDictionaryWorkunitWriteSlave(this);
+                break;
+            case TAKdictionaryresultwrite:
+                ret = createDictionaryResultWriteSlave(this);
+                break;
             case TAKfunnel:
                 ret = createFunnelSlave(this);
                 break;
@@ -472,10 +480,6 @@ public:
                 break;
             case TAKapply:
                 ret = createApplySlave(this);
-                break;
-            case TAKtemptable:
-            case TAKtemprow:
-                ret = createTempTableSlave(this);
                 break;
             case TAKinlinetable:
                 ret = createInlineTableSlave(this);
@@ -542,9 +546,6 @@ public:
                 UNIMPLEMENTED;
             case TAKchilditerator:
                 ret = createChildIteratorSlave(this);
-                break;
-            case TAKrawiterator:
-                ret = createRawIteratorSlave(this);
                 break;
             case TAKlinkedrawiterator:
                 ret = createLinkedRawIteratorSlave(this);
@@ -668,6 +669,9 @@ public:
                 break;
             case TAKsoap_rowdataset:
                 ret = createSoapRowCallSlave(this);
+                break;
+            case TAKhttp_rowdataset:
+                ret = createHttpRowCallSlave(this);
                 break;
             case TAKsoap_rowaction:
                 ret = createSoapRowActionSlave(this);

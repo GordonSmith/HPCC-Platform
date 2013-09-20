@@ -287,6 +287,12 @@ ESPStruct [nil_remove] ThorQueue
     string RunningWU2;
 };
 
+ESPStruct [nil_remove] ResubmittedWU
+{
+    string WUID;
+    string ParentWUID;
+};
+
 ESPrequest [nil_remove] WUCreateRequest
 {
 };
@@ -306,6 +312,7 @@ ESPrequest [nil_remove] WUDeployWorkunitRequest
     binary Object;
     int ResultLimit;
     string QueryMainDefinition;
+    string Snapshot;
     ESParray<ESPstruct NamedValue> DebugValues;
 };
 
@@ -343,6 +350,7 @@ ESPrequest [nil_remove] WUQueryRequest
 
     string Sortby;
     bool Descending(false);
+    int64 CacheHint;
 };
 
 
@@ -379,6 +387,7 @@ ESPresponse [nil_remove, exceptions_inline] WUQueryResponse
     bool Descending(false);
     string BasicQuery;
     string Filters;
+    [min_ver("1.41")] int64 CacheHint;
     
     ESParray<ESPstruct ECLWorkunit> Workunits;
 };
@@ -493,6 +502,7 @@ ESPrequest WUResubmitRequest
 
 ESPresponse [exceptions_inline] WUResubmitResponse
 {
+    [min_ver("1.40")] ESParray<ESPstruct ResubmittedWU, WU> WUs;
 };
 
 ESPrequest WURunRequest
@@ -1070,6 +1080,9 @@ ESPrequest [nil_remove] WUPublishWorkunitRequest
     string memoryLimit;
     nonNegativeInteger TimeLimit(0);
     nonNegativeInteger WarnTimeLimit(0);
+    string Priority;
+    string RemoteDali;
+    string Comment;
 };
 
 ESPresponse [exceptions_inline] WUPublishWorkunitResponse
@@ -1094,6 +1107,8 @@ ESPrequest [nil_remove] WUQueryConfigRequest
     string memoryLimit;
     nonNegativeInteger TimeLimit(0);
     nonNegativeInteger WarnTimeLimit(0);
+    string Priority;
+    string Comment;
 };
 
 ESPStruct WUQueryConfigResult
@@ -1140,6 +1155,8 @@ ESPStruct [nil_remove] QuerySetQuery
     string memoryLimit;
     nonNegativeInteger timeLimit;
     nonNegativeInteger warnTimeLimit;
+    string priority;
+    string Comment;
 };
 
 ESPStruct QuerySetAlias
@@ -1174,6 +1191,28 @@ ESPresponse [exceptions_inline] WUQuerySetDetailsResponse
     [min_ver("1.37")] string  Filter;
     [min_ver("1.37")] ESPenum WUQuerySetFilterType FilterType;
     [min_ver("1.37")] ESParray<string> ClusterNames;
+};
+
+ESPrequest WUQueryDetailsRequest
+{
+    string QueryId;
+    string QuerySet;
+};
+
+ESPresponse [exceptions_inline] WUQueryDetailsResponse
+{
+    string QueryId;
+    string QuerySet;
+    string QueryName;
+    string Wuid;
+    string Dll;
+    bool Suspended;
+    [min_ver("1.42")] bool Activated;
+    string SuspendedBy;
+    string PublishedBy;
+    string Comment;
+
+    ESParray<string> LogicalFiles;
 };
 
 ESPrequest WUMultiQuerySetDetailsRequest
@@ -1289,6 +1328,8 @@ ESPrequest [nil_remove] WUQuerySetCopyQueryRequest
     string memoryLimit;
     nonNegativeInteger TimeLimit(0);
     nonNegativeInteger WarnTimeLimit(0);
+    string priority;
+    string Comment;
 };
 
 ESPresponse [exceptions_inline] WUQuerySetCopyQueryResponse
@@ -1297,7 +1338,7 @@ ESPresponse [exceptions_inline] WUQuerySetCopyQueryResponse
 };
 
 ESPservice [
-    version("1.39"), default_client_version("1.39"),
+    version("1.42"), default_client_version("1.42"),
     noforms,exceptions_inline("./smc_xslt/exceptions.xslt"),use_method_name] WsWorkunits
 {
     ESPmethod [resp_xsl_default("/esp/xslt/workunits.xslt")]     WUQuery(WUQueryRequest, WUQueryResponse);
@@ -1357,6 +1398,7 @@ ESPservice [
     ESPmethod [resp_xsl_default("/esp/xslt/WUPublishWorkunit.xslt")] WUPublishWorkunit(WUPublishWorkunitRequest, WUPublishWorkunitResponse);
     ESPmethod [resp_xsl_default("/esp/xslt/WUQuerysets.xslt")] WUQuerysets(WUQuerysetsRequest, WUQuerysetsResponse);
     ESPmethod [resp_xsl_default("/esp/xslt/WUQuerysetQueries.xslt")] WUQuerysetDetails(WUQuerySetDetailsRequest, WUQuerySetDetailsResponse);
+    ESPmethod [resp_xsl_default("/esp/xslt/WUQueryDetails.xslt")] WUQueryDetails(WUQueryDetailsRequest, WUQueryDetailsResponse);
     ESPmethod WUMultiQuerysetDetails(WUMultiQuerySetDetailsRequest, WUMultiQuerySetDetailsResponse);
     ESPmethod WUQuerysetQueryAction(WUQuerySetQueryActionRequest, WUQuerySetQueryActionResponse);
     ESPmethod WUQuerysetAliasAction(WUQuerySetAliasActionRequest, WUQuerySetAliasActionResponse);

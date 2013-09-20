@@ -69,7 +69,7 @@ public:
         if (_helper)
             baseHelper.set(_helper);
         helper = (IHThorDiskReadArg *)queryHelper();
-        IOutputMetaData *diskRowMeta = queryDiskRowInterfaces()->queryRowMetaData()->querySerializedMeta();
+        IOutputMetaData *diskRowMeta = queryDiskRowInterfaces()->queryRowMetaData()->querySerializedDiskMeta();
         isFixedDiskWidth = diskRowMeta->isFixedSize();
         diskRowMinSz = diskRowMeta->getMinRecordSize();
         helper->createSegmentMonitors(this);
@@ -200,9 +200,15 @@ void CDiskRecordPartHandler::open()
 {
     CDiskPartHandlerBase::open();
     in.clear();
+    unsigned rwFlags = DEFAULT_RWFLAGS;
+    if (checkFileCrc) // NB: if compressed, this will be turned off by base class
+        rwFlags |= rw_crc;
+    if (activity.grouped)
+        rwFlags |= rw_grouped;
     if (compressed)
     {
-        in.setown(createCompressedRowStream(iFile, activity.queryDiskRowInterfaces(), 0, (offset_t)-1, RCUNBOUND, checkFileCrc, activity.grouped, activity.eexp));
+        rwFlags |= rw_compress;
+        in.setown(createRowStream(iFile, activity.queryDiskRowInterfaces(), rwFlags, activity.eexp));
         if (!in.get())
         {
             if (!blockCompressed)
@@ -211,8 +217,8 @@ void CDiskRecordPartHandler::open()
                 throw MakeActivityException(&activity, 0, "Failed to open block compressed file '%s'", filename.get());
         }
     }
-    else 
-        in.setown(createRowStream(iFile, activity.queryDiskRowInterfaces(), 0, (offset_t)-1, RCUNBOUND, checkFileCrc, activity.grouped));
+    else
+        in.setown(createRowStream(iFile, activity.queryDiskRowInterfaces(), rwFlags));
     if (!in)
         throw MakeActivityException(&activity, 0, "Failed to open file '%s'", filename.get());
     ActPrintLog(&activity, "%s[part=%d]: %s (%s)", kindStr, which, activity.isFixedDiskWidth ? "fixed" : "variable", filename.get());
@@ -921,6 +927,7 @@ class CDiskGroupAggregateSlave
     Owned<CThorRowAggregator> localAggTable;
     Owned<IEngineRowAllocator> allocator;
     bool merging;
+    Owned<IHashDistributor> distributor;
     
 public:
     IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
@@ -1002,7 +1009,7 @@ public:
             {
                 BooleanOnOff onOff(merging);
                 bool ordered = 0 != (TDRorderedmerge & helper->getFlags());
-                localAggTable.setown(mergeLocalAggs(*this, *helper, *helper, localAggTable, mpTag, ordered));
+                localAggTable.setown(mergeLocalAggs(distributor, *this, *helper, *helper, localAggTable, mpTag, ordered));
             }
         }
         Owned<AggregateRowBuilder> next = localAggTable->nextResult();

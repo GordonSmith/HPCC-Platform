@@ -276,7 +276,11 @@ bool CConfigEnvHelper::handleReplaceRoxieServer(const char* xmlArg)
 
   if (pszRoxieCluster && *pszRoxieCluster)
   {
-    xpath.clear().appendf(XML_TAG_ROXIECLUSTER"[@name='%s']/"XML_TAG_ROXIE_FARM, pszRoxieCluster);
+    StringBuffer xpathNode;
+    xpathNode.appendf("./%s/%s", XML_TAG_NODES, XML_TAG_NODE);
+
+    xpath.clear().appendf("%s[%s='%s']/%s[%s='%s']", XML_TAG_ROXIECLUSTER, XML_ATTR_NAME, pszRoxieCluster, XML_TAG_ROXIE_FARM, XML_ATTR_NAME, pSrcTree->queryPropTree(xpathNode.str())->queryProp(XML_ATTR_FARM));
+
     IPropertyTree* pFarm = pParent->queryPropTree(xpath.str());
     if (!pFarm)
       throw MakeStringException(-1, "Could not find a RoxieCluster with name '%s'", pszRoxieCluster);
@@ -721,10 +725,10 @@ bool CConfigEnvHelper::deleteRoxieServers(const char* xmlArg)
     {
         IPropertyTree* pChild;
         //if atleast one slave, delete all slaves
-        while (pChild = pRoxieCluster->queryPropTree( "RoxieSlave[1]" ))
+        while ((pChild = pRoxieCluster->queryPropTree( "RoxieSlave[1]" )) != NULL)
             pRoxieCluster->removeTree( pChild );
 
-        while (pChild = pRoxieCluster->queryPropTree( XML_TAG_ROXIE_SLAVE "[1]" ))
+        while ((pChild = pRoxieCluster->queryPropTree( XML_TAG_ROXIE_SLAVE "[1]" )) != NULL)
             pRoxieCluster->removeTree( pChild );
 
         break;
@@ -1144,7 +1148,7 @@ bool CConfigEnvHelper::GenerateFullRedConfig(IPropertyTree* pRoxie, int copies, 
 void CConfigEnvHelper::RemoveSlaves(IPropertyTree* pRoxie, bool bLegacySlaves/*=false*/)
 {
     IPropertyTree* pChild;
-    while (pChild = pRoxie->queryPropTree( bLegacySlaves ? XML_TAG_ROXIE_SLAVE "[1]" : "RoxieSlave[1]"))
+    while ((pChild = pRoxie->queryPropTree( bLegacySlaves ? XML_TAG_ROXIE_SLAVE "[1]" : "RoxieSlave[1]")) != NULL)
         pRoxie->removeTree( pChild );
 }
 

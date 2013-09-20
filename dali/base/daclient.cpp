@@ -34,7 +34,6 @@
 extern bool registerClientProcess(ICommunicator *comm, IGroup *& retcoven,unsigned timeout,DaliClientRole role);
 extern void stopClientProcess();
 
-static bool restoreSEH=false;
 static bool daliClientIsActive = false;
 static INode * daliClientLoggingParent = 0;
 
@@ -89,17 +88,15 @@ IDaliClient_Exception *createClientException(DaliClientError err, const char *ms
 
 
 
-bool initClientProcess(IGroup *servergrp, DaliClientRole role, unsigned short mpport, const char *clientVersion, const char *minServerVersion, unsigned timeout, bool enableSEH)
+bool initClientProcess(IGroup *servergrp, DaliClientRole role, unsigned mpport, const char *clientVersion, const char *minServerVersion, unsigned timeout)
 {
     assertex(servergrp);
     daliClientIsActive = true;
-    restoreSEH = enableSEH;
-    if (enableSEH)
-      EnableSEHtoExceptionMapping();
     startMPServer(mpport);
     Owned<ICommunicator> comm(createCommunicator(servergrp,true));
     IGroup * covengrp;
-    if (!registerClientProcess(comm.get(),covengrp,timeout,role)) {
+    if (!registerClientProcess(comm.get(),covengrp,timeout,role))
+    {
         daliClientIsActive = false;
         return false;
     }
@@ -134,10 +131,6 @@ void closedownClientProcess()
     stopClientProcess();
     closeCoven();
     stopMPServer();
-    if (restoreSEH) {
-        DisableSEHtoExceptionMapping();
-        restoreSEH = false;
-    }
     daliClientIsActive = false;
 }
 

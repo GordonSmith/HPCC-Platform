@@ -80,9 +80,15 @@ bool processPartitionCommand(ISocket * masterSocket, MemoryBuffer & msg, MemoryB
         msg.read(compressedInput);
     if (msg.remaining())
         msg.read(compatflags); // not yet used
-    StringAttr encryptkey;
+    StringAttr decryptkey;
     if (msg.remaining())
-        msg.read(encryptkey);
+        msg.read(decryptkey);
+    if (msg.remaining())
+    {
+        srcFormat.deserializeExtra(msg, 1);
+        tgtFormat.deserializeExtra(msg, 1);
+    }
+
     StringBuffer text;
     fullPath.getRemotePath(text);
     LOG(MCdebugProgress, unknownJob, "Process partition %d(%s)", whichInput, text.str());
@@ -91,7 +97,7 @@ bool processPartitionCommand(ISocket * masterSocket, MemoryBuffer & msg, MemoryB
     processor->setTarget(target);
 
     processor->setPartitionRange(totalSize, thisOffset, thisSize, thisHeaderSize, numParts);
-    processor->setSource(whichInput, fullPath, compressedInput, encryptkey);
+    processor->setSource(whichInput, fullPath, compressedInput, decryptkey);
     processor->calcPartitions(NULL);
 
     PartitionPointArray partition;

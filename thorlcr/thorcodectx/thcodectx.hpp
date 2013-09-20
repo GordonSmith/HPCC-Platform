@@ -57,12 +57,9 @@ public:
 // ICodeContext
     virtual const char *loadResource(unsigned id);
     virtual char *getWuid();
-    virtual char *getDaliServers();
 
     virtual char *getExpandLogicalName(const char * logicalName);
     virtual IUserDescriptor *queryUserDescriptor() { return userDesc; }
-
-    virtual unsigned getRecoveringCount() { UNIMPLEMENTED; }        // don't know how to implement here!
 
     virtual unsigned getNodes() { assertex(false); return (unsigned)-1; }
     virtual unsigned getNodeNum() { assertex(!"getNodeNum should not be called on the master"); return (unsigned)-1; }
@@ -73,7 +70,16 @@ public:
     virtual char *getClusterName();
     virtual unsigned getPriority() const { return 0; }
     virtual char *getPlatform() { return strdup("thor"); };
-    virtual char *getEnv(const char *name, const char *defaultValue) const { return strdup(defaultValue); }
+    virtual char *getEnv(const char *name, const char *defaultValue) const
+    {
+        const char *val = getenv(name);
+        if (val)
+            return strdup(val);
+        else if (defaultValue)
+            return strdup(defaultValue);
+        else
+            return strdup("");
+    }
     virtual char *getOS()
     {
 #ifdef _WIN32
@@ -102,12 +108,15 @@ public:
     virtual char *getGroupName(); // thorlib.group()
     virtual char *queryIndexMetaData(char const * lfn, char const * xpath) { UNIMPLEMENTED; }
     virtual IEngineRowAllocator * getRowAllocator(IOutputMetaData * meta, unsigned activityId) const;
-    virtual ILocalGraph *resolveLocalQuery(__int64 gid);
+    virtual const char *cloneVString(const char *str) const;
+    virtual const char *cloneVString(size32_t len, const char *str) const;
+    virtual IEclGraphResults *resolveLocalQuery(__int64 gid);
     virtual IThorChildGraph * resolveChildQuery(__int64 activityId, IHThorArg * colocal);
     virtual void getRowXML(size32_t & lenResult, char * & result, IOutputMetaData & info, const void * row, unsigned flags);
     virtual IConstWUResult *getExternalResult(const char * wuid, const char *name, unsigned sequence) { throwUnexpected(); }
     virtual IConstWUResult *getResultForGet(const char *name, unsigned sequence) { throwUnexpected(); }
     virtual const void * fromXml(IEngineRowAllocator * rowAllocator, size32_t len, const char * utf8, IXmlToRowTransformer * xmlTransformer, bool stripWhitespace);
+    virtual IEngineContext *queryEngineContext() { return NULL; }
 };
 
 #endif

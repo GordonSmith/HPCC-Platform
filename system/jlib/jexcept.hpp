@@ -20,37 +20,12 @@
 #ifndef __JEXCEPT__
 #define __JEXCEPT__
 
-#include "jexpdef.hpp"
 #include "jiface.hpp"
 #include "jlib.hpp"
 #include "errno.h"
 
-// When changing this enum, be sure to update (a) the string functions, and (b) NUM value in jlog.hpp
-
-typedef enum
-{
-    MSGAUD_unknown     = 0x00,
-    MSGAUD_operator    = 0x01,
-    MSGAUD_user        = 0x02,
-    MSGAUD_monitor     = 0x04,
-    MSGAUD_performance = 0x08,
-    MSGAUD_internal    = 0x10,
-    MSGAUD_programmer  = 0x20,
-    MSGAUD_legacy      = 0x40,
-    MSGAUD_audit       = 0x80,
-    MSGAUD_all         = 0xFF
-} MessageAudience;
-
 jlib_decl const char* SerializeMessageAudience(MessageAudience ma);
 jlib_decl MessageAudience DeserializeMessageAudience(const char* text);
-
-
-interface jlib_thrown_decl IException : public IInterface
-{
-    virtual int             errorCode() const = 0;
-    virtual StringBuffer &  errorMessage(StringBuffer &msg) const = 0;
-    virtual MessageAudience errorAudience() const = 0;
-};
 
 //the following interface to be thrown when a user command explicitly calls for a failure
 
@@ -141,6 +116,7 @@ void jlib_decl setTerminateOnSEH(bool set=true);
 
 #define makeUnexpectedException()  MakeStringException(9999, "Internal Error at %s(%d)", __FILE__, __LINE__)
 #define throwUnexpected()          throw MakeStringException(9999, "Internal Error at %s(%d)", __FILE__, __LINE__)
+#define throwUnexpectedX(x)        throw MakeStringException(9999, "Internal Error '" x "' at %s(%d)", __FILE__, __LINE__)
 #define assertThrow(x)             assertex(x)
 
 #define UNIMPLEMENTED throw MakeStringException(-1, "UNIMPLEMENTED feature at %s(%d)", __FILE__, __LINE__)

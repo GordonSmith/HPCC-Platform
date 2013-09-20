@@ -70,7 +70,7 @@ bool dump(IConstWorkUnit &w, IProperties *globals)
     else if (stricmp(action, "dump")==0)
     {
         SCMStringBuffer xml;
-        exportWorkUnitToXML(&w, xml);
+        exportWorkUnitToXML(&w, xml, true);
         printf("%s\n", xml.str());
     }
     else if (stricmp(action, "temporaries")==0)
@@ -146,7 +146,7 @@ void testPagedWuList(IWorkUnitFactory *factory)
     unsigned n=0;
     for (unsigned page=0;page<3;page++) {
         WUSortField sortorder[] = {WUSFuser,WUSFstate,WUSFterm};
-        Owned<IConstWorkUnitIterator> it = factory->getWorkUnitsSorted(sortorder, NULL, NULL, page*10, 10, "nigel", &cachehint);
+        Owned<IConstWorkUnitIterator> it = factory->getWorkUnitsSorted(sortorder, NULL, NULL, page*10, 10, "nigel", &cachehint, NULL);
         ForEach(*it) {
             n++;
             IConstWorkUnit& wu = it->query();

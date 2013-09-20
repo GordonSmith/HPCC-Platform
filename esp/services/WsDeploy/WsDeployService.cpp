@@ -982,7 +982,7 @@ bool CWsDeployFileInfo::navMenuEvent(IEspContext &context,
 
 bool CWsDeployFileInfo::isAlphaNumeric(const char *pstr) const
 {
-  RegExpr expr("[A-Za-z0-9-_]+");
+  RegExpr expr("[A-Za-z0-9_-]+");
 
   return (expr.find(pstr) && expr.findlen(0) == strlen(pstr));
 }
@@ -993,7 +993,6 @@ bool CWsDeployFileInfo::saveSetting(IEspContext &context, IEspSaveSettingRequest
   checkForRefresh(context, &req.getReqInfo(), true);
 
   const char* xmlArg = req.getXmlArgs();
-  bool bUpdateFilesBasedn = req.getBUpdateFilesBasedn();
   Owned<IPropertyTree> pEnvRoot = &m_Environment->getPTree();
   IPropertyTree* pEnvSoftware = pEnvRoot->queryPropTree(XML_TAG_SOFTWARE);
   IPropertyTree* pEnvHardware = pEnvRoot->queryPropTree(XML_TAG_HARDWARE);
@@ -1269,129 +1268,6 @@ bool CWsDeployFileInfo::saveSetting(IEspContext &context, IEspSaveSettingRequest
               pComp = &iter->query();
 
             break;
-          }
-        }
-      }
-
-      if (bUpdateFilesBasedn == true && strcmp(pszAttrName, TAG_LDAPSERVER) == 0 && strcmp(pszCompType, XML_TAG_DALISERVERPROCESS) == 0 && pComp != NULL)
-      {
-        Owned<IPropertyTree> pActiveEnvRoot = getEnvTree(context, &req.getReqInfo());
-
-        StringBuffer ldapXPath;
-        StringBuffer strFilesBasedn;
-
-        if (pszNewValue && *pszNewValue)
-        {
-          ldapXPath.appendf("./%s/%s[%s=\"%s\"]", XML_TAG_SOFTWARE, XML_TAG_LDAPSERVERPROCESS, XML_ATTR_NAME, pszNewValue);
-          strFilesBasedn.appendf("%s",pActiveEnvRoot->queryPropTree(ldapXPath.str())->queryProp(XML_ATTR_FILESBASEDN));
-        }
-
-        pComp->setProp(XML_ATTR_FILESBASEDN,strFilesBasedn);
-      }
-      else if (bUpdateFilesBasedn == true && pComp != NULL && strcmp(pszCompType, XML_TAG_ESPPROCESS) == 0 && strcmp(pszAttrName, TAG_SERVICE) == 0 && pszNewValue && *pszNewValue)
-      {
-        Owned<IPropertyTree> pActiveEnvRoot = getEnvTree(context, &req.getReqInfo());
-
-        StringBuffer ldapXPath;
-        StringBuffer espServiceXPath;
-        StringBuffer espProcessXPath;
-        StringBuffer strFilesBasedn;
-
-        espServiceXPath.appendf("./%s/%s[%s=\"%s\"]", XML_TAG_SOFTWARE, XML_TAG_ESPSERVICE, XML_ATTR_NAME, pszNewValue);
-        espProcessXPath.appendf("./%s/%s/[%s=\"%s\"]/%s", XML_TAG_SOFTWARE, XML_TAG_ESPPROCESS, XML_ATTR_NAME, pszCompName, XML_TAG_AUTHENTICATION);
-
-        StringBuffer strLDAPName(pActiveEnvRoot->queryPropTree(espProcessXPath.str())->queryProp(XML_ATTR_LDAPSERVER));
-
-        if (strLDAPName.length() > 0)
-        {
-          ldapXPath.appendf("./%s/%s[%s=\"%s\"]", XML_TAG_SOFTWARE, XML_TAG_LDAPSERVERPROCESS, XML_ATTR_NAME, strLDAPName.str());
-          strFilesBasedn.appendf("%s", pActiveEnvRoot->queryPropTree(ldapXPath.str())->queryProp(XML_ATTR_FILESBASEDN));
-        }
-        pActiveEnvRoot->queryPropTree(espServiceXPath.str())->setProp(XML_ATTR_FILESBASEDN, strFilesBasedn);
-      }
-      else if (bUpdateFilesBasedn == true && strcmp(pszAttrName, TAG_LDAPSERVER) == 0 && strcmp(pszCompType, XML_TAG_ESPPROCESS) == 0 && pComp != NULL)
-      {
-        Owned<IPropertyTree> pActiveEnvRoot = getEnvTree(context, &req.getReqInfo());
-
-        StringBuffer ldapXPath;
-        StringBuffer espBindingXPath;
-        StringBuffer espProcessXPath;
-        StringBuffer strFilesBasedn;
-
-        if (pszNewValue != NULL && *pszNewValue != 0)
-        {
-          ldapXPath.appendf("./%s/%s[%s=\"%s\"]", XML_TAG_SOFTWARE, XML_TAG_LDAPSERVERPROCESS, XML_ATTR_NAME, pszNewValue);
-          strFilesBasedn.appendf("%s",pActiveEnvRoot->queryPropTree(ldapXPath.str())->queryProp(XML_ATTR_FILESBASEDN));
-        }
-
-        espBindingXPath.appendf("./%s/%s[%s=\"%s\"]/%s", XML_TAG_SOFTWARE, XML_TAG_ESPPROCESS, XML_ATTR_NAME, pszCompName, XML_TAG_ESPBINDING);
-
-        Owned<IPropertyTreeIterator> iterItems = pActiveEnvRoot->getElements(espBindingXPath.str());
-
-        ForEach(*iterItems)
-        {
-          IPropertyTree *pItem = &iterItems->query();
-          const char* service_name = pItem->queryProp(XML_ATTR_SERVICE);
-
-          espProcessXPath.clear().appendf("./%s/%s[%s=\"%s\"]", XML_TAG_SOFTWARE, XML_TAG_ESPSERVICE, XML_ATTR_NAME, service_name);
-
-          const char* service_type = pActiveEnvRoot->queryPropTree(espProcessXPath.str())->queryProp(XML_ATTR_BUILDSET);
-
-          if (service_type && *service_type && !strcmp(service_type, "espsmc"))
-            pActiveEnvRoot->queryPropTree(espProcessXPath.str())->setProp(XML_ATTR_FILESBASEDN, strFilesBasedn);
-        }
-      }
-      // Update of LDAP component filesBasedn
-      else if (bUpdateFilesBasedn == true && strcmp(pszAttrName, TAG_FILESBASEDN) == 0 && strcmp(pszCompType, XML_TAG_LDAPSERVERPROCESS) == 0 && pszCompName != NULL && pszNewValue != NULL)
-      {
-        // update dali
-        StringBuffer daliProcessXPath;
-        daliProcessXPath.appendf("./%s/%s", XML_TAG_SOFTWARE, XML_TAG_DALISERVERPROCESS);
-
-        Owned<IPropertyTree> pActiveEnvRoot = getEnvTree(context, &req.getReqInfo());
-        Owned<IPropertyTreeIterator> iterItems = pActiveEnvRoot->getElements(daliProcessXPath.str());
-
-        ForEach(*iterItems)
-        {
-          IPropertyTree *pItem = &iterItems->query();
-          const char* ldap_server = pItem->queryProp(XML_ATTR_LDAPSERVER);
-
-          // check if dali has this ldap server assigned before changing filesBasedn
-          if (ldap_server != NULL && strcmp(ldap_server, pszCompName) == 0)
-            pItem->setProp(XML_ATTR_FILESBASEDN, pszNewValue);
-        }
-
-        //update esp services
-        StringBuffer espProcessXPath;
-        StringBuffer espBindingXPath;
-        StringBuffer espServiceXPath;
-
-        espProcessXPath.appendf("./%s/%s", XML_TAG_SOFTWARE, XML_TAG_ESPPROCESS);
-        Owned<IPropertyTreeIterator> iterItems2 = pActiveEnvRoot->getElements(espProcessXPath.str());
-
-        ForEach(*iterItems2)
-        {
-          IPropertyTree *pItem = &iterItems2->query();
-          const char* ldap_server = pItem->queryPropTree(XML_TAG_AUTHENTICATION)->queryProp(XML_ATTR_LDAPSERVER);
-
-          if (ldap_server != NULL && strcmp(ldap_server, pszCompName) == 0)
-          {
-            espBindingXPath.clear().appendf("%s[%s=\"%s\"]/%s", espProcessXPath.str(), XML_ATTR_NAME, pItem->queryProp(XML_ATTR_NAME), XML_TAG_ESPBINDING);
-
-            Owned<IPropertyTreeIterator> iterItems3 = pActiveEnvRoot->getElements(espBindingXPath.str());
-
-            ForEach(*iterItems3)
-            {
-              IPropertyTree *pItem = &iterItems3->query();
-              const char* service_name = pItem->queryProp(XML_ATTR_SERVICE);
-
-              espServiceXPath.clear().appendf("./%s/%s[%s=\"%s\"]", XML_TAG_SOFTWARE, XML_TAG_ESPSERVICE, XML_ATTR_NAME, service_name);
-
-              const char* service_type = pActiveEnvRoot->queryPropTree(espServiceXPath.str())->queryProp(XML_ATTR_BUILDSET);
-
-              if (service_type && *service_type && !strcmp(service_type, "espsmc"))
-                pActiveEnvRoot->queryPropTree(espServiceXPath.str())->setProp(XML_ATTR_FILESBASEDN, pszNewValue);
-            }
           }
         }
       }
@@ -3528,38 +3404,6 @@ bool CWsDeployFileInfo::displaySettings(IEspContext &context, IEspDisplaySetting
           }
         }
 
-        if (pSrcTree->hasProp("ACL"))
-        {
-          Owned<IPropertyTreeIterator> iterACL = pSrcTree->getElements("ACL");
-          ForEach (*iterACL)
-          {
-            IPropertyTree* pAcl = &iterACL->query();
-
-            if (!pAcl->queryPropTree("Access") && pNewCompTree->queryPropTree("Access"))
-            {
-              IPropertyTree* pAccess = pAcl->addPropTree("Access", createPTreeFromIPT(pNewCompTree->queryPropTree("Access")));
-
-              Owned<IAttributeIterator> iAttrElem = pNewCompTree->queryPropTree("Access")->getAttributes();
-                    ForEach(*iAttrElem)
-                    {
-                        const char* attrName = iAttrElem->queryName();
-                        pAccess->setProp(attrName, "");
-                    }
-            }
-
-            if (!pAcl->queryPropTree("BaseList") && pNewCompTree->queryPropTree("BaseList"))
-            {
-              IPropertyTree* pBaseList = pAcl->addPropTree("BaseList", createPTreeFromIPT(pNewCompTree->queryPropTree("BaseList")));
-              Owned<IAttributeIterator> iAttrElem = pNewCompTree->queryPropTree("BaseList")->getAttributes();
-                    ForEach(*iAttrElem)
-                    {
-                        const char* attrName = iAttrElem->queryName();
-                        pBaseList->setProp(attrName, "");
-                    }
-            }
-          }
-        }
-
         xml.clear();
         toXML(pSrcTree, xml, false);
         xml.replaceString("<RoxieFarmProcess ", "<RoxieFarmProcess process=\"Farm\" ");
@@ -3674,6 +3518,7 @@ bool CWsDeployFileInfo::displaySettings(IEspContext &context, IEspDisplaySetting
     multiRowNodes->addProp("Node", "Domain");
     multiRowNodes->addProp("Node", "Computer");
     multiRowNodes->addProp("Node", "Switch");
+    multiRowNodes->addProp("Node", "NAS");
     toXML(multiRowNodes, sb);
     resp.setMultiRowNodes(sb.str());
     
@@ -5049,7 +4894,7 @@ bool CWsDeployFileInfo::handleComputer(IEspContext &context, IEspHandleComputerR
   {
     StringBuffer sbTemp;
     IPropertyTree* pCompTree = createPTree(XML_TAG_HARDWARE);
-    generateHardwareHeaders(pEnvRoot, sbTemp, false, pCompTree);
+    generateHardwareHeaders(pEnvRoot, sbTemp, false, pCompTree, true);
 
     StringBuffer sbNewName(type);
     xpath.clear().appendf("%s", type);
@@ -5119,7 +4964,9 @@ bool CWsDeployFileInfo::handleComputer(IEspContext &context, IEspHandleComputerR
         IPropertyTree& pComp = iter->query();
         const char* compName = pComp.queryProp(XML_ATTR_NAME);
         const char* parentName = pComp.queryName();
-        refs.append("\n").append(parentName).append(" name=").append(compName);
+
+        if (compName != NULL)
+          refs.append("\n").append(parentName).append(" name=").append(compName);
       }
 
       if (refs.length())
@@ -5308,6 +5155,82 @@ bool CWsDeployFileInfo::handleThorTopology(IEspContext &context, IEspHandleThorT
   return true;
 }
 
+bool CWsDeployFileInfo::handleBaseAccessControlList(IEspContext &context, IEspHandleBaseAccessControlListRequest &req, IEspHandleBaseAccessControlListResponse &resp)
+{
+  synchronized block(m_mutex);
+  checkForRefresh(context, &req.getReqInfo(), true);
+
+  StringBuffer buildSetPath;
+
+  IPropertyTree *pEnvRoot = getEnvTree(context,&req.getReqInfo());
+  const char* xmlArg = req.getXmlArgs();
+  const char* operation = req.getOperation();
+
+  Owned<IPropertyTreeIterator> buildSetIter = pEnvRoot->getElements("./Programs/Build/BuildSet[@name=\"roxie\"]");
+
+  buildSetIter->first();
+  IPropertyTree* pBuildSet = &buildSetIter->query();
+  Owned<IPropertyTree> pParams = createPTreeFromXMLString(xmlArg && *xmlArg ? xmlArg : "<XmlArgs/>");
+
+  const char* buildSetName = pBuildSet->queryProp(XML_ATTR_NAME);
+  const char* processName = pBuildSet->queryProp(XML_ATTR_PROCESS_NAME);
+  const char* xpath = pParams->queryProp("@XPath");
+
+  Owned<IPropertyTree> pSchema = loadSchema(pEnvRoot->queryPropTree("./Programs/Build[1]"), pBuildSet, buildSetPath, m_Environment);
+  Owned<IPropertyTree> pNewCompTree = generateTreeFromXsd(pEnvRoot, pSchema, processName, buildSetName, m_pService->getCfg(), m_pService->getName());
+
+  if (stricmp("Add",operation) == 0)
+  {
+    IPropertyTree* pTempTree = createPTreeFromIPT(pNewCompTree->queryPropTree("BaseList"));
+    (pEnvRoot->queryPropTree(xpath))->addPropTree("BaseList",pTempTree);
+  }
+  else if (stricmp("Delete", operation) == 0)
+    pEnvRoot->removeProp(xpath);
+
+  return true;
+}
+
+
+bool CWsDeployFileInfo::handleAccessRules(IEspContext &context, IEspHandleAccessRulesRequest &req, IEspHandleAccessRulesResponse &resp)
+{
+  synchronized block(m_mutex);
+  checkForRefresh(context, &req.getReqInfo(), true);
+
+  StringBuffer buildSetPath;
+
+  IPropertyTree *pEnvRoot = getEnvTree(context,&req.getReqInfo());
+  const char* xmlArg = req.getXmlArgs();
+  const char* operation = req.getOperation();
+
+  Owned<IPropertyTreeIterator> buildSetIter = pEnvRoot->getElements("./Programs/Build/BuildSet[@name=\"roxie\"]");
+
+  buildSetIter->first();
+  IPropertyTree* pBuildSet = &buildSetIter->query();
+  Owned<IPropertyTree> pParams = createPTreeFromXMLString(xmlArg && *xmlArg ? xmlArg : "<XmlArgs/>");
+
+  const char* buildSetName = pBuildSet->queryProp(XML_ATTR_NAME);
+  const char* processName = pBuildSet->queryProp(XML_ATTR_PROCESS_NAME);
+  const char* xpath = pParams->queryProp("@XPath");
+
+  Owned<IPropertyTree> pSchema = loadSchema(pEnvRoot->queryPropTree("./Programs/Build[1]"), pBuildSet, buildSetPath, m_Environment);
+  Owned<IPropertyTree> pNewCompTree = generateTreeFromXsd(pEnvRoot, pSchema, processName, buildSetName, m_pService->getCfg(), m_pService->getName());
+
+  if (stricmp("Add",operation) == 0)
+  {
+    StringBuffer sbNewName("ACLrule");
+
+    getUniqueName(pEnvRoot, sbNewName, "Access", xpath);
+
+    IPropertyTree* pTempTree = createPTreeFromIPT(pNewCompTree->queryPropTree("Access"));
+    pTempTree->setProp(XML_ATTR_NAME, sbNewName.str());
+
+    (pEnvRoot->queryPropTree(xpath))->addPropTree("Access",pTempTree);
+  }
+  else if (stricmp("Delete", operation) == 0)
+    pEnvRoot->removeProp(xpath);
+
+  return true;
+}
 
 bool CWsDeployFileInfo::handleRows(IEspContext &context, IEspHandleRowsRequest &req, IEspHandleRowsResponse &resp)
 {
@@ -7033,6 +6956,18 @@ bool CWsDeployEx::onHandleRows(IEspContext &context, IEspHandleRowsRequest &req,
   return fi->handleRows(context, req, resp);
 }
 
+bool CWsDeployEx::onHandleAccessRules(IEspContext &context, IEspHandleAccessRulesRequest &req, IEspHandleAccessRulesResponse &resp)
+{
+  CWsDeployFileInfo* fi = getFileInfo(req.getReqInfo().getFileName());
+  return fi->handleAccessRules(context, req, resp);
+}
+
+bool CWsDeployEx::onHandleBaseAccessControlList(IEspContext &context, IEspHandleBaseAccessControlListRequest &req, IEspHandleBaseAccessControlListResponse &resp)
+{
+  CWsDeployFileInfo* fi = getFileInfo(req.getReqInfo().getFileName());
+  return fi->handleBaseAccessControlList(context, req, resp);
+}
+
 bool CWsDeployEx::onGraph(IEspContext &context, IEspEmptyRequest& req, IEspGraphResponse& resp)
 {
   CWsDeployFileInfo* fi = getFileInfo(m_envFile.str());
@@ -7284,6 +7219,16 @@ bool CWsDeployExCE::onHandleTopology(IEspContext &context, IEspHandleTopologyReq
 }
 
 bool CWsDeployExCE::onHandleRows(IEspContext &context, IEspHandleRowsRequest &req, IEspHandleRowsResponse &resp)
+{
+  return supportedInEEOnly();
+}
+
+bool CWsDeployExCE::onHandleBaseAccessControlList(IEspContext &context, IEspHandleBaseAccessControlListRequest &req, IEspHandleBaseAccessControlListResponse &resp)
+{
+  return supportedInEEOnly();
+}
+
+bool CWsDeployExCE::onHandleAccessRules(IEspContext &context, IEspHandleAccessRulesRequest &req, IEspHandleAccessRulesResponse &resp)
 {
   return supportedInEEOnly();
 }

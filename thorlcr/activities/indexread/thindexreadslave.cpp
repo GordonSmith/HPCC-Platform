@@ -166,7 +166,7 @@ public:
     {
         helper = (IHThorIndexReadBaseArg *)container->queryHelper();
         localKey = false;
-        fixedDiskRecordSize = helper->queryDiskRecordSize()->querySerializedMeta()->getFixedSize(); // 0 if variable and unused
+        fixedDiskRecordSize = helper->queryDiskRecordSize()->querySerializedDiskMeta()->getFixedSize(); // 0 if variable and unused
         progress = 0;
         reInit = 0 != (helper->getFlags() & (TIRvarfilename|TIRdynamicfilename));
     }
@@ -691,6 +691,7 @@ public:
     }
     CATCH_NEXTROW()
     {
+        ActivityTimer t(totalCycles, timeActivities, NULL);
         if (eoi) 
             return NULL;
         if (RCMAX != keyedLimitCount)
@@ -780,6 +781,7 @@ class CIndexGroupAggregateSlaveActivity : public CIndexReadSlaveBase, public CTh
     bool gathered, eoi, merging;
     Owned<CThorRowAggregator> localAggTable;
     memsize_t maxMem;
+    Owned<IHashDistributor> distributor;
 
 public:
     IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
@@ -849,7 +851,7 @@ public:
             {
                 BooleanOnOff tf(merging);
                 bool ordered = 0 != (TDRorderedmerge & helper->getFlags());
-                localAggTable.setown(mergeLocalAggs(*this, *helper, *helper, localAggTable, mpTag, ordered));
+                localAggTable.setown(mergeLocalAggs(distributor, *this, *helper, *helper, localAggTable, mpTag, ordered));
             }
         }       
         Owned<AggregateRowBuilder> next = localAggTable->nextResult();
@@ -1005,8 +1007,7 @@ public:
     virtual void abort()
     {
         CIndexReadSlaveBase::abort();
-        if (receiving)
-            cancelReceiveMsg(0, mpTag);
+        cancelReceiveMsg(0, mpTag);
     }
 };
 

@@ -156,7 +156,7 @@ void Cws_machineEx::init(IPropertyTree *cfg, const char *process, const char *se
     if (!pEnvironmentRoot)
         throw MakeStringException(ECLWATCH_CANNOT_GET_ENV_INFO, "Failed to get environment information.");
 
-    IPropertyTree* pEnvSettings = pEnvironmentRoot->getPropTree("EnvSettings");
+    Owned<IPropertyTree> pEnvSettings = pEnvironmentRoot->getPropTree("EnvSettings");
     if (pEnvSettings)
     {
         pEnvSettings->getProp("configs", environmentConfData.m_configsPath.clear());
@@ -1174,6 +1174,7 @@ void Cws_machineEx::readStorageData(const char* response, CMachineInfoThreadPara
     if (!pStr)
         DBGLOG("Storage information not found on %s", pParam->m_machineData.getNetworkAddress());
 
+    bool isTitleLine = true;
     CIArrayOf<CStorageData>& storage = pParam->m_machineData.getStorage();
     while (pStr)
     {
@@ -1188,6 +1189,12 @@ void Cws_machineEx::readStorageData(const char* response, CMachineInfoThreadPara
         {
             buf.append(pStr);
             pStr = NULL;
+        }
+
+        if (isTitleLine)
+        {
+            isTitleLine = false;
+            continue;
         }
 
         if (buf.length() > 0)
@@ -1414,6 +1421,8 @@ void Cws_machineEx::setMachineInfo(IEspContext& context, CMachineInfoThreadParam
         if (pParam->m_options.getGetSoftwareInfo() && process.getType() && strieq(process.getType(), eqEclAgent))
             pMachineInfo1.setown(static_cast<IEspMachineInfoEx*>(new CMachineInfoEx("")));
         setProcessInfo(context, pParam, response, error, process, idx<1, pMachineInfo, pMachineInfo1);
+
+        synchronized block(mutex_machine_info_table);
         pParam->m_machineInfoTable.append(*pMachineInfo.getLink());
         if (pMachineInfo1)
             pParam->m_machineInfoTable.append(*pMachineInfo1.getLink());
@@ -1787,7 +1796,7 @@ bool Cws_machineEx::excludePartition(const char* partition) const
         for (it=itBegin; it != itEnd; it++)
         {
             const string& pattern = *it;
-            if (found = ::WildMatch(partition, partitionLen, pattern.c_str(), pattern.length(), false))
+            if ((found = ::WildMatch(partition, partitionLen, pattern.c_str(), pattern.length(), false)))
                 break;
         }
     }

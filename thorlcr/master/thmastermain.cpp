@@ -291,7 +291,15 @@ public:
                 StringBuffer str;
                 PROGLOG("Registration confirmation from %s", queryClusterGroup().queryNode(sender).endpoint().getUrlStr(str).str());
                 if (msg.length())
-                    throw deserializeException(msg);
+                {
+                    Owned<IException> e = deserializeException(msg);
+                    EXCLOG(e, "Registration error");
+                    if (TE_FailedToRegisterSlave == e->errorCode())
+                    {
+                        setExitCode(0); // to avoid thor auto-recycling
+                        return false;
+                    }
+                }
                 registerNode(sender);
             }
             PROGLOG("Slaves initialized");
@@ -606,6 +614,14 @@ int main( int argc, char *argv[]  )
             FLLOG(MCoperatorError, thorJob, "ERROR: Validate failure(s) detected, exiting Thor");
             return globals->getPropBool("@validateDAFSretCode"); // default is no recycle!
         }
+
+        if (globals->getPropBool("@useNASTranslation", true))
+        {
+            Owned<IPropertyTree> nasConfig = envGetNASConfiguration();
+            if (nasConfig)
+                globals->setPropTree("NAS", nasConfig.getLink()); // for use by slaves
+            Owned<IPropertyTree> masterNasFilters = envGetInstallNASHooks(nasConfig, &thorEp);
+        }
         
         HardwareInfo hdwInfo;
         getHardwareInfo(hdwInfo);
@@ -619,8 +635,11 @@ int main( int argc, char *argv[]  )
                 maxMem = 2048;
 #else
 #ifndef __64BIT__
-            if (maxMem > 4096)
-                maxMem = 4096;
+            if (maxMem > 2048)
+            {
+            	// 32 bit OS doesn't handle whole physically installed RAM
+                maxMem = 2048;
+            }
 #endif
 #endif
             gmemSize = maxMem * 3 / 4; // default to 75% of total
@@ -638,12 +657,13 @@ int main( int argc, char *argv[]  )
             // should prob. error here
         }
         unsigned gmemSizeMaster = globals->getPropInt("@masterMemorySize", gmemSize); // in MB
+        bool gmemAllowHugePages = globals->getPropBool("@heapUseHugePages", false);
 
         // if @masterMemorySize and @globalMemorySize unspecified gmemSize will be default based on h/w
         globals->setPropInt("@masterMemorySize", gmemSizeMaster);
 
         PROGLOG("Global memory size = %d MB", gmemSizeMaster);
-        roxiemem::setTotalMemoryLimit(((memsize_t)gmemSizeMaster) * 0x100000, 0, NULL);
+        roxiemem::setTotalMemoryLimit(gmemAllowHugePages, ((memsize_t)gmemSizeMaster) * 0x100000, 0, NULL);
 
         const char * overrideBaseDirectory = globals->queryProp("@thorDataDirectory");
         const char * overrideReplicateDirectory = globals->queryProp("@thorReplicateDirectory");
@@ -657,11 +677,15 @@ int main( int argc, char *argv[]  )
             setBaseDirectory(overrideBaseDirectory, false);
         if (overrideReplicateDirectory&&*overrideBaseDirectory)
             setBaseDirectory(overrideReplicateDirectory, true);
-        StringBuffer tempdirstr;
-        const char *tempdir = globals->queryProp("@thorTempDirectory");
-        if (getConfigurationDirectory(globals->queryPropTree("Directories"),"temp","thor",globals->queryProp("@name"),tempdirstr))
-            tempdir = tempdirstr.str();
-        SetTempDir(tempdir,true);
+        StringBuffer tempDirStr;
+        if (getConfigurationDirectory(globals->queryPropTree("Directories"),"temp","thor",globals->queryProp("@name"), tempDirStr))
+            globals->setProp("@thorTempDirectory", tempDirStr.str());
+        else
+            tempDirStr.append(globals->queryProp("@thorTempDirectory"));
+        logDiskSpace(); // Log before temp space is cleared
+        StringBuffer tempPrefix("thtmp");
+        tempPrefix.append(getMasterPortBase()).append("_");
+        SetTempDir(tempDirStr.str(), tempPrefix.str(), true);
 
         char thorPath[1024];
         if (!GetCurrentDirectory(1024, thorPath)) {

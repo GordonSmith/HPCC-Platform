@@ -381,6 +381,56 @@ static inline void updateMemoryLimitSetting(IPropertyTree *queryTree, const char
         queryTree->setPropInt64("@memoryLimit", limit);
 }
 
+enum QueryPriority {
+    QueryPriorityNone = -1,
+    QueryPriorityLow = 0,
+    QueryPriorityHigh = 1,
+    QueryPrioritySLA = 2,
+    QueryPriorityInvalid = 3
+};
+
+static inline const char *getQueryPriorityName(int value)
+{
+    switch (value)
+    {
+    case QueryPriorityLow:
+        return "LOW";
+    case QueryPriorityHigh:
+        return "HIGH";
+    case QueryPrioritySLA:
+        return "SLA";
+    case QueryPriorityNone:
+        return "NONE";
+    }
+    return "INVALID";
+}
+static inline void updateQueryPriority(IPropertyTree *queryTree, const char *value)
+{
+    if (!value || !*value || !queryTree)
+        return;
+    int priority = QueryPriorityInvalid;
+    if (strieq("LOW", value))
+        priority=QueryPriorityLow;
+    else if (strieq("HIGH", value))
+        priority=QueryPriorityHigh;
+    else if (strieq("SLA", value))
+        priority=QueryPrioritySLA;
+    else if (strieq("NONE", value))
+        priority=QueryPriorityNone;
+
+    switch (priority)
+    {
+    case QueryPriorityInvalid:
+        break;
+    case QueryPriorityNone:
+        queryTree->removeProp("@priority");
+        break;
+    default:
+        queryTree->setPropInt("@priority", priority);
+        break;
+    }
+}
+
 void copyQueryFilesToCluster(IEspContext &context, IConstWorkUnit *cw, const char *remoteIP, const char *target, const char *queryid, bool overwrite)
 {
     if (!target || !*target)
@@ -397,7 +447,8 @@ void copyQueryFilesToCluster(IEspContext &context, IConstWorkUnit *cw, const cha
         Owned<IHpccPackageSet> ps = createPackageSet(process.str());
         wufiles->addFilesFromQuery(cw, (ps) ? ps->queryActiveMap(target) : NULL, queryid);
         wufiles->resolveFiles(process.str(), remoteIP, !overwrite, true);
-        wufiles->cloneAllInfo(overwrite, true);
+        Owned<IDFUhelper> helper = createIDFUhelper();
+        wufiles->cloneAllInfo(helper, overwrite, true);
     }
 }
 
@@ -472,7 +523,7 @@ bool CWsWorkunitsEx::onWUPublishWorkunit(IEspContext &context, IEspWUPublishWork
     if (!isValidCluster(target.str()))
         throw MakeStringException(ECLWATCH_INVALID_CLUSTER_NAME, "Invalid cluster name: %s", target.str());
 
-    copyQueryFilesToCluster(context, cw, NULL, target.str(), queryName.str(), false);
+    copyQueryFilesToCluster(context, cw, req.getRemoteDali(), target.str(), queryName.str(), false);
 
     WorkunitUpdate wu(&cw->lock());
     if (req.getUpdateWorkUnitName() && notEmpty(req.getJobName()))
@@ -480,13 +531,16 @@ bool CWsWorkunitsEx::onWUPublishWorkunit(IEspContext &context, IEspWUPublishWork
 
     StringBuffer queryId;
     WUQueryActivationOptions activate = (WUQueryActivationOptions)req.getActivate();
-    addQueryToQuerySet(wu, target.str(), queryName.str(), NULL, activate, queryId);
-    if (req.getMemoryLimit() || !req.getTimeLimit_isNull() || ! req.getWarnTimeLimit_isNull())
+    addQueryToQuerySet(wu, target.str(), queryName.str(), NULL, activate, queryId, context.queryUserId());
+    if (req.getMemoryLimit() || !req.getTimeLimit_isNull() || !req.getWarnTimeLimit_isNull() || req.getPriority() || req.getComment())
     {
         Owned<IPropertyTree> queryTree = getQueryById(target.str(), queryId, false);
         updateMemoryLimitSetting(queryTree, req.getMemoryLimit());
         updateQuerySetting(req.getTimeLimit_isNull(), queryTree, "@timeLimit", req.getTimeLimit());
         updateQuerySetting(req.getWarnTimeLimit_isNull(), queryTree, "@warnTimeLimit", req.getWarnTimeLimit());
+        updateQueryPriority(queryTree, req.getPriority());
+        if (req.getComment())
+            queryTree->setProp("@comment", req.getComment());
     }
     wu->commit();
     wu.clear();
@@ -550,6 +604,10 @@ void gatherQuerySetQueryDetails(IPropertyTree *query, IEspQuerySetQuery *queryIn
         queryInfo->setTimeLimit(query->getPropInt("@timeLimit"));
     if (query->hasProp("@warnTimeLimit"))
         queryInfo->setWarnTimeLimit(query->getPropInt("@warnTimeLimit"));
+    if (query->hasProp("@priority"))
+        queryInfo->setPriority(getQueryPriorityName(query->getPropInt("@priority")));
+    if (query->hasProp("@comment"))
+        queryInfo->setComment(query->queryProp("@comment"));
     if (queriesOnCluster)
     {
         IArrayOf<IEspClusterQueryState> clusters;
@@ -729,7 +787,7 @@ void retrieveQuerysetDetailsByCluster(IArrayOf<IEspWUQuerySetDetail> &details, c
         const SocketEndpointArray &eps = info->getRoxieServers();
         if (eps.length())
         {
-            Owned<ISocket> sock = ISocket::connect_timeout(eps.item(0), 5);
+            Owned<ISocket> sock = ISocket::connect_timeout(eps.item(0), 10000);
             queriesOnCluster.setown(sendRoxieControlQuery(sock, "<control:queries/>", 5));
         }
     }
@@ -806,6 +864,102 @@ bool CWsWorkunitsEx::onWUMultiQuerysetDetails(IEspContext &context, IEspWUMultiQ
     return true;
 }
 
+bool CWsWorkunitsEx::onWUQueryDetails(IEspContext &context, IEspWUQueryDetailsRequest & req, IEspWUQueryDetailsResponse & resp)
+{
+    const char* querySet = req.getQuerySet();
+    const char* queryId = req.getQueryId();
+    if (!querySet || !*querySet)
+        throw MakeStringException(ECLWATCH_QUERYSET_NOT_FOUND, "QuerySet not specified");
+    if (!queryId || !*queryId)
+        throw MakeStringException(ECLWATCH_QUERYID_NOT_FOUND, "QueryId not specified");
+    resp.setQueryId(queryId);
+    resp.setQuerySet(querySet);
+
+    Owned<IPropertyTree> queryRegistry = getQueryRegistry(querySet, false);
+
+    StringBuffer xpath;
+    xpath.clear().append("Query[@id='").append(queryId).append("']");
+    IPropertyTree *query = queryRegistry->queryPropTree(xpath.str());
+    if (!query)
+    {
+        DBGLOG("No matching Query");
+        return false;
+    }
+
+    const char* queryName = query->queryProp("@name");
+    resp.setQueryName(queryName);
+    resp.setWuid(query->queryProp("@wuid"));
+    resp.setDll(query->queryProp("@dll"));
+    resp.setPublishedBy(query->queryProp("@publishedBy"));
+    resp.setSuspended(query->getPropBool("@suspended", false));
+    resp.setSuspendedBy(query->queryProp("@suspendedBy"));
+    resp.setComment(query->queryProp("@comment"));
+
+    StringArray logicalFiles;
+    getQueryFiles(queryId, querySet, logicalFiles);
+    if (logicalFiles.length())
+        resp.setLogicalFiles(logicalFiles);
+
+    double version = context.getClientVersion();
+    if (version >= 1.42)
+    {
+        xpath.clear().appendf("Alias[@name='%s']", queryName);
+        IPropertyTree *alias = queryRegistry->queryPropTree(xpath.str());
+        if (!alias)
+            resp.setActivated(false);
+        else
+            resp.setActivated(true);
+    }
+
+    return true;
+}
+
+bool CWsWorkunitsEx::getQueryFiles(const char* query, const char* target, StringArray& logicalFiles)
+{
+    try
+    {
+        Owned<IConstWUClusterInfo> info = getTargetClusterInfo(target);
+        if (!info || (info->getPlatform()!=RoxieCluster))
+            return false;
+
+        const SocketEndpointArray &eps = info->getRoxieServers();
+        if (eps.empty())
+            return false;
+
+        StringBuffer control;
+        control.appendf("<control:getQueryXrefInfo full='1'><Query id='%s'/></control:getQueryXrefInfo>",  query);
+        Owned<ISocket> sock = ISocket::connect_timeout(eps.item(0), 5);
+        Owned<IPropertyTree> result = sendRoxieControlQuery(sock, control.str(), 5);
+        if (!result)
+            return false;
+
+        Owned<IPropertyTreeIterator> files = result->getElements("Endpoint/Queries/Query/File");
+        ForEach (*files)
+        {
+            IPropertyTree &file = files->query();
+            const char* fileName = file.queryProp("@name");
+            if (fileName && *fileName)
+                logicalFiles.append(fileName);
+        }
+
+        return true;
+    }
+    catch(IMultiException *me)
+    {
+        StringBuffer err;
+        DBGLOG("ERROR control:getQueryXrefInfo roxie query info %s", me->errorMessage(err.append(me->errorCode()).append(' ')).str());
+        me->Release();
+        return false;
+    }
+    catch(IException *e)
+    {
+        StringBuffer err;
+        DBGLOG("ERROR control:getQueryXrefInfo roxie query info %s", e->errorMessage(err.append(e->errorCode()).append(' ')).str());
+        e->Release();
+        return false;
+    }
+}
+
 inline void verifyQueryActionAllowsWild(bool &allowWildChecked, CQuerySetQueryActionTypes action)
 {
     if (allowWildChecked)
@@ -878,8 +1032,11 @@ bool CWsWorkunitsEx::onWUQueryConfig(IEspContext &context, IEspWUQueryConfigRequ
         if (queryTree)
         {
             updateMemoryLimitSetting(queryTree, req.getMemoryLimit());
+            updateQueryPriority(queryTree, req.getPriority());
             updateQuerySetting(req.getTimeLimit_isNull(), queryTree, "@timeLimit", req.getTimeLimit());
             updateQuerySetting(req.getWarnTimeLimit_isNull(), queryTree, "@warnTimeLimit", req.getWarnTimeLimit());
+            if (req.getComment())
+                queryTree->setProp("@comment", req.getComment());
         }
 
         results.append(*result.getClear());
@@ -918,34 +1075,32 @@ bool CWsWorkunitsEx::onWUQuerysetQueryAction(IEspContext &context, IEspWUQuerySe
         result->setQueryId(id);
         try
         {
+            IPropertyTree *query = queryset->queryPropTree(xpath);
+            if (!query)
+                throw MakeStringException(ECLWATCH_QUERYID_NOT_FOUND, "Query %s/%s not found.", req.getQuerySetName(), id);
             switch (req.getAction())
             {
                 case CQuerySetQueryActionTypes_ToggleSuspend:
-                    setQuerySuspendedState(queryset, id, !queryIds->getPropBool(id));
+                    setQuerySuspendedState(queryset, id, !queryIds->getPropBool(id), context.queryUserId());
                     break;
                 case CQuerySetQueryActionTypes_Suspend:
-                    setQuerySuspendedState(queryset, id, true);
+                    setQuerySuspendedState(queryset, id, true, context.queryUserId());
                     break;
                 case CQuerySetQueryActionTypes_Unsuspend:
-                    setQuerySuspendedState(queryset, id, false);
+                    setQuerySuspendedState(queryset, id, false, NULL);
                     break;
                 case CQuerySetQueryActionTypes_Activate:
-                {
-                    IPropertyTree *query = queryset->queryPropTree(xpath);
-                    if (!query)
-                        throw MakeStringException(ECLWATCH_QUERYID_NOT_FOUND, "Query %s/%s not found.", req.getQuerySetName(), id);
                     setQueryAlias(queryset, query->queryProp("@name"), id);
                     break;
-                }
                 case CQuerySetQueryActionTypes_Delete:
                     removeNamedQuery(queryset, id);
+                    query = NULL;
                     break;
                 case CQuerySetQueryActionTypes_RemoveAllAliases:
                     removeAliasesFromNamedQuery(queryset, id);
                     break;
             }
             result->setSuccess(true);
-            IPropertyTree *query = queryset->queryPropTree(xpath);
             if (query)
                 result->setSuspended(query->getPropBool("@suspended"));
         }
@@ -1092,13 +1247,16 @@ bool CWsWorkunitsEx::onWUQuerysetCopyQuery(IEspContext &context, IEspWUQuerySetC
 
     StringBuffer targetQueryId;
     WUQueryActivationOptions activate = (WUQueryActivationOptions)req.getActivate();
-    addQueryToQuerySet(wu, target, queryName.str(), NULL, activate, targetQueryId);
-    if (req.getMemoryLimit() || !req.getTimeLimit_isNull() || ! req.getWarnTimeLimit_isNull())
+    addQueryToQuerySet(wu, target, queryName.str(), NULL, activate, targetQueryId, context.queryUserId());
+    if (req.getMemoryLimit() || !req.getTimeLimit_isNull() || ! req.getWarnTimeLimit_isNull() || req.getPriority())
     {
         Owned<IPropertyTree> queryTree = getQueryById(target, targetQueryId, false);
         updateMemoryLimitSetting(queryTree, req.getMemoryLimit());
+        updateQueryPriority(queryTree, req.getPriority());
         updateQuerySetting(req.getTimeLimit_isNull(), queryTree, "@timeLimit", req.getTimeLimit());
         updateQuerySetting(req.getWarnTimeLimit_isNull(), queryTree, "@warnTimeLimit", req.getWarnTimeLimit());
+        if (req.getComment())
+            queryTree->setProp("@comment", req.getComment());
     }
     wu.clear();
 

@@ -23,7 +23,7 @@ _d._onAction&&_d._onAction();
 if(_a.startTime){
 if(_a.startTime+(_c.timeout||0)<_9){
 _7.splice(i--,1);
-_a.cancel(new _2(_b));
+_a.cancel(new _2("Timeout exceeded",_b));
 _d._onAction&&_d._onAction();
 }
 }

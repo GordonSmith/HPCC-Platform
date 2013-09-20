@@ -155,7 +155,7 @@ private:
 class SequenceNumberAllocator : public NewHqlTransformer
 {
 public:
-    SequenceNumberAllocator();
+    SequenceNumberAllocator(HqlCppTranslator & _translator);
 
     virtual IHqlExpression * createTransformed(IHqlExpression * expr);
     virtual ANewTransformInfo * createTransformInfo(IHqlExpression * expr) { return CREATE_NEWTRANSFORMINFO(SequenceNumberInfo, expr); }
@@ -172,6 +172,8 @@ protected:
     IHqlExpression * attachSequenceNumber(IHqlExpression * expr);
 
 protected:
+    HqlCppTranslator & translator; // should really be an error handler - could do with refactoring.
+    unsigned applyDepth;
     unsigned sequence;
     MapOwnedHqlToOwnedHql namedMap;
 };
@@ -202,7 +204,7 @@ protected:
     IHqlExpression * normalizeRollup(IHqlExpression * expr);
     IHqlExpression * normalizeScalarAggregate(IHqlExpression * expr);
     IHqlExpression * normalizeSelect(IHqlExpression * expr);
-    IHqlExpression * normalizeShuffle(IHqlExpression * expr);
+    IHqlExpression * normalizeSubSort(IHqlExpression * expr);
     IHqlExpression * normalizeSort(IHqlExpression * expr);
     IHqlExpression * normalizeSortSteppedIndex(IHqlExpression * expr, _ATOM attrName);
     IHqlExpression * normalizeTempTable(IHqlExpression * expr);
@@ -459,6 +461,9 @@ protected:
     void                      copyDependencies(WorkflowTransformInfo * source, WorkflowTransformInfo * dest);
     void                      copySetValueDependencies(WorkflowTransformInfo * source, IHqlExpression * expr);
 
+    void                      extractDependentInputs(UnsignedArray & visited, DependenciesUsed & dependencies, const UnsignedArray & wfids);
+    WorkflowItem *            findWorkflowItem(unsigned wfid);
+
     unsigned                  splitValue(IHqlExpression * value);
     IHqlExpression *          extractWorkflow(IHqlExpression * untransformed, IHqlExpression * transformed);
     IHqlExpression *          extractClusterWorkflow(IHqlExpression * expr);
@@ -479,7 +484,7 @@ protected:
     IHqlExpression *          createWorkflowAction(unsigned wfid);
     unsigned                  ensureWorkflowAction(IHqlExpression * expr);
     void                      ensureWorkflowAction(UnsignedArray & dependencies, IHqlExpression * expr);
-    WorkflowItem *            createWorkflowItem(IHqlExpression * expr, unsigned wfid, unsigned persistWfid = 0);
+    WorkflowItem *            createWorkflowItem(IHqlExpression * expr, unsigned wfid, node_operator workflowOp);
     void percolateScheduledIds(WorkflowArray & workflow);
 
     void                      cacheWorkflowDependencies(unsigned wfid, UnsignedArray & extra);
@@ -1165,6 +1170,7 @@ protected:
     IHqlExpression * validateKeyedJoin(IHqlExpression * expr);
 
 protected:
+    IHqlExpression * transformChildrenNoAnnotations(IHqlExpression * expr);
     IHqlExpression * makeRecursiveName(_ATOM searchModule, _ATOM searchName);
     HqlTreeNormalizerInfo * queryCommonExtra(IHqlExpression * expr);
     IHqlExpression * transformSimpleConst(IHqlExpression * expr)
@@ -1184,7 +1190,6 @@ protected:
     {
         bool removeAsserts;
         bool commonUniqueNameAttributes;
-        bool simplifySelectorSequence;
         bool sortIndexPayload;
         bool allowSections;
         bool normalizeExplicitCasts;
@@ -1192,8 +1197,7 @@ protected:
         bool outputRowsAsDatasets;
         bool constantFoldNormalize;
         bool allowActivityForKeyedJoin;
-        bool implicitShuffle;
-        bool transformCaseToChoose;
+        bool implicitSubSort;
     } options;
     unsigned nextSequenceValue;
     bool seenForceLocal;

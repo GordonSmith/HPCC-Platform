@@ -61,8 +61,13 @@ if((0.9).toFixed()==0){
 var _1b=_6.round;
 _6.round=function(v,p,m){
 var d=Math.pow(10,-p||0),a=Math.abs(v);
-if(!v||a>=d||a*Math.pow(10,p+1)<5){
+if(!v||a>=d){
 d=0;
+}else{
+a/=d;
+if(a<0.5||a>=0.95){
+d=0;
+}
 }
 return _1b(v,p,m)+(v>0?d:-d);
 };

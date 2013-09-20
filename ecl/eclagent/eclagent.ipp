@@ -253,7 +253,9 @@ public:
     {
         return ctx->queryWuid();
     }
-    
+
+    virtual void updateWULogfile()                  { return ctx->updateWULogfile(); }
+
 protected:
     IAgentContext * ctx;
 };
@@ -339,7 +341,7 @@ public:
 
 
 class CHThorDebugContext;
-class EclAgent : public CInterface, implements IAgentContext, implements ICodeContext, implements roxiemem::IRowAllocatorCache
+class EclAgent : public CInterface, implements IAgentContext, implements ICodeContext, implements IRowAllocatorMetaActIdCacheCallback
 {
 private:
     friend class EclAgentWorkflowMachine;
@@ -375,8 +377,7 @@ private:
     StringArray clusterNames;
     unsigned int clusterWidth;
     Owned<IDistributedFileTransaction> superfiletransaction;
-    mutable IArrayOf<IEngineRowAllocator> allAllocators;
-    mutable SpinLock allAllocatorsLock;                 
+    mutable Owned<IRowAllocatorMetaActIdCache> allocatorMetaCache;
     Owned<EclGraph> activeGraph;
     Owned<IRecordLayoutTranslatorCache> rltCache;
     Owned<CHThorDebugContext> debugContext;
@@ -385,6 +386,7 @@ private:
     SafePluginMap *pluginMap;
     IProperties *globals;
     IPropertyTree *config;
+    ILogMsgHandler *logMsgHandler;
     StringAttr agentTempDir;
     Owned<IOrderedOutputSerializer> outputSerializer;
 
@@ -444,7 +446,7 @@ private:
 public:
     IMPLEMENT_IINTERFACE;
 
-    EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bool _resetWorkflow, bool _noRetry, char const * _logname, const char *_allowedPipeProgs, IPropertyTree *queryXML, IProperties *globals, IPropertyTree *config);
+    EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bool _resetWorkflow, bool _noRetry, char const * _logname, const char *_allowedPipeProgs, IPropertyTree *_queryXML, IProperties *_globals, IPropertyTree *_config, ILogMsgHandler * _logMsgHandler);
     ~EclAgent();
 
     void setBlocked();
@@ -482,8 +484,8 @@ public:
     virtual double getResultReal(const char * name, unsigned sequence);
     virtual unsigned getResultHash(const char * name, unsigned sequence);
     virtual void getExternalResultRaw(unsigned & tlen, void * & tgt, const char * wuid, const char * stepname, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer);
-    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * name, unsigned sequence, IEngineRowAllocator * _rowAllocator, IOutputRowDeserializer * deserializer, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer);
-    virtual char *getDaliServers();
+    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * name, unsigned sequence, IEngineRowAllocator * _rowAllocator, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer);
+    virtual void getResultDictionary(size32_t & tcount, byte * * & tgt, IEngineRowAllocator * _rowAllocator, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer, IHThorHashLookupInfo * hasher);
     virtual char *getJobName();
     virtual char *getJobOwner();
     virtual char *getClusterName();
@@ -491,8 +493,6 @@ public:
     virtual char *queryIndexMetaData(char const * lfn, char const * xpath);
     virtual void  abort();
 
-    virtual __int64 countDiskFile(const char * lfn, unsigned recordSize);
-    virtual __int64 countDiskFile(__int64 activityId, IHThorCountFileArg & arg);
     virtual bool fileExists(const char * filename);
     virtual char * getExpandLogicalName(const char * logicalName);
     virtual void addWuException(const char * text, unsigned code, unsigned severity);
@@ -505,7 +505,6 @@ public:
     virtual void cachePersist(const char * name);
     virtual void decachePersist(const char * name);
     virtual void finishPersist();
-    virtual __int64 countIndex(__int64 activityId, IHThorCountIndexArg & arg);
     virtual void clearPersist(const char * logicalName);
     virtual void updatePersist(const char * logicalName, unsigned eclCRC, unsigned __int64 allCRC);
     virtual void checkPersistMatches(const char * logicalName, unsigned eclCRC);
@@ -514,12 +513,12 @@ public:
     virtual bool queryWriteResultsToStdout() { return writeResultsToStdout; }
     virtual IOrderedOutputSerializer * queryOutputSerializer() { return outputSerializer; }
     virtual const void * fromXml(IEngineRowAllocator * _rowAllocator, size32_t len, const char * utf8, IXmlToRowTransformer * xmlTransformer, bool stripWhitespace);
+    virtual IEngineContext *queryEngineContext() { return NULL; }
 
     unsigned __int64 queryStopAfter() { return stopAfter; }
 
 
 //New workflow interface
-    virtual unsigned getRecoveringCount() { UNIMPLEMENTED; }
     virtual void setWorkflowCondition(bool value) { if(workflow) workflow->setCondition(value); }
     virtual void returnPersistVersion(const char * logicalName, unsigned eclCRC, unsigned __int64 allCRC, bool isFile) { if(workflow) workflow->returnPersistVersion(logicalName, eclCRC, allCRC, isFile); }
 
@@ -539,7 +538,7 @@ public:
     virtual void executeGraph(const char * graphName, bool realThor, size32_t parentExtractSize, const void * parentExtract);
     virtual IHThorGraphResults * executeLibraryGraph(const char * libraryName, unsigned expectedInterfaceHash, unsigned activityId, bool embedded, const byte * parentExtract);
     virtual IThorChildGraph * resolveChildQuery(__int64 subgraphId, IHThorArg * colocal);
-    virtual ILocalGraph * resolveLocalQuery(__int64 activityId);
+    virtual IEclGraphResults * resolveLocalQuery(__int64 activityId);
 
     virtual IHThorGraphResults * createGraphLoopResults();
 
@@ -609,65 +608,19 @@ public:
     }
     virtual IEngineRowAllocator * getRowAllocator(IOutputMetaData * meta, unsigned activityId) const
     {
-        // MORE - may need to do some caching/commoning up here otherwise GRAPH in a child query may use too many
-        SpinBlock b(allAllocatorsLock);
-        IEngineRowAllocator * ret = createHThorRowAllocator(*rowManager, meta, activityId, allAllocators.ordinality());
-        LINK(ret);
-        allAllocators.append(*ret);
-        return ret;
+        return allocatorMetaCache->ensure(meta, activityId);
+    }
+    virtual const char *cloneVString(const char *str) const
+    {
+        return rowManager->cloneVString(str);
+    }
+    virtual const char *cloneVString(size32_t len, const char *str) const
+    {
+        return rowManager->cloneVString(len, str);
     }
     virtual void getRowXML(size32_t & lenResult, char * & result, IOutputMetaData & info, const void * row, unsigned flags)
     {
         convertRowToXML(lenResult, result, info, row, flags);
-    }
-
-    // interface IRowAllocatorCache
-    virtual unsigned getActivityId(unsigned cacheId) const
-    {
-        SpinBlock b(allAllocatorsLock);
-        unsigned allocatorIndex = (cacheId & ALLOCATORID_MASK);
-        if (allAllocators.isItem(allocatorIndex))
-            return allAllocators.item(allocatorIndex).queryActivityId();
-        else
-        {
-            //assert(false);
-            return 12345678; // Used for tracing, better than a crash...
-        }
-    }
-    virtual StringBuffer &getActivityDescriptor(unsigned cacheId, StringBuffer &out) const
-    {
-        SpinBlock b(allAllocatorsLock);
-        unsigned allocatorIndex = (cacheId & ALLOCATORID_MASK);
-        if (allAllocators.isItem(allocatorIndex))
-            return allAllocators.item(allocatorIndex).getId(out);
-        else
-        {
-            assert(false);
-            return out.append("unknown"); // Used for tracing, better than a crash...
-        }
-    }
-    virtual void onDestroy(unsigned cacheId, void *row) const 
-    {
-        IEngineRowAllocator *allocator;
-        unsigned allocatorIndex = (cacheId & ALLOCATORID_MASK);
-        {
-            SpinBlock b(allAllocatorsLock); // just protect the access to the array - don't keep locked for the call of destruct or may deadlock
-            if (allAllocators.isItem(allocatorIndex))
-                allocator = &allAllocators.item(allocatorIndex);
-            else
-            {
-                assert(false);
-                return;
-            }
-        }
-        allocator->queryOutputMeta()->destruct((byte *) row);
-    }
-    virtual void checkValid(unsigned cacheId, const void *row) const
-    {
-        if (!RoxieRowCheckValid(cacheId, row))
-        {
-            //MORE: Throw an exception?
-        }
     }
     virtual const char *queryAllowedPipePrograms()
     {
@@ -676,6 +629,13 @@ public:
     
     IGroup *getHThorGroup(StringBuffer &out);
     
+    virtual void updateWULogfile();
+
+// roxiemem::IRowAllocatorMetaActIdCacheCallback
+    virtual IEngineRowAllocator *createAllocator(IOutputMetaData *meta, unsigned activityId, unsigned id) const
+    {
+        return createRoxieRowAllocator(*rowManager, meta, activityId, id, roxiemem::RHFnone);
+    }
 };
 
 //---------------------------------------------------------------------------
@@ -695,10 +655,12 @@ public:
     virtual unsigned getVersion() const                     { return OUTPUTMETADATA_VERSION; }
     virtual unsigned getMetaFlags()                         { return 0; }
     virtual void destruct(byte * self) {}
-    virtual IOutputRowSerializer * createRowSerializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
-    virtual IOutputRowDeserializer * createRowDeserializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
-    virtual ISourceRowPrefetcher * createRowPrefetcher(ICodeContext * ctx, unsigned activityId) { return NULL; }
-    virtual IOutputMetaData * querySerializedMeta() { return this; }
+    virtual IOutputRowSerializer * createDiskSerializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
+    virtual IOutputRowDeserializer * createDiskDeserializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
+    virtual ISourceRowPrefetcher * createDiskPrefetcher(ICodeContext * ctx, unsigned activityId) { return NULL; }
+    virtual IOutputMetaData * querySerializedDiskMeta() { return this; }
+    virtual IOutputRowSerializer * createInternalSerializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
+    virtual IOutputRowDeserializer * createInternalDeserializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
     virtual void walkIndirectMembers(const byte * self, IIndirectMemberVisitor & visitor) {}
 };
 
@@ -797,7 +759,6 @@ public:
 
     virtual void addRowOwn(const void * row);
     virtual const void * queryRow(unsigned whichRow);
-    virtual void getResult(unsigned & len, void * & data);
     virtual void getLinkedResult(unsigned & count, byte * * & ret);
     virtual const void * getOwnRow(unsigned whichRow);
 
@@ -814,7 +775,6 @@ public:
 
     virtual void addRowOwn(const void * row);
     virtual const void * queryRow(unsigned whichRow);
-    virtual void getResult(unsigned & len, void * & data);
     virtual void getLinkedResult(unsigned & count, byte * * & ret);
     virtual const void * getOwnRow(unsigned whichRow);
 
@@ -841,11 +801,11 @@ public:
     virtual void setResult(unsigned id, IHThorGraphResult * result);
 
 //interface IEclGraphResults
-    virtual void getResult(size32_t & retSize, void * & ret, unsigned id)
-    {
-        queryResult(id)->getResult(retSize, ret);
-    }
     virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id)
+    {
+        queryResult(id)->getLinkedResult(count, ret);
+    }
+    virtual void getDictionaryResult(unsigned & count, byte * * & ret, unsigned id)
     {
         queryResult(id)->getLinkedResult(count, ret);
     }
@@ -875,7 +835,7 @@ protected:
     ICodeContext * codeContext;
 };
 
-class EclSubGraph : public CInterface, implements ILocalGraphEx, public IEclLoopGraph, public IThorChildGraph
+class EclSubGraph : public CInterface, implements ILocalEclGraphResults, public IEclLoopGraph, public IThorChildGraph
 {
     friend class EclGraphElement;
 private:
@@ -947,7 +907,7 @@ private:
     class SubGraphCodeContext : public IndirectCodeContext
     {
     public:
-        virtual ILocalGraph * resolveLocalQuery(__int64 activityId)
+        virtual IEclGraphResults * resolveLocalQuery(__int64 activityId)
         {
             if (activityId == container->queryId())
                 return container;
@@ -997,15 +957,15 @@ public:
             return in;
     }
 
-//interface ILocalGraph
+//interface IEclGraphResults
     virtual IHThorGraphResult * queryResult(unsigned id);
     virtual IHThorGraphResult * queryGraphLoopResult(unsigned id);
     virtual IHThorGraphResult * createResult(unsigned id, IEngineRowAllocator * ownedRowsetAllocator);
     virtual IHThorGraphResult * createGraphLoopResult(IEngineRowAllocator * ownedRowsetAllocator);
     virtual IEclGraphResults * evaluate(unsigned parentExtractSize, const byte * parentExtract);
 
-    virtual void getResult(unsigned & len, void * & data, unsigned id);
     virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id);
+    virtual void getDictionaryResult(size32_t & tcount, byte * * & tgt, unsigned id);
     inline unsigned __int64 queryId() const
     {
         return id;
@@ -1060,7 +1020,7 @@ class EclGraph : public CInterface
             return container->resolveChildQuery((unsigned)subgraphId);
         }
 
-        ILocalGraph * resolveLocalQuery(__int64 activityId) 
+        IEclGraphResults * resolveLocalQuery(__int64 activityId)
         { 
             return container->resolveLocalQuery((unsigned)activityId);
         }
@@ -1094,7 +1054,7 @@ public:
     EclGraphElement * idToActivity(unsigned id);
     const char *queryGraphName() { return graphName; }
     IThorChildGraph * resolveChildQuery( unsigned subgraphId);
-    ILocalGraph * resolveLocalQuery(unsigned subgraphId);
+    IEclGraphResults * resolveLocalQuery(unsigned subgraphId);
     IEclLoopGraph * resolveLoopGraph(unsigned id);
     EclGraphElement * recurseFindActivityFromId(EclSubGraph * subGraph, unsigned id);
     void updateLibraryProgress();

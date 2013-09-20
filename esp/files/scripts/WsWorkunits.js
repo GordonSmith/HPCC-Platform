@@ -14,136 +14,148 @@
 #    limitations under the License.
 ############################################################################## */
 define([
-	"dojo/_base/declare",
-	"dojo/_base/lang",
-	"dojo/_base/xhr",
-	"dojo/_base/Deferred",
-	"dojo/store/util/QueryResults",
-	"hpcc/ESPBase"
-], function (declare, lang, xhr, Deferred, QueryResults, ESPBase) {
-	var WUQuery = declare(ESPBase, {
-		idProperty: "Wuid",
+    "dojo/_base/declare",
+    "dojo/_base/lang",
+    "dojo/_base/array",
+    
+    "hpcc/ESPRequest"
+], function (declare, lang, arrayUtil,
+    ESPRequest) {
+    return {
+        States: {
+            0: "unknown",
+            1: "compiled",
+            2: "running",
+            3: "completed",
+            4: "aborting",
+            5: "aborted",
+            6: "blocked",
+            7: "submitted",
+            8: "wait",
+            9: "failed",
+            10: "compiling",
+            11: "uploading_files",
+            12: "debugging",
+            13: "debug_running",
+            14: "paused"
+        },
 
-		constructor: function (options) {
-			declare.safeMixin(this, options);
-		},
+        WUCreate: function (params) {
+            return ESPRequest.send("WsWorkunits", "WUCreate", params);
+        },
 
-		getIdentity: function (object) {
-			return object[this.idProperty];
-		},
+        WUUpdate: function (params) {
+            ESPRequest.flattenMap(params.request, "ApplicationValues")
+            return ESPRequest.send("WsWorkunits", "WUUpdate", params);
+        },
 
-		query: function (query, options) {
-			var request = {};
-			lang.mixin(request, options.query);
-			if (options.start)
-				request['PageStartFrom'] = options.start;
-			if (options.count)
-				request['Count'] = options.count;
-			if (options.sort) {
-				request['Sortby'] = options.sort[0].attribute;
-				request['Descending'] = options.sort[0].descending;
-			}
-			request['rawxml_'] = "1";
+        WUSubmit: function (params) {
+            return ESPRequest.send("WsWorkunits", "WUSubmit", params);
+        },
 
-			var results = xhr.get({
-				url: this.getBaseURL("WsWorkunits") + "/WUQuery",
-				handleAs: "xml",
-				content: request
-			});
+        WUResubmit: function (params) {
+            return ESPRequest.send("WsWorkunits", "WUResubmit", params);
+        },
 
-			var context = this;
-			var parsedResults = results.then(function (domXml) {
-				data = context.getValues(domXml, "ECLWorkunit");
-				data.total = context.getValue(domXml, "NumWUs");
-				return data;
-			});
+        WUPublishWorkunit: function (params) {
+            return ESPRequest.send("WsWorkunits", "WUPublishWorkunit", params).then(function (response) {
+                if (lang.exists("WUPublishWorkunitResponse", response)) {
+                    if (response.WUPublishWorkunitResponse.ErrorMesssage) {
+                        dojo.publish("hpcc/brToaster", {
+                            message: "<h4>Publish " + response.WUPublishWorkunitResponse.Wuid + "</h4>" + "<p>" + response.WUPublishWorkunitResponse.ErrorMesssage + "</p>",
+                            type: "error",
+                            duration: -1
+                        });
+                    } else {
+                        dojo.publish("hpcc/brToaster", {
+                            message: "<h4>Publish " + response.WUPublishWorkunitResponse.Wuid + "</h4>" + "<p><ul>" +
+                                "<li>Query ID:  " + response.WUPublishWorkunitResponse.QueryId + "</li>" +
+                                "<li>Query Name:  " + response.WUPublishWorkunitResponse.QueryName + "</li>" +
+                                "<li>Query Set:  " + response.WUPublishWorkunitResponse.QuerySet + "</li>" +
+                                "</ul></p>",
+                            type: "message"
+                        });
+                    }
+                }
+            });
+        },
 
-			lang.mixin(parsedResults, {
-				total: Deferred.when(parsedResults, function (data) {
-					return data.total;
-				})
-			});
+        WUQuery: function (params) {
+            return ESPRequest.send("WsWorkunits", "WUQuery", params);
+        },
 
-			return QueryResults(parsedResults);
-		}
-	});
+        WUInfo: function (params) {
+            return ESPRequest.send("WsWorkunits", "WUInfo", params);
+        },
 
-	var WUResult = declare(ESPBase, {
-		idProperty: "myInjectedRowNum",
-		wuid: "",
-		sequence: 0,
-		isComplete: false,
+        WUGetGraph: function (params) {
+            return ESPRequest.send("WsWorkunits", "WUGetGraph", params);
+        },
 
-		constructor: function (args) {
-			declare.safeMixin(this, args);
-		},
+        WUResult: function (params) {
+            return ESPRequest.send("WsWorkunits", "WUResult", params);
+        },
 
-		getIdentity: function (object) {
-			return object[this.idProperty];
-		},
+        WUFile: function (params) {
+            lang.mixin(params, {
+                handleAs: "text"
+            });
+            return ESPRequest.send("WsWorkunits", "WUFile", params);
+        },
 
-		queryWhenComplete: function (query, options, deferredResults) {
-			var context = this;
-			if (this.isComplete == true) {
-				var request = {};
-				request['Wuid'] = this.wuid;
-				if (this.sequence != null) {
-					request['Sequence'] = this.sequence;
-				} else {
-					request['LogicalName'] = this.name;
-				}
-				request['Start'] = options.start;
-				request['Count'] = options.count;
-				request['rawxml_'] = "1";
+        WUAction: function (workunits, actionType, callback) {
+            var request = {
+                Wuids: workunits,
+                ActionType: actionType
+            };
+            ESPRequest.flattenArray(request, "Wuids", "Wuid");
 
-				var results = xhr.post({
-					url: this.getBaseURL("WsWorkunits") + "/WUResult",
-					handleAs: "xml",
-					content: request,
-					sync: options.sync != null ? options.sync : false,
-					load: function (domXml) {
-						var rows = context.getValues(domXml, "Row");
-						for (var i = 0; i < rows.length; ++i) {
-							rows[i].myInjectedRowNum = options.start + i + 1;
-						}
-						rows.total = context.getValue(domXml, "Total");
-						//  TODO - Need to check why this happens only sometimes  (Suspect non XML from the server) ---
-						if (rows.total == null) {
-							var debug = context.flattenXml(domXml);
-							setTimeout(function () {
-								context.queryWhenComplete(query, options, deferredResults);
-							}, 100);
-						}
-						else {
-							deferredResults.resolve(rows);
-						}
-					}
-				});
-			} else {
-				setTimeout(function () {
-					context.queryWhenComplete(query, options, deferredResults);
-				}, 100);
-			}
-		},
+            return ESPRequest.send("WsWorkunits", "WUAction", {
+                request: request,
+                load: function (response) {
+                    arrayUtil.forEach(workunits, function (item, index) {
+                        item.refresh();
+                    });
+                    if (lang.exists("WUActionResponse.ActionResults.WUActionResult", response)) {
+                        arrayUtil.forEach(response.WUActionResponse.ActionResults.WUActionResult, function (item, index) {
+                            if (item.Result.indexOf("Failed:") === 0) {
+                                dojo.publish("hpcc/brToaster", {
+                                    message: "<h4>" + item.Action + " " + item.Wuid + "</h4>" + "<p>" + item.Result + "</p>",
+                                    type: "error",
+                                    duration: -1
+                                });
+                            }
+                        });
+                    }
 
-		query: function (query, options) {
-			var deferredResults = new Deferred();
+                    if (callback && callback.load) {
+                        callback.load(response);
+                    }
+                },
+                error: function (err) {
+                    if (callback && callback.error) {
+                        callback.error(err);
+                    }
+                }
+            });
+        },
 
-			this.queryWhenComplete(query, options, deferredResults);
-
-			var retVal = lang.mixin({
-				total: Deferred.when(deferredResults, function (rows) {
-					return rows.total;
-				})
-			}, deferredResults);
-
-			return QueryResults(retVal);
-		}
-	});
-
-	return {
-		WUQuery: WUQuery,
-		WUResult: WUResult
-	};
+        //  Helpers  ---
+        isComplete: function (stateID, actionEx) {
+            switch (stateID) {
+                case 1: //WUStateCompiled
+                    if (actionEx && actionEx == "compile") {
+                        return true;
+                    }
+                    break;
+                case 3:	//WUStateCompleted:
+                case 4:	//WUStateFailed:
+                case 5:	//WUStateArchived:
+                case 7:	//WUStateAborted:
+                    return true;
+            }
+            return false;
+        }
+    };
 });
 

@@ -493,47 +493,54 @@ void CMimeMultiPart::parseContentType(const char* contenttype)
     return;
 }
 
-void CMimeMultiPart::checkEndOfFile(MemoryBuffer& fileContent)
+enum BoundaryCheckState { BoundaryNotFound, BoundaryFound, PossibleBoundary };
+bool CMimeMultiPart::separateMultiParts(MemoryBuffer& firstPart, MemoryBuffer& remainder, __int64 contentNotRead)
 {
-    int text_length = fileContent.length();
-    if (text_length < 1)
-        return;
+    int boundaryLen = m_boundary.length();
+    if (boundaryLen < 1)
+        return false;
 
-    MemoryBuffer fileContentIn;
-    fileContentIn.append(fileContent.length(), fileContent.toByteArray());
+    int totalLength = firstPart.length();
+    if (totalLength < boundaryLen)
+        return false;
 
-    char* text = (char*) fileContentIn.toByteArray();
-    int boundarylen = m_boundary.length();
-    int oneline_len = 0;
-    int cur_pos = 0;
-    
-    int next_pos = Utils::getLine(text_length, 0, text, oneline_len);
-    
-    const char* curline = text;
-    while(next_pos < text_length && !(oneline_len >= 2 && !Utils::strncasecmp(m_boundary.get(), curline + 2, boundarylen)))
+    BoundaryCheckState boundaryCheckState = BoundaryNotFound;
+    const char* startPos = firstPart.toByteArray();
+    int offset = 0;
+    while(offset < totalLength)
     {
-        cur_pos = next_pos;
-        next_pos = Utils::getLine(text_length, next_pos, text, oneline_len);
-        curline = text + cur_pos;
+        if ((totalLength - offset) < (boundaryLen + 2))
+        {//Do not check this line now since buffer size is not longer than boundary line.
+         //The boundary line has two extra '-'s before the boundary ID
+            if (contentNotRead > 0)
+            {
+                boundaryCheckState = PossibleBoundary;//a boundary line may be cut into two parts
+            }
+            break;
+        }
+
+        int lineLength = 0;
+        int nextOffset = Utils::getLine(totalLength, offset, startPos, lineLength);
+        //skip two extra '-' before checking the boundary
+        if ((lineLength > 2) && (!Utils::strncasecmp(m_boundary.get(), startPos + offset + 2, boundaryLen)))
+        {
+            boundaryCheckState = BoundaryFound;//Found a m_boundary
+            break;
+        }
+        offset = nextOffset;
     }
 
-    // Get rid of CR/LF at the end of the content
-    int be = cur_pos - 1;
-    if(be >0 && (text[be] == '\r' || text[be] == '\n'))
-        be--;
+    if (boundaryCheckState == BoundaryNotFound)
+        return false;
 
-    fileContent.clear();
+    offset -= 2;//the crlf in the front of the boundary line should not be included into file content
+    remainder.append(totalLength - offset, startPos + offset);
+    firstPart.setLength(offset);
 
-    //If the body is empty, ignore it
-    if(be > 0)
-    {
-        fileContent.append(be, text);
-    }
-
-    return;
+    return (boundaryCheckState==BoundaryFound);
 }
 
-void CMimeMultiPart::readUploadFile(MemoryBuffer& fileContent, StringBuffer& fileName)
+void CMimeMultiPart::readUploadFileName(MemoryBuffer& fileContent, StringBuffer& fileName)
 {
     int text_length = fileContent.length();
     if (text_length < 1)

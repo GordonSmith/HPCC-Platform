@@ -34,41 +34,6 @@
 #define THORHELPER_API
 #endif
 
-//Similar to OwnedRoxieRow, but doesn't asssume roxie memory manager.
-class OwnedConstRow
-{
-public:
-    inline OwnedConstRow()                              { row = NULL; }
-    inline OwnedConstRow(const void * _row)                 { row = _row; }
-
-    inline ~OwnedConstRow()                             { rtlReleaseRow(row); }
-    
-private: 
-    /* these overloaded operators are the devil of memory leak. Use set, setown instead. */
-    inline OwnedConstRow(const OwnedConstRow & other)   { row = NULL; }
-    void operator = (void * _row)                { row = NULL; }
-    void operator = (const OwnedConstRow & other) { row = NULL; }
-
-    /* this causes -ve memory leak */
-    void setown(const OwnedConstRow &other) {  }
-
-public:
-    inline const void * operator -> () const        { return row; } 
-    inline operator const void *() const            { return row; } 
-    
-    inline void clear()                     { const void *temp=row; row=NULL; rtlReleaseRow(temp); }
-    inline const void * get() const             { return row; }
-    inline const void * getClear()              { const void * temp = row; row = NULL; return temp; }
-    inline const void * getLink() const         { rtlLinkRow(row); return row; }
-    inline void set(const void * _row)          { const void * temp = row; if (_row) rtlLinkRow(_row); row = _row; rtlReleaseRow(temp); }
-    inline void setown(const void * _row)           { const void * temp = row; row = _row; rtlReleaseRow(temp); }
-    
-    inline void set(const OwnedConstRow &other) { set(other.get()); }
-    
-private:
-    const void * row;
-};
-
 //------------------------------------------------------------------------------------------------
 
 //An inline caching version of an IOutputMetaDataEx, which hides the backward compatibility issues, and caches
@@ -116,20 +81,22 @@ public:
 //v1 member functions (can be called on any interface)
     inline unsigned getMetaFlags() const                    { return metaFlags; }
     inline bool needsDestruct() const                       { return (metaFlags & MDFneeddestruct) != 0; }
-    inline bool needsSerialize() const                      { return (metaFlags & MDFneedserialize) != 0; }
+    inline bool needsSerializeDisk() const                  { return (metaFlags & MDFneedserializedisk) != 0; }
     inline void destruct(byte * self)
     {
         if (metaFlags & MDFneeddestruct)
             meta->destruct(self);
     }
 
-    IOutputRowSerializer * createRowSerializer(ICodeContext * ctx, unsigned activityId) const;
-    IOutputRowDeserializer * createRowDeserializer(ICodeContext * ctx, unsigned activityId) const;
+    IOutputRowSerializer * createDiskSerializer(ICodeContext * ctx, unsigned activityId) const;
+    IOutputRowDeserializer * createDiskDeserializer(ICodeContext * ctx, unsigned activityId) const;
+    IOutputRowSerializer * createInternalSerializer(ICodeContext * ctx, unsigned activityId) const;
+    IOutputRowDeserializer * createInternalDeserializer(ICodeContext * ctx, unsigned activityId) const;
 
-    inline IOutputMetaData * querySerializedMeta() const
+    inline IOutputMetaData * querySerializedDiskMeta() const
     {
-        if (metaFlags & MDFneedserialize)
-            return meta->querySerializedMeta();
+        if (metaFlags & MDFneedserializedisk)
+            return meta->querySerializedDiskMeta();
         return meta;
     }
 
@@ -148,21 +115,50 @@ private:
 
 //------------------------------------------------------------------------------------------------
 
-class THORHELPER_API CStaticRowBuilder : extends RtlRowBuilderBase
+class THORHELPER_API MemoryBufferBuilder : public RtlRowBuilderBase
 {
 public:
-    inline CStaticRowBuilder(const CachedOutputMetaData & _meta, void * _self)
-    { 
-        self = static_cast<byte *>(_self);
-        maxLength = _meta.getInitialSize();
+    MemoryBufferBuilder(MemoryBuffer & _buffer, unsigned _minSize)
+        : buffer(_buffer), minSize(_minSize)
+    {
+        reserved = 0;
     }
 
-    virtual byte * ensureCapacity(size32_t required, const char * fieldName);
+    virtual byte * ensureCapacity(size32_t required, const char * fieldName)
+    {
+        if (required > reserved)
+        {
+            void * next = buffer.reserve(required-reserved);
+            self = (byte *)next - reserved;
+            reserved = required;
+        }
+        return self;
+    }
+
+    void finishRow(size32_t length)
+    {
+        assertex(length <= reserved);
+        size32_t newLength = (buffer.length() - reserved) + length;
+        buffer.setLength(newLength);
+        self = NULL;
+        reserved = 0;
+    }
 
 protected:
-    size32_t maxLength;
+    virtual byte * createSelf()
+    {
+        return ensureCapacity(minSize, NULL);
+    }
+
+protected:
+    MemoryBuffer & buffer;
+    size32_t minSize;
+    size32_t reserved;
 };
 
+
+
+//------------------------------------------------------------------------------------------------
 
 //This class is only ever used to apply a delta to a self pointer, it is never finalized
 class THORHELPER_API CPrefixedRowBuilder : implements RtlRowBuilderBase
@@ -338,7 +334,7 @@ public:
     {
         offset = _offset;
         original = _original;
-        IOutputMetaData * originalSerialized = _original->querySerializedMeta();
+        IOutputMetaData * originalSerialized = _original->querySerializedDiskMeta();
         if (originalSerialized != original)
             serializedMeta.setown(new CPrefixedOutputMeta(_offset, originalSerialized));
     }
@@ -368,23 +364,31 @@ public:
 
     virtual unsigned getMetaFlags() { return original->getMetaFlags(); }
     virtual void destruct(byte * self) { original->destruct(self+offset); }
-    virtual IOutputRowSerializer * createRowSerializer(ICodeContext * ctx, unsigned activityId)
+    virtual IOutputRowSerializer * createDiskSerializer(ICodeContext * ctx, unsigned activityId)
     {
-        return new CPrefixedRowSerializer(offset, original->createRowSerializer(ctx, activityId));
+        return new CPrefixedRowSerializer(offset, original->createDiskSerializer(ctx, activityId));
     }
-    virtual IOutputRowDeserializer * createRowDeserializer(ICodeContext * ctx, unsigned activityId) 
+    virtual IOutputRowDeserializer * createDiskDeserializer(ICodeContext * ctx, unsigned activityId) 
     {
-        return new CPrefixedRowDeserializer(offset, original->createRowDeserializer(ctx, activityId));
+        return new CPrefixedRowDeserializer(offset, original->createDiskDeserializer(ctx, activityId));
     }
-    virtual ISourceRowPrefetcher * createRowPrefetcher(ICodeContext * ctx, unsigned activityId) 
+    virtual ISourceRowPrefetcher * createDiskPrefetcher(ICodeContext * ctx, unsigned activityId) 
     {
-        return new CPrefixedRowPrefetcher(offset, original->createRowPrefetcher(ctx, activityId));
+        return new CPrefixedRowPrefetcher(offset, original->createDiskPrefetcher(ctx, activityId));
     }
-    virtual IOutputMetaData * querySerializedMeta()
+    virtual IOutputMetaData * querySerializedDiskMeta()
     {
         if (serializedMeta)
             return serializedMeta.get();
         return this;
+    }
+    virtual IOutputRowSerializer * createInternalSerializer(ICodeContext * ctx, unsigned activityId)
+    {
+        return new CPrefixedRowSerializer(offset, original->createInternalSerializer(ctx, activityId));
+    }
+    virtual IOutputRowDeserializer * createInternalDeserializer(ICodeContext * ctx, unsigned activityId)
+    {
+        return new CPrefixedRowDeserializer(offset, original->createInternalDeserializer(ctx, activityId));
     }
     virtual void walkIndirectMembers(const byte * self, IIndirectMemberVisitor & visitor)
     {
@@ -463,7 +467,7 @@ public:
     CSuffixedOutputMeta(size32_t _offset, IOutputMetaData *_original) : original(_original)
     {
         offset = _offset;
-        IOutputMetaData * originalSerialized = _original->querySerializedMeta();
+        IOutputMetaData * originalSerialized = _original->querySerializedDiskMeta();
         if (originalSerialized != original)
             serializedMeta.setown(new CSuffixedOutputMeta(_offset, originalSerialized));
     }
@@ -491,23 +495,31 @@ public:
 
     virtual unsigned getMetaFlags() { return original->getMetaFlags(); }
     virtual void destruct(byte * self) { original->destruct(self); }
-    virtual IOutputRowSerializer * createRowSerializer(ICodeContext * ctx, unsigned activityId)
+    virtual IOutputRowSerializer * createDiskSerializer(ICodeContext * ctx, unsigned activityId)
     {
-        return new CSuffixedRowSerializer(offset, original->createRowSerializer(ctx, activityId));
+        return new CSuffixedRowSerializer(offset, original->createDiskSerializer(ctx, activityId));
     }
-    virtual IOutputRowDeserializer * createRowDeserializer(ICodeContext * ctx, unsigned activityId) 
+    virtual IOutputRowDeserializer * createDiskDeserializer(ICodeContext * ctx, unsigned activityId) 
     {
-        return new CSuffixedRowDeserializer(offset, original->createRowDeserializer(ctx, activityId));
+        return new CSuffixedRowDeserializer(offset, original->createDiskDeserializer(ctx, activityId));
     }
-    virtual ISourceRowPrefetcher * createRowPrefetcher(ICodeContext * ctx, unsigned activityId) 
+    virtual ISourceRowPrefetcher * createDiskPrefetcher(ICodeContext * ctx, unsigned activityId) 
     {
-        return new CSuffixedRowPrefetcher(offset, original->createRowPrefetcher(ctx, activityId));
+        return new CSuffixedRowPrefetcher(offset, original->createDiskPrefetcher(ctx, activityId));
     }
-    virtual IOutputMetaData * querySerializedMeta()
+    virtual IOutputMetaData * querySerializedDiskMeta()
     {
         if (serializedMeta)
             return serializedMeta.get();
         return this;
+    }
+    virtual IOutputRowSerializer * createInternalSerializer(ICodeContext * ctx, unsigned activityId)
+    {
+        return new CSuffixedRowSerializer(offset, original->createInternalSerializer(ctx, activityId));
+    }
+    virtual IOutputRowDeserializer * createInternalDeserializer(ICodeContext * ctx, unsigned activityId)
+    {
+        return new CSuffixedRowDeserializer(offset, original->createInternalDeserializer(ctx, activityId));
     }
     virtual void walkIndirectMembers(const byte * self, IIndirectMemberVisitor & visitor)
     {

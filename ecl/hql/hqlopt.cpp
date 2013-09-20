@@ -483,7 +483,7 @@ IHqlExpression * CTreeOptimizer::optimizeAggregateUnsharedDataset(IHqlExpression
     case no_newusertable:
     case no_newaggregate:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_distribute:
     case no_keyeddistribute:
     case no_fetch:
@@ -516,7 +516,7 @@ IHqlExpression * CTreeOptimizer::optimizeAggregateUnsharedDataset(IHqlExpression
     switch (op)
     {
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_distribute:
     case no_keyeddistribute:
         noteUnused(expr);
@@ -619,7 +619,7 @@ IHqlExpression * CTreeOptimizer::optimizeAggregateDataset(IHqlExpression * trans
                 next = ds->queryChild(0);
             break;
         case no_sort:
-        case no_shuffle:
+        case no_subsort:
         case no_sorted:
             //MORE: Allowed if the transform is commutative for no_aggregate
             if (aggOp != no_aggregate)
@@ -2774,7 +2774,7 @@ IHqlExpression * CTreeOptimizer::doCreateTransformed(IHqlExpression * transforme
             case no_grouped:
             case no_keyeddistribute:
             case no_sort:
-            case no_shuffle:
+            case no_subsort:
             case no_preload:
             case no_assertsorted:
             case no_assertgrouped:
@@ -3042,7 +3042,7 @@ IHqlExpression * CTreeOptimizer::doCreateTransformed(IHqlExpression * transforme
             case no_newxmlparse:
             case no_rollupgroup:
                 {
-                    if (!isPureActivity(child) || !isPureActivity(transformed) || transformed->queryProperty(_countProject_Atom))
+                    if (!isPureActivity(child) || !isPureActivity(transformed) || transformedCountProject)
                         break;
 
                     IHqlExpression * transformedSeq = querySelSeq(transformed);
@@ -3057,19 +3057,24 @@ IHqlExpression * CTreeOptimizer::doCreateTransformed(IHqlExpression * transforme
                     return swapNodeWithChild(transformed);
                 break;
             case no_sort:
-            case no_shuffle:
+            case no_subsort:
                 if (transformedCountProject)
                     break;
                 if (increasesRowSize(transformed))
                     break;
                 return moveProjectionOverSimple(transformed, true, false);
             case no_distribute:
+                //Cannot move a count project over anything that changes the order of the records.
+                if (transformedCountProject)
+                    break;
                 if (increasesRowSize(transformed))
                     break;
                 return moveProjectionOverSimple(transformed, true, false);
             case no_distributed:
             case no_sorted:
             case no_grouped:
+                if (transformedCountProject)
+                    break;
                 return moveProjectionOverSimple(transformed, false, false);
             case no_stepped:
                 return moveProjectionOverSimple(transformed, true, false);
@@ -3251,7 +3256,7 @@ IHqlExpression * CTreeOptimizer::doCreateTransformed(IHqlExpression * transforme
                 return swapNodeWithChild(transformed);
             case no_distribute:
             case no_sort:
-            case no_shuffle:
+            case no_subsort:
                 if (increasesRowSize(transformed))
                     break;
                 return moveProjectionOverSimple(transformed, true, false);
@@ -3367,7 +3372,7 @@ IHqlExpression * CTreeOptimizer::doCreateTransformed(IHqlExpression * transforme
             switch(child->getOperator())
             {
             case no_sort:
-            case no_shuffle:
+            case no_subsort:
                 if (!isLocalActivity(transformed) || isLocalActivity(child))
                     return removeChildNode(transformed);
                 break;
@@ -3380,7 +3385,7 @@ IHqlExpression * CTreeOptimizer::doCreateTransformed(IHqlExpression * transforme
             }
             break;
         }
-    case no_shuffle:
+    case no_subsort:
         {
             switch(child->getOperator())
             {
@@ -3388,11 +3393,11 @@ IHqlExpression * CTreeOptimizer::doCreateTransformed(IHqlExpression * transforme
                 {
                     if (isGrouped(transformed))
                         break;
-                    //Convert shuffle(sort) back into a single sort.  Do not convert if it would change the distribution.
+                    //Convert subsort(sort) back into a single sort.  Do not convert if it would change the distribution.
                     if (!isAlwaysLocal() && (!isLocalActivity(transformed) || !isLocalActivity(child)))
                         break;
                     OwnedHqlExpr sortOrder = getExistingSortOrder(transformed, true, true);
-                    //A weird user defined SHUFFLE could create an unknown sort order
+                    //A weird user defined SUBSORT could create an unknown sort order
                     if (!sortOrder)
                         break;
                     OwnedHqlExpr newOrder = replaceSelector(sortOrder, queryActiveTableSelector(), child->queryNormalizedSelector());
@@ -3401,7 +3406,7 @@ IHqlExpression * CTreeOptimizer::doCreateTransformed(IHqlExpression * transforme
                     return ::replaceChild(child, 1, newOrder);
                 }
 
-            case no_shuffle:
+            case no_subsort:
                 //This should almost certainly be improved, but it might be a bit tricky!
                 break;
             }
@@ -3420,7 +3425,7 @@ IHqlExpression * CTreeOptimizer::doCreateTransformed(IHqlExpression * transforme
             case no_distribute:
             case no_keyeddistribute:
             case no_sort:
-            case no_shuffle:
+            case no_subsort:
                 if (!transformed->hasProperty(mergeAtom))
                     return removeChildNode(transformed);
                 break;

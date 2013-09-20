@@ -318,7 +318,7 @@ bool CDfuPlusHelper::fixedSpray(const char* srcxml,const char* srcip,const char*
         req->setTransferBufferSize(globals->getPropInt("transferbuffersize"));
 
     if(srcxml == NULL)
-        info("\nSpraying from %s on %s to %s\n", srcfile, srcip, dstname);
+        info("\nFixed spraying from %s on %s to %s\n", srcfile, srcip, dstname);
     else
         info("\nSpraying to %s\n", dstname);
 
@@ -369,7 +369,7 @@ bool CDfuPlusHelper::variableSpray(const char* srcxml,const char* srcip,const ch
             encoding = "ascii";
 
         if(rowtag != NULL && *rowtag != '\0')
-            throw MakeStringException(-1, "You can't use rowtag option with csv format");
+            throw MakeStringException(-1, "You can't use rowtag option with csv/delimited format");
 
         const char* separator = globals->queryProp("separator");
         if(separator && *separator)
@@ -424,7 +424,7 @@ bool CDfuPlusHelper::variableSpray(const char* srcxml,const char* srcip,const ch
         req->setTransferBufferSize(globals->getPropInt("transferbuffersize"));
 
     if(srcxml == NULL)
-        info("\nSpraying from %s on %s to %s\n", srcfile, srcip, dstname);
+        info("\nVariable spraying from %s on %s to %s\n", srcfile, srcip, dstname);
     else
         info("\nSpraying to %s\n", dstname);
     Owned<IClientSprayResponse> result = sprayclient->SprayVariable(req);
@@ -479,6 +479,8 @@ int CDfuPlusHelper::spray()
     const char* format = globals->queryProp("format");
     if(format == NULL)
         format = "fixed";
+    else if (stricmp(format, "delimited") == 0)
+        format="csv";
 
     SocketEndpoint localep;
     StringBuffer localeps;
@@ -489,7 +491,7 @@ int CDfuPlusHelper::spray()
     bool ok;
     if ((stricmp(format, "fixed") == 0)||(stricmp(format, "recfmvb") == 0)||(stricmp(format, "recfmv") == 0)||(stricmp(format, "variablebigendian") == 0))
         ok = fixedSpray(srcxml,srcip,srcfile,xmlbuf,dstcluster,dstname,format,wuid,errmsg);
-    else if((stricmp(format, "csv") == 0) ||(stricmp(format, "xml") == 0)||(stricmp(format, "variable") == 0))
+    else if((stricmp(format, "csv") == 0)||(stricmp(format, "xml") == 0)||(stricmp(format, "variable") == 0))
         ok = variableSpray(srcxml,srcip,srcfile,xmlbuf,dstcluster,dstname,format,wuid, errmsg);
     else
         throw MakeStringException(-1, "format %s not supported", format);

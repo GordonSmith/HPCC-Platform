@@ -34,7 +34,7 @@ void handleSyntax()
     StringBuffer out;
 
     out.append("Usage:\n");
-    out.append("    dfuplus action=[spray|replicate|despray|copy|dkc|remove|rename|list|\n");
+    out.append("    dfuplus action=[spray|replicate|despray|copy|remove|rename|list|\n");
     out.append("                    addsuper|removesuper|listsuper|copysuper|dafilesrv|\n");
     out.append("                    savexml|add|status|abort|resubmit|monitor] {<options>}\n");
     out.append("    general options:\n");
@@ -56,18 +56,18 @@ void handleSyntax()
     out.append("        encrypt=<password> -- optional, encrypt target\n");
     out.append("        decrypt=<password> -- optional, decrypt source\n");
     out.append("        push=0|1 -- optional override pull/push default\n");
-    out.append("        jobname=<jobname> -- specify the jobname for spray, despray, dkc, copy, rename and replicate.\n");
+    out.append("        jobname=<jobname> -- specify the jobname for spray, despray, copy, rename and replicate.\n");
     out.append("    spray options:\n");
     out.append("        srcip=<source-machine-ip>\n");
     out.append("        srcfile=<source-file-path>\n");
     out.append("        srcxml=<xml-file> -- replaces srcip and srcfile\n");
     out.append("        dstname=<destination-logical-name>\n");
     out.append("        dstcluster=<cluster-name>\n");
-    out.append("        format=fixed|csv|xml|variable|recfmv|recfmvb\n");
+    out.append("        format=fixed|csv|delimited|xml|variable|recfmv|recfmvb\n");
     out.append("        prefix=filename{:length},filesize{:[B|L][1-8]}\n");
     out.append("        options for fixed:\n");
     out.append("            recordsize=<record-size>\n");
-    out.append("        options for csv:\n");
+    out.append("        options for csv/delimited:\n");
     out.append("            encoding=ascii|utf8|utf8n|utf16|utf16le|utf16be|utf32|utf32le|utf32be -- optional, default is ascii\n");
     out.append("            maxrecordsize=<max-record-size> -- optional, default is 8192\n");
     out.append("            separator=<separator> -- optional, default is \\,\n");
@@ -102,10 +102,6 @@ void handleSyntax()
     out.append("        diffkeysrc=<old-key-name>   -- use keydiff/keypatch (src old name)\n");
     out.append("        diffkeydst=<old-key-name>   -- use keydiff/keypatch (dst old name)\n");
     out.append("        multicopy=0|1   -- each destination part gets whole file\n");
-    out.append("    dkc options:\n");
-    out.append("        srcname=<source-logical-name>\n");
-    out.append("        dstip=<destination-machine-ip>\n");
-    out.append("        dstfile=<destination-file-path>\n");
     out.append("    remove options:\n");
     out.append("        name=<logical-name>\n");
     out.append("        names=<multiple-logical-names-separated-by-comma>\n");

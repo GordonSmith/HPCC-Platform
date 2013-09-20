@@ -63,7 +63,6 @@
 #define WRN_SORT_INVARIANT          1038
 #define WRN_POSSIBLE_FILTER         1039
 #define WRN_BAD_LOOPFLAG            1040
-#define WRN_RECORDDEFAULTMAXLENGTH  1041
 #define WRN_COND_ASSIGN_NO_PREV     1042
 #define WRN_NOT_INTERFACE           1043
 #define WRN_PACKED_MAY_CHANGE       1044
@@ -73,6 +72,8 @@
 #define WRN_EXPORT_IGNORED          1048
 #define WRN_RECORDMANYFIELDS        1049
 #define WRN_RESERVED_FUTURE         1050 /* Identifier likely to be reserved in future versions */
+#define WRN_SILLY_EXISTS            1051
+
 //#define ECL_WARN_END          1100
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -418,6 +419,7 @@
 #define HQLERR_CannotSubmitMacroX   2388
 #define HQLERR_CannotBeGrouped      2389
 #define HQLERR_CannotAccessShared   2390
+#define ERR_PluginNoScripting       2391
 
 #define ERR_ASSERTION_FAILS         100000
 

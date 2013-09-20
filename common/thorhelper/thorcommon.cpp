@@ -499,25 +499,42 @@ void CThorDemoRowSerializer::endNested(size32_t sizePos)
 
 
 
-IOutputRowSerializer * CachedOutputMetaData::createRowSerializer(ICodeContext * ctx, unsigned activityId) const
+IOutputRowSerializer * CachedOutputMetaData::createDiskSerializer(ICodeContext * ctx, unsigned activityId) const
 {
-    if (metaFlags & (MDFhasserialize|MDFneedserialize))
-        return meta->createRowSerializer(ctx, activityId);
+    if (metaFlags & (MDFhasserialize|MDFneedserializedisk))
+        return meta->createDiskSerializer(ctx, activityId);
     if (isFixedSize())
         return new CSimpleFixedRowSerializer(getFixedSize());
     return new CSimpleVariableRowSerializer(this);
 }
 
 
-IOutputRowDeserializer * CachedOutputMetaData::createRowDeserializer(ICodeContext * ctx, unsigned activityId) const
+IOutputRowDeserializer * CachedOutputMetaData::createDiskDeserializer(ICodeContext * ctx, unsigned activityId) const
 {
-    if (metaFlags & (MDFhasserialize|MDFneedserialize))
-        return meta->createRowDeserializer(ctx, activityId);
+    if (metaFlags & (MDFhasserialize|MDFneedserializedisk))
+        return meta->createDiskDeserializer(ctx, activityId);
     if (isFixedSize())
         return new CSimpleFixedRowDeserializer(getFixedSize());
-    assertex(!"createRowDeserializer variable meta has no serializer");
-    //return new CSimpleVariableRowDeserializer(this);
-    return NULL;
+    throwUnexpectedX("createDiskDeserializer variable meta has no serializer");
+}
+
+IOutputRowSerializer * CachedOutputMetaData::createInternalSerializer(ICodeContext * ctx, unsigned activityId) const
+{
+    if (metaFlags & (MDFhasserialize|MDFneedserializeinternal))
+        return meta->createInternalSerializer(ctx, activityId);
+    if (isFixedSize())
+        return new CSimpleFixedRowSerializer(getFixedSize());
+    return new CSimpleVariableRowSerializer(this);
+}
+
+
+IOutputRowDeserializer * CachedOutputMetaData::createInternalDeserializer(ICodeContext * ctx, unsigned activityId) const
+{
+    if (metaFlags & (MDFhasserialize|MDFneedserializeinternal))
+        return meta->createInternalDeserializer(ctx, activityId);
+    if (isFixedSize())
+        return new CSimpleFixedRowDeserializer(getFixedSize());
+    throwUnexpectedX("createInternalDeserializer variable meta has no serializer");
 }
 
 void CSizingSerializer::put(size32_t len, const void * ptr)
@@ -585,7 +602,7 @@ size32_t cloneRow(ARowBuilder & rowBuilder, const void * row, IOutputMetaData * 
     size32_t rowSize = meta->getRecordSize(row);        // TBD could be better?
     byte * self = rowBuilder.ensureCapacity(rowSize, NULL);
     memcpy(self, row, rowSize);
-    if (meta->getMetaFlags() & MDFneedserialize)
+    if (meta->getMetaFlags() & MDFneeddestruct)
     {
         ChildRowLinkerWalker walker;
         meta->walkIndirectMembers(self, walker);
@@ -620,12 +637,10 @@ extern const char * getActivityText(ThorActivityKind kind)
     case TAKselfjoin:               return "Self Join";
     case TAKkeyedjoin:              return "Keyed Join";
     case TAKgroup:                  return "Group";
-    case TAKworkunitwrite:              return "Output";
+    case TAKworkunitwrite:          return "Output";
     case TAKfunnel:                 return "Funnel";
     case TAKapply:                  return "Apply";
-    case TAKtemptable:              return "Inline Dataset";
     case TAKinlinetable:            return "Inline Dataset";
-    case TAKtemprow:                return "Inline Row";
     case TAKhashdistribute:         return "Hash Distribute";
     case TAKhashdedup:              return "Hash Dedup";
     case TAKnormalize:              return "Normalize";
@@ -723,7 +738,6 @@ extern const char * getActivityText(ThorActivityKind kind)
     case TAKchildcase:              return "Case";
     case TAKremotegraph:            return "Remote";
     case TAKlibrarycall:            return "Library Call";
-    case TAKrawiterator:            return "Child Dataset";
     case TAKlocalstreamread:        return "Read Input";
     case TAKprocess:                return "Process";
     case TAKgraphloop:              return "Graph";
@@ -768,7 +782,9 @@ extern const char * getActivityText(ThorActivityKind kind)
     case TAKexternalsink:           return "User Output";
     case TAKexternalprocess:        return "User Proceess";
     case TAKwhen_action:            return "When";
-    case TAKshuffle:                return "Shuffle";
+    case TAKsubsort:                return "Sub Sort";
+    case TAKdictionaryworkunitwrite:return "Dictionary Write";
+    case TAKdictionaryresultwrite:  return "Dictionary Result";
     }
     throwUnexpected();
 }
@@ -778,9 +794,7 @@ extern bool isActivitySource(ThorActivityKind kind)
     switch (kind)
     {
     case TAKpiperead:
-    case TAKtemptable:
     case TAKinlinetable:
-    case TAKtemprow:
     case TAKworkunitread:
     case TAKnull:
     case TAKsideeffect:
@@ -808,7 +822,6 @@ extern bool isActivitySource(ThorActivityKind kind)
     case TAKxmlread:
     case TAKlocalresultread:
     case TAKsimpleaction:
-    case TAKrawiterator:
     case TAKlocalstreamread:
     case TAKgraphloopresultread:
     case TAKnwaygraphloopresultread:
@@ -850,21 +863,12 @@ extern bool isActivitySink(ThorActivityKind kind)
     case TAKparallel:
     case TAKsequential:
     case TAKwhen_action:
+    case TAKdictionaryworkunitwrite:
+    case TAKdictionaryresultwrite:
         return true;
     }
     return false;
 }
-
-//------------------------------------------------------------------------------------------------
-
-byte * CStaticRowBuilder::ensureCapacity(size32_t required, const char * fieldName)
-{
-    if (required <= maxLength)
-        return static_cast<byte *>(self);
-    rtlReportFieldOverflow(required, maxLength, fieldName);
-    return NULL;
-}
-
 
 //=====================================================================================================
 
@@ -1086,7 +1090,7 @@ IRowInterfaces *createRowInterfaces(IOutputMetaData *meta, unsigned actid, ICode
         {
             if (serializerlock.lock()) {
                 if (!serializer&&meta) 
-                    serializer.setown(meta->createRowSerializer(context,actid));
+                    serializer.setown(meta->createDiskSerializer(context,actid));
                 serializerlock.unlock();
             }
             return serializer;
@@ -1095,7 +1099,7 @@ IRowInterfaces *createRowInterfaces(IOutputMetaData *meta, unsigned actid, ICode
         {
             if (deserializerlock.lock()) {
                 if (!deserializer&&meta) 
-                    deserializer.setown(meta->createRowDeserializer(context,actid));
+                    deserializer.setown(meta->createDiskDeserializer(context,actid));
                 deserializerlock.unlock();
             }
             return deserializer;
@@ -1150,7 +1154,7 @@ class CRowStreamReader : public CSimpleInterface, implements IExtRowStream
 public:
     IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
 
-    CRowStreamReader(IFileIO *_fileio,IMemoryMappedFile *_mmfile,offset_t _ofs, offset_t _len, IRowInterfaces *rowif,unsigned __int64 _maxrows,bool _tallycrc, bool _grouped)
+    CRowStreamReader(IFileIO *_fileio, IMemoryMappedFile *_mmfile, IRowInterfaces *rowif, offset_t _ofs, offset_t _len, unsigned __int64 _maxrows, bool _tallycrc, bool _grouped)
         : fileio(_fileio), mmfile(_mmfile), allocator(rowif->queryRowAllocator()), prefetchBuffer(NULL) 
     {
 #ifdef TRACE_CREATE
@@ -1167,7 +1171,7 @@ public:
             strm.setown(createFileSerialStream(fileio,_ofs,_len,(size32_t)-1, _tallycrc?&crccb:NULL));
         else
             strm.setown(createFileSerialStream(mmfile,_ofs,_len,_tallycrc?&crccb:NULL));
-        prefetcher.setown(rowif->queryRowMetaData()->createRowPrefetcher(rowif->queryCodeContext(), rowif->queryActivityId()));
+        prefetcher.setown(rowif->queryRowMetaData()->createDiskPrefetcher(rowif->queryCodeContext(), rowif->queryActivityId()));
         if (prefetcher)
             prefetchBuffer.setStream(strm);
         source.setStream(strm);
@@ -1287,33 +1291,39 @@ unsigned CRowStreamReader::rdnum;
 
 bool UseMemoryMappedRead = false;
 
-IExtRowStream *createRowStream(IFile *file,IRowInterfaces *rowif,offset_t offset,offset_t len,unsigned __int64 maxrows,bool tallycrc,bool grouped)
+IExtRowStream *createRowStreamEx(IFile *file, IRowInterfaces *rowIf, offset_t offset, offset_t len, unsigned __int64 maxrows, unsigned rwFlags, IExpander *eexp)
 {
-    IExtRowStream *ret;
-    if (UseMemoryMappedRead) {
+    bool compressed = TestRwFlag(rwFlags, rw_compress);
+    if (UseMemoryMappedRead && !compressed)
+    {
         PROGLOG("Memory Mapped read of %s",file->queryFilename());
         Owned<IMemoryMappedFile> mmfile = file->openMemoryMapped();
         if (!mmfile)
             return NULL;
-        ret = new CRowStreamReader(NULL,mmfile,offset,len,rowif,maxrows,tallycrc,grouped);
+        return new CRowStreamReader(NULL, mmfile, rowIf, offset, len, maxrows, TestRwFlag(rwFlags, rw_crc), TestRwFlag(rwFlags, rw_grouped));
     }
-    else {
-        Owned<IFileIO> fileio = file->open(IFOread);
+    else
+    {
+        Owned<IFileIO> fileio;
+        if (compressed)
+        {
+            // JCSMORE should pass in a flag for rw_compressblkcrc I think, doesn't look like it (or anywhere else)
+            // checks the block crc's at the moment.
+            fileio.setown(createCompressedFileReader(file, eexp, UseMemoryMappedRead));
+        }
+        else
+            fileio.setown(file->open(IFOread));
         if (!fileio)
             return NULL;
-        ret = new CRowStreamReader(fileio,NULL,offset,len,rowif,maxrows,tallycrc,grouped);
+        return new CRowStreamReader(fileio, NULL, rowIf, offset, len, maxrows, TestRwFlag(rwFlags, rw_crc), TestRwFlag(rwFlags, rw_grouped));
     }
-    return ret;
 }
 
-IExtRowStream *createCompressedRowStream(IFile *file,IRowInterfaces *rowif,offset_t offset,offset_t len,unsigned __int64 maxrows,bool tallycrc,bool grouped,IExpander *eexp)
+IExtRowStream *createRowStream(IFile *file, IRowInterfaces *rowIf, unsigned rwFlags, IExpander *eexp)
 {
-    Owned<IFileIO> fileio = createCompressedFileReader(file, eexp, UseMemoryMappedRead);
-    if (!fileio)
-        return NULL;
-    IExtRowStream *ret = new CRowStreamReader(fileio,NULL,offset,len,rowif,maxrows,tallycrc,grouped);
-    return ret;
+    return createRowStreamEx(file, rowIf, 0, (offset_t)-1, (unsigned __int64)-1, rwFlags, eexp);
 }
+
 
 void useMemoryMappedRead(bool on)
 {
@@ -1343,29 +1353,50 @@ class CRowStreamWriter : public CSimpleInterface, private IRowSerializerTarget, 
 
     void flushBuffer(bool final) 
     {
-        if (bufpos) {
-            stream->write(bufpos,buf);
-            if (tallycrc)
-                crc.tally(bufpos,buf);
-            bufpos = 0;
+        try
+        {
+            if (bufpos) {
+                stream->write(bufpos,buf);
+                if (tallycrc)
+                    crc.tally(bufpos,buf);
+                bufpos = 0;
+            }
+            size32_t extpos = extbuf.length();
+            if (!extpos)
+                return;
+            if (!final)
+                extpos = (extpos/ROW_WRITER_BUFFERSIZE)*ROW_WRITER_BUFFERSIZE;
+            if (extpos) {
+                stream->write(extpos,extbuf.toByteArray());
+                if (tallycrc)
+                    crc.tally(extpos,extbuf.toByteArray());
+            }
+            if (extpos<extbuf.length()) {
+                bufpos = extbuf.length()-extpos;
+                memcpy(buf,extbuf.toByteArray()+extpos,bufpos);
+            }
+            extbuf.clear();
         }
-        size32_t extpos = extbuf.length();
-        if (!extpos)
-            return;
-        if (!final) 
-            extpos = (extpos/ROW_WRITER_BUFFERSIZE)*ROW_WRITER_BUFFERSIZE;
-        if (extpos) {
-            stream->write(extpos,extbuf.toByteArray());
-            if (tallycrc)
-                crc.tally(extpos,extbuf.toByteArray());
+        catch (IException *e)
+        {
+            autoflush = false; // avoid follow-on errors
+            EXCLOG(e, "flushBuffer");
+            throw;
         }
-        if (extpos<extbuf.length()) {
-            bufpos = extbuf.length()-extpos;
-            memcpy(buf,extbuf.toByteArray()+extpos,bufpos);
-        }
-        extbuf.clear();
     }
-
+    void streamFlush()
+    {
+        try
+        {
+            stream->flush();
+        }
+        catch (IException *e)
+        {
+            autoflush = false; // avoid follow-on errors
+            EXCLOG(e, "streamFlush");
+            throw;
+        }
+    }
 public:
     IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
 
@@ -1425,13 +1456,13 @@ public:
     void flush()
     {
         flushBuffer(true);
-        stream->flush();
+        streamFlush();
     }
 
     void flush(CRC32 *crcout)
     {
         flushBuffer(true);
-        stream->flush();
+        streamFlush();
         if (crcout)
             *crcout = crc;
     }
@@ -1505,20 +1536,44 @@ public:
 unsigned CRowStreamWriter::wrnum=0;
 #endif
 
-IExtRowWriter *createRowWriter(IFile *file,IOutputRowSerializer *serializer,IEngineRowAllocator *allocator,bool grouped, bool tallycrc, bool extend)
+IExtRowWriter *createRowWriter(IFile *iFile, IRowInterfaces *rowIf, unsigned flags, ICompressor *compressor)
 {
-    Owned<IFileIO> fileio = file->open(extend?IFOwrite:IFOcreate);
-    if (!fileio)
+    OwnedIFileIO iFileIO;
+    if (TestRwFlag(flags, rw_compress))
+    {
+        size32_t fixedSize = rowIf->queryRowMetaData()->querySerializedDiskMeta()->getFixedSize();
+        if (fixedSize && TestRwFlag(flags, rw_grouped))
+            ++fixedSize; // row writer will include a grouping byte
+        iFileIO.setown(createCompressedFileWriter(iFile, fixedSize, TestRwFlag(flags, rw_extend), TestRwFlag(flags, rw_compressblkcrc), compressor, TestRwFlag(flags, rw_fastlz)));
+    }
+    else
+        iFileIO.setown(iFile->open((flags & rw_extend)?IFOwrite:IFOcreate));
+    if (!iFileIO)
         return NULL;
-    Owned<IFileIOStream> stream = createIOStream(fileio);
-    if (extend)
-        stream->seek(0,IFSend);
-    return createRowWriter(stream,serializer,allocator,grouped,tallycrc,true);
+    flags &= ~((unsigned)(rw_compress|rw_fastlz|rw_compressblkcrc));
+    return createRowWriter(iFileIO, rowIf, flags);
 }
 
-IExtRowWriter *createRowWriter(IFileIOStream *strm,IOutputRowSerializer *serializer,IEngineRowAllocator *allocator,bool grouped, bool tallycrc, bool autoflush)
+IExtRowWriter *createRowWriter(IFileIO *iFileIO, IRowInterfaces *rowIf, unsigned flags)
 {
-    Owned<CRowStreamWriter> writer = new CRowStreamWriter(strm, serializer, allocator, grouped, tallycrc, autoflush);
+    if (TestRwFlag(flags, rw_compress))
+        throw MakeStringException(0, "Unsupported createRowWriter flags");
+    Owned<IFileIOStream> stream;
+    if (TestRwFlag(flags, rw_buffered))
+        stream.setown(createBufferedIOStream(iFileIO));
+    else
+        stream.setown(createIOStream(iFileIO));
+    if (flags & rw_extend)
+        stream->seek(0, IFSend);
+    flags &= ~((unsigned)(rw_extend|rw_buffered));
+    return createRowWriter(stream, rowIf, flags);
+}
+
+IExtRowWriter *createRowWriter(IFileIOStream *strm, IRowInterfaces *rowIf, unsigned flags)
+{
+    if (0 != (flags & (rw_compress|rw_fastlz|rw_extend|rw_buffered|rw_compressblkcrc)))
+        throw MakeStringException(0, "Unsupported createRowWriter flags");
+    Owned<CRowStreamWriter> writer = new CRowStreamWriter(strm, rowIf->queryRowSerializer(), rowIf->queryRowAllocator(), TestRwFlag(flags, rw_grouped), TestRwFlag(flags, rw_crc), TestRwFlag(flags, rw_autoflush));
     return writer.getClear();
 }
 
@@ -1563,7 +1618,7 @@ public:
         tempname.append('.').append(tempfiles.ordinality()).append('_').append((__int64)GetCurrentThreadId()).append('_').append((unsigned)GetCurrentProcessId());
         IFile *file = createIFile(tempname.str());
         tempfiles.append(*file);
-        return createRowWriter(file,rowInterfaces->queryRowSerializer(),rowInterfaces->queryRowAllocator(),false,false,false); // flushed by close
+        return createRowWriter(file, rowInterfaces);
     }
     void put(const void **rows,unsigned numrows)
     {
@@ -1581,7 +1636,7 @@ public:
     {
         Owned<IRowWriter> out = createWriteBlock();
         void * row;
-        while(row = rows->getNextSorted())
+        while((row = rows->getNextSorted()) != NULL)
             out->putRow(row);
     }
     IRowStream *merge(ICompare *icompare, bool partdedup)
@@ -1590,7 +1645,7 @@ public:
         strms = (IRowStream **)calloc(numstrms,sizeof(IRowStream *));
         unsigned i;
         for (i=0;i<numstrms;i++) {
-            strms[i] = createSimpleRowStream(&tempfiles.item(i), rowInterfaces);
+            strms[i] = createRowStream(&tempfiles.item(i), rowInterfaces);
         }
         if (numstrms==1) 
             return LINK(strms[0]);
@@ -1611,9 +1666,7 @@ public:
             ++count;
         }
         return count;
-    }
-
-    
+    }    
 };
 
 IDiskMerger *createDiskMerger(IRowInterfaces *rowInterfaces, IRowLinkCounter *linker, const char *tempnamebase)

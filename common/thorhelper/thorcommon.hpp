@@ -25,6 +25,7 @@
 #include "thorhelper.hpp"
 #include "thorxmlwrite.hpp"
 
+#define DALI_RESULT_OUTPUTMAX 2000 // MB
 class THORHELPER_API CSizingSerializer : implements IRowSerializerTarget
 {
     size32_t totalsize;
@@ -68,6 +69,21 @@ extern THORHELPER_API void useMemoryMappedRead(bool on);
 
 extern THORHELPER_API IRowInterfaces *createRowInterfaces(IOutputMetaData *meta, unsigned actid, ICodeContext *context);
 
+
+enum RowReaderWriterFlags
+{
+    rw_grouped        = 0x1,
+    rw_crc            = 0x2,
+    rw_extend         = 0x4,
+    rw_compress       = 0x8,
+    rw_compressblkcrc = 0x10, // block compression, this sets/checks crc's at block level
+    rw_fastlz         = 0x20, // if rw_compress
+    rw_autoflush      = 0x40,
+    rw_buffered       = 0x80
+};
+#define DEFAULT_RWFLAGS (rw_buffered|rw_autoflush|rw_compressblkcrc)
+inline bool TestRwFlag(unsigned flags, RowReaderWriterFlags flag) { return 0 != (flags & flag); }
+
 interface IExtRowStream: extends IRowStream
 {
     virtual offset_t getOffset() = 0;
@@ -77,19 +93,19 @@ interface IExtRowStream: extends IRowStream
     virtual void reinit(offset_t offset,offset_t len,unsigned __int64 maxrows) = 0;
 };
 
-extern THORHELPER_API IExtRowStream *createRowStream(IFile *file,IRowInterfaces *rowif,offset_t offset,offset_t len,unsigned __int64 maxrows,bool tallycrc,bool grouped);
-inline IExtRowStream *createSimpleRowStream(IFile *file,IRowInterfaces *rowif) { return createRowStream(file, rowif,0,(offset_t)-1,(unsigned __int64)-1,false,false); }
-interface IExpander;
-extern THORHELPER_API IExtRowStream *createCompressedRowStream(IFile *file,IRowInterfaces *rowif,offset_t offset,offset_t len,unsigned __int64 maxrows,bool tallycrc,bool grouped,IExpander *eexp);
-
 interface IExtRowWriter: extends IRowWriter
 {
     virtual offset_t getPosition() = 0;
     virtual void flush(CRC32 *crcout=NULL) = 0;
 };
 
-extern THORHELPER_API IExtRowWriter *createRowWriter(IFile *file,IOutputRowSerializer *serializer,IEngineRowAllocator *allocator,bool grouped=false, bool tallycrc=false, bool extend=false); 
-extern THORHELPER_API IExtRowWriter *createRowWriter(IFileIOStream *strm,IOutputRowSerializer *serializer,IEngineRowAllocator *allocator,bool grouped=false, bool tallycrc=false,bool autoflush=true); // strm should be unbuffered
+interface IExpander;
+extern THORHELPER_API IExtRowStream *createRowStream(IFile *file, IRowInterfaces *rowif, unsigned flags=DEFAULT_RWFLAGS, IExpander *eexp=NULL);
+extern THORHELPER_API IExtRowStream *createRowStreamEx(IFile *file, IRowInterfaces *rowif, offset_t offset=0, offset_t len=(offset_t)-1, unsigned __int64 maxrows=(unsigned __int64)-1, unsigned flags=DEFAULT_RWFLAGS, IExpander *eexp=NULL);
+interface ICompressor;
+extern THORHELPER_API IExtRowWriter *createRowWriter(IFile *file, IRowInterfaces *rowIf, unsigned flags=DEFAULT_RWFLAGS, ICompressor *compressor=NULL);
+extern THORHELPER_API IExtRowWriter *createRowWriter(IFileIO *fileIO, IRowInterfaces *rowIf, unsigned flags=DEFAULT_RWFLAGS);
+extern THORHELPER_API IExtRowWriter *createRowWriter(IFileIOStream *strm, IRowInterfaces *rowIf, unsigned flags=DEFAULT_RWFLAGS); // strm should be unbuffered
 
 interface THORHELPER_API IDiskMerger : extends IInterface
 {
@@ -268,25 +284,9 @@ public:
     {
         ctx->getExternalResultRaw(tlen, tgt, wuid, stepname, sequence, xmlTransformer, csvTransformer);
     }
-    virtual char *getDaliServers()
-    {
-        return ctx->getDaliServers();
-    }
     virtual void executeGraph(const char * graphName, bool realThor, size32_t parentExtractSize, const void * parentExtract)
     {
         ctx->executeGraph(graphName, realThor, parentExtractSize, parentExtract);
-    }
-    virtual __int64 countDiskFile(const char * lfn, unsigned recordSize)
-    {
-        return ctx->countDiskFile(lfn, recordSize);
-    }
-    virtual __int64 countIndex(__int64 activityId, IHThorCountIndexArg & arg)
-    {
-        return ctx->countIndex(activityId, arg);
-    }
-    virtual __int64 countDiskFile(__int64 activityId, IHThorCountFileArg & arg)
-    {
-        return ctx->countDiskFile(activityId, arg);
     }
     virtual char * getExpandLogicalName(const char * logicalName)
     {
@@ -311,10 +311,6 @@ public:
     virtual unsigned __int64 getDatasetHash(const char * name, unsigned __int64 hash)
     {
         return ctx->getDatasetHash(name, hash);
-    }
-    virtual unsigned getRecoveringCount()
-    {
-        return ctx->getRecoveringCount();
     }
     virtual unsigned getNodes()
     {
@@ -372,7 +368,7 @@ public:
     {
         return ctx->getOS();
     }
-    virtual ILocalGraph * resolveLocalQuery(__int64 activityId)
+    virtual IEclGraphResults * resolveLocalQuery(__int64 activityId)
     {
         return ctx->resolveLocalQuery(activityId);
     }
@@ -396,9 +392,21 @@ public:
     {
         return ctx->getRowAllocator(meta, activityId);
     }
-    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * name, unsigned sequence, IEngineRowAllocator * _rowAllocator, IOutputRowDeserializer * deserializer, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) 
+    virtual const char *cloneVString(const char *str) const
     {
-        ctx->getResultRowset(tcount, tgt, name, sequence, _rowAllocator, deserializer, isGrouped, xmlTransformer, csvTransformer);
+        return ctx->cloneVString(str);
+    }
+    virtual const char *cloneVString(size32_t len, const char *str) const
+    {
+        return ctx->cloneVString(len, str);
+    }
+    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * name, unsigned sequence, IEngineRowAllocator * _rowAllocator, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer)
+    {
+        ctx->getResultRowset(tcount, tgt, name, sequence, _rowAllocator, isGrouped, xmlTransformer, csvTransformer);
+    }
+    virtual void getResultDictionary(size32_t & tcount, byte * * & tgt, IEngineRowAllocator * _rowAllocator, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer, IHThorHashLookupInfo * hasher)
+    {
+        ctx->getResultDictionary(tcount, tgt, _rowAllocator, name, sequence, xmlTransformer, csvTransformer, hasher);
     }
     virtual void getRowXML(size32_t & lenResult, char * & result, IOutputMetaData & info, const void * row, unsigned flags)
     {
@@ -407,6 +415,10 @@ public:
     virtual const void * fromXml(IEngineRowAllocator * _rowAllocator, size32_t len, const char * utf8, IXmlToRowTransformer * xmlTransformer, bool stripWhitespace)
     {
         return ctx->fromXml(_rowAllocator, len, utf8, xmlTransformer, stripWhitespace);
+    }
+    virtual IEngineContext *queryEngineContext()
+    {
+        return ctx->queryEngineContext();
     }
 
 protected:

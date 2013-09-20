@@ -31,7 +31,7 @@
   <para><emphasis role="bold">XMLPROJECT</emphasis> returns the text from the
   <emphasis>xmltag </emphasis>as a child dataset.</para>
 
-  <informaltable colsep="0" frame="none" rowsep="0">
+  <informaltable colsep="1" frame="all" rowsep="1">
     <tgroup cols="2">
       <colspec align="left" colwidth="122.40pt" />
 
@@ -83,32 +83,40 @@ OUTPUT(books)
 &lt;Value count=2&gt;Chapman&lt;/Value&gt;
 &lt;/Field&gt;
 &lt;XML&gt;
- */
-
+*/
 extractedValueRec := RECORD
   STRING value;
   UNSIGNED cnt;
 END;
 
 extractedRec := RECORD
- STRING name;
- UNSIGNED cnt;
- DATASET(extractedValueRec) values;
+  STRING name;
+  UNSIGNED cnt;
+  DATASET(extractedValueRec) values;
 END;
+
+x := DATASET([{'&lt;XML&gt;' +
+               '&lt;Field name="surname" distinct="2"&gt;' +
+               '&lt;Value count="3"&gt;Halliday&lt;/Value&gt;' +
+               '&lt;Value count="2"&gt;Chapman&lt;/Value&gt;' +
+               '&lt;/Field&gt;' + 
+               '&lt;/XML&gt;'}],{STRING line});
 
 extractedRec t1 := TRANSFORM
-        SELF.name := XMLTEXT('@name');
-        SELF.cnt := (UNSIGNED)XMLTEXT('@distinct');
-        SELF.values := XMLPROJECT('Value',
-                      TRANSFORM(extractedValueRec,
-                         SELF.value := XMLTEXT(''),
-                         SELF.cnt :=
-                     (UNSIGNED)XMLTEXT('@count')))(cnt &gt; 1);
-END;
+ SELF.name   := XMLTEXT('@name');
+ SELF.cnt    := (UNSIGNED)XMLTEXT('@distinct');
+ SELF.values := XMLPROJECT('Value',
+                            TRANSFORM(extractedValueRec,
+                                      SELF.value := XMLTEXT(''),
+                                      SELF.cnt :=
+                                      (UNSIGNED)XMLTEXT('@count')))(cnt &gt; 1);
+ END;
+p := PARSE(x, line, t1, XML('XML/Field'));
+OUTPUT(p);
+</programlisting>
 
-p := PARSE(x, line, t1, XML('/XML/Field'));
-
-OUTPUT(p);</programlisting>
-
-  <para>See Also: <link linkend="PARSE">PARSE</link>, <link linkend="RECORD_Structure">RECORD Structure</link>, <link linkend="TRANSFORM_Structure">TRANSFORM Structure</link>, <link linkend="DATASET">DATASET</link></para>
+  <para>See Also: <link linkend="PARSE">PARSE</link>, <link
+  linkend="RECORD_Structure">RECORD Structure</link>, <link
+  linkend="TRANSFORM_Structure">TRANSFORM Structure</link>, <link
+  linkend="DATASET">DATASET</link></para>
 </sect1>

@@ -60,7 +60,7 @@
 #define HTTP_TYPE_TEXT_XML_UTF8                 "text/xml; charset=UTF-8"
 #define HTTP_TYPE_APPLICATION_XML_UTF8          "application/xml; charset=UTF-8"
 #define HTTP_TYPE_SOAP_UTF8                     "application/soap; charset=UTF-8"
-
+#define HTTP_TYPE_APPLICATION_JSON_UTF8         "application/json; charset=UTF-8"
 
 #define HTTP_STATUS_OK_CODE                 200
 #define HTTP_STATUS_NO_CONTENT_CODE         204
@@ -97,7 +97,7 @@
 //#define DEBUG_HTTP_
 #endif
 
-bool httpContentFromFile(const char *filepath, StringBuffer &mimetype, MemoryBuffer &fileContents);
+bool httpContentFromFile(const char *filepath, StringBuffer &mimetype, MemoryBuffer &fileContents, bool &checkmodifiedTime, StringBuffer &lastModified, StringBuffer &etag);
 bool xmlContentFromFile(const char *filepath, const char *stylesheet, StringBuffer &fileContents);
 
 

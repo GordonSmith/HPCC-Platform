@@ -26,7 +26,7 @@
 #endif
 
 ///#define FILE_DESPRAY_URL "FileDesprayAccess"
-#define FILE_IO_URL     "FileIO"
+#define FILE_IO_URL     "FileIOAccess"
 
 void CWsFileIOEx::init(IPropertyTree *cfg, const char *process, const char *service)
 {
@@ -47,7 +47,7 @@ bool CWsFileIOEx::CheckServerAccess(const char* server, const char* relPath, Str
 
     Owned<IPropertyTree> pEnvRoot = &env->getPTree();
     IPropertyTree* pEnvSoftware = pEnvRoot->queryPropTree("Software");
-    IPropertyTree* pRoot = createPTreeFromXMLString("<Environment/>");
+    Owned<IPropertyTree> pRoot = createPTreeFromXMLString("<Environment/>");
     IPropertyTree* pSoftware = pRoot->addPropTree("Software", createPTree("Software"));
     if (pEnvSoftware && pSoftware)
     {

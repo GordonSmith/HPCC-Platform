@@ -44,19 +44,19 @@
 #include "jsmartsock.hpp"
 #include "thorstep.hpp"
 #include "eclagent.ipp"
+#include "roxierowbuff.hpp"
 
 #define EMPTY_LOOP_LIMIT 1000
 
 static unsigned const hthorReadBufferSize = 0x10000;
-static memsize_t const defaultHThorSpillThreshold = 512*1024*1024;  // MORE - should increase on 64-bit platform?
 static offset_t const defaultHThorDiskWriteSizeLimit = I64C(10*1024*1024*1024); //10 GB, per Nigel
 static size32_t const spillStreamBufferSize = 0x10000;
 static int const defaultWorkUnitWriteLimit = 10; //10MB as thor
 static unsigned const hthorPipeWaitTimeout = 100; //100ms - fairly arbitrary choice
-static char const * const defaultSortAlgorithm = "stablequick";
 
 using roxiemem::IRowManager;
 using roxiemem::OwnedRoxieRow;
+using roxiemem::OwnedRoxieString;
 using roxiemem::OwnedConstRoxieRow;
 
 IRowManager * theRowManager;
@@ -118,7 +118,7 @@ bool CRowBuffer::pull(IHThorInput * input, unsigned __int64 rowLimit)
 {
     while(true)
     {
-        OwnedConstHThorRow next(input->nextInGroup());
+        OwnedConstRoxieRow next(input->nextInGroup());
         if(!next)
         {
             next.setown(input->nextInGroup());
@@ -235,9 +235,9 @@ void CHThorActivityBase::updateProgressForOther(IWUGraphProgress &progress, unsi
     edge.setPropInt64("@slaves", 1);
 }
 
-ILocalGraphEx * CHThorActivityBase::resolveLocalQuery(__int64 graphId)
+ILocalEclGraphResults * CHThorActivityBase::resolveLocalQuery(__int64 graphId)
 {
-    return static_cast<ILocalGraphEx *>(agent.queryCodeContext()->resolveLocalQuery(graphId));
+    return static_cast<ILocalEclGraphResults *>(agent.queryCodeContext()->resolveLocalQuery(graphId));
 }
 
 IException * CHThorActivityBase::makeWrappedException(IException * e) const
@@ -309,7 +309,7 @@ ClusterWriteHandler *createClusterWriteHandler(IAgentContext &agent, IHThorIndex
     unsigned clusterIdx = 0;
     while(true)
     {
-        char const * cluster = iwHelper ? iwHelper->queryCluster(clusterIdx++) : dwHelper->queryCluster(clusterIdx++);
+        OwnedRoxieString cluster(iwHelper ? iwHelper->getCluster(clusterIdx++) : dwHelper->getCluster(clusterIdx++));
         if(!cluster)
             break;
         if(!clusterHandler)
@@ -370,7 +370,7 @@ void CHThorDiskWriteActivity::ready()
     uncompressedBytesWritten = 0;
     numRecords = 0;
     sizeLimit = agent.queryWorkUnit()->getDebugValueInt64("hthorDiskWriteSizeLimit", defaultHThorDiskWriteSizeLimit);
-    rowSerializer.setown(input->queryOutputMeta()->createRowSerializer(agent.queryCodeContext(), activityId));
+    rowIf.setown(createRowInterfaces(input->queryOutputMeta(), activityId, agent.queryCodeContext()));
     open();
 }
 
@@ -400,7 +400,8 @@ void CHThorDiskWriteActivity::done()
 
 void CHThorDiskWriteActivity::resolve()
 {
-    mangleHelperFileName(mangledHelperFileName, helper.getFileName(), agent.queryWuid(), helper.getFlags());
+    OwnedRoxieString rawname = helper.getFileName();
+    mangleHelperFileName(mangledHelperFileName, rawname, agent.queryWuid(), helper.getFlags());
     assertex(mangledHelperFileName.str());
     if((helper.getFlags() & (TDXtemporary | TDXjobtemp)) == 0)
     {
@@ -427,7 +428,7 @@ void CHThorDiskWriteActivity::resolve()
                 else
                     throw MakeStringException(99, "Cannot write %s, file already exists (missing OVERWRITE attribute?)", lfn.str());
             }
-            else if (f->exists())
+            else if (f->exists() || agent.queryResolveFilesLocally())
             {
                 // special/local/external file
                 if (f->numParts()!=1)
@@ -485,10 +486,9 @@ void CHThorDiskWriteActivity::open()
 {
     // Open an output file...
     file.setown(createIFile(filename));
-    inputMeta.set(input->queryOutputMeta());
-    serializedOutputMeta.set(input->queryOutputMeta()->querySerializedMeta());//returns outputMeta if serialization not needed
+    serializedOutputMeta.set(input->queryOutputMeta()->querySerializedDiskMeta());//returns outputMeta if serialization not needed
 
-    Linked<IRecordSize> groupedMeta = input->queryOutputMeta()->querySerializedMeta();
+    Linked<IRecordSize> groupedMeta = input->queryOutputMeta()->querySerializedDiskMeta();
     if(grouped)
         groupedMeta.setown(createDeltaRecordSize(groupedMeta, +1));
     blockcompressed = checkIsCompressed(helper.getFlags(), serializedOutputMeta.getFixedSize(), grouped);//TDWnewcompress for new compression, else check for row compression
@@ -517,8 +517,12 @@ void CHThorDiskWriteActivity::open()
     if(extend)
         diskout->seek(0, IFSend);
 
-    bool tallycrc = !agent.queryWorkUnit()->getDebugValueBool("skipFileFormatCrcCheck", false) && !(helper.getFlags() & TDRnocrccheck);
-    IExtRowWriter * writer = createRowWriter(diskout, rowSerializer, rowAllocator, grouped, tallycrc, true );
+    unsigned rwFlags = rw_autoflush;
+    if(grouped)
+        rwFlags |= rw_grouped;
+    if(!agent.queryWorkUnit()->getDebugValueBool("skipFileFormatCrcCheck", false) && !(helper.getFlags() & TDRnocrccheck))
+        rwFlags |= rw_crc;
+    IExtRowWriter * writer = createRowWriter(diskout, rowIf, rwFlags);
     outSeq.setown(writer);
 
 }
@@ -547,7 +551,7 @@ bool CHThorDiskWriteActivity::next()
 {
     if (!nextrow.get())
     {
-        OwnedConstHThorRow row(input->nextInGroup());
+        OwnedConstRoxieRow row(input->nextInGroup());
         if (!row.get()) 
         {
             row.setown(input->nextInGroup());
@@ -780,7 +784,7 @@ void CHThorSpillActivity::done()
 {
     loop 
     {
-        OwnedConstHThorRow nextrec(nextInGroup());
+        OwnedConstRoxieRow nextrec(nextInGroup());
         if (!nextrec) 
         {
             nextrec.setown(nextInGroup());
@@ -802,7 +806,7 @@ CHThorCsvWriteActivity::CHThorCsvWriteActivity(IAgentContext &_agent, unsigned _
 
 void CHThorCsvWriteActivity::execute()
 {
-    const char * header = helper.queryCsvParameters()->queryHeader();
+    OwnedRoxieString header(helper.queryCsvParameters()->getHeader());
     if (header) {
         csvOutput.beginLine();
         csvOutput.writeHeaderLn(strlen(header), header);
@@ -813,7 +817,7 @@ void CHThorCsvWriteActivity::execute()
     numRecords = 0;
     loop
     {
-        OwnedConstHThorRow nextrec(input->nextInGroup());
+        OwnedConstRoxieRow nextrec(input->nextInGroup());
         if (!nextrec)
         {
             nextrec.setown(input->nextInGroup());
@@ -835,7 +839,7 @@ void CHThorCsvWriteActivity::execute()
         numRecords++;
     }
 
-    const char * footer = helper.queryCsvParameters()->queryFooter();
+    OwnedRoxieString footer(helper.queryCsvParameters()->getFooter());
     if (footer) {
         csvOutput.beginLine();
         csvOutput.writeHeaderLn(strlen(footer), footer);
@@ -847,9 +851,10 @@ void CHThorCsvWriteActivity::setFormat(IFileDescriptor * desc)
 {
     // MORE - should call parent's setFormat too?
     ICsvParameters * csvInfo = helper.queryCsvParameters();
+    OwnedRoxieString rs(csvInfo->getSeparator(0));
     StringBuffer separator;
-    const char *s = csvInfo->querySeparator(0);
-    while (*s)
+    const char *s = rs;
+    while (s && *s)
     {
         if (',' == *s)
             separator.append("\\,");
@@ -858,9 +863,9 @@ void CHThorCsvWriteActivity::setFormat(IFileDescriptor * desc)
         ++s;
     }
     desc->queryProperties().setProp("@csvSeparate", separator.str());
-    desc->queryProperties().setProp("@csvQuote", csvInfo->queryQuote(0));
-    desc->queryProperties().setProp("@csvTerminate", csvInfo->queryTerminator(0));
-    desc->queryProperties().setProp("@csvEscape", csvInfo->queryEscape(0));
+    desc->queryProperties().setProp("@csvQuote", rs.setown(csvInfo->getQuote(0)));
+    desc->queryProperties().setProp("@csvTerminate", rs.setown(csvInfo->getTerminator(0)));
+    desc->queryProperties().setProp("@csvEscape", rs.setown(csvInfo->getEscape(0)));
     desc->queryProperties().setProp("@format","utf8n");
 }
 
@@ -868,11 +873,12 @@ void CHThorCsvWriteActivity::setFormat(IFileDescriptor * desc)
 
 CHThorXmlWriteActivity::CHThorXmlWriteActivity(IAgentContext &_agent, unsigned _activityId, unsigned _subgraphId, IHThorXmlWriteArg &_arg, ThorActivityKind _kind) : CHThorDiskWriteActivity(_agent, _activityId, _subgraphId, _arg, _kind), helper(_arg)
 {
-    const char * path = helper.queryIteratorPath();
-    if (!path)
+    OwnedRoxieString xmlpath(helper.getXmlIteratorPath());
+    if (!xmlpath)
         rowTag.append("Row");
     else
     {
+        const char *path = xmlpath;
         if (*path == '/') path++;
         if (strchr(path, '/')) UNIMPLEMENTED;               // more what do we do with /mydata/row
         rowTag.append(path);
@@ -883,14 +889,15 @@ void CHThorXmlWriteActivity::execute()
 {
     // Loop thru the results
     numRecords = 0;
-    const char * header = helper.queryHeader();
+    OwnedRoxieString suppliedHeader(helper.getHeader());
+    const char *header = suppliedHeader;
     if (!header) header = "<Dataset>\n";
     diskout->write(strlen(header), header);
 
     CommonXmlWriter xmlOutput(helper.getXmlFlags());
     loop
     {
-        OwnedConstHThorRow nextrec(input->nextInGroup());
+        OwnedConstRoxieRow nextrec(input->nextInGroup());
         if (!nextrec)
         {
             nextrec.setown(input->nextInGroup());
@@ -912,7 +919,8 @@ void CHThorXmlWriteActivity::execute()
         diskout->write(xmlOutput.length(), xmlOutput.str());
         numRecords++;
     }
-    const char * footer = helper.queryFooter();
+    OwnedRoxieString suppliedFooter(helper.getFooter());
+    const char *footer = suppliedFooter;
     if (!footer) footer = "</Dataset>\n";
     diskout->write(strlen(footer), footer);
 }
@@ -953,7 +961,8 @@ CHThorIndexWriteActivity::CHThorIndexWriteActivity(IAgentContext &_agent, unsign
 {
     incomplete = false;
     StringBuffer lfn;
-    expandLogicalFilename(lfn, helper.getFileName(), agent.queryWorkUnit(), agent.queryResolveFilesLocally());
+    OwnedRoxieString fname(helper.getFileName());
+    expandLogicalFilename(lfn, fname, agent.queryWorkUnit(), agent.queryResolveFilesLocally());
     if (!agent.queryResolveFilesLocally())
     {
         Owned<IDistributedFile> f = queryDistributedFileDirectory().lookup(lfn, agent.queryCodeContext()->queryUserDescriptor(), true);
@@ -999,9 +1008,10 @@ void CHThorIndexWriteActivity::execute()
     // Loop thru the results
     unsigned __int64 reccount = 0;
     unsigned __int64 fileSize = 0;
-    if (helper.getDatasetName())
+    OwnedRoxieString dsName(helper.getDatasetName());
+    if (dsName.get())
     {
-        Owned<ILocalOrDistributedFile> ldFile = agent.resolveLFN(helper.getDatasetName(),"IndexWrite::execute",false,false,true);
+        Owned<ILocalOrDistributedFile> ldFile = agent.resolveLFN(dsName,"IndexWrite::execute",false,false,true);
         if (ldFile )
         {
             IDistributedFile * dFile = ldFile->queryDistributedFile();
@@ -1036,8 +1046,8 @@ void CHThorIndexWriteActivity::execute()
         buildUserMetadata(metadata);
         buildLayoutMetadata(metadata);
         unsigned nodeSize = metadata ? metadata->getPropInt("_nodeSize", NODESIZE) : NODESIZE;
-        unsigned rawSize = helper.queryDiskRecordSize()->getRecordSize(NULL);
-        Owned<IKeyBuilder> builder = createKeyBuilder(out, flags, rawSize, fileSize, nodeSize, helper.getKeyedSize(), 0);
+        size32_t keyMaxSize = helper.queryDiskRecordSize()->getRecordSize(NULL);
+        Owned<IKeyBuilder> builder = createKeyBuilder(out, flags, keyMaxSize, fileSize, nodeSize, helper.getKeyedSize(), 0);
         class BcWrapper : implements IBlobCreator
         {
             IKeyBuilder *builder;
@@ -1050,7 +1060,7 @@ void CHThorIndexWriteActivity::execute()
         } bc(builder);
         loop
         {
-            OwnedConstHThorRow nextrec(input->nextInGroup());
+            OwnedConstRoxieRow nextrec(input->nextInGroup());
             if (!nextrec)
             {
                 nextrec.setown(input->nextInGroup());
@@ -1071,7 +1081,8 @@ void CHThorIndexWriteActivity::execute()
             if(sizeLimit && (out->tell() > sizeLimit))
             {
                 StringBuffer msg;
-                msg.append("Exceeded disk write size limit of ").append(sizeLimit).append(" while writing index ").append(helper.getFileName());
+                OwnedRoxieString fname(helper.getFileName());
+                msg.append("Exceeded disk write size limit of ").append(sizeLimit).append(" while writing index ").append(fname);
                 throw MakeStringException(0, "%s", msg.str());
             }
             reccount++;
@@ -1176,7 +1187,8 @@ void CHThorIndexWriteActivity::execute()
     if (!agent.queryResolveFilesLocally())
     {
         dfile.setown(queryDistributedFileDirectory().createNew(desc));
-        expandLogicalFilename(lfn, helper.getFileName(), agent.queryWorkUnit(), agent.queryResolveFilesLocally());
+        OwnedRoxieString fname(helper.getFileName());
+        expandLogicalFilename(lfn, fname, agent.queryWorkUnit(), agent.queryResolveFilesLocally());
         dfile->attach(lfn.str(),agent.queryCodeContext()->queryUserDescriptor());
         agent.logFileAccess(dfile, "HThor", "CREATED");
     }
@@ -1214,9 +1226,15 @@ void CHThorIndexWriteActivity::buildUserMetadata(Owned<IPropertyTree> & metadata
         StringBuffer name(nameLen, nameBuff);
         StringBuffer value(valueLen, valueBuff);
         if(*nameBuff == '_' && strcmp(name, "_nodeSize") != 0)
-            throw MakeStringException(0, "Invalid name %s in user metadata for index %s (names beginning with underscore are reserved)", name.str(), helper.getFileName());
+        {
+            OwnedRoxieString fname(helper.getFileName());
+            throw MakeStringException(0, "Invalid name %s in user metadata for index %s (names beginning with underscore are reserved)", name.str(), fname.get());
+        }
         if(!validateXMLTag(name.str()))
-            throw MakeStringException(0, "Invalid name %s in user metadata for index %s (not legal XML element name)", name.str(), helper.getFileName());
+        {
+            OwnedRoxieString fname(helper.getFileName());
+            throw MakeStringException(0, "Invalid name %s in user metadata for index %s (not legal XML element name)", name.str(), fname.get());
+        }
         if(!metadata) metadata.setown(createPTree("metadata"));
         metadata->setProp(name.str(), value.str());
     }
@@ -1259,9 +1277,11 @@ public:
     {
         groupSignalled = true; // i.e. don't start with a NULL row
         CHThorSimpleActivityBase::ready();
-        rowDeserializer.setown(rowAllocator->createRowDeserializer(agent.queryCodeContext()));
-        readTransformer.setown(createReadRowStream(rowAllocator, rowDeserializer, helper.queryXmlTransformer(), helper.queryCsvTransformer(), helper.queryXmlIteratorPath(), helper.getPipeFlags()));
-        openPipe(helper.getPipeProgram());
+        rowDeserializer.setown(rowAllocator->createDiskDeserializer(agent.queryCodeContext()));
+        OwnedRoxieString xmlIteratorPath(helper.getXmlIteratorPath());
+        readTransformer.setown(createReadRowStream(rowAllocator, rowDeserializer, helper.queryXmlTransformer(), helper.queryCsvTransformer(), xmlIteratorPath, helper.getPipeFlags()));
+        OwnedRoxieString pipeProgram(helper.getPipeProgram());
+        openPipe(pipeProgram);
     }
 
     virtual void done()
@@ -1429,8 +1449,8 @@ public:
         // From the create() in roxie
 
         inputMeta.set(input->queryOutputMeta());
-        rowSerializer.setown(inputMeta.createRowSerializer(agent.queryCodeContext(), activityId));
-        rowDeserializer.setown(rowAllocator->createRowDeserializer(agent.queryCodeContext()));
+        rowSerializer.setown(inputMeta.createDiskSerializer(agent.queryCodeContext(), activityId));
+        rowDeserializer.setown(rowAllocator->createDiskDeserializer(agent.queryCodeContext()));
         writeTransformer.setown(createPipeWriteXformHelper(helper.getPipeFlags(), helper.queryXmlOutput(), helper.queryCsvOutput(), rowSerializer));
 
         // From the start() in roxie
@@ -1442,9 +1462,15 @@ public:
         writeTransformer->ready();
 
         if (!readTransformer)
-            readTransformer.setown(createReadRowStream(rowAllocator, rowDeserializer, helper.queryXmlTransformer(), helper.queryCsvTransformer(), helper.queryXmlIteratorPath(), helper.getPipeFlags()));
+        {
+            OwnedRoxieString xmlIterator(helper.getXmlIteratorPath());
+            readTransformer.setown(createReadRowStream(rowAllocator, rowDeserializer, helper.queryXmlTransformer(), helper.queryCsvTransformer(), xmlIterator, helper.getPipeFlags()));
+        }
         if(!recreate)
-            openPipe(helper.getPipeProgram());
+        {
+            OwnedRoxieString pipeProgram(helper.getPipeProgram());
+            openPipe(pipeProgram);
+        }
         puller.start();
     }
 
@@ -1610,14 +1636,17 @@ public:
     {
         CHThorActivityBase::ready();
         inputMeta.set(input->queryOutputMeta());
-        rowSerializer.setown(inputMeta.createRowSerializer(agent.queryCodeContext(), activityId));
+        rowSerializer.setown(inputMeta.createDiskSerializer(agent.queryCodeContext(), activityId));
         writeTransformer.setown(createPipeWriteXformHelper(helper.getPipeFlags(), helper.queryXmlOutput(), helper.queryCsvOutput(), rowSerializer));
 
         firstRead = true;
         inputExhausted = false;
         writeTransformer->ready();
         if(!recreate)
-            openPipe(helper.getPipeProgram());
+        {
+            OwnedRoxieString pipeProgram(helper.getPipeProgram());
+            openPipe(pipeProgram);
+        }
     }
 
     virtual void execute()
@@ -1759,7 +1788,7 @@ const void *CHThorProcessActivity::nextInGroup()
     {
         loop
         {
-            OwnedConstHThorRow next(input->nextInGroup());
+            OwnedConstRoxieRow next(input->nextInGroup());
             if (!next)
             {
                 bool eog = (curRight != initialRight);          // processed any records?
@@ -2016,7 +2045,7 @@ const void * CHThorProjectActivity::nextInGroup()
 {
     loop
     {
-        OwnedConstHThorRow in(input->nextInGroup());
+        OwnedConstRoxieRow in(input->nextInGroup());
         if (!in)
         {
             if (numProcessedLastGroup == processed)
@@ -2067,7 +2096,7 @@ const void * CHThorPrefetchProjectActivity::nextInGroup()
     {
         try
         {
-            OwnedConstHThorRow row(input->nextInGroup());
+            OwnedConstRoxieRow row(input->nextInGroup());
             if (!row)
             {
                 if (numProcessedLastGroup == processed)
@@ -2128,7 +2157,7 @@ const void * CHThorFilterProjectActivity::nextInGroup()
         return NULL;
     loop
     {
-        OwnedConstHThorRow in = input->nextInGroup();
+        OwnedConstRoxieRow in = input->nextInGroup();
         if (!in)
         {
             recordCount = 0;
@@ -2179,7 +2208,7 @@ const void * CHThorCountProjectActivity::nextInGroup()
 {
     loop
     {
-        OwnedConstHThorRow in = input->nextInGroup();
+        OwnedConstRoxieRow in = input->nextInGroup();
         if (!in)
         {
             recordCount = 0;
@@ -2258,7 +2287,10 @@ const void *CHThorRollupActivity::nextInGroup()
             {
                 left.setown(rowBuilder.finalizeRowClear(outSize));
             }
-            prev.set(right);
+            if (helper.getFlags() & RFrolledismatchleft)
+                prev.set(left);
+            else
+                prev.set(right);
         }
         catch(IException * e)
         {
@@ -2297,7 +2329,7 @@ const void *CHThorGroupDedupActivity::nextInGroup()
         kept.setown(input->nextInGroup());
     }
 
-    OwnedConstHThorRow next;
+    OwnedConstRoxieRow next;
     loop
     {
         next.setown(input->nextInGroup());
@@ -2387,7 +2419,7 @@ bool CHThorGroupDedupAllActivity::calcNextDedupAll()
             void * * cur = index[idx2];
             if(cur)
             {
-                linkHThorRow(*cur);
+                LinkRoxieRow(*cur);
                 survivors.append(*cur);
             }
         }
@@ -2487,7 +2519,7 @@ bool HashDedupTable::insert(const void * row)
     unsigned hash = helper.queryHash()->hash(row);
     RtlDynamicRowBuilder keyRowBuilder(keyRowAllocator, true);
     size32_t thisKeySize = helper.recordToKey(keyRowBuilder, row);
-    OwnedConstHThorRow keyRow = keyRowBuilder.finalizeRowClear(thisKeySize);
+    OwnedConstRoxieRow keyRow = keyRowBuilder.finalizeRowClear(thisKeySize);
     if (find(hash, keyRow.get()))
         return false;
     addNew(new HashDedupElement(hash, keyRow.getClear()), hash);
@@ -2514,11 +2546,12 @@ const void * CHThorHashDedupActivity::nextInGroup()
 {
     while(true)
     {
-        OwnedConstHThorRow next(input->nextInGroup());
+        OwnedConstRoxieRow next(input->nextInGroup());
         if(!next)
-            next.setown(input->nextInGroup());
-        if(!next)
+        {
+            table.kill();
             return NULL;
+        }
         if(table.insert(next))
             return next.getClear();
     }
@@ -2568,7 +2601,7 @@ const void * CHThorFilterActivity::nextInGroup()
 
     loop
     {
-        OwnedConstHThorRow ret(input->nextInGroup());
+        OwnedConstRoxieRow ret(input->nextInGroup());
         if (!ret)
         {
             //stop returning two NULLs in a row.
@@ -2596,7 +2629,7 @@ const void * CHThorFilterActivity::nextGE(const void * seek, unsigned numFields)
     if (eof)
         return NULL;
 
-    OwnedConstHThorRow ret(input->nextGE(seek, numFields));
+    OwnedConstRoxieRow ret(input->nextGE(seek, numFields));
     if (!ret)
         return NULL;
 
@@ -2691,7 +2724,7 @@ const void * CHThorFilterGroupActivity::nextGE(const void * seek, unsigned numFi
     {
         while (pending.isItem(nextIndex))
         {
-            OwnedConstHThorRow ret(pending.itemClear(nextIndex++));
+            OwnedConstRoxieRow ret(pending.itemClear(nextIndex++));
             if (stepCompare->docompare(ret, seek, numFields) >= 0)
             {
                 processed++;
@@ -2737,7 +2770,7 @@ void CHThorLimitActivity::ready()
 
 const void * CHThorLimitActivity::nextInGroup()
 {
-    OwnedConstHThorRow ret(input->nextInGroup());
+    OwnedConstRoxieRow ret(input->nextInGroup());
     if (ret)
     {
         if (++numGot > rowLimit)
@@ -2755,7 +2788,7 @@ const void * CHThorLimitActivity::nextInGroup()
 
 const void * CHThorLimitActivity::nextGE(const void * seek, unsigned numFields)
 {
-    OwnedConstHThorRow ret(input->nextGE(seek, numFields));
+    OwnedConstRoxieRow ret(input->nextGE(seek, numFields));
     if (ret)
     {
         if (++numGot > rowLimit)
@@ -2817,7 +2850,7 @@ const void * CHThorCatchActivity::nextInGroup()
 {
     try
     {
-        OwnedConstHThorRow ret(input->nextInGroup());
+        OwnedConstRoxieRow ret(input->nextInGroup());
         if (ret)
             processed++;
         return ret.getClear();
@@ -2838,7 +2871,7 @@ const void * CHThorCatchActivity::nextGE(const void * seek, unsigned numFields)
 {
     try
     {
-        OwnedConstHThorRow ret(input->nextGE(seek, numFields));
+        OwnedConstRoxieRow ret(input->nextGE(seek, numFields));
         if (ret)
             processed++;
         return ret.getClear();
@@ -3027,7 +3060,7 @@ const void * CHThorSampleActivity::nextInGroup()
 {
     loop
     {
-        OwnedConstHThorRow ret(input->nextInGroup());
+        OwnedConstRoxieRow ret(input->nextInGroup());
         if (!ret)
         {
             //this does work with groups - may or may not be useful...
@@ -3084,7 +3117,7 @@ const void * CHThorAggregateActivity::nextInGroup()
     if (next)
     {
         helper.processFirst(rowBuilder, next);
-        releaseHThorRow(next);
+        ReleaseRoxieRow(next);
         
         bool abortEarly = (kind == TAKexistsaggregate) && !input->isGrouped();
         if (!abortEarly)
@@ -3096,7 +3129,7 @@ const void * CHThorAggregateActivity::nextInGroup()
                     break;
 
                 helper.processNext(rowBuilder, next);
-                releaseHThorRow(next);
+                ReleaseRoxieRow(next);
             }
         }
     }
@@ -3143,21 +3176,18 @@ const void * CHThorHashAggregateActivity::nextInGroup()
         aggregated.start(rowAllocator);
         loop
         {
-            OwnedConstHThorRow next(input->nextInGroup());
+            OwnedConstRoxieRow next(input->nextInGroup());
             if (!next)
             {
                 if (isGroupedAggregate)
                 {
                     if (eog)
                         eof = true;
+                    break;
                 }
-                else
-                {
-                    next.setown(input->nextInGroup());
-                    if (!next)
-                        eof = true;
-                }
-                break;
+                next.setown(input->nextInGroup());
+                if (!next)
+                    break;
             }
             eog = false;
             try
@@ -3178,6 +3208,10 @@ const void * CHThorHashAggregateActivity::nextInGroup()
         processed++;
         return next->finalizeRowClear();
     }
+
+    if (!isGroupedAggregate)
+        eof = true;
+
     aggregated.reset();
     gathered = false;
     return NULL;
@@ -3213,7 +3247,7 @@ const void * CHThorSelectNActivity::nextInGroup()
     unsigned __int64 index = helper.getRowToSelect();
     while (--index)
     {
-        OwnedConstHThorRow next(input->nextInGroup());
+        OwnedConstRoxieRow next(input->nextInGroup());
         if (!next)
             next.setown(input->nextInGroup());
         if (!next)
@@ -3223,7 +3257,7 @@ const void * CHThorSelectNActivity::nextInGroup()
         }
     }
 
-    OwnedConstHThorRow next(input->nextInGroup());
+    OwnedConstRoxieRow next(input->nextInGroup());
     if (!next)
         next.setown(input->nextInGroup());
     if (!next)
@@ -3256,7 +3290,7 @@ const void * CHThorFirstNActivity::nextInGroup()
     if (finished)
         return NULL;
 
-    OwnedConstHThorRow ret;
+    OwnedConstRoxieRow ret;
     loop
     {
         ret.setown(input->nextInGroup());
@@ -3331,7 +3365,7 @@ const void * CHThorChooseSetsActivity::nextInGroup()
 
     loop
     {
-        OwnedConstHThorRow ret(input->nextInGroup());
+        OwnedConstRoxieRow ret(input->nextInGroup());
         if (!ret)
         {
             ret.setown(input->nextInGroup());
@@ -3409,7 +3443,7 @@ const void * CHThorChooseSetsExActivity::nextInGroup()
 
     while (gathered.isItem(curIndex))
     {
-        OwnedConstHThorRow row(gathered.itemClear(curIndex++));
+        OwnedConstRoxieRow row(gathered.itemClear(curIndex++));
         if (includeRow(row))
         {
             processed++;
@@ -3571,7 +3605,7 @@ const void *CHThorGroupActivity::nextInGroup()
         return NULL;
     }
 
-    OwnedConstHThorRow prev(next.getClear());
+    OwnedConstRoxieRow prev(next.getClear());
     next.setown(input->nextInGroup());
     if (!next)  // skip incoming groups. (should it sub-group??)
         next.setown(input->nextInGroup());
@@ -3612,10 +3646,6 @@ CHThorGroupSortActivity::CHThorGroupSortActivity(IAgentContext &_agent, unsigned
 void CHThorGroupSortActivity::ready()
 {
     CHThorSimpleActivityBase::ready();
-    eof = false;
-    spillThreshold = (memsize_t)agent.queryWorkUnit()->getDebugValueInt64("hthorSpillThreshold", defaultHThorSpillThreshold);
-    memsize_t totalMemoryLimit = roxiemem::getTotalMemoryLimit();
-    spillThreshold = (memsize_t)std::min(spillThreshold, totalMemoryLimit / 3);
     if(!sorter)
         createSorter();
 }
@@ -3623,10 +3653,12 @@ void CHThorGroupSortActivity::ready()
 void CHThorGroupSortActivity::done()
 {
     if(sorter)
+    {
         if(sorterIsConst)
             sorter->killSorted();
         else
             sorter.clear();
+    }
     gotSorted = false;
     diskReader.clear();
     CHThorSimpleActivityBase::done();
@@ -3636,8 +3668,6 @@ const void *CHThorGroupSortActivity::nextInGroup()
 {
     if(!gotSorted)
         getSorted();
-    if(eof)
-        return NULL;
 
     if(diskReader)
     {
@@ -3662,106 +3692,134 @@ const void *CHThorGroupSortActivity::nextInGroup()
 
 void CHThorGroupSortActivity::createSorter()
 {
-    sorterIsConst = true;
     IHThorAlgorithm * algo = static_cast<IHThorAlgorithm *>(helper.selectInterface(TAIalgorithm_1));
     if(!algo)
     {
-        sorter.setown(new CHeapSorter(helper.queryCompare()));
+        sorter.setown(new CHeapSorter(helper.queryCompare(), queryRowManager(), InitialSortElements, CommitStep));
         return;
     }
     unsigned flags = algo->getAlgorithmFlags();
     sorterIsConst = ((flags & TAFconstant) != 0);
-    char const * algoname = algo->queryAlgorithm();
+    OwnedRoxieString algoname(algo->getAlgorithm());
     if(!algoname)
     {
         if((flags & TAFunstable) != 0)
-            sorter.setown(new CQuickSorter(helper.queryCompare()));
+            sorter.setown(new CQuickSorter(helper.queryCompare(), queryRowManager(), InitialSortElements, CommitStep));
         else
-            sorter.setown(new CHeapSorter(helper.queryCompare()));
+            sorter.setown(new CHeapSorter(helper.queryCompare(), queryRowManager(), InitialSortElements, CommitStep));
         return;
     }
     if(stricmp(algoname, "quicksort") == 0)
         if((flags & TAFstable) != 0)
-            sorter.setown(new CStableQuickSorter(helper.queryCompare()));
+            sorter.setown(new CStableQuickSorter(helper.queryCompare(), queryRowManager(), InitialSortElements, CommitStep, this));
         else
-            sorter.setown(new CQuickSorter(helper.queryCompare()));
+            sorter.setown(new CQuickSorter(helper.queryCompare(), queryRowManager(), InitialSortElements, CommitStep));
     else if(stricmp(algoname, "heapsort") == 0)
-        sorter.setown(new CHeapSorter(helper.queryCompare()));
+        sorter.setown(new CHeapSorter(helper.queryCompare(), queryRowManager(), InitialSortElements, CommitStep));
     else if(stricmp(algoname, "insertionsort") == 0)
         if((flags & TAFstable) != 0)
-            sorter.setown(new CStableInsertionSorter(helper.queryCompare()));
+            sorter.setown(new CStableInsertionSorter(helper.queryCompare(), queryRowManager(), InitialSortElements, CommitStep));
         else
-            sorter.setown(new CInsertionSorter(helper.queryCompare()));
+            sorter.setown(new CInsertionSorter(helper.queryCompare(), queryRowManager(), InitialSortElements, CommitStep));
     else
     {
         StringBuffer sb;
-        sb.appendf("Ignoring unsupported sort order algorithm '%s', using default", algoname);
+        sb.appendf("Ignoring unsupported sort order algorithm '%s', using default", algoname.get());
         agent.addWuException(sb.str(),0,ExceptionSeverityWarning,"hthor");
         if((flags & TAFunstable) != 0)
-            sorter.setown(new CQuickSorter(helper.queryCompare()));
+            sorter.setown(new CQuickSorter(helper.queryCompare(), queryRowManager(), InitialSortElements, CommitStep));
         else
-            sorter.setown(new CHeapSorter(helper.queryCompare()));
+            sorter.setown(new CHeapSorter(helper.queryCompare(), queryRowManager(), InitialSortElements, CommitStep));
     }
+    sorter->setActivityId(activityId);
 }
 
 void CHThorGroupSortActivity::getSorted()
 {
     diskMerger.clear();
     diskReader.clear();
-    memsize_t grpSize = 0;
+    queryRowManager()->addRowBuffer(this);//register for OOM callbacks
     const void * next;
     while((next = input->nextInGroup()) != NULL)
     {
-        size32_t nextSize = input->queryOutputMeta()->getRecordSize(next);
-        if((grpSize+nextSize) > spillThreshold) //Spill ??
+        if (!sorter->addRow(next))
         {
-            if(!diskMerger)
             {
-                StringBuffer fbase;
-                agent.getTempfileBase(fbase).appendf(".spill_sort_%p", this);
-                PROGLOG("SORT: spilling to disk, filename base %s", fbase.str());
-                class CHThorRowLinkCounter : public CSimpleInterface, implements IRowLinkCounter
-                {
-                public:
-                    IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
-                    virtual void releaseRow(const void *row)
-                    {
-                        releaseHThorRow(row);
-                    }
-                    virtual void linkRow(const void *row)
-                    {
-                        linkHThorRow(row);
-                    }
-                };
-                Owned<IRowLinkCounter> linker = new CHThorRowLinkCounter();
-                Owned<IRowInterfaces> rowInterfaces = createRowInterfaces(input->queryOutputMeta(), activityId, agent.queryCodeContext());
-                diskMerger.setown(createDiskMerger(rowInterfaces, linker, fbase.str()));
+                //Unlikely that this code will ever be executed but added for comfort
+                roxiemem::RoxieOutputRowArrayLock block(sorter->getRowArray());
+                sorter->flushRows();
+                sortAndSpillRows();
+                //Ensure new rows are written to the head of the array.  It needs to be a separate call because
+                //performSort() cannot shift active row pointer since it can be called from any thread
+                sorter->flushRows();
             }
-            sorter->performSort();
-            sorter->spillSortedToDisk(diskMerger);
-            grpSize = 0;
+            if (!sorter->addRow(next))
+            {
+                ReleaseRoxieRow(next);
+                throw MakeStringException(0, "Insufficient memory to append sort row");
+            }
         }
-        sorter->addRow(next);
-        grpSize += nextSize;
     }
+    queryRowManager()->removeRowBuffer(this);//unregister for OOM callbacks
+    sorter->flushRows();
 
     if(diskMerger)
     {
-        sorter->performSort();
-        sorter->spillSortedToDisk(diskMerger);
+        sortAndSpillRows();
+        sorter->killSorted();
         ICompare *compare = helper.queryCompare();
-        assertex(compare);
         diskReader.setown(diskMerger->merge(compare));
-    }
-    else if(grpSize)
-    {
-        sorter->performSort();
     }
     else
     {
-        eof = true;
+        sorter->performSort();
     }
     gotSorted = true;
+}
+
+//interface roxiemem::IBufferedRowCallback
+unsigned CHThorGroupSortActivity::getPriority() const
+{
+    return 10;
+}
+
+bool CHThorGroupSortActivity::freeBufferedRows(bool critical)
+{
+    roxiemem::RoxieOutputRowArrayLock block(sorter->getRowArray());
+    return sortAndSpillRows();
+}
+
+
+
+bool CHThorGroupSortActivity::sortAndSpillRows()
+{
+    if (0 == sorter->numCommitted())
+        return false;
+    if(!diskMerger)
+    {
+        StringBuffer fbase;
+        agent.getTempfileBase(fbase).appendf(".spill_sort_%p", this);
+        PROGLOG("SORT: spilling to disk, filename base %s", fbase.str());
+        class CHThorRowLinkCounter : public CSimpleInterface, implements IRowLinkCounter
+        {
+        public:
+            IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
+            virtual void releaseRow(const void *row)
+            {
+                ReleaseRoxieRow(row);
+            }
+            virtual void linkRow(const void *row)
+            {
+                LinkRoxieRow(row);
+            }
+        };
+        Owned<IRowLinkCounter> linker = new CHThorRowLinkCounter();
+        Owned<IRowInterfaces> rowInterfaces = createRowInterfaces(input->queryOutputMeta(), activityId, agent.queryCodeContext());
+        diskMerger.setown(createDiskMerger(rowInterfaces, linker, fbase.str()));
+    }
+    sorter->performSort();
+    sorter->spillSortedToDisk(diskMerger);
+    return true;
 }
 
 // Base for Quick sort and both Insertion sorts
@@ -3774,71 +3832,105 @@ void CSimpleSorterBase::spillSortedToDisk(IDiskMerger * merger)
         const void *row = getNextSorted();
         if (!row)
             break;
-        linkHThorRow(row);
         out->putRow(row);
     }
-    ForEachItemIn(idxx, rows)
-        releaseHThorRow(rows.item(idxx));
-    rows.kill();
-}
-
-const void * CSimpleSorterBase::getNextSorted()
-{
-    if(finger < rows.ordinality())
-        return rows.item(finger++);
-    else
-        return NULL;
-}
-
-void CSimpleSorterBase::killSorted()
-{
-    while(rows.isItem(finger))
-        releaseHThorRow(rows.item(finger++));
-    rows.kill();
+    finger = 0;
+    out->flush();
+    rowsToSort.noteSpilled(rowsToSort.numCommitted());
 }
 
 // Quick sort
 
 void CQuickSorter::performSort()
 {
-    qsortvec((void * *)rows.getArray(), rows.ordinality(), *compare);
-    finger = 0;
+    size32_t numRows = rowsToSort.numCommitted();
+    if (numRows)
+    {
+        const void * * rows = rowsToSort.getBlock(numRows);
+        qsortvec((void * *)rows, numRows, *compare);
+        finger = 0;
+    }
 }
 
 // StableQuick sort
 
+bool CStableQuickSorter::addRow(const void * next)
+{
+    roxiemem::rowidx_t nextRowCapacity = rowsToSort.rowCapacity() + 1;//increment capacity for the row we are about to add
+    if (nextRowCapacity > indexCapacity)
+    {
+        void *** newIndex = (void ***)rowManager->allocate(nextRowCapacity * sizeof(void*), activityId);//could force an OOM callback
+        if (newIndex)
+        {
+            roxiemem::RoxieOutputRowArrayLock block(getRowArray());//could force an OOM callback after index is freed but before index,indexCapacity is updated
+            ReleaseRoxieRow(index);
+            index = newIndex;
+            indexCapacity = RoxieRowCapacity(index) / sizeof(void*);
+        }
+        else
+        {
+            killSorted();
+            ReleaseRoxieRow(next);
+            throw MakeStringException(0, "Insufficient memory to allocate StableQuickSorter index");
+        }
+    }
+    return CSimpleSorterBase::addRow(next);
+}
+
+void CStableQuickSorter::spillSortedToDisk(IDiskMerger * merger)
+{
+    CSimpleSorterBase::spillSortedToDisk(merger);
+    ReleaseRoxieRow(index);
+    index = NULL;
+    indexCapacity = 0;
+}
+
 void CStableQuickSorter::performSort()
 {
-    index = (void ***)realloc(index, rows.ordinality()*sizeof(void**));
-    qsortvecstable((void * *)rows.getArray(), rows.ordinality(), *compare, index);
-    finger = 0;
+    size32_t numRows = rowsToSort.numCommitted();
+    if (numRows)
+    {
+        const void * * rows = rowsToSort.getBlock(numRows);
+        qsortvecstable((void * *)rows, numRows, *compare, index);
+        finger = 0;
+    }
 }
 
 const void * CStableQuickSorter::getNextSorted()
 {
-    if(finger < rows.ordinality())
-        return *(index[finger++]);
+    if(finger < rowsToSort.numCommitted())
+    {
+        const void * row = *(index[finger]);
+        *(index[finger++]) = NULL;//Clear the entry in rowsToSort so it wont get double-released
+        return row;
+    }
     else
         return NULL;
 }
 
 void CStableQuickSorter::killSorted()
 {
-    while(finger < rows.ordinality())
-        releaseHThorRow(*(index[finger++]));
-    rows.kill();
-    free(index);
+    CSimpleSorterBase::killSorted();
+    ReleaseRoxieRow(index);
     index = NULL;
+    indexCapacity = 0;
 }
 
 // Heap sort
 
-void CHeapSorter::addRow(const void * next)
+void CHeapSorter::performSort()
 {
-    heap.append(heapsize);
-    rows.append(next);
-    heap_push_up(heapsize, heap.getArray(), rows.getArray(), compare);
-    ++heapsize;
+    size32_t numRows = rowsToSort.numCommitted();
+    if (numRows)
+    {
+        const void * * rows = rowsToSort.getBlock(numRows);
+        heapsize = numRows;
+        for (unsigned i = 0; i < numRows; i++)
+        {
+            heap.append(i);
+            heap_push_up(i, heap.getArray(), rows, compare);
+        }
+    }
 }
 
 void CHeapSorter::spillSortedToDisk(IDiskMerger * merger)
@@ -3852,39 +3944,57 @@ const void * CHeapSorter::getNextSorted()
 {
     if(heapsize)
     {
-        unsigned top = heap.item(0);
-        --heapsize;
-        heap.replace(heap.item(heapsize), 0);
-        heap_push_down(0, heapsize, heap.getArray(), rows.getArray(), compare);
-        return rows.item(top);
+        size32_t numRows = rowsToSort.numCommitted();
+        if (numRows)
+        {
+            const void * * rows = rowsToSort.getBlock(numRows);
+            unsigned top = heap.item(0);
+            --heapsize;
+            heap.replace(heap.item(heapsize), 0);
+            heap_push_down(0, heapsize, heap.getArray(), rows, compare);
+            const void * row = rows[top];
+            rows[top] = NULL;
+            return row;
+        }
     }
-    else
-    {
-        return NULL;
-    }
+    return NULL;
 }
 
 void CHeapSorter::killSorted()
 {
-    for(unsigned i=0; i<heapsize; ++i)
-        releaseHThorRow(rows.item(heap.item(i)));
-    rows.kill();
+    CSimpleSorterBase::killSorted();
     heap.kill();
     heapsize = 0;
 }
 
 // Insertion sorts
 
-void CInsertionSorter::addRow(const void * next)
+void CInsertionSorter::performSort()
 {
-    rows.append(NULL);
-    binary_vec_insert(next, rows.getArray(), rows.ordinality()-1, *compare);
+    size32_t numRows = rowsToSort.numCommitted();
+    if (numRows)
+    {
+        const void * * rows = rowsToSort.getBlock(numRows);
+        for (unsigned i = 0; i < numRows; i++)
+        {
+            binary_vec_insert(rowsToSort.query(i), rows, i, *compare);
+        }
+        finger = 0;
+    }
 }
 
-void CStableInsertionSorter::addRow(const void * next)
+void CStableInsertionSorter::performSort()
 {
-    rows.append(NULL);
-    binary_vec_insert_stable(next, rows.getArray(), rows.ordinality()-1, *compare);
+    size32_t numRows = rowsToSort.numCommitted();
+    if (numRows)
+    {
+        const void * * rows = rowsToSort.getBlock(numRows);
+        for (unsigned i = 0; i < numRows; i++)
+        {
+            binary_vec_insert_stable(rowsToSort.query(i), rows, i, *compare);
+        }
+        finger = 0;
+    }
 }
 
 //=====================================================================================================
@@ -3921,7 +4031,7 @@ const void *CHThorGroupedActivity::nextInGroup()
     unsigned nextToFill  = (nextRowIndex + 2) % 3;
     next[nextToFill].setown(input->nextInGroup());
 
-    OwnedConstHThorRow ret(next[nextRowIndex].getClear());
+    OwnedConstRoxieRow ret(next[nextRowIndex].getClear());
     if (ret)
     {
         if (next[nextToCompare]) 
@@ -3968,7 +4078,7 @@ const void *CHThorSortedActivity::nextInGroup()
         next.setown(input->nextInGroup());
     }
 
-    OwnedConstHThorRow prev(next.getClear());
+    OwnedConstRoxieRow prev(next.getClear());
     next.setown(input->nextInGroup());
     if (prev && next)
         if (compare->docompare(prev, next) > 0)
@@ -4150,7 +4260,7 @@ void CHThorJoinActivity::fillRight()
     unsigned groupCount = 0;
     while(true)
     {
-        OwnedConstHThorRow next;
+        OwnedConstRoxieRow next;
         if(pendingRight)
         {
             next.setown(pendingRight.getClear());
@@ -4396,7 +4506,7 @@ const void *CHThorJoinActivity::nextInGroup()
                 //Probably excessive to implement the following, but possibly useful
                 case TAKdenormalize:
                     {
-                        OwnedConstHThorRow newLeft(defaultLeft.getLink());
+                        OwnedConstRoxieRow newLeft(defaultLeft.getLink());
                         unsigned rowSize = 0;
                         unsigned leftCount = 0;
                         while (right.isItem(rightIndex))
@@ -4520,7 +4630,7 @@ const void *CHThorJoinActivity::nextInGroup()
                     }
                 case TAKdenormalize:
                     {
-                        OwnedConstHThorRow newLeft;
+                        OwnedConstRoxieRow newLeft;
                         newLeft.set(left);
                         unsigned rowSize = 0;
                         unsigned leftCount = 0;
@@ -4693,7 +4803,7 @@ bool CHThorSelfJoinActivity::fillGroup()
     matchedLeft = false;
     matchedRight.kill();
     failingOuterAtmost = false;
-    OwnedConstHThorRow next;
+    OwnedConstRoxieRow next;
     unsigned groupCount = 0;
     next.setown(input->nextInGroup());
     while(next)
@@ -4832,7 +4942,7 @@ const void * CHThorSelfJoinActivity::nextInGroup()
         {
             if(failingLimit || failingOuterAtmost)
             {
-                OwnedConstHThorRow lhs(input->nextInGroup());
+                OwnedConstRoxieRow lhs(input->nextInGroup());
                 while(lhs)
                 {
                     const void * ret = joinRecords(lhs, defaultRight, failingLimit);
@@ -4938,7 +5048,7 @@ CHThorLookupJoinActivity::LookupTable::LookupTable(unsigned _size, ICompare * _l
     while((minsize >>= 1) > 0)
         size <<= 1;
     mask = size - 1;
-    table = new OwnedConstHThorRow[size];
+    table = new OwnedConstRoxieRow[size];
     findex = BadIndex;
 }
 
@@ -4949,7 +5059,7 @@ CHThorLookupJoinActivity::LookupTable::~LookupTable()
 
 bool CHThorLookupJoinActivity::LookupTable::add(const void * _right)
 {
-    OwnedConstHThorRow right(_right);
+    OwnedConstRoxieRow right(_right);
     findex = BadIndex;
     unsigned start = rightHash->hash(right) & mask;
     unsigned index = start;
@@ -5252,7 +5362,7 @@ const void * CHThorLookupJoinActivity::nextInGroupDenormalize()
             ret = joinException(left, failingLimit);
         else if (kind == TAKlookupdenormalize)
         {
-            OwnedConstHThorRow newLeft(left.getLink());
+            OwnedConstRoxieRow newLeft(left.getLink());
             unsigned rowSize = 0;
             unsigned leftCount = 0;
             keepCount = keepLimit;
@@ -5605,7 +5715,7 @@ const void * CHThorAllJoinActivity::nextInGroup()
             }
         case TAKalldenormalize:
             {
-                OwnedConstHThorRow newLeft;
+                OwnedConstRoxieRow newLeft;
                 newLeft.set(left);
                 unsigned rowSize = 0;
                 unsigned leftCount = 0;
@@ -5691,7 +5801,11 @@ CHThorWorkUnitWriteActivity::CHThorWorkUnitWriteActivity(IAgentContext &_agent, 
 void CHThorWorkUnitWriteActivity::execute()
 {
     grouped = (POFgrouped & helper.getFlags()) != 0;
-    size32_t outputLimit = agent.queryWorkUnit()->getDebugValueInt("outputLimit", defaultWorkUnitWriteLimit) * 0x100000;
+    size32_t outputLimit = agent.queryWorkUnit()->getDebugValueInt("outputLimit", defaultWorkUnitWriteLimit);
+    if (outputLimit>DALI_RESULT_OUTPUTMAX)
+        throw MakeStringException(0, "Dali result outputs are restricted to a maximum of %d MB, the default limit is %d MB. A huge dali result usually indicates the ECL needs altering.", DALI_RESULT_OUTPUTMAX, defaultWorkUnitWriteLimit);
+    assertex(outputLimit<=0x1000); // 32bit limit because MemoryBuffer/CMessageBuffers involved etc.
+    outputLimit *= 0x100000;
     MemoryBuffer rowdata;
     __int64 rows = 0;
     IRecordSize * inputMeta = input->queryOutputMeta();
@@ -5704,8 +5818,8 @@ void CHThorWorkUnitWriteActivity::execute()
     __int64 initialRows = rows;
 
     Owned<IOutputRowSerializer> rowSerializer;
-    if (input->queryOutputMeta()->getMetaFlags() & MDFneedserialize)
-        rowSerializer.setown( input->queryOutputMeta()->createRowSerializer(agent.queryCodeContext(), activityId) );
+    if (input->queryOutputMeta()->getMetaFlags() & MDFneedserializedisk)
+        rowSerializer.setown( input->queryOutputMeta()->createDiskSerializer(agent.queryCodeContext(), activityId) );
 
     int seq = helper.getSequence();
     bool toStdout = (seq >= 0) && agent.queryWriteResultsToStdout();
@@ -5727,7 +5841,7 @@ void CHThorWorkUnitWriteActivity::execute()
     {
         if ((unsigned __int64)rows >= agent.queryStopAfter())
             break;
-        OwnedConstHThorRow nextrec(input->nextInGroup());
+        OwnedConstRoxieRow nextrec(input->nextInGroup());
         if (grouped && (rows != initialRows))
             rowdata.append(nextrec == NULL);
         if (!nextrec)
@@ -5803,26 +5917,57 @@ void CHThorWorkUnitWriteActivity::execute()
 
 //=====================================================================================================
 
-CHThorCountActivity::CHThorCountActivity(IAgentContext &_agent, unsigned _activityId, unsigned _subgraphId, IHThorCountArg &_arg, ThorActivityKind _kind)
+CHThorDictionaryWorkUnitWriteActivity::CHThorDictionaryWorkUnitWriteActivity(IAgentContext &_agent, unsigned _activityId, unsigned _subgraphId, IHThorDictionaryWorkUnitWriteArg &_arg, ThorActivityKind _kind)
  : CHThorActivityBase(_agent, _activityId, _subgraphId, _arg, _kind), helper(_arg)
 {
 }
 
-__int64 CHThorCountActivity::getCount()
+void CHThorDictionaryWorkUnitWriteActivity::execute()
 {
-    __int64 count = 0;
+    int sequence = helper.getSequence();
+    const char *storedName = helper.queryName();
+    assertex(storedName && *storedName);
+    assertex(sequence < 0);
+
+    RtlLinkedDictionaryBuilder builder(rowAllocator, helper.queryHashLookupInfo());
     loop
     {
-        OwnedConstHThorRow nextrec(input->nextInGroup());
-        if (!nextrec)
+        const void *row = input->nextInGroup();
+        if (!row)
         {
-            nextrec.setown(input->nextInGroup());
-            if (!nextrec)
+            row = input->nextInGroup();
+            if (!row)
                 break;
         }
-        count++;
+        builder.appendOwn(row);
+        processed++;
     }
-    return count;
+    size32_t usedCount = rtlDictionaryCount(builder.getcount(), builder.queryrows());
+
+    size32_t outputLimit = agent.queryWorkUnit()->getDebugValueInt("outputLimit", defaultWorkUnitWriteLimit) * 0x100000;
+    MemoryBuffer rowdata;
+    CThorDemoRowSerializer out(rowdata);
+    Owned<IOutputRowSerializer> serializer = input->queryOutputMeta()->createDiskSerializer(agent.queryCodeContext(), activityId);
+    rtlSerializeDictionary(out, serializer, builder.getcount(), builder.queryrows());
+    if(outputLimit && (rowdata.length()  > outputLimit))
+    {
+        StringBuffer errMsg("Dictionary too large to output to workunit (limit ");
+        errMsg.append(outputLimit/0x100000).append(") megabytes, in result (");
+        const char *name = helper.queryName();
+        if (name)
+            errMsg.append("name=").append(name);
+        else
+            errMsg.append("sequence=").append(helper.getSequence());
+        errMsg.append(")");
+        throw MakeStringException(0, "%s", errMsg.str());
+    }
+
+    WorkunitUpdate w = agent.updateWorkUnit();
+    Owned<IWUResult> result = updateWorkUnitResult(w, helper.queryName(), helper.getSequence());
+    result->setResultRaw(rowdata.length(), rowdata.toByteArray(), ResultFormatRaw);
+    result->setResultStatus(ResultStatusCalculated);
+    result->setResultRowCount(usedCount);
+    result->setResultTotalRowCount(usedCount); // Is this right??
 }
 
 //=====================================================================================================
@@ -5835,7 +5980,7 @@ CHThorRemoteResultActivity::CHThorRemoteResultActivity(IAgentContext &_agent, un
 
 void CHThorRemoteResultActivity::execute()
 {
-    OwnedConstHThorRow result(input->nextInGroup());
+    OwnedConstRoxieRow result(input->nextInGroup());
 #if 0
     //This isn't correct - it can have a null input - at least until TAKaction is generated for that case.
     if(!result)
@@ -5849,42 +5994,6 @@ void CHThorRemoteResultActivity::execute()
     helper.sendResult(result);
 }
 
-
-//=====================================================================================================
-
-/*
- * Deprecated in 3.8, this class is being kept for backward compatibility,
- * since now the code generator is using InlineTables (below) for all
- * temporary tables and rows.
- */
-CHThorTempTableActivity::CHThorTempTableActivity(IAgentContext &_agent, unsigned _activityId, unsigned _subgraphId, IHThorTempTableArg &_arg, ThorActivityKind _kind) :
-                 CHThorSimpleActivityBase(_agent, _activityId, _subgraphId, _arg, _kind), helper(_arg)
-{
-}
-
-void CHThorTempTableActivity::ready()
-{
-    CHThorSimpleActivityBase::ready();
-    curRow = 0;
-    numRows = helper.numRows();
-}
-
-
-const void *CHThorTempTableActivity::nextInGroup()
-{
-    // Filtering empty rows, returns the next valid row
-    while (curRow < numRows)
-    {
-        RtlDynamicRowBuilder rowBuilder(rowAllocator);
-        size32_t size = helper.getRow(rowBuilder, curRow++);
-        if (size)
-        {
-            processed++;
-            return rowBuilder.finalizeRowClear(size);
-        }
-    }
-    return NULL;
-}
 
 //=====================================================================================================
 
@@ -6169,7 +6278,7 @@ const void * CHThorRegroupActivity::nextFromInputs()
     unsigned initialInput = inputIndex;
     while (inputs.isItem(inputIndex))
     {
-        OwnedConstHThorRow next(inputs.item(inputIndex)->nextInGroup());
+        OwnedConstRoxieRow next(inputs.item(inputIndex)->nextInGroup());
         if (next)
         {
             if ((inputIndex != initialInput) && (inputIndex != initialInput+1))
@@ -6353,7 +6462,7 @@ const void *CHThorCombineGroupActivity::nextInGroup()
 {
     loop
     {
-        OwnedConstHThorRow left(input->nextInGroup());
+        OwnedConstRoxieRow left(input->nextInGroup());
         if (!left && (numProcessedLastGroup == processed))
             left.setown(input->nextInGroup());
 
@@ -6361,7 +6470,7 @@ const void *CHThorCombineGroupActivity::nextInGroup()
         {
             if (numProcessedLastGroup == processed)
             {
-                OwnedConstHThorRow nextRight(input1->nextInGroup());
+                OwnedConstRoxieRow nextRight(input1->nextInGroup());
                 if (nextRight)
                     throw MakeStringException(101, "Missing LEFT record for Combine group Activity(%u)", activityId);
             }
@@ -6414,7 +6523,7 @@ void CHThorApplyActivity::execute()
         helper.start();
         loop
         {
-            OwnedConstHThorRow next(input->nextInGroup());
+            OwnedConstRoxieRow next(input->nextInGroup());
             if (!next)
             {
                 next.setown(input->nextInGroup());
@@ -6445,7 +6554,7 @@ void CHThorDistributionActivity::execute()
     IDistributionTable * * accumulator = (IDistributionTable * *)rowAllocator->createRow();  //meta: PG MORE --- distribution --- helper.queryInternalRecordSize()
     helper.clearAggregate(accumulator); 
 
-    OwnedConstHThorRow nextrec(input->nextInGroup());
+    OwnedConstRoxieRow nextrec(input->nextInGroup());
     loop
     {
         if (!nextrec)
@@ -6483,7 +6592,7 @@ void CHThorWorkunitReadActivity::ready()
 {
     CHThorSimpleActivityBase::ready();
 
-    rowDeserializer.setown(rowAllocator->createRowDeserializer(agent.queryCodeContext()));
+    rowDeserializer.setown(rowAllocator->createDiskDeserializer(agent.queryCodeContext()));
 
     if(first)
     {
@@ -6499,11 +6608,11 @@ void CHThorWorkunitReadActivity::ready()
     grouped = outputMeta.isGrouped();
     unsigned lenData;
     void * tempData;
-    const char * wuid = helper.queryWUID();
+    OwnedRoxieString fromWuid(helper.getWUID());
     ICsvToRowTransformer * csvTransformer = helper.queryCsvTransformer();
     IXmlToRowTransformer * xmlTransformer = helper.queryXmlTransformer();
-    if (wuid)
-        agent.queryCodeContext()->getExternalResultRaw(lenData, tempData, wuid, helper.queryName(), helper.querySequence(), xmlTransformer, csvTransformer);
+    if (fromWuid)
+        agent.queryCodeContext()->getExternalResultRaw(lenData, tempData, fromWuid, helper.queryName(), helper.querySequence(), xmlTransformer, csvTransformer);
     else
         agent.queryCodeContext()->getResultRaw(lenData, tempData, helper.queryName(), helper.querySequence(), xmlTransformer, csvTransformer);
     resultBuffer.setBuffer(lenData, tempData, true);
@@ -6513,7 +6622,8 @@ void CHThorWorkunitReadActivity::ready()
 void CHThorWorkunitReadActivity::checkForDiskRead()
 {
     StringBuffer diskFilename;
-    if(agent.getWorkunitResultFilename(diskFilename, helper.queryWUID(), helper.queryName(), helper.querySequence()))
+    OwnedRoxieString fromWuid(helper.getWUID());
+    if (agent.getWorkunitResultFilename(diskFilename, fromWuid, helper.queryName(), helper.querySequence()))
     {
         diskreadHelper.setown(createWorkUnitReadArg(diskFilename.str(), &helper));
         try
@@ -6634,7 +6744,7 @@ const void * CHThorParseActivity::nextInGroup()
         if (rowIter->isValid())
         {
             anyThisGroup = true;
-            OwnedConstHThorRow out = rowIter->getRow();
+            OwnedConstRoxieRow out = rowIter->getRow();
             rowIter->next();
             processed++;
             return out.getClear();
@@ -6691,7 +6801,7 @@ const void * CHThorEnthActivity::nextInGroup()
 {
     if(!started)
         start();
-    OwnedConstHThorRow ret;
+    OwnedConstRoxieRow ret;
     loop
     {
         ret.setown(input->nextInGroup());
@@ -6724,7 +6834,7 @@ CHThorTopNActivity::CHThorTopNActivity(IAgentContext & _agent, unsigned _activit
 CHThorTopNActivity::~CHThorTopNActivity()
 {
     while(curIndex < sortedCount)
-        releaseHThorRow(sorted[curIndex++]);
+        ReleaseRoxieRow(sorted[curIndex++]);
     free(sorted);
 }
 
@@ -6741,7 +6851,7 @@ void CHThorTopNActivity::done()
 {
     CHThorSimpleActivityBase::done();
     while(curIndex < sortedCount)
-        releaseHThorRow(sorted[curIndex++]);
+        ReleaseRoxieRow(sorted[curIndex++]);
 }
 
 const void * CHThorTopNActivity::nextInGroup()
@@ -6774,7 +6884,7 @@ bool CHThorTopNActivity::abortEarly()
             if (grouped)
             {
                 //MORE: This would be more efficient if we had a away of skipping to the end of the incomming group.
-                OwnedConstHThorRow next;
+                OwnedConstRoxieRow next;
                 do
                 {
                     next.setown(input->nextInGroup());
@@ -6801,7 +6911,7 @@ void CHThorTopNActivity::getSorted()
     if (eoi)
         return;
 
-    OwnedConstHThorRow next(input->nextInGroup());
+    OwnedConstRoxieRow next(input->nextInGroup());
     while(next)
     {
         if(sortedCount < limit)
@@ -6817,7 +6927,7 @@ void CHThorTopNActivity::getSorted()
             if(limit && compare.docompare(sorted[sortedCount-1], next) > 0)
             {
                 binary_vec_insert_stable(next.getClear(), sorted, sortedCount, compare);
-                releaseHThorRow(sorted[sortedCount]);
+                ReleaseRoxieRow(sorted[sortedCount]);
                 if (abortEarly())
                     return;
             }
@@ -6915,7 +7025,8 @@ const void * CHThorXmlParseActivity::nextInGroup()
         }
         size32_t srchLen;
         helper.getSearchText(srchLen, srchStr, in);
-        xmlParser.setown(createXMLParse(srchStr, srchLen, helper.queryIteratorPath(), *this, xr_noRoot, helper.requiresContents()));
+        OwnedRoxieString xmlIteratorPath(helper.getXmlIteratorPath());
+        xmlParser.setown(createXMLParse(srchStr, srchLen, xmlIteratorPath, *this, ptr_noRoot, helper.requiresContents()));
     }
 }
 
@@ -7005,7 +7116,7 @@ const void *CHThorWSCRowCallActivity::nextInGroup()
     try
     {
         assertex(WSChelper);
-        OwnedConstHThorRow ret = WSChelper->getRow();
+        OwnedConstRoxieRow ret = WSChelper->getRow();
         if (!ret)
             return NULL;
         ++processed;
@@ -7096,7 +7207,7 @@ const void * CHThorSoapDatasetCallActivity::nextInGroup()
             WSChelper.setown(createSoapCallHelper(this, rowAllocator, authToken.str(), SCdataset, NULL, queryDummyContextLogger(),NULL));
             WSChelper->start();
         }
-        OwnedConstHThorRow ret = WSChelper->getRow();
+        OwnedConstRoxieRow ret = WSChelper->getRow();
         if (!ret)
             return NULL;
         ++processed;
@@ -7195,7 +7306,7 @@ void CHThorDatasetResultActivity::execute()
     IRecordSize * inputMeta = input->queryOutputMeta();
     loop
     {
-        OwnedConstHThorRow nextrec(input->nextInGroup());
+        OwnedConstRoxieRow nextrec(input->nextInGroup());
         if (!nextrec)
         {
             nextrec.setown(input->nextInGroup());
@@ -7216,7 +7327,7 @@ CHThorRowResultActivity::CHThorRowResultActivity(IAgentContext &_agent, unsigned
 
 void CHThorRowResultActivity::execute()
 {
-    OwnedConstHThorRow nextrec(input->nextInGroup());
+    OwnedConstRoxieRow nextrec(input->nextInGroup());
     assertex(nextrec);
     IRecordSize * inputMeta = input->queryOutputMeta();
     unsigned length = inputMeta->getRecordSize(nextrec);
@@ -7276,49 +7387,6 @@ void CHThorChildIteratorActivity::ready()
 
 //=====================================================================================================
 
-CHThorRawIteratorActivity::CHThorRawIteratorActivity(IAgentContext &_agent, unsigned _activityId, unsigned _subgraphId, IHThorRawIteratorArg &_arg, ThorActivityKind _kind) : CHThorSimpleActivityBase(_agent, _activityId, _subgraphId, _arg, _kind), helper(_arg), recordSize(outputMeta)
-{
-    bufferStream.setown(createMemoryBufferSerialStream(resultBuffer));
-    rowSource.setStream(bufferStream);
-}
-
-void CHThorRawIteratorActivity::ready()
-{
-    CHThorSimpleActivityBase::ready();
-    grouped = outputMeta.isGrouped();
-    size32_t lenData = 0;
-    const void * data = NULL;
-    helper.queryDataset(lenData, data);
-    resultBuffer.setBuffer(lenData, const_cast<void *>(data), false);
-    eogPending = false;
-    rowDeserializer.setown(rowAllocator->createRowDeserializer(agent.queryCodeContext()));
-}
-
-void CHThorRawIteratorActivity::done()
-{
-    resultBuffer.resetBuffer();
-    CHThorSimpleActivityBase::done();
-}
-
-
-const void * CHThorRawIteratorActivity::nextInGroup()
-{
-    if (rowSource.eos())
-        return NULL;
-    if (eogPending)
-    {
-        eogPending = false;
-        return NULL;
-    }
-    RtlDynamicRowBuilder rowBuilder(rowAllocator);
-    size32_t newSize = rowDeserializer->deserialize(rowBuilder, rowSource); 
-    
-    if (outputMeta.isGrouped())
-        rowSource.read(sizeof(bool), &eogPending);
-    processed++;
-    return rowBuilder.finalizeRowClear(newSize);                
-}
-//=====================================================================================================
 CHThorLinkedRawIteratorActivity::CHThorLinkedRawIteratorActivity(IAgentContext &_agent, unsigned _activityId, unsigned _subgraphId, IHThorLinkedRawIteratorArg &_arg, ThorActivityKind _kind) 
     : CHThorSimpleActivityBase(_agent, _activityId, _subgraphId, _arg, _kind), helper(_arg)
 {
@@ -7329,7 +7397,7 @@ const void *CHThorLinkedRawIteratorActivity::nextInGroup()
     const void *ret =helper.next();
     if (ret)
     {
-        linkHThorRow(ret);
+        LinkRoxieRow(ret);
         processed++;
     }
     return ret;
@@ -7586,7 +7654,8 @@ void CHThorDiskReadBaseActivity::done()
 
 void CHThorDiskReadBaseActivity::resolve()
 {
-    mangleHelperFileName(mangledHelperFileName, helper.getFileName(), agent.queryWuid(), helper.getFlags());
+    OwnedRoxieString fileName(helper.getFileName());
+    mangleHelperFileName(mangledHelperFileName, fileName, agent.queryWuid(), helper.getFlags());
     if (helper.getFlags() & (TDXtemporary | TDXjobtemp))
     {
         StringBuffer mangledFilename;
@@ -7646,7 +7715,7 @@ void CHThorDiskReadBaseActivity::gatherInfo(IFileDescriptor * fileDesc)
         grouped = ((helper.getFlags() & TDXgrouped) != 0);
     }
 
-    diskMeta.set(helper.queryDiskRecordSize()->querySerializedMeta());
+    diskMeta.set(helper.queryDiskRecordSize()->querySerializedDiskMeta());
     if (grouped)
         diskMeta.setown(new CSuffixedOutputMeta(+1, diskMeta));
     if (outputMeta.isFixedSize())
@@ -7945,8 +8014,8 @@ void CHThorBinaryDiskReadBase::ready()
         diskMeta.set(outputMeta);
     segMonitors.kill();
     segHelper.createSegmentMonitors(this);
-    prefetcher.setown(diskMeta->createRowPrefetcher(agent.queryCodeContext(), activityId));
-    deserializer.setown(diskMeta->createRowDeserializer(agent.queryCodeContext(), activityId));
+    prefetcher.setown(diskMeta->createDiskPrefetcher(agent.queryCodeContext(), activityId));
+    deserializer.setown(diskMeta->createDiskDeserializer(agent.queryCodeContext(), activityId));
 }
 
 bool CHThorBinaryDiskReadBase::openNext()
@@ -8541,7 +8610,10 @@ const void *CHThorCsvReadActivity::nextInGroup()
                 if (thisLineLength < rowSize || avail < rowSize)
                     break;
                 if (rowSize == maxRowSize)
-                    throw MakeStringException(99, "File %s contained a line of length greater than %d bytes.", helper.getFileName(), rowSize);
+                {
+                    OwnedRoxieString fileName(helper.getFileName());
+                    throw MakeStringException(99, "File %s contained a line of length greater than %d bytes.", fileName.get(), rowSize);
+                }
                 if (rowSize >= maxRowSize/2)
                     rowSize = maxRowSize;
                 else
@@ -8562,7 +8634,7 @@ const void *CHThorCsvReadActivity::nextInGroup()
             localOffset += thisLineLength;
             if (thisSize)
             {
-                OwnedConstHThorRow ret = rowBuilder.finalizeRowClear(thisSize);
+                OwnedConstRoxieRow ret = rowBuilder.finalizeRowClear(thisSize);
                 if ((processed - initialProcessed) >= limit)
                 {
                     if ( agent.queryCodeContext()->queryDebugContext())
@@ -8689,7 +8761,7 @@ const void *CHThorXmlReadActivity::nextInGroup()
             localOffset = 0;
             if (sizeGot)
             {
-                OwnedConstHThorRow ret = rowBuilder.finalizeRowClear(sizeGot);
+                OwnedConstRoxieRow ret = rowBuilder.finalizeRowClear(sizeGot);
                 if ((processed - initialProcessed) >= limit)
                 {
                     if ( agent.queryCodeContext()->queryDebugContext())
@@ -8720,7 +8792,8 @@ bool CHThorXmlReadActivity::openNext()
         else
             inputfileiostream.setown(createIOStream(inputfileio));
 
-        xmlParser.setown(createXMLParse(*inputfileiostream, helper.queryIteratorPath(), *this, (0 != (TDRxmlnoroot & helper.getFlags()))?xr_noRoot:xr_none, (helper.getFlags() & TDRusexmlcontents) != 0));
+        OwnedRoxieString xmlIterator(helper.getXmlIteratorPath());
+        xmlParser.setown(createXMLParse(*inputfileiostream, xmlIterator, *this, (0 != (TDRxmlnoroot & helper.getFlags()))?ptr_noRoot:ptr_none, (helper.getFlags() & TDRusexmlcontents) != 0));
         return true;
     }
     return false;
@@ -8756,7 +8829,7 @@ const void *CHThorLocalResultReadActivity::nextInGroup()
     if (next)
     {
         processed++;
-        linkHThorRow(next);
+        LinkRoxieRow(next);
         return next;
     }
     return NULL;
@@ -8789,6 +8862,40 @@ void CHThorLocalResultWriteActivity::execute()
 
 //=====================================================================================================
 
+CHThorDictionaryResultWriteActivity::CHThorDictionaryResultWriteActivity (IAgentContext &_agent, unsigned _activityId, unsigned _subgraphId, IHThorDictionaryResultWriteArg &_arg, ThorActivityKind _kind, __int64 graphId)
+ : CHThorActivityBase(_agent, _activityId, _subgraphId, _arg, _kind), helper(_arg)
+{
+    graph = resolveLocalQuery(graphId);
+}
+
+void CHThorDictionaryResultWriteActivity::execute()
+{
+    RtlLinkedDictionaryBuilder builder(rowAllocator, helper.queryHashLookupInfo());
+    loop
+    {
+        const void *row = input->nextInGroup();
+        if (!row)
+        {
+            row = input->nextInGroup();
+            if (!row)
+                break;
+        }
+        builder.appendOwn(row);
+    }
+    IHThorGraphResult * result = graph->createResult(helper.querySequence(), LINK(rowAllocator));
+    size32_t dictSize = builder.getcount();
+    byte ** dictRows = builder.queryrows();
+    for (size32_t row = 0; row < dictSize; row++)
+    {
+        byte *thisRow = dictRows[row];
+        if (thisRow)
+            LinkRoxieRow(thisRow);
+        result->addRowOwn(thisRow);
+    }
+}
+
+//=====================================================================================================
+
 CHThorLocalResultSpillActivity::CHThorLocalResultSpillActivity(IAgentContext &_agent, unsigned _activityId, unsigned _subgraphId, IHThorLocalResultSpillArg &_arg, ThorActivityKind _kind, __int64 graphId)
  : CHThorSimpleActivityBase(_agent, _activityId, _subgraphId, _arg, _kind), helper(_arg)
 {
@@ -8816,7 +8923,7 @@ const void * CHThorLocalResultSpillActivity::nextInGroup()
             result->addRowOwn(NULL);
             nullPending = false;
         }
-        linkHThorRow(ret);
+        LinkRoxieRow(ret);
         result->addRowOwn(ret);
         processed++;
     }
@@ -8863,7 +8970,7 @@ CHThorLoopActivity::CHThorLoopActivity(IAgentContext &_agent, unsigned _activity
 CHThorLoopActivity::~CHThorLoopActivity()
 {
     ForEachItemIn(idx, loopPending)
-        releaseHThorRow(loopPending.item(idx));
+        ReleaseRoxieRow(loopPending.item(idx));
 }
 
 void CHThorLoopActivity::ready()
@@ -8991,7 +9098,7 @@ const void * CHThorLoopActivity::nextInGroup()
 void CHThorLoopActivity::done()
 {
     ForEachItemIn(idx, loopPending)
-        releaseHThorRow(loopPending.item(idx));
+        ReleaseRoxieRow(loopPending.item(idx));
     loopPending.kill();
     CHThorSimpleActivityBase::done(); 
 }
@@ -9036,7 +9143,7 @@ const void *CHThorGraphLoopResultReadActivity::nextInGroup()
         if (next)
         {
             processed++;
-            linkHThorRow(next);
+            LinkRoxieRow(next);
             return (void *)next;
         }
     }
@@ -9082,10 +9189,12 @@ public:
     virtual unsigned getVersion() const                     { return OUTPUTMETADATA_VERSION; }
     virtual unsigned getMetaFlags()                         { return 0; }
     virtual void destruct(byte * self)  {}
-    virtual IOutputRowSerializer * createRowSerializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
-    virtual IOutputRowDeserializer * createRowDeserializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
-    virtual ISourceRowPrefetcher * createRowPrefetcher(ICodeContext * ctx, unsigned activityId) { return NULL; }
-    virtual IOutputMetaData * querySerializedMeta() { return this; }
+    virtual IOutputRowSerializer * createDiskSerializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
+    virtual IOutputRowDeserializer * createDiskDeserializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
+    virtual ISourceRowPrefetcher * createDiskPrefetcher(ICodeContext * ctx, unsigned activityId) { return NULL; }
+    virtual IOutputMetaData * querySerializedDiskMeta() { return this; }
+    virtual IOutputRowSerializer * createInternalSerializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
+    virtual IOutputRowDeserializer * createInternalDeserializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
     virtual void walkIndirectMembers(const byte * self, IIndirectMemberVisitor & visitor) {}
 };
 
@@ -9686,9 +9795,8 @@ MAKEFACTORY_ARG(SelfJoin, Join);
 MAKEFACTORY_ARG(LookupJoin, HashJoin);
 MAKEFACTORY(AllJoin);
 MAKEFACTORY(WorkUnitWrite);
+MAKEFACTORY(DictionaryWorkUnitWrite);
 MAKEFACTORY(FirstN);
-MAKEFACTORY(Count);
-MAKEFACTORY(TempTable);
 MAKEFACTORY(InlineTable);
 MAKEFACTORY_ARG(Concat, Funnel);
 MAKEFACTORY(Apply);
@@ -9767,6 +9875,7 @@ MAKEFACTORY(XmlRead)
 
 MAKEFACTORY_EXTRA(LocalResultRead, __int64)
 MAKEFACTORY_EXTRA(LocalResultWrite, __int64)
+MAKEFACTORY_EXTRA(DictionaryResultWrite, __int64)
 MAKEFACTORY_EXTRA(LocalResultSpill, __int64)
 MAKEFACTORY_EXTRA(GraphLoopResultRead, __int64)
 MAKEFACTORY_EXTRA(GraphLoopResultWrite, __int64)
@@ -9777,7 +9886,6 @@ MAKEFACTORY(RollupGroup)
 MAKEFACTORY(Regroup)
 MAKEFACTORY(CombineGroup)
 MAKEFACTORY(Case)
-MAKEFACTORY(RawIterator)
 MAKEFACTORY(LinkedRawIterator)
 MAKEFACTORY(GraphLoop)
 MAKEFACTORY(Loop)
@@ -9814,39 +9922,3 @@ extern HTHOR_API IEngineRowAllocator * createHThorRowAllocator(IRowManager & _ro
 {
     return createRoxieRowAllocator(_rowManager, _meta, _activityId, _allocatorId, roxiemem::RHFnone);
 }
-
-static class RowCallbackHook : implements IRtlRowCallback
-{
-public:
-    virtual void releaseRow(const void * row) const
-    {
-        releaseHThorRow(row);
-    }
-    virtual void releaseRowset(unsigned count, byte * * rowset) const
-    {
-        if (rowset)
-        {
-            if (!roxiemem::HeapletBase::isShared(rowset))
-            {
-                byte * * finger = rowset;
-                while (count--)
-                    releaseHThorRow(*finger++);
-            }
-            releaseHThorRow(rowset);
-        }
-    }
-    virtual void * linkRow(const void * row) const
-    {
-        if (row) 
-            linkHThorRow(row);
-        return const_cast<void *>(row);
-    }
-    virtual byte * * linkRowset(byte * * rowset) const
-    {
-        if (rowset)
-            linkHThorRow(rowset);
-        return const_cast<byte * *>(rowset);
-    }
-} callbackHook;
-
-extern HTHOR_API IRtlRowCallback * queryHThorRtlRowCallback() { return &callbackHook; }

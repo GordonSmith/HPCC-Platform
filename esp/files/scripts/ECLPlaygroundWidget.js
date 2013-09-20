@@ -14,30 +14,32 @@
 #    limitations under the License.
 ############################################################################## */
 define([
-	"dojo/_base/declare",
-	"dojo/_base/xhr",
-	"dojo/dom",
+    "dojo/_base/declare",
+    "dojo/_base/xhr",
+    "dojo/_base/lang",
+    "dojo/dom",
+    "dojo/query",
 
-	"dijit/layout/_LayoutWidget",
-	"dijit/_TemplatedMixin",
-	"dijit/_WidgetsInTemplateMixin",
-	"dijit/layout/BorderContainer",
-	"dijit/layout/TabContainer",
-	"dijit/layout/ContentPane",
-	"dijit/registry",
+    "dijit/layout/_LayoutWidget",
+    "dijit/_TemplatedMixin",
+    "dijit/_WidgetsInTemplateMixin",
+    "dijit/layout/BorderContainer",
+    "dijit/layout/TabContainer",
+    "dijit/layout/ContentPane",
+    "dijit/registry",
 
-	"hpcc/ECLSourceWidget",
-	"hpcc/TargetSelectWidget",
-	"hpcc/SampleSelectWidget",
-	"hpcc/GraphWidget",
-	"hpcc/ResultsWidget",
-	"hpcc/ESPWorkunit",
+    "hpcc/ECLSourceWidget",
+    "hpcc/TargetSelectWidget",
+    "hpcc/SampleSelectWidget",
+    "hpcc/GraphWidget",
+    "hpcc/ResultsWidget",
+    "hpcc/ESPWorkunit",
 
     "dojo/text!../templates/ECLPlaygroundWidget.html"
-], function (declare, xhr, dom,
-				_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, BorderContainer, TabContainer, ContentPane, registry,
-				EclSourceWidget, TargetSelectWidget, SampleSelectWidget, GraphWidget, ResultsWidget, Workunit,
-				template) {
+], function (declare, xhr, lang, dom, query,
+                _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, BorderContainer, TabContainer, ContentPane, registry,
+                EclSourceWidget, TargetSelectWidget, SampleSelectWidget, GraphWidget, ResultsWidget, ESPWorkunit,
+                template) {
     return declare("ECLPlaygroundWidget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
         baseClass: "ECLPlaygroundWidget",
@@ -75,7 +77,7 @@ define([
             var context = this;
             this.borderContainer = registry.byId(this.id + "BorderContainer");
             this.targetSelectWidget = registry.byId(this.id + "TargetSelect");
-            this.resultsWidget = registry.byId(this.id + "Results");
+            this.resultsWidget = registry.byId(this.id + "_Results");
             this.resultsWidget.onErrorClick = function (line, col) {
                 context.editorControl.setCursor(line, col);
             };
@@ -88,27 +90,30 @@ define([
         },
 
         init: function (params) {
+            if (this.initalized)
+                return;
+            this.initalized = true;
+
             if (params.Wuid) {
                 this.hideTitle();
             }
 
-            this.wuid = params.Wuid;
-            this.targetSelectWidget.setValue(params.Target);
+            this.Wuid = params.Wuid;
+            this.targetSelectWidget.init(params);
 
             this.initEditor();
+            this.editorControl.init(params);
 
             var context = this;
             this.initGraph();
+
             if (params.Wuid) {
-                this.wu = new Workunit({
-                    wuid: params.Wuid
-                });
-                this.wu.fetchText(function (text) {
-                    context.editorControl.setText(text);
-                });
-                this.wu.monitor(function () {
-                    context.monitorEclPlayground();
-                });
+                this.wu = ESPWorkunit.Get(params.Wuid);
+                var data = this.wu.getData();
+                for (key in data) {
+                    this.updateInput(key, null, data[key]);
+                }
+                this.watchWU();
             } else {
                 this.initSamples();
                 this.graphControl.watchSelect(this.sampleSelectWidget.selectControl);
@@ -133,11 +138,11 @@ define([
 
         initGraph: function () {
             var context = this;
-            this.graphControl = registry.byId(this.id + "Graphs");
+            this.graphControl = registry.byId(this.id + "GraphControl");
             this.graphControl.onSelectionChanged = function (items) {
                 context.editorControl.clearHighlightLines();
                 for (var i = 0; i < items.length; ++i) {
-                    var props = context.graphControl.plugin.getProperties(items[i]);
+                    var props = context.graphControl.getProperties(items[i]);
                     if (props.definition) {
                         var startPos = props.definition.indexOf("(");
                         var endPos = props.definition.lastIndexOf(")");
@@ -155,14 +160,45 @@ define([
             this.editorControl.clearHighlightLines();
             this.graphControl.clear();
             this.resultsWidget.clear();
+            this.updateInput("State", null, "...");
         },
 
-        monitorEclPlayground: function () {
-            dom.byId(this.id + "Status").innerHTML = this.wu.state;
+        watchWU: function () {
+            if (this.watching) {
+                this.watching.unwatch();
+            }
+            var context = this;
+            this.watching = this.wu.watch(function (name, oldValue, newValue) {
+                context.updateInput(name, oldValue, newValue);
+            });
+            this.wu.monitor();
+        },
+
+        updateInput: function (name, oldValue, newValue) {
+            var input = query("input[id=" + this.id + name + "]", this.summaryForm)[0];
+            if (input) {
+                var dijitInput = registry.byId(this.id + name);
+                if (dijitInput) {
+                    dijitInput.set("value", newValue);
+                } else {
+                    input.value = newValue;
+                }
+            } else {
+                var div = query("div[id=" + this.id + name + "]", this.summaryForm)[0];
+                if (div) {
+                    div.innerHTML = newValue;
+                }
+            }
+            if (name === "hasCompleted") {
+                this.checkIfComplete();
+            }
+        },
+
+        checkIfComplete: function() {
             var context = this;
             if (this.wu.isComplete()) {
                 this.wu.getInfo({
-                    onGetExceptions: function (exceptions) {
+                    onGetWUExceptions: function (exceptions) {
                         context.displayExceptions(exceptions);
                     },
                     onGetResults: function (results) {
@@ -171,7 +207,7 @@ define([
                     onGetGraphs: function (graphs) {
                         context.displayGraphs(graphs);
                     },
-                    onGetAll: function (workunit) {
+                    onAfterSend: function (workunit) {
                         context.displayAll(workunit);
                     }
                 });
@@ -187,21 +223,15 @@ define([
         displayGraphs: function (graphs) {
             for (var i = 0; i < graphs.length; ++i) {
                 var context = this;
-                if (i == 0) {
-                    this.wu.fetchGraphXgmml(i, function (xgmml) {
-                        context.graphControl.loadXGMML(xgmml);
-                    });
-                } else {
-                    this.wu.fetchGraphXgmml(i, function (xgmml) {
-                        context.graphControl.loadXGMML(xgmml, true);
-                    });
-                }
+                this.wu.fetchGraphXgmml(i, function (xgmml) {
+                    context.graphControl.loadXGMML(xgmml, i > 0);
+                });
             }
         },
 
         displayAll: function (workunit) {
-            if (this.wu.exceptions.length) {
-                this.editorControl.setErrors(this.wu.exceptions);
+            if (lang.exists("Exceptions.ECLException", this.wu)) {
+                this.editorControl.setErrors(this.wu.Exceptions.ECLException);
             }
             this.resultsWidget.refresh(this.wu);
         },
@@ -209,17 +239,17 @@ define([
         _onSubmit: function (evt) {
             this.resetPage();
             var context = this;
-            this.wu = new Workunit({
+            this.wu = ESPWorkunit.Create({
                 onCreate: function () {
-                    context.wu.update(context.editorControl.getText());
+                    context.wu.update({
+                        QueryText: context.editorControl.getText()
+                    });
+                    context.watchWU();
                 },
                 onUpdate: function () {
                     context.wu.submit(context.targetSelectWidget.getValue());
                 },
                 onSubmit: function () {
-                    context.wu.monitor(function () {
-                        context.monitorEclPlayground();
-                    });
                 }
             });
         }

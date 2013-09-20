@@ -44,7 +44,7 @@ delete _7[pid];
 }
 }
 };
-_1._gcNodeData=function(){
+_6._gcNodeData=_1._gcNodeData=function(){
 var _12=_2("["+_8+"]").map(_9);
 for(var i in _7){
 if(_4.indexOf(_12,i)<0){

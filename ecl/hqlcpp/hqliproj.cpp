@@ -142,7 +142,13 @@ void UsedFieldSet::appendField(IHqlExpression & ownedField)
 
 void UsedFieldSet::clone(const UsedFieldSet & source)
 {
-    assertex(originalFields == source.originalFields);
+    if (originalFields != source.originalFields)
+    {
+        //In very rare circumstances it is possible to have non-identical records with identical structures
+        //A typical case is the same structure defined in two different places, using a symbol to specify a maximum
+        //length.  The locations of the symbols differ, so the records do not match exactly.
+        assertex(recordTypesMatch(queryOriginalRecord(), source.queryOriginalRecord()));
+    }
     ForEachItemIn(i, source.fields)
         appendField(OLINK(source.fields.item(i)));
 
@@ -314,7 +320,7 @@ IHqlExpression * UsedFieldSet::createFilteredAssign(IHqlExpression * field, IHql
     {
         if (exceptions && exceptions->contains(*field))
         {
-            newValue.setown(createNullExpr(field));
+            newValue.setown(createNullExpr(newField ? newField.get() : field));
         }
     }
 
@@ -422,6 +428,8 @@ void UsedFieldSet::calcFinalRecord(bool canPack, bool ignoreIfEmpty)
             {
                 HqlExprArray args;
                 unwindChildren(args, &cur);
+                //MORE: Any default will now have the wrong type => remove it for the moment (ideally it would be projected)
+                removeProperty(args, defaultAtom);
                 OwnedHqlExpr newField = createField(cur.queryName(), makeRowType(newRecord->getType()), args);
                 recordFields.append(*newField.getClear());
             }
@@ -447,29 +455,9 @@ void UsedFieldSet::calcFinalRecord(bool canPack, bool ignoreIfEmpty)
     finalRecord.setown(createRecord(recordFields));
     if (canPack)
         finalRecord.setown(getPackedRecord(finalRecord));
-
-    OwnedHqlExpr serializedRecord = getSerializedForm(finalRecord);
-    if (maxRecordSizeUsesDefault(serializedRecord))
-    {
-        HqlExprArray recordFields;
-        unwindChildren(recordFields, finalRecord);
-        //Lost some indication of the record size->add an attribute
-        IHqlExpression * max = originalRecord->queryProperty(maxLengthAtom);
-        if (max)
-            recordFields.append(*LINK(max));
-        else
-        {
-            bool isKnownSize, useDefaultRecordSize;
-            OwnedHqlExpr oldSerializedRecord = getSerializedForm(originalRecord);
-            unsigned oldRecordSize = getMaxRecordSize(oldSerializedRecord, 0, isKnownSize, useDefaultRecordSize);
-            if (!useDefaultRecordSize)
-                recordFields.append(*createAttribute(maxLengthAtom, getSizetConstant(oldRecordSize)));
-        }
-        finalRecord.setown(createRecord(recordFields));
-    }
 }
 
-void UsedFieldSet::gatherExpandSelectsUsed(HqlExprArray * selfSelects, SelectUsedArray * parentSelects, IHqlExpression * selector, IHqlExpression * source)
+void UsedFieldSet::gatherExpandSelectsUsed(HqlExprArray * selfSelects, HqlExprArray * parentSelects, IHqlExpression * selector, IHqlExpression * source)
 {
     assertex(selfSelects ? selector != NULL : true);
     for (unsigned i1 = maxGathered; i1 < fields.ordinality(); i1++)
@@ -519,7 +507,7 @@ inline bool isSelector(IHqlExpression * expr)
     return (expr->getOperator() == no_select) && !isNewSelector(expr);
 }
 
-void UsedFieldSet::gatherTransformValuesUsed(HqlExprArray * selfSelects, SelectUsedArray * parentSelects, HqlExprArray * values, IHqlExpression * selector, IHqlExpression * transform)
+void UsedFieldSet::gatherTransformValuesUsed(HqlExprArray * selfSelects, HqlExprArray * parentSelects, HqlExprArray * values, IHqlExpression * selector, IHqlExpression * transform)
 {
     for (unsigned i = maxGathered; i < fields.ordinality(); i++)
     {
@@ -816,7 +804,6 @@ static unsigned getActivityCost(IHqlExpression * expr, ClusterType targetCluster
 {
     switch (targetClusterType)
     {
-    case ThorCluster:
     case ThorLCRCluster:
         {
             switch (expr->getOperator())
@@ -826,7 +813,7 @@ static unsigned getActivityCost(IHqlExpression * expr, ClusterType targetCluster
                 if (!expr->hasProperty(localAtom))
                     return CostNetworkCopy;
                 return CostManyCopy;
-            case no_shuffle:
+            case no_subsort:
                 if (!expr->hasProperty(localAtom) && !isGrouped(expr))
                     return CostNetworkCopy;
                 break;
@@ -936,6 +923,11 @@ static node_operator queryCompoundOp(IHqlExpression * expr)
 static int compareHqlExprPtr(IInterface * * left, IInterface * * right) 
 {
     return *left == *right ? 0 : *left < *right ? -1 : +1;
+}
+
+inline bool hasActivityType(IHqlExpression * expr)
+{
+    return (expr->isDataset() || expr->isDatarow() || expr->isDictionary());
 }
 
 //------------------------------------------------------------------------
@@ -1322,7 +1314,7 @@ void ImplicitProjectTransformer::analyseExpr(IHqlExpression * expr)
         case no_evaluate:
             throwUnexpected();
         case no_select:
-            if (expr->isDataset() || expr->isDatarow())
+            if (hasActivityType(expr))
             {
                 //MORE: These means that selects from a parent dataset don't project down the parent dataset.
                 //I'm not sure how big an issue that would be.
@@ -1361,7 +1353,7 @@ void ImplicitProjectTransformer::analyseExpr(IHqlExpression * expr)
             allowActivity = true;
             return;
         case no_thor:
-            if (expr->isDataset() || expr->isDatarow())
+            if (hasActivityType(expr))
             {
                 assertex(extra->activityKind() == SimpleActivity);
                 Parent::analyseExpr(expr);
@@ -1459,7 +1451,7 @@ void ImplicitProjectTransformer::analyseExpr(IHqlExpression * expr)
                 unsigned first = 0;
                 unsigned last = numArgs;
                 unsigned start = 0;
-                if (!expr->isAction() && !expr->isDataset() && !expr->isDatarow())
+                if (!expr->isAction() && !expr->isDataset() && !expr->isDatarow() && !expr->isDictionary())
                 {
                     switch (op)
                     {
@@ -1627,7 +1619,7 @@ void ImplicitProjectTransformer::analyseExpr(IHqlExpression * expr)
     }
 
     IHqlExpression * record = expr->queryRecord();
-    if (record && !isPatternType(type) && !expr->isTransform() && !expr->isDictionary())
+    if (record && !isPatternType(type) && !expr->isTransform())
     {
         assertex(complexExtra);
         complexExtra->setOriginalRecord(queryBodyComplexExtra(record));
@@ -1912,7 +1904,6 @@ const SelectUsedArray & ImplicitProjectTransformer::querySelectsUsed(IHqlExpress
     return extra->querySelectsUsed(); 
 }
 
-
 ProjectExprKind ImplicitProjectTransformer::getProjectExprKind(IHqlExpression * expr)
 {
     switch (expr->getOperator())
@@ -1920,7 +1911,7 @@ ProjectExprKind ImplicitProjectTransformer::getProjectExprKind(IHqlExpression * 
     case no_evaluate:
         throwUnexpected();
     case no_select:
-        if (expr->isDataset() || expr->isDatarow())
+        if (hasActivityType(expr))
             return SourceActivity;
         if (isNewSelector(expr))
             return ScalarSelectActivity;
@@ -1932,21 +1923,21 @@ ProjectExprKind ImplicitProjectTransformer::getProjectExprKind(IHqlExpression * 
     case no_attr_link:
         return NonActivity;
     case no_typetransfer:
-        if (expr->isDataset() || expr->isDatarow())
+        if (hasActivityType(expr))
             return SourceActivity;
         return NonActivity;
     case no_thor:
-        if (expr->isDataset() || expr->isDatarow())
+        if (hasActivityType(expr))
             return SimpleActivity;
         return NonActivity;
     case no_compound:
-        if (expr->isDataset())
+        if (expr->isDataset() || expr->isDictionary())
             return SimpleActivity;
         if (expr->isDatarow())
             return ComplexNonActivity;
         return NonActivity;
     case no_executewhen:
-        if (expr->isDataset() || expr->isDatarow())
+        if (hasActivityType(expr))
             return SimpleActivity;
         return NonActivity;
     case no_subgraph:
@@ -1956,6 +1947,7 @@ ProjectExprKind ImplicitProjectTransformer::getProjectExprKind(IHqlExpression * 
     case no_nwayjoin:           // could probably project output of this one...
     case no_nwaymerge:
     case no_libraryselect:
+    case no_datasetfromdictionary:
         return SourceActivity;
     case no_setresult:
     case no_ensureresult:
@@ -1979,8 +1971,8 @@ ProjectExprKind ImplicitProjectTransformer::getProjectExprKind(IHqlExpression * 
     case no_inlinetable:
     case no_dataset_from_transform:
         return CreateRecordSourceActivity;
-    case no_inlinedictionary:
-        return NonActivity;
+    case no_createdictionary:
+        return FixedInputActivity;
     case no_indict:
     case no_selectmap:
         return FixedInputActivity;
@@ -2005,7 +1997,7 @@ ProjectExprKind ImplicitProjectTransformer::getProjectExprKind(IHqlExpression * 
         return AnyTypeActivity;
     case no_skip:
     case no_fail:
-        if (expr->isDataset() || expr->isDatarow())
+        if (hasActivityType(expr))
             return AnyTypeActivity;
         return NonActivity;
     case no_table:
@@ -2061,19 +2053,23 @@ ProjectExprKind ImplicitProjectTransformer::getProjectExprKind(IHqlExpression * 
     case no_getgraphloopresult:
     case no_rows:
         return SourceActivity;
+    case no_getresult:
+        if (hasActivityType(expr))
+            return SourceActivity;
+        return NonActivity;
     case no_allnodes:
     case no_httpcall:
     case no_soapcall:
     case no_newsoapcall:
     case no_libraryinput:
     case no_thisnode:
-        if (expr->isDataset() || expr->isDatarow())
+        if (hasActivityType(expr))
             return SourceActivity;
         return NonActivity;
     case no_pipe:
     case no_nofold:
     case no_nohoist:
-        if (expr->isDataset() || expr->isDatarow())
+        if (hasActivityType(expr))
             return FixedInputActivity;
         return NonActivity;
     case no_soapcall_ds:
@@ -2103,9 +2099,7 @@ ProjectExprKind ImplicitProjectTransformer::getProjectExprKind(IHqlExpression * 
     case no_selfjoin:
         return CreateRecordActivity;
     case no_if:
-        if (expr->isDataset())
-            return PassThroughActivity;
-        if (expr->isDatarow())
+        if (hasActivityType(expr))
             return PassThroughActivity;
         return NonActivity;
     case no_addfiles:
@@ -2134,7 +2128,7 @@ ProjectExprKind ImplicitProjectTransformer::getProjectExprKind(IHqlExpression * 
         return SinkActivity;
     case no_call:
     case no_externalcall:
-        if (expr->isDataset() || expr->isDatarow())
+        if (hasActivityType(expr))
             return SourceActivity;
         //MORE: What about parameters??
         return NonActivity;
@@ -2166,6 +2160,7 @@ ProjectExprKind ImplicitProjectTransformer::getProjectExprKind(IHqlExpression * 
     case type_groupedtable:
         break;
     case type_dictionary:
+        return FixedInputActivity;
     case type_transform:
         return NonActivity;
     default:
@@ -2218,6 +2213,15 @@ void ImplicitProjectTransformer::processSelects(ComplexImplicitProjectInfo * ext
     }
 }
 
+void ImplicitProjectTransformer::processSelects(ComplexImplicitProjectInfo * extra, HqlExprArray const & selectsUsed, IHqlExpression * ds, IHqlExpression * leftSelect, IHqlExpression * rightSelect)
+{
+    ForEachItemIn(i2, selectsUsed)
+    {
+        IHqlExpression * curSelect = &selectsUsed.item(i2);
+        processSelect(extra, curSelect, ds, leftSelect, rightSelect);
+    }
+}
+
 
 void ImplicitProjectTransformer::processTransform(ComplexImplicitProjectInfo * extra, IHqlExpression * transform, IHqlExpression * dsSelect, IHqlExpression * leftSelect, IHqlExpression * rightSelect)
 {
@@ -2227,20 +2231,28 @@ void ImplicitProjectTransformer::processTransform(ComplexImplicitProjectInfo * e
     {
         IHqlExpression * cur = &assigns.item(itr);
         //Need to handle skip attributes...
-        if (cur->getOperator() == no_skip)
+        switch (cur->getOperator())
         {
-            const SelectUsedArray & selectsUsed = querySelectsUsed(cur);
-            processSelects(extra, selectsUsed, dsSelect, leftSelect, rightSelect);
-        }
-        else if (cur->getOperator() == no_assign)
-        {
-            IHqlExpression * value = cur->queryChild(1);
-            if (!value->isPure())
+        case no_assign:
             {
-                IHqlExpression * lhs = cur->queryChild(0);
-                processMatchingSelector(extra->outputFields, lhs, lhs->queryChild(0));
-                const SelectUsedArray & selectsUsed = querySelectsUsed(value);
+                IHqlExpression * value = cur->queryChild(1);
+                if (!value->isPure())
+                {
+                    IHqlExpression * lhs = cur->queryChild(0);
+                    processMatchingSelector(extra->outputFields, lhs, lhs->queryChild(0));
+                    const SelectUsedArray & selectsUsed = querySelectsUsed(value);
+                    processSelects(extra, selectsUsed, dsSelect, leftSelect, rightSelect);
+                }
+                break;
+            }
+        case no_attr:
+        case no_attr_expr:
+            break;
+        default:
+            {
+                const SelectUsedArray & selectsUsed = querySelectsUsed(cur);
                 processSelects(extra, selectsUsed, dsSelect, leftSelect, rightSelect);
+                break;
             }
         }
     }
@@ -2298,7 +2310,7 @@ void ImplicitProjectTransformer::calculateFieldsUsed(IHqlExpression * expr)
                 extra->addAllOutputs();
 
             //MORE: querySelectsUsedForField() could be optimized by creating a map first, but it is only ~1% of time, so not really worth it.
-            SelectUsedArray parentSelects;
+            HqlExprArray parentSelects;
             HqlExprArray values;
             extra->outputFields.gatherTransformValuesUsed(NULL, &parentSelects, &values, NULL, transform);
             processSelects(extra, parentSelects, dsSelect, leftSelect, rightSelect);
@@ -2473,7 +2485,7 @@ void ImplicitProjectTransformer::calculateFieldsUsed(IHqlExpression * expr)
                 //NB: outputfields can extend...
                 while (!extra->outputFields.allGathered())
                 {
-                    SelectUsedArray parentSelects;
+                    HqlExprArray parentSelects;
                     HqlExprArray values;
                     HqlExprArray selfSelects;
                     extra->outputFields.gatherTransformValuesUsed(&selfSelects, &parentSelects, &values, dsSelect, transform);
@@ -2541,7 +2553,7 @@ void ImplicitProjectTransformer::calculateFieldsUsed(IHqlExpression * expr)
 
             while (!extra->outputFields.allGathered())
             {
-                SelectUsedArray parentSelects;
+                HqlExprArray parentSelects;
                 HqlExprArray values;
                 HqlExprArray selfSelects;
                 extra->outputFields.gatherTransformValuesUsed(&selfSelects, &parentSelects, &values, left, transform);
@@ -3123,7 +3135,6 @@ IHqlExpression * ImplicitProjectTransformer::process(IHqlExpression * expr)
     case HThorCluster:
         // same as roxie, but also maybe worth inserting projects to minimise the amount of data that is spilled.
         break;
-    case ThorCluster:
     case ThorLCRCluster:
         //worth inserting projects to reduce copying, spilling, but primarily data transfered between nodes.
         if (options.insertProjectCostLevel || options.optimizeSpills)

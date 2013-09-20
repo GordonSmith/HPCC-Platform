@@ -26,7 +26,7 @@ this.processSmd(_4.eval("("+_8.smdStr+")"));
 if(_8.serviceUrl){
 this.serviceUrl=_8.serviceUrl;
 }
-this.timeout=_8.timeout||3000;
+this.timeout=_8.timeout||0;
 if("strictArgChecks" in _8){
 this.strictArgChecks=_8.strictArgChecks;
 }

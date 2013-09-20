@@ -40,6 +40,7 @@ ESPrequest DeletePackageRequest
 {
     string Target;
     string PackageMap;
+    string Process;
 };
 
 ESPresponse [exceptions_inline] DeletePackageResponse
@@ -51,6 +52,7 @@ ESPrequest ActivatePackageRequest
 {
     string Target;
     string PackageMap;
+    string Process;
 };
 
 ESPresponse [exceptions_inline] ActivatePackageResponse
@@ -62,6 +64,7 @@ ESPrequest DeActivatePackageRequest
 {
     string Target;
     string PackageMap;
+    string Process;
 };
 
 ESPresponse [exceptions_inline] DeActivatePackageResponse
@@ -72,6 +75,7 @@ ESPresponse [exceptions_inline] DeActivatePackageResponse
 ESPrequest GetPackageRequest
 {
     string Target;
+    string Process;
 };
 
 ESPresponse [exceptions_inline] GetPackageResponse
@@ -83,6 +87,7 @@ ESPresponse [exceptions_inline] GetPackageResponse
 ESPrequest ListPackageRequest
 {
     string Target;
+    string Process;
 };
 
 ESPstruct PackageListData
@@ -94,7 +99,9 @@ ESPstruct PackageListData
 ESPstruct PackageListMapData
 {
     string Id;
+    string Target;
     ESParray<ESPstruct PackageListData> PkgListData;
+    boolean Active;
 };
 
 ESPresponse [exceptions_inline] ListPackageResponse
@@ -103,19 +110,39 @@ ESPresponse [exceptions_inline] ListPackageResponse
     ESParray<ESPstruct PackageListMapData> PkgListMapData;
 };
 
-ESPrequest CopyFilesRequest
+ESPrequest ValidatePackageRequest
 {
-    string Target;
-    string PackageName;
-    string DaliIp;
     string Info;
-    bool OverWrite;
+    string Target;
+    bool Active;
+    string PMID;
+    string QueryIdToVerify;
 };
 
-
-ESPresponse [exceptions_inline] CopyFilesResponse
+ESPstruct ValidatePackageInfo
 {
+    ESParray<string> Unmatched;
+};
+
+ESPstruct ValidatePackageQueries
+{
+    ESParray<string> Unmatched;
+};
+
+ESPstruct ValidatePackageFiles
+{
+    ESParray<string> Unmatched;
+};
+
+ESPresponse [exceptions_inline] ValidatePackageResponse
+{
+    string PMID;
     ESPstruct BasePackageStatus status;
+    ESParray<string> Warnings;
+    ESParray<string> Errors;
+    ESPstruct ValidatePackageInfo packages;
+    ESPstruct ValidatePackageQueries queries;
+    ESPstruct ValidatePackageFiles files;
 };
 
 ESPservice [version("1.00"), default_client_version("1.00"), exceptions_inline("./smc_xslt/exceptions.xslt")] WsPackageProcess
@@ -127,7 +154,7 @@ ESPservice [version("1.00"), default_client_version("1.00"), exceptions_inline("
     ESPmethod DeActivatePackage(DeActivatePackageRequest, DeActivatePackageResponse);
     ESPmethod ListPackage(ListPackageRequest, ListPackageResponse);
     ESPmethod GetPackage(GetPackageRequest, GetPackageResponse);
-    ESPmethod CopyFiles(CopyFilesRequest, CopyFilesResponse);
+    ESPmethod ValidatePackage(ValidatePackageRequest, ValidatePackageResponse);
 };
 
 SCMexportdef(WsPackageProcess);

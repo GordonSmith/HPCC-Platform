@@ -590,31 +590,41 @@ bool HqlCppWriter::generateFunctionPrototype(IHqlExpression * funcdef, const cha
     if (body->hasProperty(includeAtom) || body->hasProperty(ctxmethodAtom) || body->hasProperty(gctxmethodAtom) || body->hasProperty(methodAtom) || body->hasProperty(sysAtom) || body->hasProperty(omethodAtom))
         return false;
 
-    enum { ServiceApi, RtlApi, BcdApi, CApi, LocalApi } api = ServiceApi;
+    IHqlExpression *proto = body->queryProperty(prototypeAtom);
+    if (proto)
+    {
+        StringBuffer s;
+        getStringValue(s, proto->queryChild(0));
+        out.append(s);
+        return true;
+    }
+    enum { ServiceApi, RtlApi, FastApi, CApi, CppApi, LocalApi } api = ServiceApi;
     bool isVirtual = funcdef->hasProperty(virtualAtom);
     bool isLocal = body->hasProperty(localAtom);
     if (body->hasProperty(eclrtlAtom))
         api = RtlApi;
-    else if (body->hasProperty(bcdAtom))
-        api = BcdApi;
+    else if (body->hasProperty(fastAtom))
+        api = FastApi;
     else if (body->hasProperty(cAtom))
         api = CApi;
+    else if (body->hasProperty(cppAtom))
+        api = CppApi;
     else if (isLocal || isVirtual)
         api = LocalApi;
 
     if (isVirtual)
         out.append("virtual");
     else
-        out.append("extern ");
+        out.append("extern");
 
     if ((api == ServiceApi) || api == CApi)
-        out.append("\"C\" ");
+        out.append(" \"C\" ");
 
     switch (api)
     {
     case ServiceApi: out.append(" SERVICE_API"); break;
     case RtlApi:     out.append(" RTL_API"); break;
-    case BcdApi:     out.append(" BCD_API"); break;
+    case FastApi:     out.append(" BCD_API"); break;
     }
     out.append(" ");
 
@@ -632,7 +642,7 @@ bool HqlCppWriter::generateFunctionPrototype(IHqlExpression * funcdef, const cha
             break;
         }
         break;
-    case BcdApi:
+    case FastApi:
         switch (compiler)
         {
         case Vs6CppCompiler:
@@ -812,7 +822,12 @@ void HqlCppWriter::generateParamCpp(IHqlExpression * param)
             if (isOut)
                 out.append(" &");
             if (paramName)
-                appendCapital(out.append(" len"), paramNameText);
+            {
+                if (hasOutOfLineModifier(paramType) || hasLinkCountedModifier(paramType))
+                    appendCapital(out.append(" count"), paramNameText);
+                else
+                    appendCapital(out.append(" len"), paramNameText);
+            }
             out.append(",");
         }
         break;
@@ -850,7 +865,10 @@ void HqlCppWriter::generateParamCpp(IHqlExpression * param)
     case type_groupedtable:
         if (isConst)
             out.append("const ");
-        out.append("void *");
+        if (hasOutOfLineModifier(paramType) || hasLinkCountedModifier(paramType))
+            out.append("byte * *");
+        else
+            out.append("void *");
         if (isOut)
             out.append(" &");
         break;
@@ -1114,6 +1132,11 @@ StringBuffer & HqlCppWriter::generateExprCpp(IHqlExpression * expr)
                 {
                     generateExprCpp(expr->queryChild(firstArg)).append(".");
                     ++firstArg;
+                }
+                if (props->hasProperty(namespaceAtom))
+                {
+                    getProperty(props, namespaceAtom, out);
+                    out.append("::");
                 }
                 getProperty(props, entrypointAtom, out);
                 out.append('(');

@@ -17,49 +17,73 @@
 
 #include "thsoapcallslave.ipp"
 #include "thactivityutil.ipp"
+#include "dasess.hpp"
 
 //---------------------------------------------------------------------------
 
-class SoapRowCallSlaveActivity : public CSlaveActivity, public CThorDataLink, implements ISoapCallRowProvider
+
+static StringBuffer &buildAuthToken(IUserDescriptor *userDesc, StringBuffer &authToken)
+{
+    StringBuffer uidpair;
+    userDesc->getUserName(uidpair);
+    uidpair.append(":");
+    userDesc->getPassword(uidpair);
+    JBASE64_Encode(uidpair.str(), uidpair.length(), authToken);
+    return authToken;
+}
+
+class CWscRowCallSlaveActivity : public CSlaveActivity, public CThorDataLink, implements IWSCRowProvider
 {
     bool eof;
-    Owned<ISoapCallHelper> soaphelper;
+    Owned<IWSCHelper> wscHelper;
 
 public:
     IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
 
-    SoapRowCallSlaveActivity(CGraphElementBase *_container) : CSlaveActivity(_container), CThorDataLink(this) { }
+    CWscRowCallSlaveActivity(CGraphElementBase *_container) : CSlaveActivity(_container), CThorDataLink(this) { }
 
     // IThorSlaveActivity overloaded methods
     virtual void init(MemoryBuffer &data, MemoryBuffer &slaveData)
     {
-        const char *authToken;
-        data.read(authToken);
+        StringBuffer authToken;
+        buildAuthToken(queryJob().queryUserDescriptor(), authToken);
         appendOutputLinked(this);
         if (container.queryLocalOrGrouped() || firstNode())
-            soaphelper.setown(createSoapCallHelper(this, queryRowAllocator(), authToken, SCrow, NULL, queryDummyContextLogger(),NULL));
+        {
+            switch (container.getKind())
+            {
+                case TAKsoap_rowdataset:
+                    wscHelper.setown(createSoapCallHelper(this, queryRowAllocator(), authToken.str(), SCrow, NULL, queryDummyContextLogger(),NULL));
+                    break;
+                case TAKhttp_rowdataset:
+                    wscHelper.setown(createHttpCallHelper(this, queryRowAllocator(), authToken.str(), SCrow, NULL, queryDummyContextLogger(),NULL));
+                    break;
+                default:
+                    throwUnexpected();
+            }
+        }
     }
     // IThorDataLink methods
     virtual void start()
     {
         ActivityTimer s(totalCycles, timeActivities, NULL);
         eof = false;
-        ActPrintLog("SOAPCALL");
-        dataLinkStart("SOAPCALL", container.queryId());
-        if (soaphelper)
-            soaphelper->start();
+        dataLinkStart(container.getKind(), container.queryId());
+        if (wscHelper)
+            wscHelper->start();
     }
     virtual void stop()
     {
-        abortSoon = true;
+        if (wscHelper)
+            wscHelper->waitUntilDone();
         dataLinkStop();
     }
     CATCH_NEXTROW()
     {
         ActivityTimer t(totalCycles, timeActivities, NULL);
-        if (!eof && soaphelper.get())
+        if (!eof && wscHelper.get())
         {
-            OwnedConstThorRow row = soaphelper->getRow();
+            OwnedConstThorRow row = wscHelper->getRow();
             if (row)
             {
                 dataLinkIncrement();
@@ -73,8 +97,8 @@ public:
     virtual void abort()
     {
         CSlaveActivity::abort();
-        if (soaphelper)
-            soaphelper->abort();
+        if (wscHelper)
+            wscHelper->abort();
     }
     void getMetaInfo(ThorDataLinkMetaInfo &info)
     {
@@ -82,14 +106,14 @@ public:
         info.unknownRowsOutput = true;
     }
 
-    // ISoapCallRowProvider
-    virtual IHThorSoapActionArg * queryActionHelper()
+    // IWSCRowProvider
+    virtual IHThorWebServiceCallActionArg * queryActionHelper()
     {
-        return (static_cast <IHThorSoapActionArg *> (queryHelper()));
+        return (static_cast <IHThorWebServiceCallActionArg *> (queryHelper()));
     }
-    virtual IHThorSoapCallArg * queryCallHelper()
+    virtual IHThorWebServiceCallArg * queryCallHelper()
     {
-        return (static_cast <IHThorSoapCallArg *> (queryHelper()));
+        return (static_cast <IHThorWebServiceCallArg *> (queryHelper()));
     }
     virtual const void * getNextRow() { return NULL; }
     virtual void releaseRow(const void *r) { }
@@ -97,10 +121,10 @@ public:
 
 //---------------------------------------------------------------------------
 
-class SoapDatasetCallSlaveActivity : public CSlaveActivity, public CThorDataLink, implements ISoapCallRowProvider
+class SoapDatasetCallSlaveActivity : public CSlaveActivity, public CThorDataLink, implements IWSCRowProvider
 {
     bool eof;
-    Owned<ISoapCallHelper> soaphelper;
+    Owned<IWSCHelper> wscHelper;
     CriticalSection crit;
     IThorDataLink *input;
 
@@ -112,32 +136,31 @@ public:
     // IThorSlaveActivity overloaded methods
     virtual void init(MemoryBuffer &data, MemoryBuffer &slaveData)
     {
-        const char *authToken;
-        data.read(authToken);
+        StringBuffer authToken;
+        buildAuthToken(queryJob().queryUserDescriptor(), authToken);
         appendOutputLinked(this);
-        soaphelper.setown(createSoapCallHelper(this, queryRowAllocator(), authToken, SCdataset, NULL, queryDummyContextLogger(),NULL));
+        wscHelper.setown(createSoapCallHelper(this, queryRowAllocator(), authToken.str(), SCdataset, NULL, queryDummyContextLogger(),NULL));
     }
     // IThorDataLink methods
     virtual void start()
     {
         ActivityTimer s(totalCycles, timeActivities, NULL);
-        ActPrintLog("SOAPCALL");
         eof = false;
         input = inputs.item(0);
         startInput(input);
-        dataLinkStart("SOAPCALL", container.queryId());
-        soaphelper->start();
+        dataLinkStart(container.getKind(), container.queryId());
+        wscHelper->start();
     }
     virtual void stop()
     {
-        abortSoon = true;
+        eof = true;
         stopInput(input);
         dataLinkStop();
     }
     CATCH_NEXTROW()
     {
         ActivityTimer t(totalCycles, timeActivities, NULL);
-        OwnedConstThorRow row = soaphelper->getRow();
+        OwnedConstThorRow row = wscHelper->getRow();
         if (row)
         {
             dataLinkIncrement();
@@ -153,7 +176,7 @@ public:
     virtual void abort()
     {
         CSlaveActivity::abort();
-        soaphelper->abort();
+        wscHelper->abort();
     }
     void getMetaInfo(ThorDataLinkMetaInfo &info)
     {
@@ -161,19 +184,19 @@ public:
         info.unknownRowsOutput = true;
     }
 
-    // ISoapCallRowProvider
-    virtual IHThorSoapActionArg * queryActionHelper()
+    // IWSCRowProvider
+    virtual IHThorWebServiceCallActionArg * queryActionHelper()
     {
-        return (static_cast <IHThorSoapActionArg *> (queryHelper()));
+        return (static_cast <IHThorWebServiceCallActionArg *> (queryHelper()));
     }
-    virtual IHThorSoapCallArg * queryCallHelper()
+    virtual IHThorWebServiceCallArg * queryCallHelper()
     {
-        return (static_cast <IHThorSoapCallArg *> (queryHelper()));
+        return (static_cast <IHThorWebServiceCallArg *> (queryHelper()));
     }
     virtual const void * getNextRow()
     {
         CriticalBlock b(crit);
-        if (abortSoon)
+        if (eof)
             return NULL;
         return input->nextRow();
     }
@@ -185,9 +208,9 @@ public:
 
 //---------------------------------------------------------------------------
 
-class SoapRowActionSlaveActivity : public ProcessSlaveActivity, implements ISoapCallRowProvider
+class SoapRowActionSlaveActivity : public ProcessSlaveActivity, implements IWSCRowProvider
 {
-    Owned<ISoapCallHelper> soaphelper;
+    Owned<IWSCHelper> wscHelper;
 
 public:
     IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
@@ -197,20 +220,20 @@ public:
     // IThorSlaveActivity overloaded methods
     virtual void init(MemoryBuffer &data, MemoryBuffer &slaveData)
     {
-        const char *authToken;
-        data.read(authToken);
+        StringBuffer authToken;
+        buildAuthToken(queryJob().queryUserDescriptor(), authToken);
         if (container.queryLocalOrGrouped() || firstNode())
-            soaphelper.setown(createSoapCallHelper(this, NULL, authToken, SCrow, NULL, queryDummyContextLogger(),NULL));
+            wscHelper.setown(createSoapCallHelper(this, NULL, authToken.str(), SCrow, NULL, queryDummyContextLogger(),NULL));
     }
 
     // IThorSlaveProcess overloaded methods
     virtual void process()
     {
-        if (soaphelper)
+        if (wscHelper)
         {
-            soaphelper->start();
-            soaphelper->waitUntilDone();
-            IException *e = soaphelper->getError();
+            wscHelper->start();
+            wscHelper->waitUntilDone();
+            IException *e = wscHelper->getError();
             if (e)
                 throw e;
         }
@@ -219,25 +242,25 @@ public:
     virtual void abort()
     {
         ProcessSlaveActivity::abort();
-        if (soaphelper)
-            soaphelper->abort();
+        if (wscHelper)
+            wscHelper->abort();
     }
 
-    // ISoapCallRowProvider
-    virtual IHThorSoapActionArg * queryActionHelper()
+    // IWSCRowProvider
+    virtual IHThorWebServiceCallActionArg * queryActionHelper()
     {
-        return (static_cast <IHThorSoapActionArg *> (queryHelper()));
+        return (static_cast <IHThorWebServiceCallActionArg *> (queryHelper()));
     }
-    virtual IHThorSoapCallArg * queryCallHelper() { return NULL; }
+    virtual IHThorWebServiceCallArg * queryCallHelper() { return NULL; }
     virtual const void * getNextRow() { return NULL; }
     virtual void releaseRow(const void *r) { }
 };
 
 //---------------------------------------------------------------------------
 
-class SoapDatasetActionSlaveActivity : public ProcessSlaveActivity, implements ISoapCallRowProvider
+class SoapDatasetActionSlaveActivity : public ProcessSlaveActivity, implements IWSCRowProvider
 {
-    Owned<ISoapCallHelper> soaphelper;
+    Owned<IWSCHelper> wscHelper;
     CriticalSection crit;
     IThorDataLink *input;
 
@@ -249,10 +272,9 @@ public:
     // IThorSlaveActivity overloaded methods
     virtual void init(MemoryBuffer &data, MemoryBuffer &slaveData)
     {
-        const char *authToken;
-        data.read(authToken);
-
-        soaphelper.setown(createSoapCallHelper(this, NULL, authToken, SCdataset, NULL, queryDummyContextLogger(),NULL));
+        StringBuffer authToken;
+        buildAuthToken(queryJob().queryUserDescriptor(), authToken);
+        wscHelper.setown(createSoapCallHelper(this, NULL, authToken.str(), SCdataset, NULL, queryDummyContextLogger(),NULL));
     }
 
     // IThorSlaveProcess overloaded methods
@@ -264,9 +286,9 @@ public:
         startInput(input);
         processed = THORDATALINK_STARTED;
 
-        soaphelper->start();
-        soaphelper->waitUntilDone();
-        IException *e = soaphelper->getError();
+        wscHelper->start();
+        wscHelper->waitUntilDone();
+        IException *e = wscHelper->getError();
         if (e)
             throw e;
     }
@@ -281,16 +303,16 @@ public:
     virtual void abort()
     {
         ProcessSlaveActivity::abort();
-        if (soaphelper)
-            soaphelper->abort();
+        if (wscHelper)
+            wscHelper->abort();
     }
 
-    // ISoapCallRowProvider
-    virtual IHThorSoapActionArg * queryActionHelper()
+    // IWSCRowProvider
+    virtual IHThorWebServiceCallActionArg * queryActionHelper()
     {
-        return (static_cast <IHThorSoapActionArg *> (queryHelper()));
+        return (static_cast <IHThorWebServiceCallActionArg *> (queryHelper()));
     }
-    virtual IHThorSoapCallArg * queryCallHelper() { return NULL; }
+    virtual IHThorWebServiceCallArg * queryCallHelper() { return NULL; }
     virtual const void * getNextRow()
     {
         CriticalBlock b(crit);
@@ -313,7 +335,12 @@ public:
 
 CActivityBase *createSoapRowCallSlave(CGraphElementBase *container)
 { 
-    return new SoapRowCallSlaveActivity(container);
+    return new CWscRowCallSlaveActivity(container);
+}
+
+CActivityBase *createHttpRowCallSlave(CGraphElementBase *container)
+{
+    return new CWscRowCallSlaveActivity(container);
 }
 
 CActivityBase *createSoapDatasetCallSlave(CGraphElementBase *container)

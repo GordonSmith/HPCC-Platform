@@ -40,7 +40,7 @@ require([
             borderContainer: null,
             graphContentPane: null,
             _isPluginInstalled: false,
-            plugin: null,
+            _plugin: null,
             eventsRegistered: false,
             xgmml: "",
             dot: "",
@@ -77,6 +77,7 @@ require([
                 this.inherited(arguments);
                 this._isPluginInstalled = this.isPluginInstalled();
                 this.createPlugin();
+                this.watchStyleChange();
             },
 
             resize: function (args) {
@@ -90,143 +91,175 @@ require([
 
             //  Plugin wrapper  ---
             clear: function () {
-                if (this.plugin) {
-                    this.plugin.clear();
+                if (this._plugin) {
+                    this.xgmml = "";
+                    this.svg = "";
+                    this.dot = "";
+                    this._plugin.clear();
                 }
             },
 
             loadXGMML: function (xgmml, merge) {
-                if (this.plugin && this.xgmml != xgmml) {
+                this.registerEvents();
+                if (this._plugin && this.xgmml != xgmml) {
                     this.setMessage("Loading Data...");
                     if (merge)
-                        this.plugin.mergeXGMML(xgmml);
+                        this._plugin.mergeXGMML(xgmml);
                     else
-                        this.plugin.loadXGMML(xgmml);
+                        this._plugin.loadXGMML(xgmml);
                     this.setMessage("Performing Layout...");
-                    this.plugin.startLayout("dot");
+                    this._plugin.startLayout("dot");
                     this.xgmml = xgmml;
                 }
             },
 
             mergeXGMML: function (xgmml) {
-                if (this.plugin && this.xgmml != xgmml) {
-                    this.plugin.mergeXGMML(xgmml);
+                this.registerEvents();
+                if (this._plugin && this.xgmml != xgmml) {
+                    this._plugin.mergeXGMML(xgmml);
                     this.xgmml = xgmml;
                 }
             },
 
             loadDOT: function (dot) {
+                this.registerEvents();
                 this.load(dot, "dot");
             },
 
             load: function (dot, layout) {
-                if (this.plugin && this.xgmml != xgmml) {
+                this.registerEvents();
+                if (this._plugin && this.xgmml != xgmml) {
                     this.setMessage("Loading Data...");
-                    this.plugin.loadDOT(dot);
+                    this._plugin.loadDOT(dot);
                     this.setMessage("Performing Layout...");
-                    this.plugin.startLayout(layout);
+                    this._plugin.startLayout(layout);
                     this.xgmml = xgmml;
                 }
             },
 
             setLayout: function (layout) {
-                if (this.plugin) {
+                if (this._plugin) {
                     this.setMessage("Performing Layout...");
-                    this.plugin.startLayout(layout);
+                    this._plugin.startLayout(layout);
                 }
             },
 
             centerOn: function (globalID) {
-                var item = this.plugin.getItem(globalID);
-                this.plugin.centerOnItem(item, true);
-                var items = [item];
-                this.plugin.setSelected(items, true);
+                if (this._plugin) {
+                    var item = this._plugin.getItem(globalID);
+                    this._plugin.centerOnItem(item, true);
+                    var items = [item];
+                    this._plugin.setSelected(items, true);
+                }
             },
 
             getVersion: function () {
-                return this.plugin.version;
+                if (this._plugin) {
+                    return this._plugin.version;
+                }
+                return "";
+            },
+
+            getSVG: function () {
+                return this._plugin.getSVG();
+            },
+
+            getXGMML: function () {
+                return this.xgmml;
+            },
+
+            localLayout: function(callback) {
+                var context = this;
+                require(
+                  ["hpcc/viz"],
+                  function (viz) {
+                      callback(Viz(context.dot, "svg"));
+                  }
+                );
             },
 
             displayProperties: function (item, place) {
-                var props = this.plugin.getProperties(item);
-                if (props.id) {
-                    var table = domConstruct.create("h3", {
-                        innerHTML: props.id,
-                        align: "center"
-                    }, place);
-                    delete props.id;
-                }
-                if (props.count) {
-                    var table = domConstruct.create("table", { border: 1, cellspacing: 0, width: "100%" }, place);
-                    var tr = domConstruct.create("tr", null, table);
-                    var td = domConstruct.create("td", { innerHTML: "Count" }, tr);
-                    var td = domConstruct.create("td", {
-                        align: "right",
-                        innerHTML: props.count
-                    }, tr);
-                    delete props.count;
-                    domConstruct.create("br", null, place);
-                }
-                if (props.max) {
-                    var table = domConstruct.create("table", { border: 1, cellspacing: 0, width: "100%" }, place);
-                    var tr = domConstruct.create("tr", null, table);
-                    domConstruct.create("th", { innerHTML: "    " }, tr);
-                    domConstruct.create("th", { innerHTML: "Skew" }, tr);
-                    domConstruct.create("th", { innerHTML: "Node" }, tr);
-                    domConstruct.create("th", { innerHTML: "Rows" }, tr);
-                    tr = domConstruct.create("tr", null, table);
-                    domConstruct.create("td", { innerHTML: "Max" }, tr);
-                    domConstruct.create("td", { innerHTML: props.maxskew }, tr);
-                    domConstruct.create("td", { innerHTML: props.maxEndpoint }, tr);
-                    domConstruct.create("td", { innerHTML: props.max }, tr);
-                    tr = domConstruct.create("tr", null, table);
-                    domConstruct.create("td", { innerHTML: "Min" }, tr);
-                    domConstruct.create("td", { innerHTML: props.minskew }, tr);
-                    domConstruct.create("td", { innerHTML: props.minEndpoint }, tr);
-                    domConstruct.create("td", { innerHTML: props.min }, tr);
-                    delete props.maxskew;
-                    delete props.maxEndpoint;
-                    delete props.max;
-                    delete props.minskew;
-                    delete props.minEndpoint;
-                    delete props.min;
-                    domConstruct.create("br", null, place);
-                }
-                if (props.slaves) {
-                    var table = domConstruct.create("table", { border: 1, cellspacing: 0, width: "100%" }, place);
-                    var tr = domConstruct.create("tr", null, table);
-                    domConstruct.create("th", { innerHTML: "Slaves" }, tr);
-                    domConstruct.create("th", { innerHTML: "Started" }, tr);
-                    domConstruct.create("th", { innerHTML: "Stopped" }, tr);
-                    tr = domConstruct.create("tr", null, table);
-                    domConstruct.create("td", { innerHTML: props.slaves }, tr);
-                    domConstruct.create("td", { innerHTML: props.started }, tr);
-                    domConstruct.create("td", { innerHTML: props.stopped }, tr);
-                    delete props.slaves;
-                    delete props.started;
-                    delete props.stopped;
-                    domConstruct.create("br", null, place);
-                }
-                var first = true;
-                var table = {};
-                var tr = {};
-                for (key in props) {
-                    if (key[0] == "_")
-                        continue;
-
-                    if (first) {
-                        first = false;
-                        table = domConstruct.create("table", { border: 1, cellspacing: 0, width: "100%" }, place);
-                        tr = domConstruct.create("tr", null, table);
-                        domConstruct.create("th", { innerHTML: "Property" }, tr);
-                        domConstruct.create("th", { innerHTML: "Value" }, tr);
+                if (this._plugin) {
+                    var props = this._plugin.getProperties(item);
+                    if (props.id) {
+                        var table = domConstruct.create("h3", {
+                            innerHTML: props.id,
+                            align: "center"
+                        }, place);
+                        delete props.id;
                     }
-                    tr = domConstruct.create("tr", null, table);
-                    domConstruct.create("td", { innerHTML: key }, tr);
-                    domConstruct.create("td", { innerHTML: props[key] }, tr);
-                }
-                if (first == false) {
-                    domConstruct.create("br", null, place);
+                    if (props.count) {
+                        var table = domConstruct.create("table", { border: 1, cellspacing: 0, width: "100%" }, place);
+                        var tr = domConstruct.create("tr", null, table);
+                        var td = domConstruct.create("td", { innerHTML: "Count" }, tr);
+                        var td = domConstruct.create("td", {
+                            align: "right",
+                            innerHTML: props.count
+                        }, tr);
+                        delete props.count;
+                        domConstruct.create("br", null, place);
+                    }
+                    if (props.max) {
+                        var table = domConstruct.create("table", { border: 1, cellspacing: 0, width: "100%" }, place);
+                        var tr = domConstruct.create("tr", null, table);
+                        domConstruct.create("th", { innerHTML: "    " }, tr);
+                        domConstruct.create("th", { innerHTML: "Skew" }, tr);
+                        domConstruct.create("th", { innerHTML: "Node" }, tr);
+                        domConstruct.create("th", { innerHTML: "Rows" }, tr);
+                        tr = domConstruct.create("tr", null, table);
+                        domConstruct.create("td", { innerHTML: "Max" }, tr);
+                        domConstruct.create("td", { innerHTML: props.maxskew }, tr);
+                        domConstruct.create("td", { innerHTML: props.maxEndpoint }, tr);
+                        domConstruct.create("td", { innerHTML: props.max }, tr);
+                        tr = domConstruct.create("tr", null, table);
+                        domConstruct.create("td", { innerHTML: "Min" }, tr);
+                        domConstruct.create("td", { innerHTML: props.minskew }, tr);
+                        domConstruct.create("td", { innerHTML: props.minEndpoint }, tr);
+                        domConstruct.create("td", { innerHTML: props.min }, tr);
+                        delete props.maxskew;
+                        delete props.maxEndpoint;
+                        delete props.max;
+                        delete props.minskew;
+                        delete props.minEndpoint;
+                        delete props.min;
+                        domConstruct.create("br", null, place);
+                    }
+                    if (props.slaves) {
+                        var table = domConstruct.create("table", { border: 1, cellspacing: 0, width: "100%" }, place);
+                        var tr = domConstruct.create("tr", null, table);
+                        domConstruct.create("th", { innerHTML: "Slaves" }, tr);
+                        domConstruct.create("th", { innerHTML: "Started" }, tr);
+                        domConstruct.create("th", { innerHTML: "Stopped" }, tr);
+                        tr = domConstruct.create("tr", null, table);
+                        domConstruct.create("td", { innerHTML: props.slaves }, tr);
+                        domConstruct.create("td", { innerHTML: props.started }, tr);
+                        domConstruct.create("td", { innerHTML: props.stopped }, tr);
+                        delete props.slaves;
+                        delete props.started;
+                        delete props.stopped;
+                        domConstruct.create("br", null, place);
+                    }
+                    var first = true;
+                    var table = {};
+                    var tr = {};
+                    for (key in props) {
+                        if (key[0] == "_")
+                            continue;
+
+                        if (first) {
+                            first = false;
+                            table = domConstruct.create("table", { border: 1, cellspacing: 0, width: "100%" }, place);
+                            tr = domConstruct.create("tr", null, table);
+                            domConstruct.create("th", { innerHTML: "Property" }, tr);
+                            domConstruct.create("th", { innerHTML: "Value" }, tr);
+                        }
+                        tr = domConstruct.create("tr", null, table);
+                        domConstruct.create("td", { innerHTML: key }, tr);
+                        domConstruct.create("td", { innerHTML: props[key] }, tr);
+                    }
+                    if (first == false) {
+                        domConstruct.create("br", null, place);
+                    }
                 }
             },
 
@@ -249,9 +282,9 @@ require([
             },
 
             createPlugin: function () {
-                var pluginID = this.id + "Plugin";
-                if (this.plugin == null) {
+                if (this._plugin == null) {
                     if (this._isPluginInstalled) {
+                        var pluginID = this.id + "Plugin";
                         if (has("ie")) {
                             this.graphContentPane.domNode.innerHTML = '<object '
                                                     + 'type="application/x-hpccsystemsgraphviewcontrol" '
@@ -268,91 +301,106 @@ require([
                                                     + 'height="100%">'
                                                     + '</embed>';
                         }
-                        this.plugin = dom.byId(pluginID);
+                        this._plugin = dom.byId(pluginID);
                         var context = this;
-                        setTimeout(function () {
-                            context.registerEvents();
-                        }, 20);
                     } else {
                         domConstruct.create("div", {
                             innerHTML: "<h4>Graph View</h4>" +
                                         "<p>To enable graph views, please install the Graph View Control plugin:</p>" +
-                                        "<a href=\"http://graphcontrol.hpccsystems.com/stable/SetupGraphControl.msi\">Internet Explorer + Firefox (32bit)</a><br>" +
-                                        "<a href=\"http://graphcontrol.hpccsystems.com/stable/SetupGraphControl64.msi\">Internet Explorer + Firefox (64bit)</a><br>" +
-                                        "<a href=\"https://github.com/hpcc-systems/GraphControl\">Linux/Other (sources)</a>"
+                                        this.getResourceLinks()
                         }, this.graphContentPane.domNode);
                     }
                 }
             },
 
+            getResourceLinks: function () {
+                return "<a href=\"http://hpccsystems.com/download/free-community-edition/graph-control\" target=\"_blank\">Binary Installs</a><br/>" +
+                "<a href=\"https://github.com/hpcc-systems/GraphControl\" target=\"_blank\">Source Code</a><br/><br/>" +
+                "<a href=\"http://hpccsystems.com\" target=\"_blank\">HPCC Systems</a>"
+            },
+
             setMessage: function (message) {
-                if (this.plugin) {
-                    return this.plugin.setMessage(message);
+                if (this._plugin) {
+                    return this._plugin.setMessage(message);
                 }
                 return null;
             },
 
             getLocalisedXGMML: function (items) {
-                if (this.plugin) {
-                    return this.plugin.getLocalisedXGMML(items);
+                if (this._plugin) {
+                    return this._plugin.getLocalisedXGMML(items);
                 }
                 return null;
             },
 
             mergeSVG: function (svg) {
-                if (this.plugin) {
-                    return this.plugin.mergeSVG(svg);
+                if (this._plugin) {
+                    return this._plugin.mergeSVG(svg);
                 }
                 return null;
             },
 
             startLayout: function (layout) {
-                if (this.plugin) {
-                    return this.plugin.startLayout(layout);
+                if (this._plugin) {
+                    return this._plugin.startLayout(layout);
                 }
                 return null;
             },
 
             find: function (findText) {
-                if (this.plugin) {
-                    return this.plugin.find(findText);
+                if (this._plugin) {
+                    return this._plugin.find(findText);
                 }
                 return [];
             },
 
             centerOnItem: function (item, scaleToFit, widthOnly) {
-                if (this.plugin) {
-                    return this.plugin.centerOnItem(item, scaleToFit, widthOnly);
+                if (this._plugin) {
+                    return this._plugin.centerOnItem(item, scaleToFit, widthOnly);
                 }
                 return null;
             },
 
             setSelected: function (items) {
-                if (this.plugin) {
-                    return this.plugin.setSelected(items);
+                if (this._plugin) {
+                    return this._plugin.setSelected(items);
                 }
                 return null;
             },
 
             setSelectedAsGlobalID: function (items) {
-                if (this.plugin) {
-                    return this.plugin.setSelectedAsGlobalID(items);
+                if (this._plugin) {
+                    return this._plugin.setSelectedAsGlobalID(items);
                 }
                 return null;
             },
 
             getSelectionAsGlobalID: function () {
-                if (this.plugin) {
-                    return this.plugin.getSelectionAsGlobalID();
+                if (this._plugin) {
+                    return this._plugin.getSelectionAsGlobalID();
                 }
                 return [];
             },
 
             getItem: function (globalID) {
-                if (this.plugin) {
-                    return this.plugin.getItem(globalID);
+                if (this._plugin) {
+                    return this._plugin.getItem(globalID);
                 }
                 return null;
+            },
+
+            hide: function () {
+                if (this._plugin) {
+                    dojo.style(this._plugin, "width", "1px");
+                    dojo.style(this._plugin, "height", "1px");
+                }
+            },
+
+            show: function () {
+                if (this._plugin) {
+                    dojo.style(this._plugin, "width", "100%");
+                    dojo.style(this._plugin, "height", "100%");
+                }
             },
 
             watchSplitter: function (splitter) {
@@ -362,64 +410,94 @@ require([
                 }
                 var context = this;
                 dojo.connect(splitter, "_startDrag", function () {
-                    if (context.plugin) {
-                        dojo.style(context.plugin, "width", "1px");
-                        dojo.style(context.plugin, "height", "1px");
-                    }
+                    context.hide();
                 });
                 dojo.connect(splitter, "_stopDrag", function (evt) {
-                    if (context.plugin) {
-                        dojo.style(context.plugin, "width", "100%");
-                        dojo.style(context.plugin, "height", "100%");
-                    }
+                    context.show();
                 });
             },
 
             watchSelect: function (select) {
-                if (has("chrome") && select) {
+                if (select) {
                     //  Only chrome needs to monitor select drop downs.
                     var context = this;
                     select.watch("_opened", function () {
-                        if (context.plugin) {
-                            if (select._opened) {
-                                dojo.style(context.plugin, "width", "1px");
-                                dojo.style(context.plugin, "height", "1px");
-                            } else {
-                                dojo.style(context.plugin, "width", "100%");
-                                dojo.style(context.plugin, "height", "100%");
-                            }
+                        if (select._opened) {
+                            context.hide();
+                        } else {
+                            context.show();
                         }
                     });
                 }
             },
 
             watchStyleChange: function () {
+                //  When chrome hides the plugin it destroys it.  To prevent this it is just made very small.  
                 if (has("chrome")) {
+                    var watchList = [];
                     var context = this;
+                    var domNode = this.domNode;
+
+                    //  There are many places that may cause the plugin to be hidden, the possible places are calculated by walking the hierarchy upwards. 
+                    while (domNode) {
+                        if (domNode.id) {
+                            watchList[domNode.id] = false;
+                        }
+                        domNode = domNode.parentElement;
+                    }
+
+                    //  Hijack the dojo style class replacement call and monitor for elements in our watchList. 
                     aspect.around(domClass, "replace", function (origFunc) {
                         return function (node, addStyle, removeStyle) {
-                            if (node.id == context.id) {
+                            if (node.firstChild && (node.firstChild.id in watchList)) {
                                 if (addStyle == "dijitHidden") {
-                                    context.hiddenBySelf = true;
+                                    watchList[node.firstChild.id] = true;
                                     dojo.style(node, "width", "1px");
                                     dojo.style(node, "height", "1px");
-                                } else if (addStyle == "dijitVisible" && context.hiddenBySelf) {
-                                    context.hiddenBySelf = false;
+                                    dojo.style(node.firstChild, "width", "1px");
+                                    dojo.style(node.firstChild, "height", "1px");
+                                    return;
+                                } else if (addStyle == "dijitVisible" && watchList[node.firstChild.id] == true) {
+                                    watchList[node.firstChild.id] = false;
                                     dojo.style(node, "width", "100%");
                                     dojo.style(node, "height", "100%");
-                                } else {
-                                    var deferred = origFunc(node, addStyle, removeStyle);
-                                    //  alternative:  return origFunc.apply(this, arguments);
-                                    return deferred;
+                                    dojo.style(node.firstChild, "width", "100%");
+                                    dojo.style(node.firstChild, "height", "100%");
+                                    return;
                                 }
-                            } else {
-                                var deferred = origFunc(node, addStyle, removeStyle);
-                                //  alternative:  return origFunc.apply(this, arguments);
-                                return deferred;
                             }
+                            return origFunc(node, addStyle, removeStyle);
                         }
                     });
                 }
+            },
+
+            getProperties: function (item) {
+                if (this._plugin) {
+                    return this._plugin.getProperties(item);
+                }
+                return [];
+            },
+
+            getSubgraphsWithProperties: function () {
+                if (this._plugin) {
+                    return this._plugin.getSubgraphsWithProperties();
+                }
+                return [];
+            },
+
+            getVerticesWithProperties: function () {
+                if (this._plugin) {
+                    return this._plugin.getVerticesWithProperties();
+                }
+                return [];
+            },
+
+            getEdgesWithProperties: function () {
+                if (this._plugin) {
+                    return this._plugin.getEdgesWithProperties();
+                }
+                return [];
             },
 
             registerEvents: function () {
@@ -427,14 +505,14 @@ require([
                     this.eventsRegistered = true;
                     var context = this;
                     this.registerEvent("MouseDoubleClick", function (item) {
-                        context.plugin.centerOnItem(item, true);
-                        context.onDoubleClick(context.plugin.getGlobalID(item));
+                        context._plugin.centerOnItem(item, true);
+                        context.onDoubleClick(context._plugin.getGlobalID(item));
                     });
                     this.registerEvent("LayoutFinished", function () {
-                        context.plugin.centerOnItem(0, true);
+                        context._plugin.centerOnItem(0, true);
                         context.setMessage('');
-                        context.dot = context.plugin.getDOT();
-                        context.svg = context.plugin.getSVG();
+                        context.dot = context._plugin.getDOT();
+                        context.svg = context._plugin.getSVG();
                         context.onLayoutFinished();
                     });
                     this.registerEvent("SelectionChanged", function (items) {
@@ -444,15 +522,14 @@ require([
             },
 
             registerEvent: function (evt, func) {
-                if (this.plugin) {
-                    if (this.plugin.attachEvent) {
-                        return this.plugin.attachEvent("on" + evt, func);
+                if (this._plugin) {
+                    if (this._plugin.attachEvent) {
+                        return this._plugin.attachEvent("on" + evt, func);
                     } else {
-                        return this.plugin.addEventListener(evt, func, false);
+                        return this._plugin.addEventListener(evt, func, false);
                     }
                 }
                 return false;
             }
-
         });
     });

@@ -270,9 +270,14 @@ void CSoapComplexType::appendContent(IEspContext* ctx, MemoryBuffer& buffer, Str
     StringBuffer content;
     if (ctx && ctx->getResponseFormat()==ESPSerializationJSON)
     {
+        const char *jsonp = ctx->queryRequestParameters()->queryProp("jsonp");
+        if (jsonp && *jsonp)
+            content.append(jsonp).append('(');
         content.append('{');
         serializeStruct(ctx, content, (const char *)NULL);
         content.append('}');
+        if (jsonp && *jsonp)
+            content.append(");");
         mimetype.set("application/json; charset=UTF-8");
     }
     else
@@ -327,10 +332,7 @@ void CSoapComplexType::serializeJSONStruct(IEspContext* ctx, StringBuffer& s, co
 {
     if (ctx && ctx->getResponseFormat()==ESPSerializationJSON)
     {
-        if (s.length() && !strchr("[{:", s.charAt(s.length()-1)))
-            s.append(", ");
-        if (name && *name)
-            s.append('\"').append(name).append("\": ");
+        appendJSONNameOrDelimit(s, name);
         s.append("{");
         serializeContent(ctx, s);
         s.append("}");

@@ -185,10 +185,14 @@ interface IDistributedFileTransaction: extends IInterface
     virtual IDistributedSuperFile *lookupSuperFile(const char *slfn,unsigned timeout=INFINITE)=0;
     virtual IDistributedSuperFile *lookupSuperFileCached(const char *slfn,unsigned timeout=INFINITE)=0;
     virtual IUserDescriptor *queryUser()=0;
-    virtual bool addDelayedDelete(const char *lfn,bool remphys,IUserDescriptor *user)=0; // used internally to delay deletes untill commit 
-    virtual void addAction(CDFAction *action)=0; // internal
+    virtual bool addDelayedDelete(CDfsLogicalFileName &lfn,unsigned timeoutms=INFINITE)=0; // used internally to delay deletes until commit
+    virtual void descend()=0;  // descend into a recursive call (can't autoCommit if depth is not zero)
+    virtual void ascend()=0;   // ascend back from the deep, one step at a time
+
+    // MORE: These need refactoring
+    virtual void addAction(CDFAction *action)=0; // internal (so why is this on a public interface?)
     virtual void addFile(IDistributedFile *file)=0; // TODO: avoid this being necessary
-    virtual void clearFiles()=0; // internal
+    virtual void clearFiles()=0; // internal (so why is this on a public interface?)
 };
 
 interface IDistributedSuperFileIterator: extends IIteratorOf<IDistributedSuperFile>
@@ -267,7 +271,7 @@ interface IDistributedFile: extends IInterface
     virtual StringBuffer &getECL(StringBuffer &buf) = 0;
     virtual void setECL(const char *ecl) = 0;
 
-    virtual void addCluster(const char *clustername,ClusterPartDiskMapSpec &mspec) = 0; 
+    virtual void addCluster(const char *clustername,const ClusterPartDiskMapSpec &mspec) = 0;
     virtual void removeCluster(const char *clustername) = 0;    // doesn't delete parts
     virtual bool checkClusterCompatible(IFileDescriptor &fdesc, StringBuffer &err) = 0;
     virtual void updatePartDiskMapping(const char *clustername,const ClusterPartDiskMapSpec &spec)=0;
@@ -317,10 +321,8 @@ interface IDistributedSuperFile: extends IDistributedFile
                          )=0;
     virtual bool removeSubFile(const char *subfile,         // if NULL removes all
                                 bool remsub,                // if true removes subfiles from DFS
-                                bool remphys,               // if true removes physical parts of sub file
                                 bool remcontents=false,     // if true removes contents of subfile (assuming it is a superfile)
-                                IDistributedFileTransaction *transaction=NULL,
-                                bool delayed = false)=0;
+                                IDistributedFileTransaction *transaction=NULL)=0;
                             // Note does not delete subfile
     virtual bool swapSuperFile( IDistributedSuperFile *_file,               // swaps sub files
                                 IDistributedFileTransaction *transaction)=0;
@@ -437,6 +439,7 @@ interface IDistributedFileDirectory: extends IInterface
     virtual IDistributedFile *lookup(   const char *logicalname,
                                         IUserDescriptor *user,
                                         bool writeaccess=false,
+                                        bool hold = false,
                                         IDistributedFileTransaction *transaction=NULL, // transaction only used for looking up superfile sub files
                                         unsigned timeout=INFINITE
                                     ) = 0;  // links, returns NULL if not found
@@ -444,6 +447,7 @@ interface IDistributedFileDirectory: extends IInterface
     virtual IDistributedFile *lookup(   const CDfsLogicalFileName &logicalname,
                                         IUserDescriptor *user,
                                         bool writeaccess=false,
+                                        bool hold = false,
                                         IDistributedFileTransaction *transaction=NULL, // transaction only used for looking up superfile sub files
                                         unsigned timeout=INFINITE
                                     ) = 0;  // links, returns NULL if not found
@@ -457,9 +461,9 @@ interface IDistributedFileDirectory: extends IInterface
 
     virtual IDFScopeIterator *getScopeIterator(IUserDescriptor *user, const char *subscope=NULL,bool recursive=true,bool includeempty=false)=0;
 
-    virtual bool removeEntry(const char *name,IUserDescriptor *user, unsigned timeoutms=INFINITE) = 0;  // equivalent to lookup/detach/release
-    virtual bool removePhysical(const char *name,IUserDescriptor *user,const char *cluster=NULL,IMultiException *exceptions=NULL) = 0;                           // removes the physical parts as well as entry
-    virtual bool renamePhysical(const char *oldname,const char *newname,IUserDescriptor *user,IMultiException *exceptions=NULL) = 0;                         // renames the physical parts as well as entry
+    // Removes files and super-files with format: context/file@cluster
+    virtual bool removeEntry(const char *name, IUserDescriptor *user, IDistributedFileTransaction *transaction=NULL, unsigned timeoutms=INFINITE) = 0;
+    virtual void renamePhysical(const char *oldname,const char *newname,IUserDescriptor *user,IDistributedFileTransaction *transaction) = 0;                         // renames the physical parts as well as entry
     virtual void removeEmptyScope(const char *scope) = 0;   // does nothing if called on non-empty scope
     
 
@@ -472,9 +476,8 @@ interface IDistributedFileDirectory: extends IInterface
     virtual IDistributedSuperFile *createSuperFile(const char *logicalname,IUserDescriptor *user,bool interleaved,bool ifdoesnotexist=false,IDistributedFileTransaction *transaction=NULL) = 0;
     virtual IDistributedSuperFile *lookupSuperFile(const char *logicalname,IUserDescriptor *user,
                                                     IDistributedFileTransaction *transaction=NULL, // transaction only used for looking up sub files
-                                                    unsigned timeout=INFINITE
-
-                                                ) = 0;  // NB lookup will also return superfiles 
+                                                    unsigned timeout=INFINITE) = 0;  // NB lookup will also return superfiles
+    virtual void removeSuperFile(const char *_logicalname, bool delSubs=false, IUserDescriptor *user=NULL, IDistributedFileTransaction *transaction=NULL)=0;
 
     virtual int getFilePermissions(const char *lname,IUserDescriptor *user,unsigned auditflags=0)=0; // see dasess for auditflags values
     virtual void setDefaultUser(IUserDescriptor *user)=0;
@@ -627,9 +630,6 @@ enum DistributedFileSystemError
     DFSERR_LookupConnectionTimout       // only raised if timeout specified on lookup etc.
 };
 
-
-// creation routines
-inline IDistributedFile *createDistributedFile(const char *logicalname,IUserDescriptor *user,bool writeaccess,IDistributedFileTransaction *transaction) { return queryDistributedFileDirectory().lookup(logicalname,user,writeaccess,transaction); }
 
 // utility routines (used by xref and dfu)
 extern da_decl RemoteFilename &constructPartFilename(IGroup *grp,unsigned partno,unsigned partmax,const char *name,const char *partmask,const char *partdir,unsigned copy,ClusterPartDiskMapSpec &mspec,RemoteFilename &rfn);

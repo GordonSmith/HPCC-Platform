@@ -1385,7 +1385,9 @@ class CSharedWriteAheadDisk : public CSharedWriteAheadBase
     }
     virtual size32_t rowSize(const void *row)
     {
-        if (meta == serializeMeta)
+        if (!row)
+            return 1; // eog;
+        else if (meta == serializeMeta)
             return meta->getRecordSize(row)+1; // space on disk, +1 = eog marker
         CSizingSerializer ssz;
         serializer->serialize(ssz,(const byte *)row);
@@ -1393,7 +1395,7 @@ class CSharedWriteAheadDisk : public CSharedWriteAheadBase
     }
 public:
     CSharedWriteAheadDisk(CActivityBase *activity, const char *spillName, unsigned outputCount, IRowInterfaces *rowIf, IDiskUsage *_iDiskUsage) : CSharedWriteAheadBase(activity, outputCount, rowIf),
-        allocator(rowIf->queryRowAllocator()), serializer(rowIf->queryRowSerializer()), deserializer(rowIf->queryRowDeserializer()), serializeMeta(meta->querySerializedMeta()), iDiskUsage(_iDiskUsage)
+        allocator(rowIf->queryRowAllocator()), serializer(rowIf->queryRowSerializer()), deserializer(rowIf->queryRowDeserializer()), serializeMeta(meta->querySerializedDiskMeta()), iDiskUsage(_iDiskUsage)
     {
         assertex(spillName);
         spillFile.setown(createIFile(spillName));

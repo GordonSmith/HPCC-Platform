@@ -47,6 +47,8 @@
 #include "thmem.hpp"
 #include "thcompressutil.hpp"
 
+using roxiemem::OwnedRoxieString;
+
 static CriticalSection *jobManagerCrit;
 MODULE_INIT(INIT_PRIORITY_STANDARD)
 {
@@ -378,13 +380,13 @@ void CMasterActivity::main()
         else
             e2.setown(MakeActivityException(this, e, "Master exception"));
         e->Release();
-        ActPrintLog(e2, NULL);
+        ActPrintLog(e2, "In CMasterActivity::main");
         fireException(e2);
     }
     catch (CATCHALL)
     {
         Owned<IException> e = MakeThorFatal(NULL, TE_MasterProcessError, "FATAL: Unknown master process exception kind=%s, id=%"ACTPF"d", activityKindStr(container.getKind()), container.queryId());
-        ActPrintLog(e, NULL);
+        ActPrintLog(e, "In CMasterActivity::main");
         fireException(e);
     }
 }
@@ -480,7 +482,7 @@ bool CMasterGraphElement::checkUpdate()
         return false;
 
     bool doCheckUpdate = false;
-    StringAttr filename;
+    OwnedRoxieString filename;
     unsigned eclCRC;
     unsigned __int64 totalCRC;
     bool temporary = false;
@@ -547,6 +549,8 @@ void CMasterGraphElement::doCreateActivity(size32_t parentExtractSz, const byte 
         case TAKkeyedjoin:
         case TAKworkunitwrite:
         case TAKworkunitread:
+        case TAKdictionaryworkunitwrite:
+        case TAKdictionaryresultwrite:
             ok = true;
             break;
         default:
@@ -990,7 +994,7 @@ public:
             return r->getResultHash();
         );
     }
-    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * stepname, unsigned sequence, IEngineRowAllocator * _rowAllocator, IOutputRowDeserializer * deserializer, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer)
+    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * stepname, unsigned sequence, IEngineRowAllocator * _rowAllocator, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer)
     {
         tgt = NULL;
         PROTECTED_GETRESULT(stepname, sequence, "Rowset", "rowset",
@@ -999,7 +1003,22 @@ public:
             Owned<IXmlToRawTransformer> rawXmlTransformer = createXmlRawTransformer(xmlTransformer);
             Owned<ICsvToRawTransformer> rawCsvTransformer = createCsvRawTransformer(csvTransformer);
             r->getResultRaw(result, rawXmlTransformer, rawCsvTransformer);
+            Owned<IOutputRowDeserializer> deserializer = _rowAllocator->createDiskDeserializer(this);
             rtlDataset2RowsetX(tcount, tgt, _rowAllocator, deserializer, datasetBuffer.length(), datasetBuffer.toByteArray(), isGrouped);
+        );
+    }
+    virtual void getResultDictionary(size32_t & tcount, byte * * & tgt, IEngineRowAllocator * _rowAllocator, const char * stepname, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer, IHThorHashLookupInfo * hasher)
+    {
+        tcount = 0;
+        tgt = NULL;
+        PROTECTED_GETRESULT(stepname, sequence, "Dictionary", "dictionary",
+            MemoryBuffer datasetBuffer;
+            MemoryBuffer2IDataVal result(datasetBuffer);
+            Owned<IXmlToRawTransformer> rawXmlTransformer = createXmlRawTransformer(xmlTransformer);
+            Owned<ICsvToRawTransformer> rawCsvTransformer = createCsvRawTransformer(csvTransformer);
+            r->getResultRaw(result, rawXmlTransformer, rawCsvTransformer);
+            Owned<IOutputRowDeserializer> deserializer = _rowAllocator->createDiskDeserializer(this);
+            rtlDeserializeDictionary(tcount, tgt, _rowAllocator, deserializer, datasetBuffer.length(), datasetBuffer.toByteArray());
         );
     }
     virtual void getExternalResultRaw(unsigned & tlen, void * & tgt, const char * wuid, const char * stepname, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer)
@@ -1018,51 +1037,6 @@ public:
         catch (CATCHALL)
         {
             throw MakeStringException(TE_FailedToRetrieveWorkunitValue, "Failed to retrieve external data value %s from workunit %s", stepname, wuid);
-        }
-    }
-    virtual __int64 countDiskFile(const char * name, unsigned recordSize)
-    {
-        unsigned __int64 size = 0;
-        Owned<IDistributedFile> f = queryThorFileManager().lookup(job, name);
-        if (f) 
-        {
-            size = f->getFileSize(true,false);
-            if (size % recordSize)
-                throw MakeStringException(9001, "File %s has size %"I64F"d which is not a multiple of record size %d", name, size, recordSize);
-            return size / recordSize;
-        }
-        DBGLOG("Error could not resolve file %s", name);
-        throw MakeStringException(9003, "Error could not resolve %s", name);
-    }
-    virtual __int64 countIndex(__int64 activityId, IHThorCountIndexArg & arg) { UNIMPLEMENTED; }
-    virtual __int64 countDiskFile(__int64 id, IHThorCountFileArg & arg)
-    {
-        // would have called the above function in a try block but corrupted registers whenever I tried.
-
-        Owned<IHThorCountFileArg> a = &arg;  // make sure it gets destroyed....
-        arg.onCreate(this, NULL, NULL);
-        arg.onStart(NULL, NULL);
-
-        const char *name = arg.getFileName();
-        Owned<IDistributedFile> f = queryThorFileManager().lookup(job, name, 0 != ((TDXtemporary|TDXjobtemp) & arg.getFlags()));
-        if (f) 
-        {
-            IOutputMetaData * rs = arg.queryRecordSize();
-            assertex(rs->isFixedSize());
-            unsigned recordSize = rs->getMinRecordSize();
-            unsigned __int64 size = f->getFileSize(true,false);
-            if (size % recordSize)
-            {
-                throw MakeStringException(0, "Physical file %s has size %"I64F"d which is not a multiple of record size %d", name, size, recordSize);
-            }
-            return size / recordSize;
-        }
-        else if (arg.getFlags() & TDRoptional)
-            return 0;
-        else
-        {
-            PrintLog("Error could not resolve file %s", name);
-            throw MakeStringException(0, "Error could not resolve %s", name);
         }
     }
     virtual void addWuException(const char * text, unsigned code, unsigned severity)
@@ -1113,7 +1087,6 @@ public:
             rtlFailOnAssert();      // minimal implementation
     }
     virtual unsigned __int64 getFileOffset(const char *logicalName) { assertex(false); return 0; }
-    virtual unsigned getRecoveringCount() { UNIMPLEMENTED; }        // don't know how to implement here!
     virtual unsigned getNodes() { return job.queryJobGroup().ordinality()-1; }
     virtual unsigned getNodeNum() { throw MakeThorException(0, "Unsupported. getNodeNum() called in master"); return (unsigned)-1; }
     virtual char *getFilePart(const char *logicalName, bool create=false) { assertex(false); return NULL; }
@@ -1219,7 +1192,7 @@ CJobMaster::CJobMaster(IConstWorkUnit &_workunit, const char *graphName, const c
 
     resumed = WUActionResume == workunit->getAction();
     fatalHandler.setown(new CFatalHandler(globals->getPropInt("@fatal_timeout", FATAL_TIMEOUT)));
-    querySent = false;
+    querySent = spillsSaved = false;
     nodeDiskUsageCached = false;
 
     StringBuffer pluginsDir;
@@ -1256,37 +1229,91 @@ CJobMaster::~CJobMaster()
     tmpHandler.clear();
 }
 
-void CJobMaster::broadcastToSlaves(CMessageBuffer &msg, mptag_t mptag, unsigned timeout, const char *errorMsg, mptag_t *_replyTag, bool sendOnly)
+static IException *createBCastException(unsigned slave, const char *errorMsg)
+{
+    // think this should always be fatal, could check link down here, or in general and flag as _shutdown.
+    StringBuffer msg("General failure communicating to slave");
+    if (slave)
+        msg.append("(").append(slave).append(") ");
+    else
+        msg.append("s ");
+    Owned<IThorException> e = MakeThorException(0, "%s", msg.append(" [").append(errorMsg).append("]").str());
+    e->setAction(tea_shutdown);
+    return e.getClear();
+}
+
+void CJobMaster::broadcastToSlaves(CMessageBuffer &msg, mptag_t mptag, unsigned timeout, const char *errorMsg, CReplyCancelHandler *msgHandler, bool sendOnly)
 {
     mptag_t replyTag = createReplyTag();
     msg.setReplyTag(replyTag);
-    if (!queryJobComm().send(msg, RANK_ALL_OTHER, mptag, timeout))
+    if (globals->getPropBool("@broadcastSendAsync", true)) // only here in case of problems/debugging.
     {
-        // think this should always be fatal, could check link down here, or in general and flag as _shutdown.
-        StringBuffer msg("General failure communicating to slaves [");
-        Owned<IThorException> e = MakeThorException(0, "%s", msg.append(errorMsg).append("]").str());
-        e->setAction(tea_shutdown);
+        class CSendAsyncfor : public CAsyncFor
+        {
+            CJobMaster &job;
+            CMessageBuffer &msg;
+            mptag_t mptag;
+            unsigned timeout;
+            StringAttr errorMsg;
+        public:
+            CSendAsyncfor(CJobMaster &_job, CMessageBuffer &_msg, mptag_t _mptag, unsigned _timeout, const char *_errorMsg)
+                : job(_job), msg(_msg), mptag(_mptag), timeout(_timeout), errorMsg(_errorMsg)
+            {
+            }
+            void Do(unsigned i)
+            {
+                if (!job.queryJobComm().send(msg, i+1, mptag, timeout))
+                    throw createBCastException(i+1, errorMsg);
+            }
+        } afor(*this, msg, mptag, timeout, errorMsg);
+        try
+        {
+            afor.For(querySlaves(), querySlaves());
+        }
+        catch (IException *e)
+        {
+            EXCLOG(e, "broadcastSendAsync");
+            abort(e);
+            throw;
+        }
+    }
+    else if (!queryJobComm().send(msg, RANK_ALL_OTHER, mptag, timeout))
+    {
+        Owned<IException> e = createBCastException(0, errorMsg);
         EXCLOG(e, NULL);
         abort(e);
         throw e.getClear();
     }
     if (sendOnly) return;
-    if (_replyTag)
-        *_replyTag = replyTag;
     unsigned respondents = 0;
+    Owned<IBitSet> bitSet = createBitSet();
     loop
     {
         rank_t sender;
         CMessageBuffer msg;
-        if (!queryJobComm().recv(msg, RANK_ALL, replyTag, &sender, LONGTIMEOUT))
+        bool r = msgHandler ? msgHandler->recv(queryJobComm(), msg, RANK_ALL, replyTag, &sender, LONGTIMEOUT)
+                            : queryJobComm().recv(msg, RANK_ALL, replyTag, &sender, LONGTIMEOUT);
+        if (!r)
         {
-            if (_replyTag) _replyTag = NULL;
             StringBuffer tmpStr;
-            Owned<IException> e = MakeThorFatal(NULL, 0, "%s - Timeout receiving from slaves", errorMsg?tmpStr.append(": ").append(errorMsg).str():"");
+            if (errorMsg)
+                tmpStr.append(": ").append(errorMsg).append(" - ");
+            tmpStr.append("Timeout receiving from slaves - no reply from: [");
+            unsigned s = bitSet->scan(0, false);
+            assertex(s<querySlaves()); // must be at least one
+            tmpStr.append(s+1);
+            loop
+            {
+                s = bitSet->scan(s+1, false);
+                if (s>=querySlaves())
+                    break;
+                tmpStr.append(",").append(s+1);
+            }
+            tmpStr.append("]");
+            Owned<IException> e = MakeThorFatal(NULL, 0, " %s", tmpStr.str());
             EXCLOG(e, NULL);
             throw e.getClear();
         }
-        if (_replyTag) _replyTag = NULL;
         bool error;
         msg.read(error);
         if (error)
@@ -1296,6 +1323,7 @@ void CJobMaster::broadcastToSlaves(CMessageBuffer &msg, mptag_t mptag, unsigned 
             throw e.getClear();
         }
         ++respondents;
+        bitSet->set((unsigned)sender-1);
         if (respondents == querySlaveGroup().ordinality())
             break;
     }
@@ -1424,6 +1452,56 @@ void CJobMaster::jobDone()
     broadcastToSlaves(msg, masterSlaveMpTag, LONGTIMEOUT, "jobDone");
 }
 
+void CJobMaster::saveSpills()
+{
+    CriticalBlock b(spillCrit);
+    if (spillsSaved)
+        return;
+    spillsSaved = true;
+
+    PROGLOG("Paused, saving spills..");
+    assertex(!queryUseCheckpoints()); // JCSMORE - checkpoints probably need revisiting
+
+    unsigned numSavedSpills = 0;
+    // stash away spills ready for resume, make them owned by workunit in event of abort/delete
+    Owned<IFileUsageIterator> iter = queryTempHandler()->getIterator();
+    ForEach(*iter)
+    {
+        CFileUsageEntry &entry = iter->query();
+        StringAttr tmpName = entry.queryName();
+        Owned<IConstWUGraphProgress> graphProgress = getGraphProgress();
+        if (WUGraphComplete == graphProgress->queryNodeState(entry.queryGraphId()))
+        {
+            IArrayOf<IGroup> groups;
+            StringArray clusters;
+            fillClusterArray(*this, tmpName, clusters, groups);
+            Owned<IFileDescriptor> fileDesc = queryThorFileManager().create(*this, tmpName, clusters, groups, true, TDXtemporary|TDWnoreplicate);
+            fileDesc->queryProperties().setPropBool("@pausefile", true); // JCSMORE - mark to keep, may be able to distinguish via other means
+
+            IPropertyTree &props = fileDesc->queryProperties();
+            props.setPropBool("@owned", true);
+            bool blockCompressed=true; // JCSMORE, should come from helper really
+            if (blockCompressed)
+                props.setPropBool("@blockCompressed", true);
+
+            Owned<IDistributedFile> file = queryDistributedFileDirectory().createNew(fileDesc);
+
+            // NB: This is renaming/moving from temp path
+
+            StringBuffer newName;
+            queryThorFileManager().addScope(*this, tmpName, newName, true, true);
+            verifyex(file->renamePhysicalPartFiles(newName.str(), NULL, NULL, queryBaseDirectory()));
+
+            file->attach(newName,userDesc);
+
+            Owned<IWorkUnit> wu = &queryWorkUnit().lock();
+            wu->addFile(newName, &clusters, entry.queryUsage(), entry.queryKind(), queryGraphName());
+            ++numSavedSpills;
+        }
+    }
+    PROGLOG("Paused, %d spill(s) saved.", numSavedSpills);
+}
+
 bool CJobMaster::go()
 {
     class CWorkunitAbortHandler : public CInterface, implements IThreaded
@@ -1517,7 +1595,7 @@ bool CJobMaster::go()
             if (pause)
             {
                 PROGLOG("Pausing job%s", abort?" [now]":"");
-                job.stop(abort);
+                job.pause(abort);
             }
         }
     } workunitPauseHandler(*this, *workunit);
@@ -1599,45 +1677,7 @@ bool CJobMaster::go()
     graphProgress.clear();
 
     if (queryPausing())
-    {
-        assertex(!queryUseCheckpoints()); // JCSMORE - checkpoints probably need revisiting
-
-        // stash away spills ready for resume, make them owned by workunit in event of abort/delete
-        Owned<IFileUsageIterator> iter = queryTempHandler()->getIterator();
-        ForEach(*iter)
-        {
-            CFileUsageEntry &entry = iter->query();
-            StringAttr tmpName = entry.queryName();
-            Owned<IConstWUGraphProgress> graphProgress = getGraphProgress();
-            if (WUGraphComplete == graphProgress->queryNodeState(entry.queryGraphId()))
-            {
-                IArrayOf<IGroup> groups;
-                StringArray clusters;
-                fillClusterArray(*this, tmpName, clusters, groups);
-                Owned<IFileDescriptor> fileDesc = queryThorFileManager().create(*this, tmpName, clusters, groups, true, TDXtemporary|TDWnoreplicate);
-                fileDesc->queryProperties().setPropBool("@pausefile", true); // JCSMORE - mark to keep, may be able to distinguish via other means
-
-                IPropertyTree &props = fileDesc->queryProperties();
-                props.setPropBool("@owned", true);
-                bool blockCompressed=true; // JCSMORE, should come from helper really
-                if (blockCompressed)
-                    props.setPropBool("@blockCompressed", true);
-
-                Owned<IDistributedFile> file = queryDistributedFileDirectory().createNew(fileDesc);
-
-                // NB: This is renaming/moving from temp path
-
-                StringBuffer newName;
-                queryThorFileManager().addScope(*this, tmpName, newName, true, true);
-                verifyex(file->renamePhysicalPartFiles(newName.str(), NULL, NULL, queryBaseDirectory()));
-
-                file->attach(newName,userDesc);
-
-                Owned<IWorkUnit> wu = &queryWorkUnit().lock();
-                wu->addFile(newName, &clusters, entry.queryUsage(), entry.queryKind(), queryGraphName());
-            }
-        }
-    }
+        saveSpills();
 
     Owned<IException> jobDoneException;
     try { jobDone(); }
@@ -1654,15 +1694,39 @@ bool CJobMaster::go()
     return allDone;
 }
 
-void CJobMaster::stop(bool doAbort)
+void CJobMaster::pause(bool doAbort)
 {
     pausing = true;
     if (doAbort)
     {
-        queryJobManager().replyException(*this, NULL); 
+        // reply will trigger DAMP_THOR_REPLY_PAUSED to agent, unless all graphs are already complete.
+        queryJobManager().replyException(*this, NULL);
+
+        // abort current graph asynchronously.
+        // After spill files have been saved, trigger timeout handler in case abort doesn't succeed.
         Owned<IException> e = MakeThorException(0, "Unable to recover from pausenow");
+        class CAbortThread : implements IThreaded
+        {
+            CJobMaster &owner;
+            CThreaded threaded;
+            Linked<IException> exception;
+        public:
+            CAbortThread(CJobMaster &_owner, IException *_exception) : owner(_owner), exception(_exception), threaded("SaveSpillThread", this)
+            {
+                threaded.start();
+            }
+            ~CAbortThread()
+            {
+                threaded.join();
+            }
+        // IThreaded
+            virtual void main()
+            {
+                owner.abort(exception);
+            }
+        } abortThread(*this, e);
+        saveSpills();
         fatalHandler->inform(e.getClear());
-        abort(e);
     }
 }
 
@@ -1793,7 +1857,7 @@ class CCollatedResult : public CSimpleInterface, implements IThorResult
         msg.append(ownerId);
         msg.append(id);
         msg.append(replyTag);
-        ((CJobMaster &)graph.queryJob()).broadcastToSlaves(msg, masterSlaveMpTag, LONGTIMEOUT, NULL, NULL, true);
+        ((CJobMaster &)graph.queryJob()).broadcastToSlaves(msg, masterSlaveMpTag, LONGTIMEOUT, "CCollectResult", NULL, true);
 
         unsigned numSlaves = graph.queryJob().querySlaves();
         for (unsigned n=0; n<numSlaves; n++)
@@ -1905,11 +1969,6 @@ public:
         ensure();
         result->serialize(mb);
     }
-    virtual void getResult(size32_t & retSize, void * & ret)
-    {
-        ensure();
-        return result->getResult(retSize, ret);
-    }
     virtual void getLinkedResult(unsigned & count, byte * * & ret)
     {
         ensure();
@@ -1930,7 +1989,6 @@ CMasterGraph::CMasterGraph(CJobMaster &_job) : CGraphBase(_job), jobM(_job)
     waitBarrierTag = job.allocateMPTag();
     startBarrier = job.createBarrier(startBarrierTag);
     waitBarrier = job.createBarrier(waitBarrierTag);
-    bcastTag = TAG_NULL;
 }
 
 
@@ -1989,18 +2047,27 @@ bool CMasterGraph::fireException(IException *e)
     return true;
 }
 
+void CMasterGraph::reset()
+{
+    CGraphBase::reset();
+    bcastMsgHandler.reset();
+    activityInitMsgHandler.reset();
+    executeReplyMsgHandler.reset();
+}
+
 void CMasterGraph::abort(IException *e)
 {
     if (aborted) return;
-    try{ CGraphBase::abort(e); }
+    try { CGraphBase::abort(e); }
     catch (IException *e)
     {
         GraphPrintLog(e, "Aborting master graph");
         e->Release();
     }
-    if (TAG_NULL != bcastTag)
-        job.queryJobComm().cancel(0, bcastTag);
-    if (started)
+    bcastMsgHandler.cancel(0);
+    activityInitMsgHandler.cancel(RANK_ALL);
+    executeReplyMsgHandler.cancel(RANK_ALL);
+    if (started && !graphDone)
     {
         try
         {
@@ -2008,20 +2075,23 @@ void CMasterGraph::abort(IException *e)
             msg.append(GraphAbort);
             msg.append(job.queryKey());
             msg.append(queryGraphId());
-            jobM.broadcastToSlaves(msg, masterSlaveMpTag, LONGTIMEOUT, "abort", &bcastTag);
+            jobM.broadcastToSlaves(msg, masterSlaveMpTag, LONGTIMEOUT, "abort");
         }
         catch (IException *e)
         {
             GraphPrintLog(e, "Aborting slave graph");
             if (abortException)
+            {
+                e->Release();
                 throw LINK(abortException);
+            }
             throw;
         }
     }
     if (!queryOwner())
     {
         if (globals->getPropBool("@watchdogProgressEnabled"))
-            queryJobManager().queryDeMonServer()->endGraph(this, true);
+            queryJobManager().queryDeMonServer()->endGraph(this, !queryAborted());
     }
 }
 
@@ -2126,13 +2196,16 @@ void CMasterGraph::create(size32_t parentExtractSz, const byte *parentExtract)
                     msg.append((unsigned)0);
                 try
                 {
-                    jobM.broadcastToSlaves(msg, mpTag, LONGTIMEOUT, "serializeCreateContexts", &bcastTag);
+                    jobM.broadcastToSlaves(msg, mpTag, LONGTIMEOUT, "serializeCreateContexts", &bcastMsgHandler);
                 }
                 catch (IException *e)
                 {
                     GraphPrintLog(e, "Aborting graph create(2)");
                     if (abortException)
+                    {
+                        e->Release();
                         throw LINK(abortException);
+                    }
                     throw;
                 }
             }
@@ -2178,7 +2251,7 @@ void CMasterGraph::sendActivityInitData()
             }
             catch (IException *e)
             {
-                GraphPrintLog(e, NULL);
+                GraphPrintLog(e);
                 throw;
             }
             if (!job.queryJobComm().send(msg, w+1, mpTag, LONGTIMEOUT))
@@ -2199,7 +2272,7 @@ void CMasterGraph::sendActivityInitData()
         {
             rank_t sender;
             msg.clear();
-            if (!job.queryJobComm().recv(msg, w+1, replyTag, &sender, LONGTIMEOUT))
+            if (!activityInitMsgHandler.recv(queryJob().queryJobComm(), msg, w+1, replyTag, &sender, LONGTIMEOUT))
                 throw MakeGraphException(this, 0, "Timeout receiving from slaves after graph sent");
 
             bool error;
@@ -2270,7 +2343,7 @@ void CMasterGraph::executeSubGraph(size32_t parentExtractSz, const byte *parentE
         for (; s<queryJob().querySlaves(); s++)
         {
             CMessageBuffer msg;
-            if (!queryJob().queryJobComm().recv(msg, RANK_ALL, executeReplyTag, &sender))
+            if (!executeReplyMsgHandler.recv(queryJob().queryJobComm(), msg, RANK_ALL, executeReplyTag, &sender))
                 break;
             bool error;
             msg.read(error);
@@ -2286,6 +2359,8 @@ void CMasterGraph::executeSubGraph(size32_t parentExtractSz, const byte *parentE
             fatalHandler->clear();
     }
     fatalHandler.clear();
+    Owned<IWorkUnit> wu = &job.queryWorkUnit().lock();
+    queryJobManager().updateWorkUnitLog(*wu);
 }
 
 void CMasterGraph::sendGraph()
@@ -2303,13 +2378,16 @@ void CMasterGraph::sendGraph()
     // slave graph data
     try
     {
-        jobM.broadcastToSlaves(msg, masterSlaveMpTag, LONGTIMEOUT, "sendGraph", &bcastTag);
+        jobM.broadcastToSlaves(msg, masterSlaveMpTag, LONGTIMEOUT, "sendGraph", &bcastMsgHandler);
     }
     catch (IException *e)
     {
         GraphPrintLog(e, "Aborting sendGraph");
         if (abortException)
+        {
+            e->Release();
             throw LINK(abortException);
+        }
         throw;
     }
     GraphPrintLog("sendGraph took %d ms", atimer.elapsed());
@@ -2326,13 +2404,16 @@ bool CMasterGraph::preStart(size32_t parentExtractSz, const byte *parentExtract)
         serializeStartContexts(msg);
         try
         {
-            jobM.broadcastToSlaves(msg, mpTag, LONGTIMEOUT, "startCtx", &bcastTag, true);
+            jobM.broadcastToSlaves(msg, mpTag, LONGTIMEOUT, "startCtx", NULL, true);
         }
         catch (IException *e)
         {
             GraphPrintLog(e, "Aborting preStart");
             if (abortException)
+            {
+                e->Release();
                 throw LINK(abortException);
+            }
             throw;
         }
     }
@@ -2544,7 +2625,11 @@ bool CMasterGraph::deserializeStats(unsigned node, MemoryBuffer &mb)
                     activity = (CMasterActivity *)element->queryActivity();
                     created = true; // means some activities created within this graph
                 }
-                catch (IException *_e) { e.setown(_e); GraphPrintLog(_e, NULL); }
+                catch (IException *_e)
+                {
+                    e.setown(_e);
+                    GraphPrintLog(_e, "In deserializeStats");
+                }
                 if (!activity || e.get())
                 {
                     GraphPrintLog("Activity id=%"ACTPF"d failed to created child query activity ready for progress", activityId);
@@ -2755,11 +2840,12 @@ void ProgressInfo::processInfo() // reimplement as counts have special flags (i.
     if (max)
     {
         unsigned count = counts.ordinality();
-        avg = tot/count;
-        if (avg)
+        double _avg = (double)tot/count;
+        if (_avg)
         {
-            hi = (unsigned)((100 * (max-avg))/avg);
-            lo = (unsigned)((100 * (avg-min))/avg);
+            hi = (unsigned)(100.0 * (((double)max-_avg)/_avg));
+            lo = (unsigned)(100.0 * ((_avg-(double)min)/_avg));
+            avg = (unsigned __int64)_avg;
         }
     }
 }

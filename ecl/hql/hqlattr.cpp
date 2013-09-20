@@ -229,6 +229,7 @@ unsigned getOperatorMetaFlags(node_operator op)
 //Aggregate operators
     case no_count:
     case no_exists:
+    case no_existsdict:
     case no_max:
     case no_min:
     case no_sum:
@@ -275,9 +276,7 @@ unsigned getOperatorMetaFlags(node_operator op)
     case no_temprow:
 
 //Dictionaries
-    case no_userdictionary:
-    case no_newuserdictionary:
-    case no_inlinedictionary:
+    case no_createdictionary:
 
 //Datasets [see also selection operators]
     case no_rollup:
@@ -296,7 +295,7 @@ unsigned getOperatorMetaFlags(node_operator op)
     case no_fetch:
     case no_join:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_dedup:
     case no_enth:
@@ -368,6 +367,7 @@ unsigned getOperatorMetaFlags(node_operator op)
     case no_nwaymerge:
     case no_stepped:
     case no_datasetfromrow:
+    case no_datasetfromdictionary:
     case no_assert_ds:
     case no_combine:
     case no_rollupgroup:
@@ -407,7 +407,7 @@ unsigned getOperatorMetaFlags(node_operator op)
     case no_null:
     case no_globalscope:
     case no_nothor:
-    case no_cppbody:
+    case no_embedbody:
     case no_alias_scope:
     case no_evalonce:
     case no_forcelocal:
@@ -458,7 +458,6 @@ unsigned getOperatorMetaFlags(node_operator op)
     case no_priority:
     case no_colon:
     case no_setworkflow_cond:
-    case no_recovering:
     case no_global:
     case no_workflow:
     case no_workflow_action:
@@ -616,12 +615,13 @@ unsigned getOperatorMetaFlags(node_operator op)
     case no_dataset_from_transform:
 
     case no_unused6:
-    case no_unused13: case no_unused14: case no_unused15: case no_unused19:
+    case no_unused13: case no_unused14: case no_unused15:
     case no_unused20: case no_unused21: case no_unused22: case no_unused23: case no_unused24: case no_unused25: case no_unused28: case no_unused29:
     case no_unused30: case no_unused31: case no_unused32: case no_unused33: case no_unused34: case no_unused35: case no_unused36: case no_unused37: case no_unused38:
     case no_unused40: case no_unused41: case no_unused42: case no_unused43: case no_unused44: case no_unused45: case no_unused46: case no_unused47: case no_unused48: case no_unused49:
     case no_unused50: case no_unused52:
     case no_unused80: case no_unused83:
+    case no_unused101: case no_unused102:
     case no_is_null:
     case no_position:
     case no_current_time:
@@ -763,11 +763,19 @@ static unsigned guessSize(unsigned minLen, unsigned maxLen)
 }
 
 
-static IHqlExpression * querySerializedForm(IHqlExpression * expr)
+static IHqlExpression * querySerializedForm(IHqlExpression * expr, _ATOM variation)
 {
     if (expr)
     {
-        IHqlExpression * attr = expr->queryAttribute(_attrSerializedForm_Atom);
+        _ATOM attrName;
+        if (variation == diskAtom)
+            attrName = _attrDiskSerializedForm_Atom;
+        else if (variation == internalAtom)
+            attrName = _attrInternalSerializedForm_Atom;
+        else
+            throwUnexpected();
+
+        IHqlExpression * attr = expr->queryAttribute(attrName);
         if (attr)
             return attr;
     }
@@ -779,7 +787,7 @@ static HqlTransformerInfo serializedRecordCreatorInfo("SerializedRecordCreator")
 class SerializedRecordCreator : public QuickHqlTransformer
 {
 public:
-    SerializedRecordCreator() : QuickHqlTransformer(serializedRecordCreatorInfo, NULL) {}
+    SerializedRecordCreator(_ATOM _variety) : QuickHqlTransformer(serializedRecordCreatorInfo, NULL), variety(_variety) {}
 
     virtual IHqlExpression * createTransformedBody(IHqlExpression * expr)
     {
@@ -797,11 +805,20 @@ public:
         }
         return QuickHqlTransformer::createTransformedBody(expr);
     }
+
+    virtual ITypeInfo * transformType(ITypeInfo * type)
+    {
+        Owned<ITypeInfo> transformed = QuickHqlTransformer::transformType(type);
+        return getSerializedForm(transformed, variety);
+    }
+
+protected:
+    _ATOM variety;
 };
 
-static IHqlExpression * evaluateSerializedRecord(IHqlExpression * expr)
+static IHqlExpression * evaluateSerializedRecord(IHqlExpression * expr, _ATOM variation)
 {
-    SerializedRecordCreator transformer;
+    SerializedRecordCreator transformer(variation);
     return transformer.transform(expr);
 }
 
@@ -825,17 +842,17 @@ public:
 
 //-- Attribute: serialized form -------------------------------------------------------------------------------
 
-static IHqlExpression * evaluateAttrSerializedForm(IHqlExpression * expr)
+static IHqlExpression * evaluateAttrSerializedForm(IHqlExpression * expr, _ATOM attr, _ATOM variation)
 {
     if (expr->getOperator() == no_record || expr->getOperator() == no_field)
     {
-        OwnedHqlExpr serialized = evaluateSerializedRecord(expr);
+        OwnedHqlExpr serialized = evaluateSerializedRecord(expr, variation);
         if (serialized != expr)
         {
             //Tag serialized form so don't re-evaluated
-            meta.addAttribute(serialized, _attrSerializedForm_Atom, serialized);
+            meta.addAttribute(serialized, attr, serialized);
         }
-        return meta.addAttribute(expr, _attrSerializedForm_Atom, serialized);
+        return meta.addAttribute(expr, attr, serialized);
     }
     return NULL;
 }
@@ -1221,12 +1238,12 @@ static IHqlExpression * evaluateAttrSize(IHqlExpression * expr)
 }
 
 
-IHqlExpression * getSerializedForm(IHqlExpression * expr)
+IHqlExpression * getSerializedForm(IHqlExpression * expr, _ATOM variation)
 {
-    return LINK(querySerializedForm(expr));
+    return LINK(querySerializedForm(expr, variation));
 }
 
-ITypeInfo * getSerializedForm(ITypeInfo * type)
+ITypeInfo * getSerializedForm(ITypeInfo * type, _ATOM variation)
 {
     if (!type)
         return NULL;
@@ -1235,7 +1252,7 @@ ITypeInfo * getSerializedForm(ITypeInfo * type)
     case type_record:
         {
             IHqlExpression * record = queryRecord(queryUnqualifiedType(type));
-            OwnedHqlExpr serializedRecord = getSerializedForm(record);
+            IHqlExpression * serializedRecord = querySerializedForm(record, variation);
             if (record == serializedRecord)
                 return LINK(type);
             return cloneModifiers(type, serializedRecord->queryType());
@@ -1245,11 +1262,23 @@ ITypeInfo * getSerializedForm(ITypeInfo * type)
     case type_table:
     case type_groupedtable:
         {
+            //MORE: If (variant == internalAtom) consider using a format that prefixes the dataset with a count instead of a size
             OwnedITypeInfo noOutOfLineType = removeModifier(type, typemod_outofline);
             OwnedITypeInfo noLinkCountType = removeProperty(noOutOfLineType, _linkCounted_Atom);
             ITypeInfo * childType = noLinkCountType->queryChildType();
-            OwnedITypeInfo newChild = getSerializedForm(childType);
+            OwnedITypeInfo newChild = getSerializedForm(childType, variation);
             return replaceChildType(noLinkCountType, newChild);
+        }
+    case type_dictionary:
+        {
+            OwnedITypeInfo noOutOfLineType = removeModifier(type, typemod_outofline);
+            OwnedITypeInfo noLinkCountType = removeProperty(noOutOfLineType, _linkCounted_Atom);
+            ITypeInfo * childType = noLinkCountType->queryChildType();
+            OwnedITypeInfo newChild = getSerializedForm(childType, variation);
+            if (variation == internalAtom)
+                return replaceChildType(noLinkCountType, newChild);
+            OwnedITypeInfo datasetType = makeTableType(LINK(newChild), NULL, NULL, NULL);
+            return cloneModifiers(noLinkCountType, datasetType);
         }
     }
     return LINK(type);
@@ -1274,6 +1303,7 @@ HqlCachedAttributeTransformer::HqlCachedAttributeTransformer(HqlTransformerInfo 
 : QuickHqlTransformer(_transformInfo, NULL), attrName(_attrName)
 {
 }
+
 
 IHqlExpression * HqlCachedAttributeTransformer::transform(IHqlExpression * expr)
 {
@@ -1332,7 +1362,12 @@ IHqlExpression * HqlUnadornedNormalizer::createTransformed(IHqlExpression * expr
             {
                 IHqlExpression * cur = expr->queryChild(idx);
                 if (cur->isAttribute())
-                    children.append(*transform(cur));
+                {
+                    IHqlExpression * mapped = transform(cur);
+                    children.append(*mapped);
+                    if (mapped != cur)
+                        same = false;
+                }
                 else
                     same = false;
             }
@@ -1581,7 +1616,7 @@ bool isLocalActivity(IHqlExpression * expr)
     case no_cogroup:
     case no_cosort:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_topn:
     case no_iterate:
@@ -1785,7 +1820,7 @@ bool localChangesActivityAction(IHqlExpression * expr)
     case no_cogroup:
     case no_cosort:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_sorted:
     case no_topn:
     case no_iterate:
@@ -2428,7 +2463,7 @@ IHqlExpression * calcRowInformation(IHqlExpression * expr)
     case no_assertgrouped:
     case no_assertdistributed:
     case no_sort:
-    case no_shuffle:
+    case no_subsort:
     case no_nohoist:
     case no_section:
     case no_sectioninput:
@@ -2824,6 +2859,7 @@ IHqlExpression * calcRowInformation(IHqlExpression * expr)
     case no_param:
     case no_anon:
     case no_nofold:             // assume nothing - to stop subsequent optimizations
+    case no_delayedselect:
         info.setUnknown(RCMdisk);
         break;
     case no_parse:
@@ -2838,6 +2874,7 @@ IHqlExpression * calcRowInformation(IHqlExpression * expr)
     case no_process:
     case no_pipe:
     case no_translated:
+    case no_datasetfromdictionary:
         //MORE could improve each of these
         info.setUnknown(RCMdisk);
         break;
@@ -2941,11 +2978,19 @@ bool hasFewRows(IHqlExpression * expr)
     return (info.magnitude <= RCMfew);
 }
 
-bool spillToWorkunitNotFile(IHqlExpression * expr)
+bool spillToWorkunitNotFile(IHqlExpression * expr, ClusterType platform)
 {
-    //In thor, all rows will get sent to master and written to dali, and then read back on slave 0
-    //not likely to be more efficient unless only a single row.
-    return hasNoMoreRowsThan(expr, 1);
+    if (platform == RoxieCluster)
+        return true;
+
+    if (isThorCluster(platform))
+    {
+        //In thor, all rows will get sent to master and written to dali, and then read back on slave 0
+        //not likely to be more efficient unless only a single row - although the generated code accessing
+        //from a child query is better
+        return hasNoMoreRowsThan(expr, 1);
+    }
+    return hasFewRows(expr);
 }
 
 bool hasSingleRow(IHqlExpression * expr)
@@ -3127,6 +3172,9 @@ unsigned getMaxRecordSize(IHqlExpression * record, unsigned defaultMaxRecordSize
         OwnedHqlExpr folded = foldHqlExpression(value);
         assertex(folded);
         maxSize = (unsigned)getIntValue(folded);
+        unsigned minSize = getIntValue(minSizeExpr);
+        if (maxSize < minSize)
+            maxSize = minSize;
         usedDefault = true;
     }
     else
@@ -3201,10 +3249,14 @@ bool maxRecordSizeCanBeDerived(IHqlExpression * record)
 //---------------------------------------------------------------------------------
 
 
-bool recordRequiresSerialization(IHqlExpression * expr)
+bool recordRequiresSerialization(IHqlExpression * expr, _ATOM serializeForm)
 {
-    if (recordRequiresDestructor(expr))
+    if (!expr)
+        return false;
+
+    if (querySerializedForm(expr, serializeForm) != expr)
         return true;
+
     return false;
 }
 
@@ -3213,11 +3265,45 @@ bool recordRequiresDestructor(IHqlExpression * expr)
     if (!expr)
         return false;
 
-    //true if the serialized form is different
-    IHqlExpression * serialized = expr->queryAttribute(_attrSerializedForm_Atom);
-    return serialized && (serialized != expr->queryBody());
+    //true if the internal serialized form is different
+    if (querySerializedForm(expr, internalAtom) != expr)
+        return true;
+
+    return false;
 }
 
+bool recordRequiresLinkCount(IHqlExpression * expr)
+{
+    //MORE: This should strictly speaking check if any of the child fields are link counted.
+    //This function is a sufficient proxy at the moment
+    return recordRequiresDestructor(expr);
+}
+
+bool recordSerializationDiffers(IHqlExpression * expr, _ATOM serializeForm1, _ATOM serializeForm2)
+{
+    return querySerializedForm(expr, serializeForm1) != querySerializedForm(expr, serializeForm2);
+}
+
+extern HQL_API bool typeRequiresDeserialization(ITypeInfo * type, _ATOM serializeForm)
+{
+    Owned<ITypeInfo> serializedType = getSerializedForm(type, serializeForm);
+
+    if (queryUnqualifiedType(serializedType) == queryUnqualifiedType(type))
+        return false;
+
+    type_t stc = serializedType->getTypeCode();
+    if (stc != type->getTypeCode())
+        return true;
+
+    if (stc == type_table)
+    {
+        if (recordTypesMatch(serializedType, type))
+            return false;
+        return true;
+    }
+
+    return true;
+}
 
 //---------------------------------------------------------------------------------
 
@@ -3245,7 +3331,12 @@ IHqlExpression * getPackedRecord(IHqlExpression * expr)
     return LINK(packed);
 }
 
-IHqlExpression * getUnadornedExpr(IHqlExpression * expr)
+/*
+ * This function can be called while parsing (or later) to find a "normalized" version of a record or a field.
+ * It ignores default values for fields, and removes named symbols/ other location specific information - so
+ * that identical records defined in macros etc. are treated as identical.
+ */
+IHqlExpression * getUnadornedRecordOrField(IHqlExpression * expr)
 {
     if (!expr)
         return NULL;
@@ -3263,8 +3354,9 @@ inline bool isAlwaysLocationIndependent(IHqlExpression * expr)
     case no_param:
     case no_quoted:
     case no_variable:
-    case no_attr:
         return true;
+    case no_attr:
+        return (expr->numChildren() == 0);
     }
     return false;
 }
@@ -3317,7 +3409,12 @@ IHqlExpression * HqlLocationIndependentNormalizer::doCreateTransformed(IHqlExpre
     switch (op)
     {
     case no_attr:
-        return LINK(expr);
+        {
+            //Original attributes cause chaos => remove all children from attributes
+            if (expr->numChildren() != 0)
+                return createAttribute(expr->queryName());
+            return LINK(expr);
+        }
     case no_field:
         {
             //Remove the default values from fields since they just confuse.
@@ -3327,7 +3424,12 @@ IHqlExpression * HqlLocationIndependentNormalizer::doCreateTransformed(IHqlExpre
             {
                 IHqlExpression * cur = expr->queryChild(idx);
                 if (cur->isAttribute())
-                    children.append(*transform(cur));
+                {
+                    IHqlExpression * mapped = transform(cur);
+                    children.append(*mapped);
+                    if (mapped != cur)
+                        same = false;
+                }
                 else
                     same = false;
             }
@@ -3626,8 +3728,10 @@ IHqlExpression * CHqlExpression::queryAttribute(_ATOM propName)
     {
     case EArecordCount:
         return evaluateAttrRecordCount(this);
-    case EAserializedForm:
-        return evaluateAttrSerializedForm(this);
+    case EAdiskserializedForm:
+        return evaluateAttrSerializedForm(this, _attrDiskSerializedForm_Atom, diskAtom);
+    case EAinternalserializedForm:
+        return evaluateAttrSerializedForm(this, _attrInternalSerializedForm_Atom, internalAtom);
     case EAsize:
         return evaluateAttrSize(this);
     case EAaligned:

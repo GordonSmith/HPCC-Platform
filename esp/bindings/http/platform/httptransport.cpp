@@ -37,7 +37,7 @@ IEspHttpException* createEspHttpException(int code, const char *_msg, const char
     return new CEspHttpException(code, _msg, _httpstatus);
 }
 
-bool httpContentFromFile(const char *filepath, StringBuffer &mimetype, MemoryBuffer &fileContents)
+bool httpContentFromFile(const char *filepath, StringBuffer &mimetype, MemoryBuffer &fileContents, bool &checkModifiedTime, StringBuffer &lastModified, StringBuffer &etag)
 {
     StringBuffer strfile(filepath);
 
@@ -49,6 +49,38 @@ bool httpContentFromFile(const char *filepath, StringBuffer &mimetype, MemoryBuf
     Owned<IFile> file = createIFile(strfile.str());
     if (file && file->isFile())
     {
+        if (checkModifiedTime)
+        {
+            CDateTime createTime, accessedTime, modifiedTime;
+            file->getTime( &createTime,  &modifiedTime, &accessedTime);
+            if (etag.length() || !lastModified.length())
+            {
+                StringBuffer etagSource, etagForThisFile;
+                modifiedTime.getString(lastModified.clear());
+                etagSource.appendf("%s+%s", filepath, lastModified.str());
+                etagForThisFile.append(hashc((unsigned char *)etagSource.str(), etagSource.length(), 0));
+                if ( !streq(etagForThisFile.str(), etag.str()))
+                    etag.set(etagForThisFile);
+                else
+                {
+                    checkModifiedTime = false;
+                    return true;
+                }
+            }
+            else
+            {
+                StringBuffer lastModifiedForThisFile;
+                modifiedTime.getString(lastModifiedForThisFile);
+                if ( !streq(lastModifiedForThisFile.str(), lastModified.str()))
+                    lastModified.set(lastModifiedForThisFile);
+                else
+                {
+                    checkModifiedTime = false;
+                    return true;
+                }
+            }
+        }
+
         Owned<IFileIO> io = file->open(IFOread);
         if (io)
         {
@@ -185,7 +217,7 @@ public:
         m_message = message;
         m_pStart = (char*) message;
 
-        Owned<IPullXMLReader> reader = createPullXMLStringReader(m_message, *this, xr_ignoreNameSpaces);
+        Owned<IPullPTreeReader> reader = createPullXMLStringReader(m_message, *this, ptr_ignoreNameSpaces);
         while(m_readNext && reader->next())
         {
             if (m_foundPassword)
@@ -1833,181 +1865,133 @@ int CHttpRequest::processHeaders(IMultiException *me)
     return 0;
 }
 
-int CHttpRequest::readContentToFile(StringBuffer netAddress, StringBuffer path)
+bool CHttpRequest::readContentToBuffer(MemoryBuffer& buffer, __int64& bytesNotRead)
 {
     char buf[1024 + 1];
-    int buflen = 1024;
-    int readlen = 0;    
-    __int64 totallen = m_content_length64;
-    if(buflen > totallen)
-        buflen = (int) totallen;
+    __int64 buflen = 1024;
+    if (buflen > bytesNotRead)
+        buflen = bytesNotRead;
 
-    StringBuffer lengthStr;
-    lengthStr.append(m_content_length64);
+    int readlen = m_bufferedsocket->read(buf, (int) buflen);
+    if(readlen < 0)
+        DBGLOG("Failed to read from socket");
 
-    Owned<CMimeMultiPart> m_multipart = new CMimeMultiPart("1.0", m_content_type.get(), "", "", "");
-    m_multipart->parseContentType(m_content_type.get());
+    if(readlen <= 0)
+       return false;
 
-    //Read the first one of data to find out the file name, as well as the beginning of the file content
-    bool lastChuck = false;
-    MemoryBuffer fileContent;
-    StringBuffer fileName;
-    while(fileName.length() < 1)
+    buf[readlen] = 0;
+    buffer.append(readlen, buf);//'buffer' may have some left-over from previous read
+
+    bytesNotRead -= readlen;
+    return true;
+}
+
+bool CHttpRequest::readUploadFileName(CMimeMultiPart* mimemultipart, StringBuffer& fileName, MemoryBuffer& contentBuffer, __int64& bytesNotRead)
+{
+    if (contentBuffer.length())
+        mimemultipart->readUploadFileName(contentBuffer, fileName);
+
+    while((fileName.length() < 1) && (bytesNotRead > 0))
     {
-        readlen = m_bufferedsocket->read(buf, buflen);
-        if(readlen < 0)
-        {
-            DBGLOG(">> Socket timed out because of incorrect Content-Length passed in from the other side");
+        if (!readContentToBuffer(contentBuffer, bytesNotRead))
             break;
-        }
-        if(readlen == 0)
-            break;
-        
-        buf[readlen] = 0;
 
-        fileContent.append(readlen, buf);
-
-        //find out the file name, as well as the beginning of the file content
-        m_multipart->readUploadFile(fileContent, fileName);
-
-        totallen -= readlen;
-        if(totallen <= 0)
-            break;
-        if(buflen > totallen)
-            buflen = (int) totallen;
+        mimemultipart->readUploadFileName(contentBuffer, fileName);
     }
 
-    if (fileName.length() < 1)
-    {
-        DBGLOG(">> File cannot be uploaded.");
-        return 0;
-    }
+    return (fileName.length() > 0);
+}
 
-    //Create IFile to store the file
-    StringBuffer name0(fileName), name1(fileName), fileToSave, fileToUse;
-    char* str = (char*) name1.reverse().str();
+IFile* CHttpRequest::createUploadFile(StringBuffer netAddress, const char* filePath, StringBuffer& fileName)
+{
+    StringBuffer name(fileName), tmpFileName;
+    char* str = (char*) name.reverse().str();
     char* pStr = (char*) strchr(str, '\\');
     if (!pStr)
         pStr = strchr(str, '/');
     if (pStr)
     {
         pStr[0] = 0;
-        name0.clear().append(str).reverse();
+        fileName.clear().append(str).reverse();
     }
-
-    fileToSave.appendf("%s/%s.part", path.str(), name0.str());
-    fileToUse.appendf("%s/%s", path.str(), name0.str());
+    tmpFileName.appendf("%s/%s.part", filePath, fileName.str());
 
     RemoteFilename rfn;
     SocketEndpoint ep;
     ep.set(netAddress.str());
-    rfn.setPath(ep, fileToSave.str());
-    Owned<IFile> file = createIFile(rfn);
-    if (!file)
-    {
-        DBGLOG(">> File %s cannot be uploaded.", name0.str());
-        return 0;
-    }
+    rfn.setPath(ep, tmpFileName.str());
 
-    Owned<IFileIO> fileio = file->open(IFOcreate);
-    if (!fileio)
-    {
-        DBGLOG(">> File %s cannot be uploaded.", name0.str());
-        return 0;
-    }
+    return createIFile(rfn);
+}
 
-    //If this is the last chuck of data, we need to remove the boundry line at the end of data
-    if(totallen <= 0)
-        lastChuck = true;
-    else if(totallen < 1024) 
-    { //if there is only one chuck left, the boundry line may be broken in the first chuck and the last chuck.
-        lastChuck = true;
-        readlen = m_bufferedsocket->read(buf, buflen);
-        if(readlen < 0)
+int CHttpRequest::readContentToFiles(StringBuffer netAddress, StringBuffer path, StringArray& fileNames)
+{
+    Owned<CMimeMultiPart> multipart = new CMimeMultiPart("1.0", m_content_type.get(), "", "", "");
+    multipart->parseContentType(m_content_type.get());
+
+    MemoryBuffer fileContent, moreContent;
+    __int64 bytesNotRead = m_content_length64;
+    while (1)
+    {
+        StringBuffer fileName;
+        if (!readUploadFileName(multipart, fileName, fileContent, bytesNotRead))
         {
-            DBGLOG(">> Socket timed out because of incorrect Content-Length passed in from the other side");
-            return 0;
-        }
-        if(readlen == 0)
-            return 0;
-
-        buf[readlen] = 0;
-        fileContent.append(readlen, buf);
-    }
-
-    //remove the boundry line at the end of data
-    if (lastChuck)
-        m_multipart->checkEndOfFile(fileContent);
-
-    //Save the data into the file
-    if (fileio->write(0, fileContent.length(), fileContent.toByteArray()) != fileContent.length())
-    {
-        DBGLOG(">> File %s cannot be uploaded.", name0.str());
-        return 0;
-    }
-
-    if(lastChuck)
-    {
-        file->rename(fileToUse.str());
-        return 0;
-    }
-
-    //The file has more than two chucks. Now, look though the rest of the chucks.
-    __int64 offset = fileContent.length();
-    for(;;)
-    {
-        readlen = m_bufferedsocket->read(buf, buflen);
-        if(readlen < 0)
-        {
-            DBGLOG(">> Socket timed out because of incorrect Content-Length passed in from the other side");
+            DBGLOG("No file name found for upload");
             break;
         }
-        if(readlen == 0)
-            break;
-        
-        buf[readlen] = 0;
-        fileContent.clear().append(readlen, buf);
-            
-        //For the last one or two chucks, remove the boundry line at the end of data. 
-        totallen -= readlen;
-        if(totallen <= 0)
-            lastChuck = true;
-        else if(totallen < 1024)
+
+        fileNames.append(fileName);
+        Owned<IFile> file = createUploadFile(netAddress, path, fileName);
+        if (!file)
         {
-            lastChuck = true;
-            buflen = (int) totallen;
-            readlen = m_bufferedsocket->read(buf, buflen);
-            if(readlen < 0)
+            DBGLOG("Uploaded file %s cannot be created", fileName.str());
+            break;
+        }
+        Owned<IFileIO> fileio = file->open(IFOcreate);
+        if (!fileio)
+        {
+            DBGLOG("Uploaded file %s cannot be opened", fileName.str());
+            break;
+        }
+
+        __int64 writeOffset = 0;
+        bool writeError = false;
+        bool foundAnotherFile = false;
+        while (1)
+        {
+            foundAnotherFile = multipart->separateMultiParts(fileContent, moreContent, bytesNotRead);
+            if (fileContent.length() > 0)
             {
-                DBGLOG(">> Socket timed out because of incorrect Content-Length passed in from the other side");
-                break;
+                if (fileio->write(writeOffset, fileContent.length(), fileContent.toByteArray()) != fileContent.length())
+                {
+                    DBGLOG("Failed to write Uploaded file %s", fileName.str());
+                    writeError = true;
+                    break;
+                }
+                writeOffset += fileContent.length();
             }
-            if(readlen == 0)
+
+            fileContent.clear();
+            if (moreContent.length() > 0)
+            {
+                fileContent.append(moreContent.length(), (void*) moreContent.toByteArray());
+                moreContent.clear();
+            }
+
+            if(foundAnotherFile || (bytesNotRead <= 0) || !readContentToBuffer(fileContent, bytesNotRead))
                 break;
-
-            buf[readlen] = 0;
-            fileContent.append(readlen, buf);
         }
 
-        if (lastChuck)
-        {
-            m_multipart->checkEndOfFile(fileContent);
-            DBGLOG(">> The length of the last chuck=<%d>", fileContent.length());
-        }
-
-        if (fileio->write(offset, fileContent.length(), fileContent.toByteArray()) != fileContent.length())
-        {
-            DBGLOG(">> File %s cannot be uploaded.", name0.str());
-            break;
-        }
-
-        if (lastChuck)
+        if (writeError)
             break;
 
-        offset += readlen;
+        StringBuffer fileNameWithPath;
+        fileNameWithPath.appendf("%s/%s", path.str(), fileName.str());
+        file->rename(fileNameWithPath.str());
+
+        if (!foundAnotherFile)
+            break;
     }
-
-    file->rename(fileToUse.str());
     return 0;
 }
 
@@ -2229,8 +2213,6 @@ void CHttpResponse::sendBasicChallenge(const char* realm, const char* content)
     send();
 }
 
-
-
 int CHttpResponse::processHeaders(IMultiException *me)
 {
     char oneline[MAX_HTTP_HEADER_LEN + 1];
@@ -2267,9 +2249,12 @@ int CHttpResponse::processHeaders(IMultiException *me)
 
 bool CHttpResponse::httpContentFromFile(const char *filepath)
 {
-    StringBuffer mimetype;
+    StringBuffer mimetype, etag, lastModified;
     MemoryBuffer content;
-    bool ok = ::httpContentFromFile(filepath, mimetype, content);
+    //Set 'modified = false' here since this is called by CMySoapBinding::onGetFile() which does
+    //not need to check and set both 'etag' and 'lastModified' inside httpContentFromFile().
+    bool modified = false;
+    bool ok = ::httpContentFromFile(filepath, mimetype, content, modified, lastModified, etag);
     if (ok)
     {
         setContent(content.length(), content.toByteArray());
@@ -2282,6 +2267,39 @@ bool CHttpResponse::httpContentFromFile(const char *filepath)
     }
 
     return ok;
+}
+
+void CHttpResponse::setETagCacheControl(const char *etag, const char *contenttype)
+{
+    if (etag && *etag)
+        addHeader("Etag",  etag);
+
+    if (!strncmp(contenttype, "image/", 6))
+    {
+       //if file being requested is an image file then set its expiration to a year
+       //so browser does not keep reloading it
+        addHeader("Cache-control",  "max-age=31536000");
+    }
+    else
+        addHeader("Cache-control",  "max-age=300");
+}
+
+void CHttpResponse::CheckModifiedHTTPContent(bool modified, const char *lastmodified, const char *etag, const char *contenttype, MemoryBuffer &content)
+{
+    if (!modified)
+    {
+        if (etag && *etag)
+            setETagCacheControl(etag, contenttype);
+        setStatus(HTTP_STATUS_NOT_MODIFIED);
+    }
+    else
+    {
+        addHeader("Last-Modified", lastmodified);
+        setETagCacheControl(etag, contenttype);
+        setContent(content.length(), content.toByteArray());
+        setContentType(contenttype);
+        setStatus(HTTP_STATUS_OK);
+    }
 }
 
 int CHttpResponse::receive(IMultiException *me)
@@ -2339,35 +2357,65 @@ int CHttpResponse::sendException(IEspHttpException* e)
     send();
     return 0;
 }
+
+StringBuffer &toJSON(StringBuffer &json, IMultiException *me, const char *callback)
+{
+    IArrayOf<IException> &exs = me->getArray();
+    if (callback && *callback)
+        json.append(callback).append('(');
+    appendJSONName(json.append("{"), "Exceptions").append("{");
+    appendJSONValue(json, "Source", me->source());
+    appendJSONName(json, "Exception").append("[");
+    ForEachItemIn(i, exs)
+    {
+        IException &e = exs.item(i);
+        if (i>0)
+            json.append(",");
+        StringBuffer msg;
+        appendJSONValue(json.append("{"), "Code", e.errorCode());
+        appendJSONValue(json, "Message", e.errorMessage(msg).str());
+        json.append("}");
+    }
+    json.append("]}}");
+    if (callback && *callback)
+        json.append(");");
+    return json;
+}
+
 bool CHttpResponse::handleExceptions(IXslProcessor *xslp, IMultiException *me, const char *serv, const char *meth, const char *errorXslt)
 {
     IEspContext *context=queryContext();
     if (me->ordinality()>0)
     {
-        StringBuffer text;
-        me->errorMessage(text);
-        text.append('\n');
-        WARNLOG("Exception(s) in %s::%s - %s", serv, meth, text.str());
+        StringBuffer msg;
+        WARNLOG("Exception(s) in %s::%s - %s", serv, meth, me->errorMessage(msg).append('\n').str());
 
-        bool returnXml = context->queryRequestParameters()->hasProp("rawxml_");
-        if (errorXslt || returnXml)
+        StringBuffer content;
+        switch (context->getResponseFormat())
         {
-            me->serialize(text.clear());
-            if (returnXml)
-            {
-                setContent(text.str());
-                setContentType(HTTP_TYPE_APPLICATION_XML);
-            }
-            else
-            {
-                StringBuffer theOutput;
-                xslTransformHelper(xslp, text.str(), errorXslt, theOutput, context->queryXslParameters());
-                setContent(theOutput.str());
-                setContentType("text/html");
-            }
-            send();
-            return true;
+        case ESPSerializationJSON:
+        {
+            setContentType(HTTP_TYPE_APPLICATION_JSON_UTF8);
+            toJSON(content, me, context->queryRequestParameters()->queryProp("jsonp"));
+            break;
         }
+        case ESPSerializationXML:
+            setContentType(HTTP_TYPE_APPLICATION_XML);
+            me->serialize(content);
+            break;
+        case ESPSerializationANY:
+        default:
+            {
+            if (!errorXslt || !*errorXslt)
+                return false;
+            setContentType("text/html");
+            StringBuffer xml;
+            xslTransformHelper(xslp, me->serialize(xml), errorXslt, content, context->queryXslParameters());
+            }
+        }
+        setContent(content);
+        send();
+        return true;
     }
     return false;
 }

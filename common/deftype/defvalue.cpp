@@ -26,7 +26,7 @@
 #include <math.h>
 #include <limits.h>
 
-#include "bcd.hpp"
+#include "rtlbcd.hpp"
 #include "eclrtl_imp.hpp"
 
 #if defined(_DEBUG) && defined(_WIN32) && !defined(USING_MPATROL)
@@ -38,7 +38,6 @@ BoolValue *BoolValue::trueconst;
 BoolValue *BoolValue::falseconst;
 static _ATOM asciiAtom;
 static _ATOM ebcdicAtom;
-
 
 MODULE_INIT(INIT_PRIORITY_DEFVALUE)
 {
@@ -101,23 +100,28 @@ int rangeCompare(double value, ITypeInfo * targetType)
     }
     else
     {
+        if (value < 0)
+            return -1;
         switch (targetType->getTypeCode())
         {
         case type_decimal:
-            if (value < 0)
-                return -1;
             if (value >= powerOfTen[targetType->getDigits()-targetType->getPrecision()])
                 return +1;
             break;
         case type_int:
         case type_swapint:
-            if (value < 0)
-                return -1;
             if (value > (double)maxUIntValue[targetType->getSize()])
                 return +1;
             break;
         case type_packedint:
             return rangeCompare(value, targetType->queryPromotedType());
+        case type_bitfield:
+            {
+                unsigned __int64 maxValue = (1 << targetType->getBitSize()) - 1;
+                if (value > maxValue)
+                    return +1;
+                break;
+            }
         }
     }
     return 0;
@@ -236,7 +240,7 @@ VarStringValue::VarStringValue(unsigned len, const char *v, ITypeInfo *_type) : 
         val.set(v, typeLen);
     else
     {
-        char * temp = (char *)malloc(typeLen+1);
+        char * temp = (char *)checked_malloc(typeLen+1, DEFVALUE_MALLOC_FAILED);
         memcpy(temp, v, len);
         temp[len] = 0;
         val.set(temp, typeLen);
@@ -439,7 +443,7 @@ void MemoryValue::deserialize(MemoryBuffer &src)
 {
     size32_t size;
     src.read(size);
-    void *mem = malloc(size);
+    void *mem = checked_malloc(size, DEFVALUE_MALLOC_FAILED);
     assertex(mem);
     src.read(size, mem);
     val.set(size, mem);
@@ -565,7 +569,7 @@ IValue *createStringValue(const char *val, ITypeInfo *type)
 IValue *createStringValue(const char *val, ITypeInfo *type, int srcLength, ICharsetInfo *srcCharset)
 {
     ITranslationInfo * translation = queryDefaultTranslation(type->queryCharset(), srcCharset);
-    int tgtLength = type->getSize();
+    size32_t tgtLength = type->getSize();
     if (tgtLength == UNKNOWN_LENGTH)
     {
         ITypeInfo * newType = getStretchedType(srcLength, type);
@@ -583,7 +587,7 @@ IValue *createStringValue(const char *val, ITypeInfo *type, int srcLength, IChar
     }
     else if (tgtLength > srcLength)
     {
-        char * extended = (char *)malloc(tgtLength);
+        char * extended = (char *)checked_malloc(tgtLength, DEFVALUE_MALLOC_FAILED);
         memcpy(extended, val, srcLength);
         memset(extended+srcLength, type->queryCharset()->queryFillChar(), tgtLength-srcLength);
         IValue * ret = new StringValue(extended, type);
@@ -670,7 +674,7 @@ int UnicodeValue::compare(IValue * to)
 
 int UnicodeValue::compare(const void *mem)
 {
-    int len = type->getStringLen();
+    size32_t len = type->getStringLen();
     return rtlCompareUnicodeUnicode(len, (const UChar *)val.get(), len, (const UChar *)mem, type->queryLocale()->str());
 }
 
@@ -750,7 +754,7 @@ IValue *createUnicodeValue(char const * value, ITypeInfo * type, unsigned srclen
         type->Release();
         return createUnicodeValue(value, srclen, type->queryLocale()->str(), false);
     }
-    UChar * buff = (UChar *)malloc(type->getSize());
+    UChar * buff = (UChar *)checked_malloc(type->getSize(), DEFVALUE_MALLOC_FAILED);
     rtlCodepageToUnicode(type->getStringLen(), buff, srclen, value, "US-ASCII");
     IValue * ret = new UnicodeValue(buff, type);
     free(buff);
@@ -790,7 +794,7 @@ IValue * createUnicodeValue(size32_t len, const void * text, ITypeInfo * type)
 void UnicodeAttr::set(UChar const * _text, unsigned _len)
 {
     free(text);
-    text = (UChar *) malloc((_len+1)*2);
+    text = (UChar *) checked_malloc((_len+1)*2, DEFVALUE_MALLOC_FAILED);
     memcpy(text, _text, _len*2);
     text[_len] = 0x0000;
 }
@@ -803,7 +807,7 @@ VarUnicodeValue::VarUnicodeValue(unsigned len, const UChar * v, ITypeInfo * _typ
         val.set(v, typeLen);
     else
     {
-        UChar * temp = (UChar *)malloc((typeLen+1)*2);
+        UChar * temp = (UChar *)checked_malloc((typeLen+1)*2, DEFVALUE_MALLOC_FAILED);
         memcpy(temp, v, len*2);
         temp[len] = 0;
         val.set(temp, typeLen);
@@ -948,7 +952,7 @@ void VarUnicodeValue::deserialize(MemoryBuffer & src)
 {
     size32_t len;
     src.read(len);
-    UChar * buff = (UChar *) malloc(len*2);
+    UChar * buff = (UChar *) checked_malloc(len*2, DEFVALUE_MALLOC_FAILED);
     src.read(len*2, buff);
     val.set(buff, len);
 }
@@ -1097,7 +1101,7 @@ int Utf8Value::compare(IValue * to)
 
 int Utf8Value::compare(const void *mem)
 {
-    int len = type->getStringLen();
+    size32_t len = type->getStringLen();
     return rtlCompareUtf8Utf8(len, (const char *)val.get(), len, (const char *)mem, type->queryLocale()->str());
 }
 
@@ -1195,8 +1199,8 @@ IValue *DataValue::castTo(ITypeInfo *t)
     if (tc == type_any)
         return LINK(this);
 
-    int osize = type->getSize();
-    int nsize = t->getSize();
+    size32_t osize = type->getSize();
+    size32_t nsize = t->getSize();
     switch (tc)
     {
     case type_data:
@@ -1206,7 +1210,7 @@ IValue *DataValue::castTo(ITypeInfo *t)
             return new DataValue(val.get(), LINK(t));
         else
         {
-            char *newstr = (char *) malloc(nsize);
+            char *newstr = (char *) checked_malloc(nsize, DEFVALUE_MALLOC_FAILED);
             memcpy(newstr, val.get(), osize);
             memset(newstr+osize, 0, nsize-osize);
             IValue * ret = new DataValue(newstr, LINK(t));
@@ -1226,7 +1230,7 @@ IValue *DataValue::castTo(ITypeInfo *t)
             return new StringValue((char *)val.get(), t);
         else
         {
-            char *newstr = (char *) malloc(nsize);
+            char *newstr = (char *) checked_malloc(nsize, DEFVALUE_MALLOC_FAILED);
             memcpy(newstr, val.get(), osize);
             memset(newstr+osize, t->queryCharset()->queryFillChar(), nsize-osize);
             IValue * ret = new StringValue(newstr, t);
@@ -1304,7 +1308,7 @@ QStringValue::QStringValue(const char *v, ITypeInfo *_type) : MemoryValue(_type)
 const char *QStringValue::generateECL(StringBuffer &out)
 {
     unsigned strLen = type->getStringLen();
-    char * strData = (char *)malloc(strLen);
+    char * strData = (char *)checked_malloc(strLen, DEFVALUE_MALLOC_FAILED);
     rtlQStrToStr(strLen, strData, strLen, (const char *)val.get());
     out.append('Q');
     appendStringAsQuotedECL(out, strLen, strData);
@@ -1341,7 +1345,7 @@ IValue *QStringValue::castTo(ITypeInfo *t)
     }
 
     unsigned strLen = type->getStringLen();
-    char * strData = (char *)malloc(strLen);
+    char * strData = (char *)checked_malloc(strLen, DEFVALUE_MALLOC_FAILED);
     rtlQStrToStr(strLen, strData, strLen, (const char *)val.get());
     IValue * ret = t->castFrom(strLen, strData);
     free(strData);
@@ -1370,7 +1374,7 @@ bool QStringValue::getBoolValue()
 __int64 QStringValue::getIntValue()
 {
     unsigned strLen = type->getStringLen();
-    char * strData = (char *)malloc(strLen);
+    char * strData = (char *)checked_malloc(strLen, DEFVALUE_MALLOC_FAILED);
     rtlQStrToStr(strLen, strData, strLen, (const char *)val.get());
     __int64 ret = rtlStrToInt8(strLen, strData);
     free(strData);
@@ -1380,7 +1384,7 @@ __int64 QStringValue::getIntValue()
 const char *QStringValue::getStringValue(StringBuffer &out)
 {
     unsigned strLen = type->getStringLen();
-    char * strData = (char *)malloc(strLen);
+    char * strData = (char *)checked_malloc(strLen, DEFVALUE_MALLOC_FAILED);
     rtlQStrToStr(strLen, strData, strLen, (const char *)val.get());
     out.append(strLen, strData);
     free(strData);
@@ -1390,7 +1394,7 @@ const char *QStringValue::getStringValue(StringBuffer &out)
 void QStringValue::pushDecimalValue()
 {
     unsigned strLen = type->getStringLen();
-    char * strData = (char *)malloc(strLen);
+    char * strData = (char *)checked_malloc(strLen, DEFVALUE_MALLOC_FAILED);
     rtlQStrToStr(strLen, strData, strLen, (const char *)val.get());
     DecPushString(strLen, strData);
     free(strData);
@@ -1571,7 +1575,7 @@ IValue *IntValue::castTo(ITypeInfo *t)
         if (nLen == UNKNOWN_LENGTH)
             return castViaString(t);
 
-        char *newstr = (char *) malloc(nLen);
+        char *newstr = (char *) checked_malloc(nLen, DEFVALUE_MALLOC_FAILED);
         if (type->isSigned())
             rtlInt8ToStr(nLen, newstr, val);
         else
@@ -1611,7 +1615,7 @@ const void * IntValue::queryValue() const
 
 void IntValue::toMem(void *target)
 {
-    int size = type->getSize();
+    size32_t size = type->getSize();
     const byte * data = getAddressValue();
     
     if (type->isSwappedEndian())
@@ -1936,7 +1940,7 @@ void RealValue::toMem(void *target)
 {
     RealUnion u;
 
-    int size = type->getSize();
+    size32_t size = type->getSize();
     switch (size)
     {
     case 4:
@@ -1953,7 +1957,7 @@ unsigned RealValue::getHash(unsigned initval)
 {
     RealUnion u;
 
-    int size = type->getSize();
+    size32_t size = type->getSize();
     switch (size)
     {
     case 4:
@@ -1979,7 +1983,7 @@ const char *RealValue::generateCPP(StringBuffer &s, CompilerType compiler)
 
 const char *RealValue::getStringValue(StringBuffer &s)
 {
-    int size = type->getSize();
+    size32_t size = type->getSize();
     if (size==4)
         return s.append((float) val);
     else
@@ -2036,7 +2040,7 @@ IValue *createRealValue(double val, ITypeInfo * type)
 DecimalValue::DecimalValue(const void * v, ITypeInfo * _type) : CValue(_type)
 {
     unsigned len = _type->getSize();
-    val = (char *)malloc(len);
+    val = (char *)checked_malloc(len, DEFVALUE_MALLOC_FAILED);
     memcpy(val, v, len);
 }
 
@@ -2084,7 +2088,7 @@ IValue *DecimalValue::castTo(ITypeInfo *t)
     case type_packedint:
         return createTruncIntValue(DecPopInt64(), LINK(t));
     case type_boolean:
-        return createBoolValue(!DecCompareNull());
+        return createBoolValue(DecCompareNull() != 0);
     case type_decimal:
         return createDecimalValueFromStack(t);
     }
@@ -2139,7 +2143,7 @@ bool DecimalValue::getBoolValue()
 {
     BcdCriticalBlock bcdBlock;
     pushDecimalValue();
-    return DecCompareNull() ? 0 : 1;
+    return DecCompareNull() != 0;
 }
 
 __int64 DecimalValue::getIntValue()
@@ -2179,7 +2183,7 @@ void DecimalValue::deserialize(MemoryBuffer &src)
 {
     size32_t size;
     src.read(size);
-    val = malloc(size);
+    val = checked_malloc(size, DEFVALUE_MALLOC_FAILED);
     assertex(val);
 }
 
@@ -2404,7 +2408,7 @@ void appendValueToBuffer(MemoryBuffer & mem, IValue * value)
 {
     ITypeInfo * type = value->queryType();
     unsigned len = type->getSize();
-    void * temp = malloc(len);
+    void * temp = checked_malloc(len, DEFVALUE_MALLOC_FAILED);
     value->toMem(temp);
 
     if (type->isSwappedEndian() != mem.needSwapEndian())
@@ -2458,11 +2462,6 @@ IValue * addValues(IValue * left, IValue * right)
                                     return res;                         
 
 
-IValue * addValues(unsigned num, IValue * * values)
-{
-    CALCULATE_AND_RETURN(addValues);
-}
-
 IValue * subtractValues(IValue * left, IValue * right)
 {
     IValue * ret;
@@ -2492,11 +2491,6 @@ IValue * subtractValues(IValue * left, IValue * right)
         assertThrow(false);
     }
     return ret;
-}
-
-IValue * substractValues(unsigned num, IValue * * values)
-{
-    CALCULATE_AND_RETURN(subtractValues);
 }
 
 IValue * multiplyValues(IValue * left, IValue * right)
@@ -2530,14 +2524,20 @@ IValue * multiplyValues(IValue * left, IValue * right)
     return ret;
 }
 
-IValue * multiplyValues(unsigned num, IValue * * values)
+IValue * divideValues(IValue * left, IValue * right, byte dbz)
 {
-    CALCULATE_AND_RETURN(multiplyValues);
-}
+    Owned<ITypeInfo> pnt = getPromotedMulDivType(left->queryType(), right->queryType());
 
-IValue * divideValues(IValue * left, IValue * right)
-{
-    ITypeInfo * pnt = getPromotedMulDivType(left->queryType(), right->queryType());
+    //Use a cast to a boolean as a shortcut for testing against zero
+    if (!right->getBoolValue())
+    {
+        //If no action is selected, return NULL so the expression doesn't get constant folded.
+        if (dbz == DBZnone)
+            return NULL;
+
+        if (dbz == DBZfail)
+            rtlFailDivideByZero();
+    }
 
     switch(pnt->getTypeCode())
     {
@@ -2555,24 +2555,29 @@ IValue * divideValues(IValue * left, IValue * right)
             else
                 res = (__int64)((unsigned __int64)lv / (unsigned __int64)rv);
         }
-        return createTruncIntValue(res, pnt);
+        return createTruncIntValue(res, pnt.getClear());
     }
     case type_real:
     {
         double lv = left->getRealValue();
         double rv = right->getRealValue();
-        double res = rv ? lv / rv : 0;
-        return createRealValue(res, pnt);
+        double res;
+        if (rv)
+            res = lv / rv;
+        else if (dbz == DBZnan)
+            res =  rtlCreateRealNull();
+        else
+            res = 0.0;
+
+        return createRealValue(res, pnt.getClear());
     }
     case type_decimal:
     {
         BcdCriticalBlock bcdBlock;
         left->pushDecimalValue();
         right->pushDecimalValue();
-        DecDivide();   // returns 0 if divide by zero
-        IValue * ret = ((CDecimalTypeInfo*)pnt)->createValueFromStack();
-        pnt->Release();
-        return ret;
+        DecDivide(dbz);
+        return createDecimalValueFromStack(pnt);
     }
     default:
         assertThrow(false);
@@ -2580,16 +2585,21 @@ IValue * divideValues(IValue * left, IValue * right)
     }
 }
 
-IValue * divideValues(unsigned num, IValue * * values)
+IValue * modulusValues(IValue * left, IValue * right, byte dbz)
 {
-    CALCULATE_AND_RETURN(divideValues);
-}
-
-IValue * modulusValues(IValue * left, IValue * right)
-{
-    IValue * ret;
-    ITypeInfo * pnt = getPromotedMulDivType(left->queryType(), right->queryType());
+    Owned<ITypeInfo> pnt = getPromotedMulDivType(left->queryType(), right->queryType());
     
+    //Use a cast to a boolean as a shortcut for testing against zero
+    if (!right->getBoolValue())
+    {
+        //If no action is selected, return NULL so the expression doesn't get constant folded.
+        if (dbz == DBZnone)
+            return NULL;
+
+        if (dbz == DBZfail)
+            rtlFailDivideByZero();
+    }
+
     switch(pnt->getTypeCode())
     {
     case type_int:
@@ -2606,33 +2616,33 @@ IValue * modulusValues(IValue * left, IValue * right)
             else
                 res = (__int64)((unsigned __int64)lv % (unsigned __int64)rv);
         }
-        return createTruncIntValue(res, pnt);
+        return createTruncIntValue(res, pnt.getClear());
     }
     case type_real:
     {
         double rv = right->getRealValue();
-        double res = rv ? fmod(left->getRealValue(), rv) : 0;
-        return createRealValue(res, pnt);
+        double res;
+        if (rv)
+            res = fmod(left->getRealValue(), rv);
+        else if (dbz == DBZnan)
+            res =  rtlCreateRealNull();
+        else
+            res = 0.0;
+
+        return createRealValue(res, pnt.getClear());
     }
     case type_decimal:
     {
         BcdCriticalBlock bcdBlock;
         left->pushDecimalValue();
         right->pushDecimalValue();
-        DecModulus();
-        ret = ((CDecimalTypeInfo*)pnt)->createValueFromStack();
-        pnt->Release();
-        break;
+        DecModulus(dbz);
+        return createDecimalValueFromStack(pnt);
     }
     default:
         assertThrow(false);
+        return NULL;
     }
-    return ret;
-}
-
-IValue * modulusValues(unsigned num, IValue * * values)
-{
-    CALCULATE_AND_RETURN(modulusValues);
 }
 
 IValue * powerValues(IValue * left, IValue * right)
@@ -2663,11 +2673,6 @@ IValue * powerValues(IValue * left, IValue * right)
         assertThrow(false);
     }
     return ret;
-}
-
-IValue * powerValues(unsigned num, IValue * * values)
-{
-    CALCULATE_AND_RETURN(powerValues);
 }
 
 IValue * negateValue(IValue * v)
@@ -3045,15 +3050,6 @@ void getStringFromIValue(unsigned & len, char* & str, IValue* val)
 }
 //---------------------------------------------------------------------
 
-unsigned extractUnicode(IValue * in, rtlDataAttr & out)
-{
-    ITypeInfo * type = in->queryType();
-    unsigned bufflen = type->getStringLen()+1;
-    out.setown(rtlMalloc(2*bufflen));
-    in->getUCharStringValue(bufflen, out.getdata());
-    return rtlUnicodeStrlen(out.getustr());
-}
-
 IValue * concatValues(IValue * left, IValue * right)
 {
     ITypeInfo * leftType = left->queryType();
@@ -3110,11 +3106,6 @@ IValue * concatValues(IValue * left, IValue * right)
     }
 }
 
-IValue * concatValues(unsigned num, IValue * * values)
-{
-    CALCULATE_AND_RETURN(concatValues);
-}
-
 IValue * binaryAndValues(IValue * left, IValue * right)
 {
     IValue * ret;
@@ -3133,11 +3124,6 @@ IValue * binaryAndValues(IValue * left, IValue * right)
         assertThrow(false);
     }
     return ret;
-}
-
-IValue * binaryAndValues(unsigned num, IValue * * values)
-{
-    CALCULATE_AND_RETURN(binaryAndValues);
 }
 
 IValue * binaryOrValues(IValue * left, IValue * right)
@@ -3160,11 +3146,6 @@ IValue * binaryOrValues(IValue * left, IValue * right)
     return ret;
 }
 
-IValue * binaryOrValues(unsigned num, IValue * * values)
-{
-    CALCULATE_AND_RETURN(binaryOrValues);
-}
-
 IValue * binaryXorValues(IValue * left, IValue * right)
 {
     IValue * ret;
@@ -3181,11 +3162,6 @@ IValue * binaryXorValues(IValue * left, IValue * right)
         assertThrow(false);
     }
     return ret;
-}
-
-IValue * binaryXorValues(unsigned num, IValue * * values)
-{
-    CALCULATE_AND_RETURN(concatValues);
 }
 
 IValue * binaryNotValues(IValue * v)
@@ -3211,19 +3187,9 @@ IValue * logicalAndValues(IValue * left, IValue * right)
     return createBoolValue(left->getBoolValue() && right->getBoolValue());
 }
 
-IValue * logicalAndValues(unsigned num, IValue * * values)
-{
-    CALCULATE_AND_RETURN(logicalAndValues);
-}
-
 IValue * logicalOrValues(IValue * left, IValue * right)
 {
     return createBoolValue(left->getBoolValue() || right->getBoolValue());
-}
-
-IValue * logicalOrValues(unsigned num, IValue * * values)
-{
-    CALCULATE_AND_RETURN(logicalOrValues);
 }
 
 int orderValues(IValue * left, IValue * right)

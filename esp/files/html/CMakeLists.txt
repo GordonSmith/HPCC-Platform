@@ -14,4 +14,8 @@
 #    limitations under the License.
 ################################################################################
 
+set ( HTML_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/searchfile.html
+)
+
 Install ( FILES ${CMAKE_CURRENT_SOURCE_DIR}/searchfile.html DESTINATION componentfiles/files COMPONENT Runtime )

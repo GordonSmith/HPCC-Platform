@@ -152,12 +152,12 @@ class CWriteIntercept : public CSimpleInterface
         Linked<CWriteIntercept> parent;
         Owned<IRowStream> stream;
         offset_t startOffset;
-        unsigned __int64 max;
+        rowcount_t max;
     public:
         IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
-        CFileOwningStream(CWriteIntercept *_parent, offset_t _startOffset, unsigned __int64 _max) : parent(_parent), startOffset(_startOffset), max(_max)
+        CFileOwningStream(CWriteIntercept *_parent, offset_t _startOffset, rowcount_t _max) : parent(_parent), startOffset(_startOffset), max(_max)
         {
-            stream.setown(createRowStream(parent->dataFile, parent->rowIf, startOffset, (offset_t)-1, max, false, false));
+            stream.setown(createRowStreamEx(parent->dataFile, parent->rowIf, startOffset, (offset_t)-1, max));
         }
         virtual const void *nextRow() { return stream->nextRow(); }
         virtual void stop() { stream->stop(); }
@@ -187,7 +187,7 @@ public:
         StringBuffer tempname;
         GetTempName(tempname,"srtmrg",false);
         dataFile.setown(createIFile(tempname.str()));
-        Owned<IExtRowWriter> output = createRowWriter(dataFile, rowIf->queryRowSerializer(), rowIf->queryRowAllocator(), false, false, false);
+        Owned<IExtRowWriter> output = createRowWriter(dataFile, rowIf);
 
         bool overflowed = false;
         ActPrintLog(&activity, "Local Overflow Merge start");
@@ -236,7 +236,7 @@ public:
         ActPrintLog(&activity, "Local Overflow Merge done: overflow file '%s', size = %"I64F"d", dataFile->queryFilename(), dataFile->size());
         return end;
     }
-    IRowStream *getStream(offset_t startOffset, unsigned __int64 max)
+    IRowStream *getStream(offset_t startOffset, rowcount_t max)
     {
         return new CFileOwningStream(this, startOffset, max);
     }
@@ -300,9 +300,9 @@ class CMiniSort
             if (!row)
                 break;
             serializer->serialize(out, (const byte *)row.get());
+            ret++;
             if (mb.length() > dstMax)
                 break;
-            ret++;
         }
         return ret;
     }
@@ -325,7 +325,7 @@ class CMiniSort
 #endif
         clusterComm.recv(mbin,1,mpTag);
 #ifdef  _FULL_TRACE
-        ActPrintLog(&activity, "MiniSort sendToPrimaryNode continue",mbin.length());
+        ActPrintLog(&activity, "MiniSort sendToPrimaryNode continue %u bytes",mbin.length());
 #endif
         if (mbin.length()==0) {
             ActPrintLog(&activity, "aborting sendToPrimaryNode");
@@ -348,7 +348,7 @@ class CMiniSort
         CMessageBuffer mbout;
         unsigned done;
         do {
-            done = rowArray.serializeBlock(mbout.clear(),blksize,from,to-from);
+            done = rowArray.serializeBlock(mbout.clear(),from,to-from,blksize,false);
 #ifdef  _FULL_TRACE
             ActPrintLog(&activity, "MiniSort serialized %u rows, %u bytes",done,mbout.length());
 #endif
@@ -380,14 +380,14 @@ class CMiniSort
 #endif
             clusterComm.recv(mbin,1,mpTag);
 #ifdef  _FULL_TRACE
-            ActPrintLog(&activity, "MiniSort appendFromPrimaryNode continue",mbin.length());
+            ActPrintLog(&activity, "MiniSort appendFromPrimaryNode continue %u bytes",mbin.length());
 #endif
             CMessageBuffer mbout;
             mbout.init(mbin.getSender(),mpTag,mbin.getReplyTag());
             byte fn=254;
             mbout.append(fn);
 #ifdef  _FULL_TRACE
-            ActPrintLog(&activity, "MiniSort appendFromPrimaryNode reply",mbout.length());
+            ActPrintLog(&activity, "MiniSort appendFromPrimaryNode reply %u bytes",mbout.length());
 #endif
             clusterComm.reply(mbout);
 #ifdef  _FULL_TRACE
@@ -454,7 +454,6 @@ public:
             Owned<IRowStream> spillableStream = spillableRows.createRowStream();
 
             CMessageBuffer mb;
-            unsigned idx = 0;
             loop
             {
                 unsigned done = serialize(*spillableStream, mb.clear(), blksize);
@@ -464,7 +463,6 @@ public:
                 sendToPrimaryNode(mb);
                 if (!done)
                     break;
-                idx += done;
             }
             Owned<IRowWriter> writer = collector->getWriter();
             appendFromPrimaryNode(*writer); // will be sorted, may spill
@@ -497,11 +495,20 @@ public:
                 void Do(unsigned i)
                 {
                     Owned<IRowWriter> writer = base.collector->getWriter();
-                    base.appendFromSecondaryNode(*writer, (rank_t)(i+2),nextsem[i]); // +2 as master is 0 self is 1
+                    try
+                    {
+                        base.appendFromSecondaryNode(*writer, (rank_t)(i+2),nextsem[i]); // +2 as master is 0 self is 1
+                    }
+                    catch (IException *)
+                    {
+                        // must ensure signal to avoid other threads in this asyncfor deadlocking
+                        nextsem[i+1].signal();
+                        throw;
+                    }
                     nextsem[i+1].signal();
                 }
             } afor1(*this, numNodes);
-            afor1.For(numNodes-1, MINISORT_PARALLEL_TRANSFER);
+            afor1.For(numNodes-1, MINISORT_PARALLEL_TRANSFER, true);
 
             // JCSMORE - the blocks sent from other nodes were already sorted..
             // appended to local sorted chunk, and this is resorting the whole lot..
@@ -512,7 +519,7 @@ public:
             collector->transferRowsOut(globalRows); // will sort in process
 
 #ifdef  _FULL_TRACE
-            ActPrintLog(&activity, "MiniSort got %d rows %"I64F"d bytes", globalRows.ordinality(),(__int64)(globalRows.serializedSize()));
+            ActPrintLog(&activity, "MiniSort got %d rows %"I64F"d bytes", globalRows.ordinality(),(unsigned __int64)(globalRows.getMemUsage()));
 #endif
             UnsignedArray points;
             globalRows.partition(iCompare, numNodes, points);
@@ -591,7 +598,7 @@ class CThorSorter : public CSimpleInterface, implements IThorSorter, implements 
         try
         {
             ActPrintLog(activity, "Creating SortSlaveServer on tag %d MP",mpTagRPC);    
-            while(SortSlaveMP::marshall(*this,clusterComm,mpTagRPC)&&!stopping);
+            while(SortSlaveMP::marshall(*this,clusterComm,mpTagRPC)&&!stopping)
                ;
             stopping = true;
             ActPrintLog(activity, "Exiting SortSlaveServer on tag %d",mpTagRPC);    
@@ -1001,7 +1008,7 @@ public:
             return true;
         }
         Owned<IFile> file = createIFile(filename);
-        Owned<IExtRowStream> rowstream = createSimpleRowStream(file,auxrowif);
+        Owned<IExtRowStream> rowstream = createRowStream(file, auxrowif);
         OwnedConstThorRow row = rowstream->nextRow();
         if (!row) {
             rowbuf = NULL;

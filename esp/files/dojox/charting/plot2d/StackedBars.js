@@ -2,24 +2,21 @@
 define("dojox/charting/plot2d/StackedBars",["dojo/_base/declare","./Bars","./commonStacked"],function(_1,_2,_3){
 return _1("dojox.charting.plot2d.StackedBars",_2,{getSeriesStats:function(){
 var _4=_3.collectStats(this.series),t;
-this._maxRunLength=_4.hmax;
 _4.hmin-=0.5;
 _4.hmax+=0.5;
 t=_4.hmin,_4.hmin=_4.vmin,_4.vmin=t;
 t=_4.hmax,_4.hmax=_4.vmax,_4.vmax=t;
 return _4;
-},getDataLength:function(_5){
-return this._maxRunLength;
-},getValue:function(_6,_7,_8,_9){
+},getValue:function(_5,_6,_7,_8){
 var y,x;
-if(_9){
-x=_7;
-y=_3.getIndexValue(this.series,_8,x);
+if(_8){
+x=_6;
+y=_3.getIndexValue(this.series,_7,x);
 }else{
-x=_6.x-1;
-y=_3.getValue(this.series,_8,_6.x);
-y=y?y.y:null;
+x=_5.x-1;
+y=_3.getValue(this.series,_7,_5.x);
+y=[y[0]?y[0].y:null,y[1]?y[1]:null];
 }
-return {y:y,x:x};
+return {x:x,y:y[0],py:y[1]};
 }});
 });

@@ -20,8 +20,8 @@ _5.stop(e);
 this.host.onFirstMove(this);
 this.events.pop().remove();
 },destroy:function(){
-_2.forEach(this.events,function(h){
-h.remove();
+_2.forEach(this.events,function(_9){
+_9.remove();
 });
 var h=this.host;
 if(h&&h.onMoveStop){

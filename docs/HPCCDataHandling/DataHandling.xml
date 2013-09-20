@@ -23,11 +23,13 @@
       Number in the text of the message.</para>
 
       <para>LexisNexis and the Knowledge Burst logo are registered trademarks
-      of Reed Elsevier Properties Inc., used under license. Other products,
-      logos, and services may be trademarks or registered trademarks of their
-      respective companies. All names and example data used in this manual are
-      fictitious. Any similarity to actual persons, living or dead, is purely
-      coincidental.</para>
+      of Reed Elsevier Properties Inc., used under license. HPCC Systems is a
+      registered trademark of LexisNexis Risk Data Management Inc.</para>
+
+      <para>Other products, logos, and services may be trademarks or
+      registered trademarks of their respective companies. All names and
+      example data used in this manual are fictitious. Any similarity to
+      actual persons, living or dead, is purely coincidental.</para>
 
       <para></para>
     </legalnotice>
@@ -149,8 +151,6 @@
       storage location defined in your system's environment. There can be one
       or more of these locations defined. A daemon (DaFileSrv) must be running
       on that server to enable file sprays and desprays.</para>
-
-      <beginpage />
     </sect1>
 
     <sect1 id="Working_with_a_data_file">
@@ -377,6 +377,30 @@
           </listitem>
         </itemizedlist>
 
+        <informaltable colsep="1" frame="all" rowsep="1">
+          <?dbfo keep-together="always"?>
+
+          <tgroup cols="2">
+            <colspec colwidth="49.50pt" />
+
+            <colspec />
+
+            <tbody>
+              <row>
+                <entry><inlinegraphic fileref="images/OSSgr3.png" /></entry>
+
+                <entry><para><emphasis role="bold">NOTE</emphasis>: To copy a
+                URL to the clipboard, click the <inlinegraphic
+                fileref="images/CS-1421.jpg" /> icon from the row of icons
+                along the top of the ECL Watch page. </para><para>This opens a
+                window with the full URL. Select the entire URL and you can
+                copy it to the clipboard to paste elsewhere. </para><para>
+                </para></entry>
+              </row>
+            </tbody>
+          </tgroup>
+        </informaltable>
+
         <sect3 id="Desprays">
           <title>Desprays</title>
 
@@ -580,10 +604,12 @@
                         <entry><emphasis
                         role="bold">Replicate</emphasis></entry>
 
-                        <entry>Check this box to create backup copies of all
-                        file parts exist in the backup directory (by
-                        convention on the secondary drive of the node
-                        following in the cluster).</entry>
+                        <entry><para>Check this box to create backup copies of
+                        all file parts in the backup directory (by convention
+                        on the secondary drive of the node following in the
+                        cluster).</para><para><emphasis role="bold">This
+                        option is only available on systems where replication
+                        has been enabled.</emphasis></para></entry>
                       </row>
 
                       <row>
@@ -634,16 +660,16 @@
           </itemizedlist>
         </sect3>
 
-        <sect3 id="Spray_CSV">
-          <title><emphasis role="bold">Spray CSV</emphasis></title>
+        <sect3 id="Spray_Delimited">
+          <title><emphasis role="bold">Spray Delimited</emphasis></title>
 
           <itemizedlist>
             <listitem>
-              <para>Click on the <emphasis role="bold">Spray CSV</emphasis>
-              hyperlink below <emphasis role="bold">DFU </emphasis>in the menu
-              on the left.</para>
+              <para>Click on the <emphasis role="bold">Spray
+              Delimited</emphasis> hyperlink below <emphasis role="bold">DFU
+              </emphasis>in the menu on the left.</para>
 
-              <para>The <emphasis role="bold">Spray CSV</emphasis> page
+              <para>The <emphasis role="bold">Spray Delimited</emphasis> page
               displays.</para>
             </listitem>
 
@@ -758,10 +784,12 @@
                         <entry><emphasis
                         role="bold">Replicate</emphasis></entry>
 
-                        <entry>Check this box to create backup copies of all
-                        file parts exist in the backup directory (by
-                        convention on the secondary drive of the node
-                        following in the cluster).</entry>
+                        <entry><para>Check this box to create backup copies of
+                        all file parts in the backup directory (by convention
+                        on the secondary drive of the node following in the
+                        cluster).</para><para><emphasis role="bold">This
+                        option is only available on systems where replication
+                        has been enabled.</emphasis></para></entry>
                       </row>
 
                       <row>
@@ -929,10 +957,12 @@
                         <entry><emphasis
                         role="bold">Replicate</emphasis></entry>
 
-                        <entry>Check this box to create backup copies of all
-                        file parts exist in the backup directory (by
-                        convention on the d: drive of the node following in
-                        the cluster).</entry>
+                        <entry><para>Check this box to create backup copies of
+                        all file parts in the backup directory (by convention
+                        on the secondary drive of the node following in the
+                        cluster).</para><para><emphasis role="bold">This
+                        option is only available on systems where replication
+                        has been enabled.</emphasis></para></entry>
                       </row>
 
                       <row>
@@ -1048,10 +1078,12 @@
                       <entry><emphasis
                       role="bold">Replicate</emphasis></entry>
 
-                      <entry>Check this box to create backup copies of all
-                      file parts exist in the backup directory (by convention
-                      on the second drive of the node following in the
-                      cluster).</entry>
+                      <entry><para>Check this box to create backup copies of
+                      all file parts in the backup directory (by convention on
+                      the secondary drive of the node following in the
+                      cluster).</para><para><emphasis role="bold">This option
+                      is only available on systems where replication has been
+                      enabled.</emphasis></para></entry>
                     </row>
 
                     <row>
@@ -1207,10 +1239,12 @@
                       <entry><emphasis
                       role="bold">Replicate</emphasis></entry>
 
-                      <entry>Check this box to create backup copies of all
-                      file parts exist in the backup directory (by convention
-                      on the d: drive of the node following in the
-                      cluster).</entry>
+                      <entry><para>Check this box to create backup copies of
+                      all file parts in the backup directory (by convention on
+                      the secondary drive of the node following in the
+                      cluster).</para><para><emphasis role="bold">This option
+                      is only available on systems where replication has been
+                      enabled.</emphasis></para></entry>
                     </row>
 
                     <row>

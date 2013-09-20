@@ -54,7 +54,6 @@ static IHqlExpression * cacheEmbeddedAttr;
 static IHqlExpression * cacheInlineAttr;
 static IHqlExpression * cacheLinkCountedAttr;
 static IHqlExpression * cacheReferenceAttr;
-static IHqlExpression * cacheSerializedFormAttr;
 static IHqlExpression * cacheStreamedAttr;
 static IHqlExpression * cacheUnadornedAttr;
 static IHqlExpression * matchxxxPseudoFile;
@@ -83,7 +82,6 @@ MODULE_INIT(INIT_PRIORITY_STANDARD)
     cacheInlineAttr = createAttribute(inlineAtom);
     cacheLinkCountedAttr = createAttribute(_linkCounted_Atom);
     cacheReferenceAttr = createAttribute(referenceAtom);
-    cacheSerializedFormAttr = createAttribute(_attrSerializedForm_Atom);
     cacheStreamedAttr = createAttribute(streamedAtom);
     cacheUnadornedAttr = createAttribute(_attrUnadorned_Atom);
     matchxxxPseudoFile = createDataset(no_pseudods, createRecord()->closeExpr(), createAttribute(matchxxxPseudoFileAtom));
@@ -110,7 +108,6 @@ MODULE_EXIT()
     cacheInlineAttr->Release();
     cacheLinkCountedAttr->Release();
     cacheReferenceAttr->Release();
-    cacheSerializedFormAttr->Release();
     cacheStreamedAttr->Release();
     cacheUnadornedAttr->Release();
     matchxxxPseudoFile->Release();
@@ -196,11 +193,6 @@ IHqlExpression * queryRequiresDestructorAttr(bool value)
     return cacheRequiresDestructorAttr[TFI(value)];
 }
 #endif
-
-IHqlExpression * querySerializedFormAttr()
-{
-    return cacheSerializedFormAttr;
-}
 
 IHqlExpression * queryUnadornedAttr()
 {
@@ -465,6 +457,12 @@ IHqlExpression * queryLastField(IHqlExpression * record)
     return NULL;
 }
 
+IHqlExpression * queryFirstField(IHqlExpression * record)
+{
+    unsigned idx = 0;
+    return queryNextRecordField(record, idx);
+}
+
 bool recordContainsBlobs(IHqlExpression * record)
 {
     ForEachChild(i, record)
@@ -524,6 +522,34 @@ IHqlExpression * queryLastNonAttribute(IHqlExpression * expr)
             return cur;
     }
     return NULL;
+}
+
+void expandRecord(HqlExprArray & selects, IHqlExpression * selector, IHqlExpression * expr)
+{
+    switch (expr->getOperator())
+    {
+    case no_record:
+        {
+            ForEachChild(i, expr)
+                expandRecord(selects, selector, expr->queryChild(i));
+            break;
+        }
+    case no_field:
+        {
+            OwnedHqlExpr subSelector = createSelectExpr(LINK(selector), LINK(expr));
+            if (expr->queryRecord() && !expr->isDataset() && !expr->isDictionary())
+                expandRecord(selects, subSelector, expr->queryRecord());
+            else
+            {
+                if (selects.find(*subSelector) == NotFound)
+                    selects.append(*subSelector.getClear());
+            }
+            break;
+        }
+    case no_ifblock:
+        expandRecord(selects, selector, expr->queryChild(1));
+        break;
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -1523,6 +1549,7 @@ unsigned getNumActivityArguments(IHqlExpression * expr)
     case no_thisnode:
     case no_keydiff:
     case no_keypatch:
+    case no_datasetfromdictionary:
         return 0;
     case no_setresult:
         if (expr->queryChild(0)->isAction())
@@ -1665,6 +1692,7 @@ bool isDistributedSourceActivity(IHqlExpression * expr)
     case no_compound_selectnew:
     case no_compound_inline:
     case no_rows:
+    case no_datasetfromdictionary:
         return false;
     default:
         UNIMPLEMENTED;
@@ -1691,6 +1719,7 @@ bool isSourceActivity(IHqlExpression * expr, bool ignoreCompound)
     case no_rows:
     case no_allnodes:
     case no_thisnode:
+    case no_datasetfromdictionary:
         return true;
     case no_null:
         return expr->isDataset();
@@ -2303,6 +2332,57 @@ void checkDependencyConsistency(const HqlExprArray & exprs)
 
 //---------------------------------------------------------------------------
 
+static HqlTransformerInfo selectConsistencyCheckerInfo("SelectConsistencyChecker");
+class SelectConsistencyChecker  : public NewHqlTransformer
+{
+public:
+    SelectConsistencyChecker() : NewHqlTransformer(selectConsistencyCheckerInfo)
+    {
+    }
+
+    virtual void analyseExpr(IHqlExpression * expr)
+    {
+        if (alreadyVisited(expr))
+            return;
+
+        if (expr->getOperator() == no_select)
+            checkSelect(expr);
+
+        NewHqlTransformer::analyseExpr(expr);
+    }
+
+    virtual void analyseSelector(IHqlExpression * expr)
+    {
+        if (expr->getOperator() == no_select)
+            checkSelect(expr);
+
+        NewHqlTransformer::analyseSelector(expr);
+    }
+
+protected:
+    void checkSelect(IHqlExpression * expr)
+    {
+        IHqlExpression * ds = expr->queryChild(0);
+        IHqlExpression * field = expr->queryChild(1);
+        IHqlSimpleScope * scope = ds->queryRecord()->querySimpleScope();
+        OwnedHqlExpr match = scope->lookupSymbol(field->queryName());
+        if (match != field)
+        {
+            EclIR::dbglogIR(2, field, match.get());
+            throw MakeStringException(ERR_RECURSIVE_DEPENDENCY, "Inconsistent select - field doesn't match parent record's field");
+        }
+    }
+};
+
+
+void checkSelectConsistency(IHqlExpression * expr)
+{
+    SelectConsistencyChecker checker;
+    checker.analyse(expr, 0);
+}
+
+//---------------------------------------------------------------------------
+
 void DependencyGatherer::doGatherDependencies(IHqlExpression * expr)
 {
     if (expr->queryTransformExtra())
@@ -2776,10 +2856,16 @@ IHqlExpression * getInverse(IHqlExpression * op)
 {
     node_operator opKind = op->getOperator();
     if (opKind == no_not)
-        return LINK(op->queryChild(0));
-    else if (opKind == no_constant)
+    {
+        IHqlExpression * arg0 = op->queryChild(0);
+        if (arg0->isBoolean())
+            return LINK(arg0);
+    }
+
+    if (opKind == no_constant)
         return createConstant(!op->queryValue()->getBoolValue());
-    else if (opKind == no_alias_scope)
+
+    if (opKind == no_alias_scope)
     {
         HqlExprArray args;
         args.append(*getInverse(op->queryChild(0)));
@@ -2801,7 +2887,8 @@ IHqlExpression * getInverse(IHqlExpression * op)
         return createBoolExpr(no_if, LINK(op->queryChild(0)), getInverse(op->queryChild(1)), getInverse(op->queryChild(2)));
     }
 
-    return createValue(no_not, makeBoolType(), LINK(op));
+    Owned<ITypeInfo> boolType = makeBoolType();
+    return createValue(no_not, LINK(boolType), ensureExprType(op, boolType));
 }
 
 IHqlExpression * getNormalizedCondition(IHqlExpression * expr)
@@ -3143,30 +3230,6 @@ void SubStringHelper::init(IHqlExpression * _src, IHqlExpression * range)
 }
 
 
-bool hasMaxLength(IHqlExpression * record)
-{
-    ForEachChild(i, record)
-    {
-        IHqlExpression * cur = record->queryChild(i);
-        switch (cur->getOperator())
-        {
-        case no_record:
-            //inherited maxlength?
-            if (hasMaxLength(cur))
-                return true;
-            break;
-        case no_attr:
-        case no_attr_expr:
-        case no_attr_link:
-            if (cur->queryName() == maxLengthAtom)
-                return true;
-            break;
-        }
-    }
-    return false;
-}
-
-
 void unwindFields(HqlExprArray & fields, IHqlExpression * record)
 {
     ForEachChild(i, record)
@@ -3250,7 +3313,7 @@ IHqlExpression * createGetResultFromSetResult(IHqlExpression * setResult, ITypeI
     case type_groupedtable:
         return createDataset(no_getresult, LINK(queryOriginalRecord(valueType)), createComma(LINK(seqAttr), createAttribute(groupedAtom), LINK(aliasAttr)));
     case type_dictionary:
-        return createDictionary(no_getresult, LINK(queryOriginalRecord(valueType)), createComma(LINK(seqAttr), createAttribute(groupedAtom), LINK(aliasAttr)));
+        return createDictionary(no_workunit_dataset, LINK(queryOriginalRecord(valueType)), createComma(LINK(seqAttr), LINK(aliasAttr)));
     case type_row:
     case type_record:
          return createRow(no_getresult, LINK(queryOriginalRecord(valueType)), createComma(LINK(seqAttr), LINK(aliasAttr)));
@@ -4030,7 +4093,6 @@ extern HQL_API IHqlExpression * convertScalarAggregateToDataset(IHqlExpression *
         return NULL;
     }
 
-    //more: InheritMaxlength
     OwnedHqlExpr field;
     if ((newop == no_mingroup || newop == no_maxgroup) && (arg->getOperator() == no_select))
         field.set(arg->queryChild(1));                  // inherit maxlength etc...
@@ -4193,9 +4255,21 @@ IHqlExpression * appendOwnedOperandsF(IHqlExpression * expr, ...)
 }
 
 
+extern HQL_API void inheritAttribute(HqlExprArray & attrs, IHqlExpression * donor, _ATOM name)
+{
+    IHqlExpression * match = donor->queryProperty(name);
+    if (match)
+        attrs.append(*LINK(match));
+}
+
 IHqlExpression * inheritAttribute(IHqlExpression * expr, IHqlExpression * donor, _ATOM name)
 {
     return appendOwnedOperand(expr, LINK(donor->queryProperty(name)));
+}
+
+IHqlExpression * appendAttribute(IHqlExpression * expr, _ATOM attr)
+{
+    return appendOwnedOperand(expr, createAttribute(attr));
 }
 
 IHqlExpression * appendOwnedOperand(IHqlExpression * expr, IHqlExpression * ownedOperand)
@@ -4564,6 +4638,14 @@ static bool splitDatasetAttribute(SharedHqlExpr & dataset, SharedHqlExpr & attri
     node_operator leftOp = left->getOperator();
     if ((leftOp !=no_select) || expr->hasProperty(newAtom))
     {
+        //Ensure selections from dictionaries do not have a separate activity for the row lookup.
+        if (leftOp == no_selectmap)
+            return false;
+
+        //If this is a selection from an inscope dataset then this must not be assumed to be an input dataset.
+        if (expr->isDataset() && !expr->hasProperty(newAtom))
+            return false;
+
         IHqlExpression * lhs = LINK(left);
         IHqlExpression * field = expr->queryChild(1);
         if (lhs->isDataset()) lhs = createRow(no_activerow, lhs);
@@ -4615,7 +4697,7 @@ IHqlExpression * createSetResult(HqlExprArray & args)
         args.add(*attribute.getClear(), 1);
         return createValue(no_extractresult, makeVoidType(), args);
     }
-    if (value->isDataset())
+    if (value->isDataset() || value->isDictionary())
         return createValue(no_output, makeVoidType(), args);
     return createValue(no_setresult, makeVoidType(), args);
 }
@@ -4714,6 +4796,44 @@ IHqlExpression * removeVirtualFields(IHqlExpression * record)
     return record->clone(args);
 }
 
+static HqlTransformerInfo fieldPropertyRemoverInfo("FieldPropertyRemover");
+class FieldPropertyRemover : public NewHqlTransformer
+{
+public:
+    FieldPropertyRemover(_ATOM _name) : NewHqlTransformer(fieldPropertyRemoverInfo), name(_name) {}
+
+    virtual IHqlExpression * createTransformed(IHqlExpression * expr)
+    {
+        switch (expr->getOperator())
+        {
+        //By default fields within the following are not transformed...
+        case no_record:
+        case no_ifblock:
+        case no_select: // Ensure fields used by ifblocks get transformed
+            return completeTransform(expr);
+
+        case no_field:
+            {
+                OwnedHqlExpr transformed = transformField(expr);
+                while (transformed->hasProperty(name))
+                    transformed.setown(removeProperty(transformed, name));
+                return transformed.getClear();
+            }
+
+        default:
+            return NewHqlTransformer::createTransformed(expr);
+        }
+    }
+
+private:
+    _ATOM name;
+};
+
+IHqlExpression * removePropertyFromFields(IHqlExpression * expr, _ATOM name)
+{
+    FieldPropertyRemover remover(name);
+    return remover.transformRoot(expr);
+}
 
 #if 0
 void VirtualReplacer::createProjectAssignments(HqlExprArray & assigns, IHqlExpression * expr, IHqlExpression * tgtSelector, IHqlExpression * srcSelector, IHqlExpression * dataset)
@@ -4893,6 +5013,18 @@ bool isConstantDataset(IHqlExpression * expr)
             return false;
     }
     return true;
+}
+
+bool isConstantDictionary(IHqlExpression * expr)
+{
+    if (expr->getOperator() == no_null)
+        return true;
+    if (expr->getOperator() != no_createdictionary)
+        return false;
+    IHqlExpression * dataset = expr->queryChild(0);
+    if (dataset->getOperator() == no_inlinetable)
+        return isConstantDataset(dataset);
+    return false;
 }
 
 inline bool iseol(char c) { return c == '\r' || c == '\n'; }
@@ -5134,7 +5266,7 @@ void TempTableTransformer::createTempTableAssign(HqlExprArray & assigns, IHqlExp
                 if (included)
                 {
                     LinkedHqlExpr src = queryRealChild(curRow, col);
-                    if (expr->isDataset())
+                    if (expr->isDataset() || expr->isDictionary())
                     {
                         if (src)
                             col++;
@@ -5218,10 +5350,14 @@ void TempTableTransformer::createTempTableAssign(HqlExprArray & assigns, IHqlExp
                             castValue.setown(createRow(no_createrow, LINK(transform)));
                         }
                     }
+                    if (target->isDictionary() && !castValue->isDictionary())
+                        castValue.setown(createDictionary(no_createdictionary, castValue.getClear()));
                 }
                 else
                 {
-                    if (expr->isDataset())
+                    if (expr->isDictionary())
+                        castValue.setown(createDictionary(no_null, LINK(record)));
+                    else if (expr->isDataset())
                         castValue.setown(createDataset(no_null, LINK(record)));
                     else
                         castValue.setown(createRow(no_null, LINK(record)));
@@ -5266,7 +5402,7 @@ void TempTableTransformer::createTempTableAssign(HqlExprArray & assigns, IHqlExp
                     castValue.setown(ensureExprType(src, type));
                 }
                 else
-                    castValue.setown(createNullExpr(type));
+                    castValue.setown(createNullExpr(expr));
             }
             assigns.append(*createAssign(LINK(target), LINK(castValue)));
             mapper.setMapping(target, castValue);
@@ -5346,7 +5482,6 @@ void TempTableTransformer::reportWarning(IHqlExpression * location, int code,con
 
 IHqlExpression *getDictionaryKeyRecord(IHqlExpression *record)
 {
-    // MORE - should probably use an attr to cache this?
     IHqlExpression * payload = record->queryProperty(_payload_Atom);
     unsigned payloadSize = payload ? getIntValue(payload->queryChild(0)) : 0;
     unsigned max = record->numChildren() - payloadSize;
@@ -5360,28 +5495,65 @@ IHqlExpression *getDictionaryKeyRecord(IHqlExpression *record)
     return newrec->closeExpr();
 }
 
+IHqlExpression *recursiveStretchFields(IHqlExpression *record)
+{
+    IHqlExpression *newrec = createRecord();
+    ForEachChild (idx, record)
+    {
+        IHqlExpression *child = record->queryChild(idx);
+        if (child->getOperator()==no_field)
+        {
+            ITypeInfo *fieldType = child->queryType();
+            switch (fieldType->getTypeCode())
+            {
+            case type_row:
+            {
+                OwnedHqlExpr childType = recursiveStretchFields(child->queryRecord());
+                newrec->addOperand(createField(child->queryName(), makeRowType(childType->getType()), NULL, NULL));
+                break;
+            }
+            default:
+            {
+                Owned<ITypeInfo> stretched = getMaxLengthType(fieldType);
+                newrec->addOperand(createField(child->queryName(), stretched.getClear(), NULL, NULL));
+                break;
+            }
+            }
+        }
+        else
+            newrec->addOperand(LINK(child));
+    }
+    return newrec->closeExpr();
+}
+
+IHqlExpression *getDictionarySearchRecord(IHqlExpression *record)
+{
+    OwnedHqlExpr keyrec = getDictionaryKeyRecord(record);
+    return recursiveStretchFields(keyrec);
+}
+
 IHqlExpression * createSelectMapRow(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * dict, IHqlExpression *values)
 {
-    OwnedHqlExpr record = getDictionaryKeyRecord(dict->queryRecord());
+    OwnedHqlExpr record = getDictionarySearchRecord(dict->queryRecord());
     TempTableTransformer transformer(errors, location, true);
     OwnedHqlExpr newTransform = transformer.createTempTableTransform(values, record);
-    return createRow(no_selectmap, dict, createRow(no_createrow, newTransform.getClear()));
+    return createRow(no_selectmap, LINK(dict), createRow(no_createrow, newTransform.getClear()));
 }
 
 IHqlExpression *createINDictExpr(IErrorReceiver * errors, ECLlocation & location, IHqlExpression *expr, IHqlExpression *dict)
 {
-    OwnedHqlExpr record = getDictionaryKeyRecord(dict->queryRecord());
+    OwnedHqlExpr record = getDictionarySearchRecord(dict->queryRecord());
     TempTableTransformer transformer(errors, location, true);
     OwnedHqlExpr newTransform = transformer.createTempTableTransform(expr, record);
-    return createBoolExpr(no_indict, createRow(no_createrow, newTransform.getClear()), dict);
+    return createBoolExpr(no_indict, createRow(no_createrow, newTransform.getClear()), LINK(dict));
 }
 
 IHqlExpression *createINDictRow(IErrorReceiver * errors, ECLlocation & location, IHqlExpression *row, IHqlExpression *dict)
 {
-    OwnedHqlExpr record = getDictionaryKeyRecord(dict->queryRecord());
-    if (!record->queryType()->assignableFrom(row->queryType()))
-        errors->reportError(ERR_TYPE_DIFFER, "Type mismatch", location.sourcePath->str(), location.lineno, location.column, location.position);
-    return createBoolExpr(no_indict, row, dict);
+    OwnedHqlExpr record = getDictionarySearchRecord(dict->queryRecord());
+    Owned<ITypeInfo> rowType = makeRowType(record->getType());
+    OwnedHqlExpr castRow = ensureExprType(row, rowType);
+    return createBoolExpr(no_indict, castRow.getClear(), LINK(dict));
 }
 
 IHqlExpression * convertTempRowToCreateRow(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * expr)
@@ -5398,7 +5570,7 @@ IHqlExpression * convertTempRowToCreateRow(IErrorReceiver * errors, ECLlocation 
     return expr->cloneAllAnnotations(ret);
 }
 
-static IHqlExpression * convertTempTableToInline(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * expr, bool isDictionary)
+static IHqlExpression * convertTempTableToInline(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * expr)
 {
     IHqlExpression * oldValues = expr->queryChild(0);
     IHqlExpression * record = expr->queryChild(1);
@@ -5435,18 +5607,13 @@ static IHqlExpression * convertTempTableToInline(IErrorReceiver * errors, ECLloc
     HqlExprArray children;
     children.append(*createValue(no_transformlist, makeNullType(), transforms));
     children.append(*LINK(record));
-    OwnedHqlExpr ret = isDictionary ? createDictionary(no_inlinedictionary, children) : createDataset(no_inlinetable, children);
+    OwnedHqlExpr ret = createDataset(no_inlinetable, children);
     return expr->cloneAllAnnotations(ret);
 }
 
 IHqlExpression * convertTempTableToInlineTable(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * expr)
 {
-    return convertTempTableToInline(errors, location, expr, false);
-}
-
-IHqlExpression * convertTempTableToInlineDictionary(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * expr)
-{
-    return convertTempTableToInline(errors, location, expr, true);
+    return convertTempTableToInline(errors, location, expr);
 }
 
 void setPayloadAttribute(HqlExprArray &args)
@@ -5995,7 +6162,6 @@ WarningProcessor::WarningProcessor()
 { 
     firstLocalOnWarning = 0; 
     activeSymbol = NULL; 
-//  addGlobalOnWarning(WRN_RECORDDEFAULTMAXLENGTH, errorAtom);
 }
 
 
@@ -7306,6 +7472,7 @@ protected:
     bool expandAssignElement(IHqlExpression * expr);
 
     bool processElement(IHqlExpression * expr, IHqlExpression * parentSelector);
+    bool processFieldValue(IHqlExpression * optField, ITypeInfo * lhsType, IHqlExpression * rhs);
     bool processRecord(IHqlExpression * record, IHqlExpression * parentSelector);
 
     IHqlExpression * queryMatchingAssign(IHqlExpression * self, IHqlExpression * search);
@@ -7376,6 +7543,150 @@ IHqlExpression * ConstantRowCreator::queryMatchingAssign(IHqlExpression * self, 
     throwUnexpected();
 }
 
+bool ConstantRowCreator::processFieldValue(IHqlExpression * optLhs, ITypeInfo * lhsType, IHqlExpression * rhs)
+{
+    size32_t lenLhs = lhsType->getStringLen();
+    size32_t sizeLhs  = lhsType->getSize();
+    node_operator rhsOp = rhs->getOperator();
+
+    switch (lhsType->getTypeCode())
+    {
+    case type_packedint:
+        if (!rhs->queryValue())
+            return false;
+        //MORE: Could handle this...
+        return false;
+    case type_set:
+        if (isNullList(rhs))
+        {
+            out.append(false);
+            rtlWriteSize32t(out.reserve(sizeof(size32_t)), 0);
+            return true;
+        }
+        if (rhsOp == no_all)
+        {
+            out.append(true);
+            rtlWriteSize32t(out.reserve(sizeof(size32_t)), 0);
+            return true;
+        }
+        if (rhsOp == no_list)
+        {
+            ITypeInfo * elemType = lhsType->queryChildType();
+            out.append(false);
+            unsigned patchOffset = out.length();
+            out.reserve(sizeof(size32_t));
+            const size_t startOffset = out.length();
+            ForEachChild(i, rhs)
+            {
+                if (!processFieldValue(NULL, elemType, rhs->queryChild(i)))
+                    return false;
+            }
+            const size_t setLength = out.length() - startOffset;
+            out.writeDirect(patchOffset, sizeof(size32_t), &setLength);
+            byte * patchPos = (byte *)out.bufferBase() + patchOffset;
+            rtlWriteSize32t(patchPos, setLength);
+            return true;
+        }
+        return false;
+    case type_row:
+        if (rhsOp == no_null)
+            return createConstantNullRow(out, queryOriginalRecord(lhsType));
+        if (rhsOp == no_createrow)
+            return createConstantRow(out, rhs->queryChild(0));
+        return false;
+    case type_dictionary:
+    case type_table:
+    case type_groupedtable:
+        {
+            assertex(optLhs);
+            IHqlExpression * field = optLhs->queryChild(1);
+            if (!field->hasProperty(countAtom) && !field->hasProperty(sizeofAtom))
+            {
+                if (rhsOp == no_null)
+                {
+                    if (field->hasProperty(_linkCounted_Atom))
+                    {
+                        rtlWriteSize32t(out.reserve(sizeof(size32_t)), 0);
+                        memset(out.reserve(sizeof(byte * *)), 0, sizeof(byte * *));
+                    }
+                    else
+                        rtlWriteSize32t(out.reserve(sizeof(size32_t)), 0);
+                    return true;
+                }
+                //MORE: Could expand if doesn't have linkcounted, but less likely these days.
+            }
+            return false;
+        }
+    }
+
+    if ((lenLhs != UNKNOWN_LENGTH) && (lenLhs > maxSensibleInlineElementSize))
+        return false;
+
+    OwnedHqlExpr castRhs = ensureExprType(rhs, lhsType);
+    IValue * castValue = castRhs->queryValue();
+    if (!castValue)
+        return false;
+    
+    if (optLhs && mapper)
+        mapper->setMapping(optLhs, castRhs);
+
+    ITypeInfo * castValueType = castValue->queryType();
+    size32_t lenValue = castValueType->getStringLen();
+    assertex(lenLhs == UNKNOWN_LENGTH || lenLhs == lenValue);
+
+    switch (lhsType->getTypeCode())
+    {
+    case type_boolean:
+    case type_int:
+    case type_swapint:
+    case type_real:
+    case type_decimal:
+        {
+            void * temp = out.reserve(sizeLhs);
+            castValue->toMem(temp);
+            return true;
+        }
+    case type_data:
+    case type_string:
+        {
+            if (lenLhs == UNKNOWN_LENGTH)
+                rtlWriteInt4(out.reserve(sizeof(size32_t)), lenValue);
+            castValue->toMem(out.reserve(lenValue));
+            return true;
+        }
+    case type_varstring:
+        {
+            //Move to else
+            if (sizeLhs == UNKNOWN_LENGTH)
+            {
+                void * target = out.reserve(lenValue+1);
+                castValue->toMem(target);
+            }
+            else
+            {
+                //Disabled for the moment to prevent the size of generated expressions getting too big.
+                if (sizeLhs > 40)
+                    return false;
+                void * target = out.reserve(sizeLhs);
+                memset(target, ' ', sizeLhs);   // spaces expand better in the c++
+                castValue->toMem(target);
+            }
+            return true;
+        }
+    case type_unicode:
+    case type_qstring:
+        {
+            if (lenLhs == UNKNOWN_LENGTH)
+                rtlWriteInt4(out.reserve(sizeof(size32_t)), lenValue);
+            castValue->toMem(out.reserve(castValueType->getSize()));
+            return true;
+        }
+    //MORE:
+    //type_varunicode
+    //type_packedint
+    }
+    return false;
+}
 
 bool ConstantRowCreator::processElement(IHqlExpression * expr, IHqlExpression * parentSelector)
 {
@@ -7405,128 +7716,7 @@ bool ConstantRowCreator::processElement(IHqlExpression * expr, IHqlExpression * 
             if (!match || (match->getOperator() != no_assign))
                 return false;
 
-            ITypeInfo * lhsType = expr->queryType();
-            size32_t lenLhs = lhsType->getStringLen();
-            size32_t sizeLhs  = lhsType->getSize();
-            IHqlExpression * rhs = match->queryChild(1);
-            node_operator rhsOp = rhs->getOperator();
-
-            switch (lhsType->getTypeCode())
-            {
-            case type_packedint:
-                if (!rhs->queryValue())
-                    return false;
-                //MORE: Could handle this...
-                return false;
-            case type_set:
-                if (isNullList(rhs))
-                {
-                    out.append(false);
-                    rtlWriteSize32t(out.reserve(sizeof(size32_t)), 0);
-                    return true;
-                }
-                if (rhsOp == no_all)
-                {
-                    out.append(true);
-                    rtlWriteSize32t(out.reserve(sizeof(size32_t)), 0);
-                    return true;
-                }
-                return false;
-            case type_row:
-                if (rhsOp == no_null)
-                    return createConstantNullRow(out, queryOriginalRecord(lhsType));
-                if (rhsOp == no_createrow)
-                    return createConstantRow(out, rhs->queryChild(0));
-                return false;
-            case type_dictionary:
-            case type_table:
-            case type_groupedtable:
-                if (!expr->hasProperty(countAtom) && !expr->hasProperty(sizeofAtom))
-                {
-                    if (rhsOp == no_null)
-                    {
-                        if (expr->hasProperty(_linkCounted_Atom))
-                        {
-                            rtlWriteSize32t(out.reserve(sizeof(size32_t)), 0);
-                            memset(out.reserve(sizeof(byte * *)), 0, sizeof(byte * *));
-                        }
-                        else
-                            rtlWriteSize32t(out.reserve(sizeof(size32_t)), 0);
-                        return true;
-                    }
-                    //MORE: Could expand if doesn't have linkcounted, but less likely these days.
-                }
-                return false;
-            }
-
-            if ((lenLhs != UNKNOWN_LENGTH) && (lenLhs > maxSensibleInlineElementSize))
-                return false;
-
-            OwnedHqlExpr castRhs = ensureExprType(rhs, lhsType);
-            IValue * castValue = castRhs->queryValue();
-            if (!castValue)
-                return false;
-            
-            IHqlExpression * lhs = match->queryChild(0);
-            if (mapper)
-                mapper->setMapping(lhs, castRhs);
-
-            ITypeInfo * castValueType = castValue->queryType();
-            size32_t lenValue = castValueType->getStringLen();
-            assertex(lenLhs == UNKNOWN_LENGTH || lenLhs == lenValue);
-
-            switch (lhsType->getTypeCode())
-            {
-            case type_boolean:
-            case type_int:
-            case type_swapint:
-            case type_real:
-            case type_decimal:
-                {
-                    void * temp = out.reserve(sizeLhs);
-                    castValue->toMem(temp);
-                    return true;
-                }
-            case type_data:
-            case type_string:
-                {
-                    if (lenLhs == UNKNOWN_LENGTH)
-                        rtlWriteInt4(out.reserve(sizeof(size32_t)), lenValue);
-                    castValue->toMem(out.reserve(lenValue));
-                    return true;
-                }
-            case type_varstring:
-                {
-                    //Move to else
-                    if (sizeLhs == UNKNOWN_LENGTH)
-                    {
-                        void * target = out.reserve(lenValue+1);
-                        castValue->toMem(target);
-                    }
-                    else
-                    {
-                        //Disabled for the moment to prevent the size of generated expressions getting too big.
-                        if (sizeLhs > 40)
-                            return false;
-                        void * target = out.reserve(sizeLhs);
-                        memset(target, ' ', sizeLhs);   // spaces expand better in the c++
-                        castValue->toMem(target);
-                    }
-                    return true;
-                }
-            case type_unicode:
-            case type_qstring:
-                {
-                    if (lenLhs == UNKNOWN_LENGTH)
-                        rtlWriteInt4(out.reserve(sizeof(size32_t)), lenValue);
-                    castValue->toMem(out.reserve(castValueType->getSize()));
-                    return true;
-                }
-            //MORE:
-            //type_varunicode
-            //type_packedint
-            }
-            return false;
+            return processFieldValue(match->queryChild(0), expr->queryType(), match->queryChild(1));
         }
     default:
         return true;

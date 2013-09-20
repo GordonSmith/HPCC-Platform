@@ -24,7 +24,7 @@
 #include "jlog.hpp"
 
 #include "csvsplitter.hpp"
-#include "thorcerror.hpp"
+#include "thorherror.h"
 #include "thorxmlread.hpp"
 #include "thorcommon.ipp"
 #include "eclrtl.hpp"
@@ -570,7 +570,7 @@ IDataVal & CXmlToRawTransformer::transform(IDataVal & result, size32_t len, cons
 
 IDataVal & CXmlToRawTransformer::transformTree(IDataVal & result, IPropertyTree &root, bool isDataSet)
 {
-    unsigned maxRecordSize = rowTransformer->queryRecordSize()->getRecordSize(NULL);
+    unsigned minRecordSize = rowTransformer->queryRecordSize()->getMinRecordSize();
     Owned <XmlColumnProvider> columns;
     Owned<IPropertyTreeIterator> rows;
     StringBuffer decodedXML;
@@ -618,12 +618,11 @@ IDataVal & CXmlToRawTransformer::transformTree(IDataVal & result, IPropertyTree 
         ForEach(*rows)
         {
             columns->setRow(&rows->query());
-            void * self = raw.reserve(maxRecordSize);
             NullDiskCallback dummyCallback;
-            RtlStaticRowBuilder rowBuilder(self, maxRecordSize);    //GH MORE: Is this really correct? What about link counted rows?
+            MemoryBufferBuilder rowBuilder(raw, minRecordSize);
             size32_t thisSize = rowTransformer->transform(rowBuilder, columns, &dummyCallback);
             curLength += thisSize;
-            raw.setLength(curLength);
+            rowBuilder.finishRow(thisSize);
         }
         rows.setown(root.getElements("Item"));
     }
@@ -633,12 +632,11 @@ IDataVal & CXmlToRawTransformer::transformTree(IDataVal & result, IPropertyTree 
         ForEach(*rows)
         {
             columns->setRow(&rows->query());
-            void * self = raw.reserve(maxRecordSize);
             NullDiskCallback dummyCallback;
-            RtlStaticRowBuilder rowBuilder(self, maxRecordSize);    //GH MORE: Is this really correct? What about link counted rows?
+            MemoryBufferBuilder rowBuilder(raw, minRecordSize);
             size32_t thisSize = rowTransformer->transform(rowBuilder, columns, &dummyCallback);
             curLength += thisSize;
-            raw.setLength(curLength);
+            rowBuilder.finishRow(thisSize);
         }
     }
     result.setLen(raw.toByteArray(), curLength);
@@ -647,7 +645,7 @@ IDataVal & CXmlToRawTransformer::transformTree(IDataVal & result, IPropertyTree 
 
 size32_t createRowFromXml(ARowBuilder & rowBuilder, size32_t size, const char * utf8, IXmlToRowTransformer * xmlTransformer, bool stripWhitespace)
 {
-    Owned<IPropertyTree> root = createPTreeFromXMLString(size, utf8, ipt_none, stripWhitespace ? xr_ignoreWhiteSpace : xr_none);
+    Owned<IPropertyTree> root = createPTreeFromXMLString(size, utf8, ipt_none, stripWhitespace ? ptr_ignoreWhiteSpace : ptr_none);
     if (!root)
     {
         throwError(THORCERR_InvalidXmlFromXml);
@@ -674,7 +672,7 @@ IDataVal & CCsvToRawTransformer::transform(IDataVal & result, size32_t len, cons
 
     csvSplitter.init(rowTransformer->getMaxColumns(), rowTransformer->queryCsvParameters(), NULL, NULL, NULL, NULL);
 
-    unsigned maxRecordSize = rowTransformer->queryRecordSize()->getRecordSize(NULL);
+    size32_t minRecordSize = rowTransformer->queryRecordSize()->getMinRecordSize();
     const byte *finger = (const byte *) text;
     MemoryBuffer raw;
     size32_t curLength = 0;
@@ -683,11 +681,11 @@ IDataVal & CCsvToRawTransformer::transform(IDataVal & result, size32_t len, cons
         unsigned thisLineLength = csvSplitter.splitLine(len, finger);
         finger += thisLineLength;
         len -= thisLineLength;
-        void * self = raw.reserve(maxRecordSize);
-        RtlStaticRowBuilder rowBuilder(self, maxRecordSize);    //GH MORE: Is this really correct? What about link counted rows?
+
+        MemoryBufferBuilder rowBuilder(raw, minRecordSize);
         unsigned thisSize = rowTransformer->transform(rowBuilder, csvSplitter.queryLengths(), (const char * *)csvSplitter.queryData(), 0);
         curLength += thisSize;
-        raw.setLength(curLength);
+        rowBuilder.finishRow(thisSize);
     }
     result.setLen(raw.toByteArray(), curLength);
     return result;
@@ -695,7 +693,7 @@ IDataVal & CCsvToRawTransformer::transform(IDataVal & result, size32_t len, cons
 
 //=====================================================================================================
 
-extern thorhelper_decl IXmlToRawTransformer * createXmlRawTransformer(IXmlToRowTransformer * xmlTransformer, XmlReaderOptions xmlReadFlags)
+extern thorhelper_decl IXmlToRawTransformer * createXmlRawTransformer(IXmlToRowTransformer * xmlTransformer, PTreeReaderOptions xmlReadFlags)
 {
     if (xmlTransformer)
         return new CXmlToRawTransformer(*xmlTransformer, xmlReadFlags);
@@ -708,31 +706,6 @@ extern thorhelper_decl ICsvToRawTransformer * createCsvRawTransformer(ICsvToRowT
         return new CCsvToRawTransformer(*csvTransformer);
     return NULL;
 }
-
-#if 0
-// WIP
-IDataVal & CCsvToRawTransformer::transform(IDataVal & result, size32_t len, const void * text, bool isDataset)
-{
-    if (!isDataset)
-        UNIMPLEMENTED;
-    unsigned maxRecordSize = rowTransformer->queryRecordSize()->getRecordSize(NULL);
-    const byte *finger = (const byte *) text;
-    MemoryBuffer raw;
-    size32_t curLength = 0;
-    loop
-    {
-        unsigned thisLineLength = csvSplitter.splitLine(len, finger);
-        finger += thisLineLength;
-        void * self = raw.reserve(maxRecordSize);
-        unsigned thisSize = rowTransformer->transform(self, &csvSplitter, 0);
-        curLength += thisSize;
-        raw.setLength(curLength);
-    }
-    result.setLen(raw.toByteArray(), curLength);
-    return result;
-}
-
-#endif
 
 bool isContentXPath(const char *xpath, StringBuffer &head)
 {
@@ -1605,10 +1578,10 @@ void CColumnIterator::setCurrent()
 
 class CXMLParse : public CInterface, implements IXMLParse
 {
-    IPullXMLReader *xmlReader;
+    IPullPTreeReader *xmlReader;
     StringAttr xpath;
     IXMLSelect *iXMLSelect;  // NOTE - not linked - creates circular links
-    XmlReaderOptions xmlOptions;
+    PTreeReaderOptions xmlOptions;
     bool step, contentRequired;
 
     class CXMLMaker : public CInterface, implements IPTreeMaker
@@ -1905,12 +1878,12 @@ class CXMLParse : public CInterface, implements IXMLParse
 public:
     IMPLEMENT_IINTERFACE;
 
-    CXMLParse(const char *fName, const char *_xpath, IXMLSelect &_iXMLSelect, XmlReaderOptions _xmlOptions=xr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); go(fName); }
-    CXMLParse(IFile &ifile, const char *_xpath, IXMLSelect &_iXMLSelect, XmlReaderOptions _xmlOptions=xr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); go(ifile); }
-    CXMLParse(IFileIO &fileio, const char *_xpath, IXMLSelect &_iXMLSelect, XmlReaderOptions _xmlOptions=xr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); go(fileio); }
-    CXMLParse(ISimpleReadStream &stream, const char *_xpath, IXMLSelect &_iXMLSelect, XmlReaderOptions _xmlOptions=xr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); go(stream); }
-    CXMLParse(const void *buffer, unsigned bufLen, const char *_xpath, IXMLSelect &_iXMLSelect, XmlReaderOptions _xmlOptions=xr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); go(buffer, bufLen); }
-    CXMLParse(const char *_xpath, IXMLSelect &_iXMLSelect, XmlReaderOptions _xmlOptions=xr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); }
+    CXMLParse(const char *fName, const char *_xpath, IXMLSelect &_iXMLSelect, PTreeReaderOptions _xmlOptions=ptr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); go(fName); }
+    CXMLParse(IFile &ifile, const char *_xpath, IXMLSelect &_iXMLSelect, PTreeReaderOptions _xmlOptions=ptr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); go(ifile); }
+    CXMLParse(IFileIO &fileio, const char *_xpath, IXMLSelect &_iXMLSelect, PTreeReaderOptions _xmlOptions=ptr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); go(fileio); }
+    CXMLParse(ISimpleReadStream &stream, const char *_xpath, IXMLSelect &_iXMLSelect, PTreeReaderOptions _xmlOptions=ptr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); go(stream); }
+    CXMLParse(const void *buffer, unsigned bufLen, const char *_xpath, IXMLSelect &_iXMLSelect, PTreeReaderOptions _xmlOptions=ptr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); go(buffer, bufLen); }
+    CXMLParse(const char *_xpath, IXMLSelect &_iXMLSelect, PTreeReaderOptions _xmlOptions=ptr_none, bool _contentRequired=true, bool _step=true) : xpath(_xpath), iXMLSelect(&_iXMLSelect), xmlOptions(_xmlOptions), contentRequired(_contentRequired), step(_step) { init(); }
     ~CXMLParse()
     {
         ::Release(iXMLMaker);
@@ -1919,7 +1892,7 @@ public:
     void init()
     {
         xmlReader = NULL;
-        bool ignoreNameSpaces = 0 != ((unsigned)xmlOptions & (unsigned)xr_ignoreNameSpaces);
+        bool ignoreNameSpaces = 0 != ((unsigned)xmlOptions & (unsigned)ptr_ignoreNameSpaces);
         iXMLMaker = new CXMLMaker(xpath, *iXMLSelect, contentRequired, ignoreNameSpaces);
         iXMLMaker->init();
     }
@@ -2003,21 +1976,21 @@ public:
     }
 };
 
-IXMLParse *createXMLParse(const char *filename, const char *xpath, IXMLSelect &iselect, XmlReaderOptions xmlOptions, bool contentRequired)
+IXMLParse *createXMLParse(const char *filename, const char *xpath, IXMLSelect &iselect, PTreeReaderOptions xmlOptions, bool contentRequired)
 {
     return new CXMLParse(filename, xpath, iselect, xmlOptions, contentRequired);
 }
-IXMLParse *createXMLParse(ISimpleReadStream &stream, const char *xpath, IXMLSelect &iselect, XmlReaderOptions xmlOptions, bool contentRequired)
+IXMLParse *createXMLParse(ISimpleReadStream &stream, const char *xpath, IXMLSelect &iselect, PTreeReaderOptions xmlOptions, bool contentRequired)
 {
     return new CXMLParse(stream, xpath, iselect, xmlOptions, contentRequired);
 }
 
-IXMLParse *createXMLParse(const void *buffer, unsigned bufLen, const char *xpath, IXMLSelect &iselect, XmlReaderOptions xmlOptions, bool contentRequired)
+IXMLParse *createXMLParse(const void *buffer, unsigned bufLen, const char *xpath, IXMLSelect &iselect, PTreeReaderOptions xmlOptions, bool contentRequired)
 {
     return new CXMLParse(buffer, bufLen, xpath, iselect, xmlOptions, contentRequired);
 }
 
-IXMLParse *createXMLParseString(const char *string, const char *xpath, IXMLSelect &iselect, XmlReaderOptions xmlOptions, bool contentRequired)
+IXMLParse *createXMLParseString(const char *string, const char *xpath, IXMLSelect &iselect, PTreeReaderOptions xmlOptions, bool contentRequired)
 {
     CXMLParse *parser = new CXMLParse(xpath, iselect, xmlOptions, contentRequired);
     parser->provideXML(string);

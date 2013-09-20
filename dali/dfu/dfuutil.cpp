@@ -708,7 +708,7 @@ class CDFUhelper: public CInterface, implements IDFUhelper
 public:
     IMPLEMENT_IINTERFACE;
 
-    void addSuper(const char *superfname,IUserDescriptor *user, unsigned numtoadd, const char **subfiles, const char *before)
+    void addSuper(const char *superfname, IUserDescriptor *user, unsigned numtoadd, const char **subfiles, const char *before, bool autocreatesuper)
     {
         if (!numtoadd)
             throwError(DFUERR_DNoSubfileToAddToSuperFile);
@@ -718,7 +718,11 @@ public:
 
         Owned<IDistributedSuperFile> superfile = transaction->lookupSuperFile(superfname);
         if (!superfile)
+        {
+            if (!autocreatesuper)
+                throwError1(DFUERR_DSuperFileNotFound, superfname);
             superfile.setown(queryDistributedFileDirectory().createSuperFile(superfname,user,true,false,transaction));
+        }
 
         for (unsigned i=0;i<numtoadd;i++)
         {
@@ -778,7 +782,7 @@ public:
         if (toremove.ordinality()) {
             transaction->start();
             ForEachItemIn(i2,toremove)
-                superfile->removeSubFile(toremove.item(i2).text.get(),delsub,delsub,false,transaction);
+                superfile->removeSubFile(toremove.item(i2).text.get(),delsub,false,transaction);
             transaction->commit();
         }
         // Delete superfile if empty
@@ -902,7 +906,7 @@ public:
         }
         if (strcmp(ftree->queryName(),queryDfsXmlBranchName(DXB_File))==0) {
             assertex(copier);
-            if (!copier->copyFile(lfn,daliep,srclfn,user,UNKNOWN_USER))
+            if (!copier->copyFile(lfn,daliep,srclfn,srcuser,user))
                 throw MakeStringException(-1,"File %s could not be copied",lfn);
 
         }

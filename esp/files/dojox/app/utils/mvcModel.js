@@ -1,65 +1,69 @@
 //>>built
-define("dojox/app/utils/mvcModel",["dojo/_base/lang","dojo/Deferred","dojo/when","dojo/_base/config","dojo/store/DataStore","dojox/mvc/getStateful","dojo/has"],function(_1,_2,_3,_4,_5,_6,_7){
-return function(_8,_9,_a){
-var _b={};
-var _c=new _2();
-var _d;
-if(_9.store&&_9.store.params&&_9.store.params.data){
-_d={"store":_9.store.store,"query":_9.store.query?_9.store.query:{}};
+define("dojox/app/utils/mvcModel",["dojo/_base/lang","dojo/Deferred","dojo/when","dojox/mvc/getStateful"],function(_1,_2,_3,_4){
+return function(_5,_6,_7){
+var _8={};
+var _9=new _2();
+var _a=function(_b){
+var _c={};
+for(var _d in _b){
+if(_d.charAt(0)!=="_"){
+_c[_d]=_b[_d];
+}
+}
+return (_c);
+};
+var _e;
+if(_6.store){
+_e={"store":_6.store.store,"query":_6.query?_a(_6.query):_6.store.query?_a(_6.store.query):{}};
 }else{
-if(_9.datastore){
-var _e={};
-for(var _a in _9.query){
-if(_a.charAt(0)!=="_"){
-_e[_a]=_9.query[_a];
+if(_6.datastore){
+try{
+var _f=require("dojo/store/DataStore");
 }
+catch(e){
+throw new Error("When using datastore the dojo/store/DataStore module must be listed in the dependencies");
 }
-_d={"store":new _5({store:_9.datastore.store}),"query":_e};
+_e={"store":new _f({store:_6.datastore.store}),"query":_a(_6.query)};
 }else{
-if(_9.data){
-if(_9.data&&_1.isString(_9.data)){
-_9.data=_1.getObject(_9.data);
+if(_6.data){
+if(_6.data&&_1.isString(_6.data)){
+_6.data=_1.getObject(_6.data);
 }
-_d={"data":_9.data,query:{}};
+_e={"data":_6.data,query:{}};
+}else{
+console.warn("mvcModel: Missing parameters.");
 }
 }
 }
-var _f=null;
-var _10=_8[_a].type?_8[_a].type:"dojox/mvc/EditStoreRefListController";
-var def=new _2();
-require([_10],function(_11){
-def.resolve(_11);
-});
-_3(def,function(_12){
-_f=new _12(_d);
+var _10=_5[_7].type?_5[_7].type:"dojox/mvc/EditStoreRefListController";
+try{
+var _11=require(_10);
+}
+catch(e){
+throw new Error(_10+" must be listed in the dependencies");
+}
+var _12=new _11(_e);
 var _13;
 try{
-if(_f.queryStore){
-_13=_f.queryStore(_d.query);
+if(_12.queryStore){
+_13=_12.queryStore(_e.query);
 }else{
-var _14=_f._refSourceModelProp||_f._refModelProp||"model";
-_f.set(_14,_6(_d.data));
-_13=_f;
+var _14=_12._refSourceModelProp||_12._refModelProp||"model";
+_12.set(_14,_4(_e.data));
+_13=_12;
 }
 }
 catch(ex){
-_c.reject("load mvc model error.");
-return _c.promise;
+_9.reject("load mvc model error.");
+return _9.promise;
 }
-if(_13.then){
 _3(_13,_1.hitch(this,function(){
-_b=_f;
-_c.resolve(_b);
-return _b;
+_8=_12;
+_9.resolve(_8);
+return _8;
 }),function(){
-loadModelLoaderDeferred.reject("load model error.");
+_9.reject("load model error.");
 });
-}else{
-_b=_f;
-_c.resolve(_b);
-return _b;
-}
-});
-return _c;
+return _9;
 };
 });

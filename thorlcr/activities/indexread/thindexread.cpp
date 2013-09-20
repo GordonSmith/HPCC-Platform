@@ -153,10 +153,13 @@ protected:
                     }
                 }
                 if (!keyIndex)
-                    throw MakeThorException(TE_FileNotFound, "Top level key part does not exist, for key: %s", indexBaseHelper->getFileName());
+                {
+                    OwnedRoxieString indexName(indexBaseHelper->getFileName());
+                    throw MakeThorException(TE_FileNotFound, "Top level key part does not exist, for key: %s", indexName.get());
+                }
             
-                unsigned maxSize = indexBaseHelper->queryDiskRecordSize()->querySerializedMeta()->getRecordSize(NULL); // used only if fixed
-                Owned <IKeyManager> tlk = createKeyManager(keyIndex, maxSize, NULL);
+                unsigned fixedSize = indexBaseHelper->queryDiskRecordSize()->querySerializedDiskMeta()->getFixedSize(); // used only if fixed
+                Owned <IKeyManager> tlk = createKeyManager(keyIndex, fixedSize, NULL);
                 indexBaseHelper->createSegmentMonitors(tlk);
                 tlk->finishSegmentMonitors();
                 tlk->reset();
@@ -192,10 +195,16 @@ public:
     void init()
     {
         nofilter = false;
-
-        index.setown(queryThorFileManager().lookup(container.queryJob(), indexBaseHelper->getFileName(), false, 0 != (TIRoptional & indexBaseHelper->getFlags()), true));
+        OwnedRoxieString indexName(indexBaseHelper->getFileName());
+        index.setown(queryThorFileManager().lookup(container.queryJob(), indexName, false, 0 != (TIRoptional & indexBaseHelper->getFlags()), true));
         if (index)
         {
+            bool localKey = index->queryAttributes().getPropBool("@local");
+
+            if (container.queryLocalData() && !localKey)
+                throw MakeActivityException(this, 0, "Index Read cannot be LOCAL unless supplied index is local");
+
+
             nofilter = 0 != (TIRnofilter & indexBaseHelper->getFlags());
             if (index->queryAttributes().getPropBool("@local"))
                 nofilter = true;
@@ -220,7 +229,8 @@ public:
     }
     void serializeSlaveData(MemoryBuffer &dst, unsigned slave)
     {
-        dst.append(indexBaseHelper->getFileName());
+        OwnedRoxieString indexName(indexBaseHelper->getFileName());
+        dst.append(indexName);
         if (!container.queryLocalOrGrouped())
             dst.append(mpTag);
         IArrayOf<IPartDescriptor> parts;

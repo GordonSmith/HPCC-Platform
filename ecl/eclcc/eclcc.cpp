@@ -41,6 +41,11 @@
 #include "build-config.h"
 #include "rmtfile.hpp"
 
+#ifdef _USE_CPPUNIT
+#include <cppunit/extensions/TestFactoryRegistry.h>
+#include <cppunit/ui/text/TestRunner.h>
+#endif
+
 //#define TEST_LEGACY_DEPENDENCY_CODE
 
 #define INIFILE "eclcc.ini"
@@ -185,7 +190,7 @@ public:
     bool ignoreUnknownImport;
 };
 
-class EclCC
+class EclCC : public CInterfaceOf<ICodegenContextCallback>
 {
 public:
     EclCC(int _argc, const char **_argv)
@@ -194,7 +199,9 @@ public:
         argc = _argc;
         argv = _argv;
         logVerbose = false;
+        logTimings = false;
         optArchive = false;
+        optCheckEclVersion = true;
         optGenerateMeta = false;
         optGenerateDepend = false;
         optIncludeMeta = false;
@@ -205,6 +212,7 @@ public:
         optOnlyCompile = false;
         optBatchMode = false;
         optSaveQueryText = false;
+        optGenerateHeader = false;
         optTargetClusterType = HThorCluster;
         optTargetCompiler = DEFAULT_COMPILER;
         optThreads = 0;
@@ -213,6 +221,7 @@ public:
         batchSplit = 1;
         batchLog = NULL;
         cclogFilename.append("cc.").append((unsigned)GetCurrentProcessId()).append(".log");
+        defaultAllowed = true;
     }
 
     bool parseCommandLineOptions(int argc, const char* argv[]);
@@ -221,12 +230,17 @@ public:
     bool processFiles();
     void processBatchedFile(IFile & file, bool multiThreaded);
 
+    virtual void noteCluster(const char *clusterName);
+    virtual void registerFile(const char * filename, const char * description);
+    virtual bool allowAccess(const char * category);
+
 protected:
     void addFilenameDependency(StringBuffer & target, EclCompileInstance & instance, const char * filename);
     void applyDebugOptions(IWorkUnit * wu);
     bool checkWithinRepository(StringBuffer & attributePath, const char * sourcePathname);
     IFileIO * createArchiveOutputFile(EclCompileInstance & instance);
-    ICppCompiler * createCompiler(const char * coreName);
+    ICppCompiler *createCompiler(const char * coreName, const char * sourceDir = NULL, const char * targetDir = NULL);
+    bool generatePrecompiledHeader();
     void generateOutput(EclCompileInstance & instance);
     void instantECL(EclCompileInstance & instance, IWorkUnit *wu, const char * queryFullName, IErrorReceiver *errs, const char * outputFile);
     bool isWithinPath(const char * sourcePathname, const char * searchPath);
@@ -252,6 +266,7 @@ protected:
     Owned<IEclRepository> includeRepository;
     const char * programName;
 
+    StringBuffer cppIncludePath;
     StringBuffer pluginsPath;
     StringBuffer hooksPath;
     StringBuffer templatePath;
@@ -274,6 +289,10 @@ protected:
     StringArray linkOptions;
     StringArray libraryPaths;
 
+    StringArray allowedPermissions;
+    StringArray deniedPermissions;
+    bool defaultAllowed;
+
     ClusterType optTargetClusterType;
     CompilerType optTargetCompiler;
     unsigned optThreads;
@@ -281,7 +300,9 @@ protected:
     unsigned batchSplit;
     unsigned optLogDetail;
     bool logVerbose;
+    bool logTimings;
     bool optArchive;
+    bool optCheckEclVersion;
     bool optGenerateMeta;
     bool optGenerateDepend;
     bool optIncludeMeta;
@@ -292,6 +313,7 @@ protected:
     bool optOnlyCompile;
     bool optSaveQueryText;
     bool optLegacy;
+    bool optGenerateHeader;
     int argc;
     const char **argv;
 };
@@ -299,8 +321,45 @@ protected:
 
 //=========================================================================================
 
+static int doSelfTest(int argc, const char *argv[])
+{
+#ifdef _USE_CPPUNIT
+    queryStderrLogMsgHandler()->setMessageFields(MSGFIELD_time | MSGFIELD_prefix);
+    CppUnit::TextUi::TestRunner runner;
+    if (argc==2)
+    {
+        CppUnit::TestFactoryRegistry &registry = CppUnit::TestFactoryRegistry::getRegistry();
+        runner.addTest( registry.makeTest() );
+    }
+    else 
+    {
+        // MORE - maybe add a 'list' function here?
+        for (int name = 2; name < argc; name++)
+        {
+            if (stricmp(argv[name], "-q")==0)
+            {
+                removeLog();
+            }
+            else
+            {
+                CppUnit::TestFactoryRegistry &registry = CppUnit::TestFactoryRegistry::getRegistry(argv[name]);
+                runner.addTest( registry.makeTest() );
+            }
+        }
+    }
+    bool wasSucessful = runner.run( "", false );
+    releaseAtoms();
+    return wasSucessful;
+#else
+    return true;
+#endif
+}
+
 static int doMain(int argc, const char *argv[])
 {
+    if (argc>=2 && stricmp(argv[1], "-selftest")==0)
+        return doSelfTest(argc, argv);
+
     EclCC processor(argc, argv);
     if (!processor.parseCommandLineOptions(argc, argv))
         return 1;
@@ -330,6 +389,8 @@ static int doMain(int argc, const char *argv[])
 
 int main(int argc, const char *argv[])
 {
+    EnableSEHtoExceptionMapping();
+    setTerminateOnSEH(true);
     InitModuleObjects();
     queryStderrLogMsgHandler()->setMessageFields(0);
     // Turn logging down (we turn it back up if -v option seen)
@@ -419,7 +480,7 @@ void EclCC::loadOptions()
 
     globals.setown(createProperties(optIniFilename, true));
 
-    StringBuffer compilerPath, includePath, libraryPath;
+    StringBuffer compilerPath, libraryPath;
 
     if (globals->hasProp("targetGcc"))
         optTargetCompiler = globals->getPropBool("targetGcc") ? GccCppCompiler : Vs6CppCompiler;
@@ -432,8 +493,9 @@ void EclCC::loadOptions()
 #else
         extractOption(compilerPath, globals, "CL_PATH", "compilerPath", "/usr", NULL);
 #endif
-        extractOption(libraryPath, globals, "ECLCC_LIBRARY_PATH", "libraryPath", syspath, "lib");
-        extractOption(includePath, globals, "ECLCC_INCLUDE_PATH", "includePath", syspath, "componentfiles/cl/include");
+        if (!extractOption(libraryPath, globals, "ECLCC_LIBRARY_PATH", "libraryPath", syspath, "lib"))
+            libraryPath.append(ENVSEPCHAR).append(syspath).append("plugins");
+        extractOption(cppIncludePath, globals, "ECLCC_INCLUDE_PATH", "includePath", syspath, "componentfiles/cl/include");
         extractOption(pluginsPath, globals, "ECLCC_PLUGIN_PATH", "plugins", syspath, "plugins");
         extractOption(hooksPath, globals, "HPCC_FILEHOOKS_PATH", "filehooks", syspath, "filehooks");
         extractOption(templatePath, globals, "ECLCC_TPL_PATH", "templatePath", syspath, "componentfiles");
@@ -458,7 +520,7 @@ void EclCC::loadOptions()
         installFileHooks(hooksPath.str());
 
     if (!optNoCompile)
-        setCompilerPath(compilerPath.str(), includePath.str(), libraryPath.str(), NULL, optTargetCompiler, logVerbose);
+        setCompilerPath(compilerPath.str(), cppIncludePath.str(), libraryPath.str(), NULL, optTargetCompiler, logVerbose);
 }
 
 //=========================================================================================
@@ -496,10 +558,8 @@ void EclCC::applyDebugOptions(IWorkUnit * wu)
 
 //=========================================================================================
 
-ICppCompiler * EclCC::createCompiler(const char * coreName)
+ICppCompiler * EclCC::createCompiler(const char * coreName, const char * sourceDir, const char * targetDir)
 {
-    const char * sourceDir = NULL;
-    const char * targetDir = NULL;
     Owned<ICppCompiler> compiler = ::createCompiler(coreName, sourceDir, targetDir, optTargetCompiler, logVerbose);
     compiler->setOnlyCompile(optOnlyCompile);
     compiler->setCCLogPath(cclogFilename);
@@ -571,7 +631,7 @@ void EclCC::instantECL(EclCompileInstance & instance, IWorkUnit *wu, const char 
             bool optSaveCpp = optSaveTemps || optNoCompile || wu->getDebugValueBool("saveCppTempFiles", false);
             //New scope - testing things are linked correctly
             {
-                Owned<IHqlExprDllGenerator> generator = createDllGenerator(errs, processName.toCharArray(), NULL, wu, templateDir, optTargetClusterType, NULL, false);
+                Owned<IHqlExprDllGenerator> generator = createDllGenerator(errs, processName.toCharArray(), NULL, wu, templateDir, optTargetClusterType, this, false);
 
                 setWorkunitHash(wu, instance.query);
                 if (!optShared)
@@ -963,7 +1023,8 @@ void EclCC::processXmlFile(EclCompileInstance & instance, const char *archiveXML
     instance.ignoreUnknownImport = archiveTree->getPropBool("@ignoreUnknownImport", true);
 
     instance.eclVersion.set(archiveTree->queryProp("@eclVersion"));
-    checkEclVersionCompatible(instance.errs, instance.eclVersion);
+    if (optCheckEclVersion)
+        checkEclVersionCompatible(instance.errs, instance.eclVersion);
 
     Owned<IEclSourceCollection> archiveCollection;
     if (archiveTree->getPropBool("@testRemoteInterface", false))
@@ -1205,7 +1266,6 @@ void EclCC::generateOutput(EclCompileInstance & instance)
         else
         {
             // Output option settings
-            instance.wu->getDebugValues();
             Owned<IStringIterator> debugValues = &instance.wu->getDebugValues();
             ForEach (*debugValues)
             {
@@ -1236,7 +1296,7 @@ void EclCC::generateOutput(EclCompileInstance & instance)
         else
             xmlFilename.append(DEFAULT_OUTPUTNAME);
         xmlFilename.append(".xml");
-        exportWorkUnitToXMLFile(instance.wu, xmlFilename, 0);
+        exportWorkUnitToXMLFile(instance.wu, xmlFilename, 0, true);
     }
 }
 
@@ -1257,6 +1317,55 @@ void EclCC::processReference(EclCompileInstance & instance, const char * queryAt
     generateOutput(instance);
 }
 
+bool EclCC::generatePrecompiledHeader()
+{
+    if (inputFiles.ordinality() != 0)
+    {
+        ERRLOG("No input files should be specified when generating precompiled header");
+        return false;
+    }
+    StringArray paths;
+    paths.appendList(cppIncludePath, ENVSEPSTR);
+    const char *foundPath = NULL;
+    ForEachItemIn(idx, paths)
+    {
+        StringBuffer fullpath;
+        fullpath.append(paths.item(idx));
+        addPathSepChar(fullpath).append("eclinclude4.hpp");
+        if (checkFileExists(fullpath))
+        {
+            foundPath = paths.item(idx);
+            break;
+        }
+    }
+    if (!foundPath)
+    {
+        ERRLOG("Cannot find eclinclude4.hpp");
+        return false;
+    }
+    Owned<ICppCompiler> compiler = createCompiler("eclinclude4.hpp", foundPath, NULL);
+    compiler->setDebug(true);  // a precompiled header with debug can be used for no-debug, but not vice versa
+    compiler->setPrecompileHeader(true);
+    if (compiler->compile())
+    {
+        try
+        {
+            Owned<IFile> log = createIFile(cclogFilename);
+            log->remove();
+        }
+        catch (IException * e)
+        {
+            e->Release();
+        }
+        return true;
+    }
+    else
+    {
+        ERRLOG("Compilation failed - see %s for details", cclogFilename.str());
+        return false;
+    }
+}
+
 
 bool EclCC::processFiles()
 {
@@ -1265,7 +1374,11 @@ bool EclCC::processFiles()
     {
         processArgvFilename(inputFiles, inputFileNames.item(idx));
     }
-    if (inputFiles.ordinality() == 0)
+    if (optGenerateHeader)
+    {
+        return generatePrecompiledHeader();
+    }
+    else if (inputFiles.ordinality() == 0)
     {
         if (optBatchMode || !optQueryRepositoryReference)
         {
@@ -1305,8 +1418,11 @@ bool EclCC::processFiles()
         ok = (errs->errCount() == 0);
     }
 
-    if (logVerbose)
-        defaultTimer->printTimings();
+    if (logTimings)
+    {
+        StringBuffer s;
+        fprintf(stderr, "%s", defaultTimer->getTimings(s).str());
+    }
     return ok;
 }
 
@@ -1328,6 +1444,28 @@ bool EclCompileInstance::reportErrorSummary()
     return errs->errCount() != 0;
 }
 
+//=========================================================================================
+
+void EclCC::noteCluster(const char *clusterName)
+{
+}
+void EclCC::registerFile(const char * filename, const char * description)
+{
+}
+bool EclCC::allowAccess(const char * category)
+{
+    ForEachItemIn(idx1, deniedPermissions)
+    {
+        if (stricmp(deniedPermissions.item(idx1), category)==0)
+            return false;
+    }
+    ForEachItemIn(idx2, allowedPermissions)
+    {
+        if (stricmp(allowedPermissions.item(idx2), category)==0)
+            return true;
+    }
+    return defaultAllowed;
+}
 
 //=========================================================================================
 bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
@@ -1345,7 +1483,11 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
     for (; !iter.done(); iter.next())
     {
         const char * arg = iter.query();
-        if (iter.matchFlag(optBatchMode, "-b"))
+        if (iter.matchOption(tempArg, "--allow"))
+        {
+            allowedPermissions.append(tempArg);
+        }
+        else if (iter.matchFlag(optBatchMode, "-b"))
         {
         }
         else if (iter.matchOption(tempArg, "-brk"))
@@ -1360,6 +1502,16 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         }
         else if (iter.matchFlag(optOnlyCompile, "-c"))
         {
+        }
+        else if (iter.matchFlag(optCheckEclVersion, "-checkVersion"))
+        {
+        }
+        else if (iter.matchOption(tempArg, "--deny"))
+        {
+            if (stricmp(tempArg, "all")==0)
+                defaultAllowed = false;
+            else
+                deniedPermissions.append(tempArg);
         }
         else if (iter.matchFlag(optArchive, "-E"))
         {
@@ -1431,6 +1583,9 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         else if (iter.matchFlag(optOutputDirectory, "-P"))
         {
         }
+        else if (iter.matchFlag(optGenerateHeader, "-pch"))
+        {
+        }
         else if (iter.matchFlag(optSaveQueryText, "-q"))
         {
         }
@@ -1471,6 +1626,9 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
                 batchSplit = 1;
             if (batchPart >= batchSplit)
                 batchPart = 0;
+        }
+        else if (iter.matchFlag(logTimings, "--timings"))
+        {
         }
         else if (iter.matchOption(tempArg, "-platform") || /*deprecated*/ iter.matchOption(tempArg, "-target"))
         {
@@ -1531,7 +1689,7 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
 
     if (inputFileNames.ordinality() == 0)
     {
-        if (!optBatchMode && optQueryRepositoryReference)
+        if (optGenerateHeader || (!optBatchMode && optQueryRepositoryReference))
             return true;
         ERRLOG("No input filenames supplied");
         return false;
@@ -1588,11 +1746,15 @@ const char * const helpText[] = {
     "    -shared       Generate workunit shared object instead of a stand-alone exe",
     "",
     "Other options:",
+    "!   --allow=str   Allow use of named feature",
     "!   -b            Batch mode.  Each source file is processed in turn.  Output",
     "!                 name depends on the input filename",
+    "!   -checkVersion Enable/disable ecl version checking from archives",
 #ifdef _WIN32
     "!   -brk <n>      Trigger a break point in eclcc after nth allocation",
 #endif
+    "!   --deny=all    Disallow use of all named features not specifically allowed using --allow",
+    "!   --deny=str    Disallow use of named feature",
     "    -help, --help Display this message",
     "    -help -v      Display verbose help message",
     "!   -internal     Run internal tests",
@@ -1602,11 +1764,15 @@ const char * const helpText[] = {
 #ifdef _WIN32
     "!   -m            Enable leak checking",
 #endif
+#ifndef _WIN32
+    "!   -pch          Generate precompiled header for eclinclude4.hpp",
+#endif
     "!   -P <path>     Specify the path of the output files (only with -b option)",
     "    -specs file   Read eclcc configuration from specified file",
     "!   -split m:n    Process a subset m of n input files (only with -b option)",
     "    -v --verbose  Output additional tracing information while compiling",
     "    --version     Output version information",
+    "!   --timings     Output additional timing information",
     "!",
     "!#options",
     "! -factivitiesPerCpp      Number of activities in each c++ file",
@@ -1689,7 +1855,7 @@ void EclCC::processBatchedFile(IFile & file, bool multiThreaded)
             dbglogTransformStats(true);
             if (info.wu &&
                 (info.wu->getDebugValueBool("generatePartialOutputOnError", false) || info.errs->errCount() == 0))
-                exportWorkUnitToXMLFile(info.wu, xmlFilename, XML_NoBinaryEncode64);
+                exportWorkUnitToXMLFile(info.wu, xmlFilename, XML_NoBinaryEncode64, true);
         }
     }
     catch (IException * e)

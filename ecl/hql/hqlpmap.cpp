@@ -972,10 +972,11 @@ static bool isTrivialTransform(IHqlExpression * expr, IHqlExpression * selector)
     return true;
 }
 
-bool isNullProject(IHqlExpression * expr, bool canLoseFieldsFromEnd)
+bool isNullProject(IHqlExpression * expr, bool canIgnorePayload, bool canLoseFieldsFromEnd)
 {
     IHqlExpression * ds = expr->queryChild(0);
-    if (!recordTypesMatchIgnorePayload(expr, ds))
+    bool matches = canIgnorePayload ? recordTypesMatchIgnorePayload(expr, ds) : recordTypesMatch(expr, ds);
+    if (!matches)
     {
         if (canLoseFieldsFromEnd)
         {
@@ -999,7 +1000,6 @@ bool isSimpleProject(IHqlExpression * expr)
     case no_projectrow:
         selector.setown(createSelector(no_left, ds, querySelSeq(expr)));
         break;
-    case no_newuserdictionary:
     case no_newusertable:
          if (isAggregateDataset(expr))
              return false;
@@ -1021,14 +1021,14 @@ bool transformReturnsSide(IHqlExpression * expr, node_operator side, unsigned in
     return isTrivialTransform(queryNewColumnProvider(expr), selector);
 }
 
-IHqlExpression * getExtractSelect(IHqlExpression * expr, IHqlExpression * field)
+IHqlExpression * getExtractSelect(IHqlExpression * transform, IHqlExpression * field)
 {
-    if (expr->getInfoFlags() & (HEFcontainsSkip))
+    if (transform->getInfoFlags() & (HEFcontainsSkip))
         return NULL;
 
-    ForEachChild(i, expr)
+    ForEachChild(i, transform)
     {
-        IHqlExpression * cur = expr->queryChild(i);
+        IHqlExpression * cur = transform->queryChild(i);
         switch (cur->getOperator())
         {
         case no_assignall:
@@ -1054,6 +1054,85 @@ IHqlExpression * getExtractSelect(IHqlExpression * expr, IHqlExpression * field)
     return NULL;
 }
 
+
+IHqlExpression * getExtractSelect(IHqlExpression * transform, IHqlExpression * selector, IHqlExpression * select)
+{
+    if (select->getOperator() != no_select)
+        return NULL;
+    IHqlExpression * ds = select->queryChild(0);
+    IHqlExpression * field = select->queryChild(1);
+    if (ds == selector)
+        return getExtractSelect(transform, field);
+    OwnedHqlExpr extracted = getExtractSelect(transform, selector, ds);
+    if (!extracted)
+        return NULL;
+    if (extracted->getOperator() == no_createrow)
+        return getExtractSelect(extracted->queryChild(0), field);
+    return createSelectExpr(extracted.getClear(), LINK(field));
+}
+
+static HqlTransformerInfo selectorFieldAnalyserInfo("SelectorFieldAnalyser");
+class HQL_API SelectorFieldAnalyser : public NewHqlTransformer
+{
+public:
+    SelectorFieldAnalyser(HqlExprCopyArray & _selects, IHqlExpression * _selector) 
+    : NewHqlTransformer(selectorFieldAnalyserInfo), selects(_selects), selector(_selector)
+    {
+    }
+
+protected:
+    virtual void analyseExpr(IHqlExpression * expr);
+    virtual void analyseSelector(IHqlExpression * expr);
+
+    void checkMatch(IHqlExpression * select);
+
+protected:
+    LinkedHqlExpr selector;
+    HqlExprCopyArray & selects;
+};
+
+
+void SelectorFieldAnalyser::analyseExpr(IHqlExpression * expr)
+{
+    if (!expr->usesSelector(selector))
+        return;
+
+    if (expr->getOperator() == no_select)
+    {
+        if (!isNewSelector(expr))
+        {
+            checkMatch(expr);
+            return;
+        }
+    }
+    NewHqlTransformer::analyseExpr(expr);
+}
+
+
+void SelectorFieldAnalyser::analyseSelector(IHqlExpression * expr)
+{
+    if (expr->getOperator() == no_select)
+        checkMatch(expr);
+}
+
+
+void SelectorFieldAnalyser::checkMatch(IHqlExpression * select)
+{
+    assertex(select->getOperator() == no_select);
+    if (queryDatasetCursor(select) == selector)
+    {
+        if (!selects.contains(*select))
+            selects.append(*select);
+    }
+}
+
+extern HQL_API void gatherSelects(HqlExprCopyArray & selects, IHqlExpression * expr, IHqlExpression * selector)
+{
+    SelectorFieldAnalyser analyser(selects, selector);
+    analyser.analyse(expr, 0);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 
 static IHqlExpression * getTrivialSelect(IHqlExpression * expr, IHqlExpression * selector, IHqlExpression * field)
 {
@@ -1137,15 +1216,19 @@ void RecordTransformCreator::createAssignments(HqlExprArray & assigns, IHqlExpre
 
             ITypeInfo * sourceType = source->queryType();
             ITypeInfo * targetType = target->queryType();
+            type_t tc = targetType->getTypeCode();
+
+            if (source->isDictionary())
+                source.setown(createDataset(no_datasetfromdictionary, source.getClear()));
+
             if (!recordTypesMatch(sourceType, targetType))
             {
-                type_t tc = sourceType->getTypeCode();
                 if (tc == type_record || tc == type_row)
                 {
                     OwnedHqlExpr tform = createMappingTransform(no_transform, target->queryRecord(), source);
                     source.setown(createRow(no_createrow, tform.getClear()));
                 }
-                else if ((tc == type_table) || (tc == type_groupedtable))
+                else if ((tc == type_table) || (tc == type_groupedtable) || (tc == type_dictionary))
                 {
                     //self.target := project(srcSelect, transform(...));
                     OwnedHqlExpr seq = createSelectorSequence();
@@ -1154,6 +1237,9 @@ void RecordTransformCreator::createAssignments(HqlExprArray & assigns, IHqlExpre
                     source.setown(createDataset(no_hqlproject, LINK(source), createComma(LINK(transform), LINK(seq))));
                 }
             }
+
+            if (tc == type_dictionary)
+                source.setown(createDictionary(no_createdictionary, source.getClear()));
 
             assigns.append(*createAssign(LINK(target), LINK(source)));
             break;
@@ -1193,14 +1279,14 @@ IHqlExpression * createRecordMappingTransform(node_operator op, IHqlExpression *
 }
 
 
-IHqlExpression * replaceMemorySelectorWithSerializedSelector(IHqlExpression * expr, IHqlExpression * memoryRecord, node_operator side, IHqlExpression * selSeq)
+IHqlExpression * replaceMemorySelectorWithSerializedSelector(IHqlExpression * expr, IHqlExpression * memoryRecord, node_operator side, IHqlExpression * selSeq, _ATOM serializeVariety)
 {
     if (!expr) 
         return NULL;
 
     assertex(side);
     assertex(memoryRecord->isRecord());
-    OwnedHqlExpr serializedRecord = getSerializedForm(memoryRecord);
+    OwnedHqlExpr serializedRecord = getSerializedForm(memoryRecord, serializeVariety);
     if (memoryRecord == serializedRecord)
         return LINK(expr);
 

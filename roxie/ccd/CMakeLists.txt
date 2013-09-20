@@ -28,22 +28,28 @@ project( ccd )
 
 set (   SRCS 
         ccdactivities.cpp 
-        ccddali.cpp 
+        ccddali.cpp
+        ccdcontext.cpp
+        ccddebug.cpp
         ccdserver.cpp 
         ccdfile.cpp 
         ccdkey.cpp 
-        ccdmain.cpp 
-        ccdquery.cpp 
-        ccdqueue.cpp 
+        ccdlistener.cpp
+        ccdmain.cpp
+        ccdquery.cpp
+        ccdqueue.cpp
         ccdsnmp.cpp 
         ccdstate.cpp 
          
         ccd.hpp
         ccdactivities.hpp
+        ccdcontext.hpp
+        ccddebug.hpp
         ccddali.hpp
         ccdserver.hpp
         ccdfile.hpp
         ccdkey.hpp
+        ccdlistener.hpp
         ccdquery.hpp
         ccdqueue.ipp
         ccdsnmp.hpp
@@ -66,21 +72,26 @@ include_directories (
          ./../../common/deftype 
          ./../../system/include 
          ./../../dali/base 
+         ./../../dali/dfu 
          ./../../roxie/roxiemem 
          ./../../common/dllserver 
          ./../../system/jlib 
          ./../../common/thorhelper 
          ./../../rtl/eclrtl 
-         ./../../common/roxiehelper 
          ./../../rtl/include
+         ./../../testing/unittests
          ${CMAKE_BINARY_DIR}
          ${CMAKE_BINARY_DIR}/oss
     )
 
 ADD_DEFINITIONS( -D_USRDLL -DCCD_EXPORTS -DSTARTQUERY_EXPORTS )
 
+    if (CMAKE_COMPILER_IS_CLANGXX)
+      SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-switch-enum -Wno-format-security")
+    endif()
+
 HPCC_ADD_LIBRARY( ccd SHARED ${SRCS} )
-install ( TARGETS ccd RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION ${ARCHIVE_DIR} )
+install ( TARGETS ccd RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION componentfiles/cl/lib )
 
 target_link_libraries ( ccd 
          jlib
@@ -96,7 +107,6 @@ target_link_libraries ( ccd
          jhtree 
          environment 
          dllserver 
-         roxiehelper 
          workunit 
     )
 

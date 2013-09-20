@@ -24,7 +24,7 @@
 #include "jlib.hpp"
 #include "jptree.hpp"
 #include "eclrtl.hpp"
-#include "bcd.hpp"
+#include "rtlbcd.hpp"
 
 //#define _FAST_AND_LOOSE_
 
@@ -559,6 +559,24 @@ __int64 rtlReadSwapInt(const void * self, unsigned length)
     }
     rtlFailUnexpected();
     return 0;
+}
+
+void rtlWriteInt(void * self, __int64 val, unsigned length)
+{
+    switch (length)
+    {
+    case 1: rtlWriteInt1(self, val); break;
+    case 2: rtlWriteInt2(self, val); break;
+    case 3: rtlWriteInt3(self, val); break;
+    case 4: rtlWriteInt4(self, val); break;
+    case 5: rtlWriteInt5(self, val); break;
+    case 6: rtlWriteInt6(self, val); break;
+    case 7: rtlWriteInt7(self, val); break;
+    case 8: rtlWriteInt8(self, val); break;
+    default:
+        rtlFailUnexpected();
+        break;
+    }
 }
 
 #endif

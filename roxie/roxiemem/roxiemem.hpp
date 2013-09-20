@@ -52,6 +52,9 @@
 #define ACTIVITY_FLAG_NEEDSDESTRUCTOR   0x00800000
 #define ACTIVITY_FLAG_ISREGISTERED      0x00400000
 #define MAX_ACTIVITY_ID                 0x003fffff
+// MAX_ACTIVITY_ID is further subdivided:
+#define ALLOCATORID_CHECK_MASK          0x00300000
+#define ALLOCATORID_MASK                0x000fffff
 
 #define ALLOC_ALIGNMENT                 sizeof(void *)          // Minimum alignment of data allocated from the heap manager
 #define PACKED_ALIGNMENT                4                       // Minimum alignment of packed blocks
@@ -63,7 +66,7 @@
 
 namespace roxiemem {
 
-interface IRowAllocatorCache
+interface IRowAllocatorCache : extends IInterface
 {
     virtual unsigned getActivityId(unsigned cacheId) const = 0;
     virtual StringBuffer &getActivityDescriptor(unsigned cacheId, StringBuffer &out) const = 0;
@@ -124,82 +127,25 @@ public:
         return atomic_read(&count) < DEAD_PSEUDO_COUNT;        //only safe if Link() is called first
     }
 
-    static void release(const void *ptr)
+    static void release(const void *ptr);
+    static void releaseRowset(unsigned count, byte * * rowset);
+    static bool isShared(const void *ptr);
+    static void link(const void *ptr);
+    static memsize_t capacity(const void *ptr);
+
+    static void setDestructorFlag(const void *ptr);
+    static bool hasDestructor(const void *ptr);
+
+    static inline void releaseClear(const void *&ptr)
     {
-        if (ptr)
-        {
-            HeapletBase *h = findBase(ptr);
-            h->noteReleased(ptr);
-        }
+        release(ptr);
+        ptr = NULL;
     }
 
-    static bool isShared(const void *ptr)
+    static inline void releaseClear(void *&ptr)
     {
-        if (ptr)
-        {
-            HeapletBase *h = findBase(ptr);
-            return h->_isShared(ptr);
-        }
-        // isShared(NULL) or isShared on an object that shares a link-count is an error
-        throwUnexpected();
-    }
-
-    static memsize_t capacity(const void *ptr)
-    {
-        if (ptr)
-        {
-            HeapletBase *h = findBase(ptr);
-            //MORE: If capacity was always the size stored in the first word of the block this could be non virtual
-            //and the whole function could be inline.
-            return h->_capacity();
-        }
-        throwUnexpected();
-    }
-
-    static void setDestructorFlag(const void *ptr)
-    {
-        dbgassertex(ptr);
-        HeapletBase *h = findBase(ptr);
-        h->_setDestructorFlag(ptr);
-    }
-
-    static bool hasDestructor(const void *ptr)
-    {
-        dbgassertex(ptr);
-        HeapletBase *h = findBase(ptr);
-        return h->_hasDestructor(ptr);
-    }
-
-    static unsigned getAllocatorId(const void *ptr)
-    {
-        dbgassertex(ptr);
-        HeapletBase *h = findBase(ptr);
-        unsigned id = h->_rawAllocatorId(ptr);
-        return (id & ACTIVITY_MASK);
-    }
-
-    static void releaseClear(const void *&ptr)
-    {
-        if (ptr)
-        {
-            release(ptr);
-            ptr = NULL;
-        }
-    }
-
-    static void releaseClear(void *&ptr)
-    {
-        if (ptr)
-        {
-            release(ptr);
-            ptr = NULL;
-        }
-    }
-
-    static void link(const void *ptr)
-    {
-        HeapletBase *h = findBase(ptr);
-        h->noteLinked(ptr);
+        release(ptr);
+        ptr = NULL;
     }
 
     inline unsigned queryCount() const
@@ -310,10 +256,14 @@ public:
 #define ReleaseClearRoxieRow(row) roxiemem::HeapletBase::releaseClear(row)
 #define LinkRoxieRow(row) roxiemem::HeapletBase::link(row)
 
+#define ReleaseRoxieRowset(cnt, rowset) roxiemem::HeapletBase::releaseRowset(cnt, rowset)
+#define LinkRoxieRowset(rowset) roxiemem::HeapletBase::link(rowset)
+
 //Functions to determine information about roxie rows
 #define RoxieRowCapacity(row)  roxiemem::HeapletBase::capacity(row)
 #define RoxieRowHasDestructor(row)  roxiemem::HeapletBase::hasDestructor(row)
 #define RoxieRowAllocatorId(row) roxiemem::HeapletBase::getAllocatorId(row)
+#define RoxieRowIsShared(row)  roxiemem::HeapletBase::isShared(row)
 
 class OwnedRoxieRow;
 class OwnedConstRoxieRow
@@ -387,6 +337,30 @@ private:
     void * ptr;
 };
 
+class OwnedRoxieString
+{
+public:
+    inline OwnedRoxieString()                               { ptr = NULL; }
+    inline OwnedRoxieString(const char * _ptr)             { ptr = _ptr; }
+    inline OwnedRoxieString(const OwnedRoxieString & other) { ptr = other.getLink(); }
+
+    inline ~OwnedRoxieString() { ReleaseRoxieRow(ptr); }
+
+    inline operator const char *() const { return ptr; }
+    inline const char * get() const { return ptr; }
+    inline const char * getLink() const { LinkRoxieRow(ptr); return ptr; }
+    inline const char * set(const char * _ptr) { const char * temp = ptr; if (_ptr) LinkRoxieRow(_ptr); ptr = _ptr; ReleaseRoxieRow(temp); return ptr; }
+    inline const char * setown(const char * _ptr) { const char * temp = ptr; ptr = _ptr; ReleaseRoxieRow(temp); return ptr; }
+
+private:
+    /* Disable use of some constructs that often cause memory leaks by creating private members */
+    void operator = (const void * _ptr)              {  }
+    void operator = (const OwnedRoxieString & other) { }
+    void setown(const OwnedRoxieString &other) {  }
+
+private:
+    const char * ptr;
+};
 
 interface IFixedRowHeap : extends IInterface
 {
@@ -397,7 +371,7 @@ interface IFixedRowHeap : extends IInterface
 interface IVariableRowHeap : extends IInterface
 {
     virtual void *allocate(memsize_t size, memsize_t & capacity) = 0;
-    virtual void *resizeRow(void * original, memsize_t oldsize, memsize_t newsize, memsize_t &capacity) = 0;
+    virtual void *resizeRow(void * original, memsize_t copysize, memsize_t newsize, memsize_t &capacity) = 0;
     virtual void *finalizeRow(void *final, memsize_t originalSize, memsize_t finalSize) = 0;
 };
 
@@ -410,11 +384,32 @@ enum RoxieHeapFlags
     RHFoldfixed         = 0x0008,  // Don't create a special fixed size heap for this
 };
 
+//This interface is here to allow atomic updates to allocations when they are being resized.  There are a few complications:
+//- If a new block is allocated, we just need to update the capacity/pointer atomically
+//  but they need to be updated at the same time, otherwise a spill occuring after the pointer update, but before
+//  the resizeRow returns could lead to an out of date capacity.
+//- If a block is resized by expanding earlier then the pointer needs to be locked while the data is being copied.
+//- If any intermediate function adds extra bytes to the amount to be allocated it will need a local implementation
+//  to apply a delta to the values being passed through.
+//
+//NOTE: update will not be called if the allocation was already large enough => the size must be set to the capacity.
+
+interface IRowResizeCallback
+{
+    virtual void lock() = 0; // prevent access to the row pointer
+    virtual void unlock() = 0; // allow access to the row pointer
+    virtual void update(memsize_t capacity, void * ptr) = 0; // update the capacity, row pointer while a lock is held.
+    virtual void atomicUpdate(memsize_t capacity, void * ptr) = 0; // update the row pointer while no lock is held
+};
+
 // Variable size aggregated link-counted Roxie (etc) row manager
 interface IRowManager : extends IInterface
 {
     virtual void *allocate(memsize_t size, unsigned activityId) = 0;
-    virtual void *resizeRow(void * original, memsize_t oldsize, memsize_t newsize, unsigned activityId, memsize_t &capacity) = 0;
+    virtual const char *cloneVString(const char *str) = 0;
+    virtual const char *cloneVString(size32_t len, const char *str) = 0;
+    virtual void resizeRow(void * original, memsize_t copysize, memsize_t newsize, unsigned activityId, IRowResizeCallback & callback) = 0;
+    virtual void resizeRow(memsize_t & capacity, void * & original, memsize_t copysize, memsize_t newsize, unsigned activityId) = 0;
     virtual void *finalizeRow(void *final, memsize_t originalSize, memsize_t finalSize, unsigned activityId) = 0;
     virtual void setMemoryLimit(memsize_t size, memsize_t spillSize = 0) = 0;
     virtual unsigned allocated() = 0;
@@ -459,20 +454,21 @@ interface IDataBufferManager : extends IInterface
 
 extern roxiemem_decl IDataBufferManager *createDataBufferManager(size32_t size);
 extern roxiemem_decl void setMemoryStatsInterval(unsigned secs);
-extern roxiemem_decl void setTotalMemoryLimit(memsize_t max, memsize_t largeBlockSize, ILargeMemCallback * largeBlockCallback);
+extern roxiemem_decl void setTotalMemoryLimit(bool allowHugePages, memsize_t max, memsize_t largeBlockSize, ILargeMemCallback * largeBlockCallback);
 extern roxiemem_decl memsize_t getTotalMemoryLimit();
 extern roxiemem_decl void releaseRoxieHeap();
 extern roxiemem_decl bool memPoolExhausted();
+extern roxiemem_decl unsigned getHeapAllocated();
+extern roxiemem_decl unsigned getHeapPercentAllocated();
+extern roxiemem_decl unsigned getDataBufferPages();
+extern roxiemem_decl unsigned getDataBuffersActive();
+
 extern roxiemem_decl unsigned memTraceLevel;
 extern roxiemem_decl memsize_t memTraceSizeLimit;
 
-extern roxiemem_decl atomic_t dataBufferPages;
-extern roxiemem_decl atomic_t dataBuffersActive;
 
 #define ALLOCATE(a) allocate(a, activityId)
 #define CLONE(a,b) clone(a, b, activityId)
-#define RESIZEROW(a,b,c) resizeRow(a, b, c, activityId)
-#define SHRINKROW(a,b,c) resizeRow(a, b, c, activityId)
 
 extern roxiemem_decl StringBuffer &memstats(StringBuffer &stats);
 extern roxiemem_decl void memstats(unsigned &totalpg, unsigned &freepg, unsigned &maxblk);

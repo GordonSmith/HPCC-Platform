@@ -171,8 +171,8 @@ if endCluster is not called it will assume only one cluster and not replicated
     virtual void setDefaultDir(const char *dir) = 0;                            // set default directory
     virtual void setPartMask(const char *mask) = 0;
     virtual void setNumParts(unsigned numparts) = 0;
-    virtual unsigned addCluster(IGroup *grp,ClusterPartDiskMapSpec &map) = 0;
-    virtual unsigned addCluster(const char *grpname,IGroup *grp,ClusterPartDiskMapSpec &map) = 0; // alternative if name known
+    virtual unsigned addCluster(IGroup *grp,const ClusterPartDiskMapSpec &map) = 0;
+    virtual unsigned addCluster(const char *grpname,IGroup *grp,const ClusterPartDiskMapSpec &map) = 0; // alternative if name known
 
     virtual void setPart(unsigned idx, const RemoteFilename &name, IPropertyTree *pt=NULL) = 0; // using RemoteFilename
     virtual void setPart(unsigned idx, INode *node, const char *filename, IPropertyTree *pt=NULL) = 0;
@@ -217,7 +217,7 @@ if endCluster is not called it will assume only one cluster and not replicated
     virtual void setClusterGroup(unsigned clusternum,IGroup *grp) = 0;              // sets group for cluster
     virtual StringBuffer &getClusterGroupName(unsigned clusternum,StringBuffer &ret,IGroupResolver *resolver=NULL) = 0;                 // returns group name of cluster (if set)
     virtual void setClusterGroupName(unsigned clusternum,const char *name) = 0;     // sets group name of cluster (if set)
-    virtual void setClusterOrder(StringArray &names,bool exclusive) = 0;            // if exclusive set then othe clusters deleted
+    virtual void setClusterOrder(StringArray &names,bool exclusive) = 0;            // if exclusive set then other clusters deleted
     virtual void serializeTree(IPropertyTree &pt,unsigned flags=0) = 0;             // deserialize with deserializeFileDescriptorTree
     virtual IPropertyTree *getFileTree(unsigned flags=0) = 0;                       // flags IFDSF_*
 

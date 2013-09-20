@@ -29,6 +29,7 @@
 #include "thorcommon.hpp"
 #include "ccddali.hpp"
 #include "thorcommon.ipp"
+#include "package.h"
 
 interface IFilePartMap : public IInterface
 {
@@ -43,47 +44,33 @@ interface IFilePartMap : public IInterface
 extern IFilePartMap *createFilePartMap(const char *fileName, IFileDescriptor &fdesc);
 
 interface IRoxiePackage;
-interface IPackageMap : public IInterface
+interface IRoxiePackageMap : public IHpccPackageMap
 {
-    // Lookup package using exact id
-    virtual const IRoxiePackage *queryPackage(const char *name) const = 0;
-    // Lookup package using fuzzy id
-    virtual const IRoxiePackage *matchPackage(const char *name) const = 0;
-    virtual const char *queryPackageId() const = 0;
-    virtual bool isActive() const = 0;
+    virtual const IRoxiePackage *queryRoxiePackage(const char *name) const = 0;
+    virtual const IRoxiePackage *matchRoxiePackage(const char *name) const = 0;
 };
-extern const IRoxiePackage &queryRootPackage();
-extern const IPackageMap &queryEmptyPackageMap();
+extern const IRoxiePackage &queryRootRoxiePackage();
+extern const IRoxiePackageMap &queryEmptyRoxiePackageMap();
 
-interface IRoxiePackage : extends IInterface 
+interface IRoxiePackage : public IHpccPackage
 {
-    // Complete the setup of a package by resolving base package references
-    virtual void resolveBases(IPackageMap *packages) = 0;
-    // Lookup package environment variable
-    virtual const char *queryEnv(const char *varname) const = 0;
-    // Lookup package environment variable controlling field translation
-    virtual bool getEnableFieldTranslation() const = 0;
-    // Return entire XML tree for package
-    virtual const IPropertyTree *queryTree() const = 0;
     // Lookup information in package to resolve existing logical file name
-    virtual const IResolvedFile *lookupFileName(const char *fileName, bool opt, bool cacheDaliResults) const = 0;
+    virtual const IResolvedFile *lookupFileName(const char *fileName, bool opt, bool cacheDaliResults, IConstWorkUnit *wu) const = 0;
     // Lookup information in package to create new logical file name
-    virtual IRoxieWriteHandler *createFileName(const char *fileName, bool overwrite, bool extend, const StringArray &clusters) const = 0;
+    virtual IRoxieWriteHandler *createFileName(const char *fileName, bool overwrite, bool extend, const StringArray &clusters, IConstWorkUnit *wu) const = 0;
     // Lookup information in package about what in-memory indexes should be built for file
     virtual IPropertyTreeIterator *getInMemoryIndexInfo(const IPropertyTree &graphNode) const = 0;
-    // Retrieve hash for the package
-    virtual hash64_t queryHash() const = 0;
     // Lookup information in package about what in-memory indexes should be built for file
     virtual IPropertyTree *getQuerySets() const = 0;
     // Remove a resolved file from the cache 
     virtual void removeCache(const IResolvedFile *goer) const = 0; // note that this is const as cache is considered mutable
 };
 
-extern IRoxiePackage *createPackage(IPropertyTree *p);
+extern IRoxiePackage *createRoxiePackage(IPropertyTree *p, IRoxiePackageMap *packages);
 
 interface ISlaveDynamicFileCache : extends IInterface
 {
-    virtual IResolvedFile *lookupDynamicFile(const IRoxieContextLogger &logctx, const char *lfn, CDateTime &cacheDate, RoxiePacketHeader *header, bool isOpt, bool isLocal) = 0; 
+    virtual IResolvedFile *lookupDynamicFile(const IRoxieContextLogger &logctx, const char *lfn, CDateTime &cacheDate, unsigned checksum, RoxiePacketHeader *header, bool isOpt, bool isLocal) = 0;
 };
 extern ISlaveDynamicFileCache *querySlaveDynamicFileCache();
 extern void releaseSlaveDynamicFileCache();
@@ -99,17 +86,11 @@ interface IFileIOArray : extends IInterface
     virtual StringBuffer &getId(StringBuffer &) const = 0;
 };
 
-interface IRoxieLibraryLookupContext : extends IInterface
-{
-    virtual IQueryFactory *lookupLibrary(const char * libraryName, unsigned expectedInterfaceHash, const IRoxieContextLogger &logctx) const = 0;
-    virtual const char *queryId() const = 0;
-};
-
-interface IRoxieQuerySetManager : extends IRoxieLibraryLookupContext
+interface IRoxieQuerySetManager : extends IInterface
 {
     virtual bool isActive() const = 0;
     virtual IQueryFactory *getQuery(const char *id, const IRoxieContextLogger &ctx) const = 0;
-    virtual void load(const IPropertyTree *querySet, const IPackageMap &packages, hash64_t &hash, IRoxieLibraryLookupContext *libraryContext) = 0;
+    virtual void load(const IPropertyTree *querySet, const IRoxiePackageMap &packages, hash64_t &hash) = 0;
     virtual void getStats(const char *queryName, const char *graphName, StringBuffer &reply, const IRoxieContextLogger &logctx) const = 0;
     virtual void resetQueryTimings(const char *queryName, const IRoxieContextLogger &logctx) = 0;
     virtual void resetAllQueryTimings() = 0;
@@ -126,7 +107,7 @@ interface IRoxieDebugSessionManager : extends IInterface
 
 interface IRoxieQuerySetManagerSet : extends IInterface
 {
-    virtual void load(const IPropertyTree *querySets, const IPackageMap &packages, hash64_t &hash, IRoxieLibraryLookupContext *libraryContext) = 0;
+    virtual void load(const IPropertyTree *querySets, const IRoxiePackageMap &packages, hash64_t &hash) = 0;
 };
 
 interface IRoxieQueryPackageManagerSet : extends IInterface
@@ -134,7 +115,7 @@ interface IRoxieQueryPackageManagerSet : extends IInterface
     virtual void load() = 0;
     virtual void doControlMessage(IPropertyTree *xml, StringBuffer &reply, const IRoxieContextLogger &ctx) = 0;
     virtual IQueryFactory *getQuery(const char *id, const IRoxieContextLogger &logctx) const = 0;
-    virtual IRoxieLibraryLookupContext *getLibraryLookupContext(const char *querySet) const = 0;
+    virtual IQueryFactory *lookupLibrary(const IRoxiePackage &package, const char *libraryName, unsigned expectedInterfaceHash, const IRoxieContextLogger &logctx) const = 0;
 };
 
 extern IRoxieDebugSessionManager &queryRoxieDebugSessionManager();

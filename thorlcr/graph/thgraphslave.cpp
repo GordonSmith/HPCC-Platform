@@ -27,6 +27,7 @@
 #include "slwatchdog.hpp"
 #include "thgraphslave.hpp"
 #include "thcompressutil.hpp"
+#include "enginecontext.hpp"
 
 //////////////////////////////////
 
@@ -113,17 +114,19 @@ CSlaveActivity::~CSlaveActivity()
 void CSlaveActivity::setInput(unsigned index, CActivityBase *inputActivity, unsigned inputOutIdx)
 {
     CActivityBase::setInput(index, inputActivity, inputOutIdx);
-    Owned<CActivityBase> nullAct;
+    Linked<IThorDataLink> outLink;
     if (!inputActivity)
     {
-        nullAct.setown(container.factory(TAKnull));
-        inputActivity = nullAct; // NB: output of nullAct linked, input of this act will own
-    }
+        Owned<CActivityBase> nullAct = container.factory(TAKnull);
 
-    IThorDataLink *outLink = ((CSlaveActivity *)inputActivity)->queryOutput(inputOutIdx);
+        outLink.set(((CSlaveActivity *)(nullAct.get()))->queryOutput(0)); // NB inputOutIdx irrelevant, null has single 'fake' output
+        nullAct->releaseIOs(); // normally done as graph winds up, clear now to avoid circular dependencies with outputs
+    }
+    else
+        outLink.set(((CSlaveActivity *)inputActivity)->queryOutput(inputOutIdx));
     assertex(outLink);
     while (inputs.ordinality()<=index) inputs.append(NULL);
-    inputs.replace(LINK(outLink), index);
+    inputs.replace(outLink.getClear(), index);
 }
 
 IThorDataLink *CSlaveActivity::queryOutput(unsigned index)
@@ -263,9 +266,10 @@ unsigned __int64 CSlaveActivity::queryLocalCycles() const
                 break;
         }
     }
-    if (totalCycles < inputCycles) // not sure how/if possible, but guard against
+    unsigned __int64 _totalCycles = queryTotalCycles();
+    if (_totalCycles < inputCycles) // not sure how/if possible, but guard against
         return 0;
-    return totalCycles-inputCycles;
+    return _totalCycles-inputCycles;
 }
 
 unsigned __int64 CSlaveActivity::queryTotalCycles() const
@@ -317,6 +321,8 @@ void CSlaveGraph::initWithActData(MemoryBuffer &in, MemoryBuffer &out)
 {
     CriticalBlock b(progressCrit);
     initialized = true;
+    if (0 == in.length())
+        return;
     activity_id id;
     loop
     {
@@ -360,7 +366,8 @@ void CSlaveGraph::recvStartCtx()
     {
         sentStartCtx = true;
         CMessageBuffer msg;
-        if (!job.queryJobComm().recv(msg, 0, mpTag, NULL, LONGTIMEOUT))
+
+        if (!graphCancelHandler.recv(queryJob().queryJobComm(), msg, 0, mpTag, NULL, LONGTIMEOUT))
             throw MakeStringException(0, "Error receiving startCtx data for graph: %"GIDPF"d", graphId);
         deserializeStartContexts(msg);
     }
@@ -390,7 +397,8 @@ bool CSlaveGraph::recvActivityInitData(size32_t parentExtractSz, const byte *par
 
         if (syncInitData())
         {
-            if (!job.queryJobComm().recv(msg, 0, mpTag, NULL, LONGTIMEOUT))
+
+            if (!graphCancelHandler.recv(queryJob().queryJobComm(), msg, 0, mpTag, NULL, LONGTIMEOUT))
                 throw MakeStringException(0, "Error receiving actinit data for graph: %"GIDPF"d", graphId);
             replyTag = msg.getReplyTag();
             msg.read(len);
@@ -421,12 +429,11 @@ bool CSlaveGraph::recvActivityInitData(size32_t parentExtractSz, const byte *par
         }
         try
         {
+            MemoryBuffer actInitData;
             if (len)
-            {
-                MemoryBuffer actInitData;
                 actInitData.append(len, msg.readDirect(len));
-                initWithActData(actInitData, actInitRtnData);
-            }
+            initWithActData(actInitData, actInitRtnData);
+
             if (queryOwner() && !isGlobal())
             {
                 // initialize any for which no data was sent
@@ -524,7 +531,7 @@ void CSlaveGraph::executeSubGraph(size32_t parentExtractSz, const byte *parentEx
     }
     catch (IException *e)
     {
-        GraphPrintLog(e, NULL);
+        GraphPrintLog(e, "In executeSubGraph");
         exception.setown(e);
     }
     if (TAG_NULL != executeReplyTag)
@@ -552,7 +559,7 @@ void CSlaveGraph::create(size32_t parentExtractSz, const byte *parentExtract)
         {
             CMessageBuffer msg;
             // nothing changed if rerunning, unless conditional branches different
-            if (!job.queryJobComm().recv(msg, 0, mpTag, NULL, LONGTIMEOUT))
+            if (!graphCancelHandler.recv(queryJob().queryJobComm(), msg, 0, mpTag, NULL, LONGTIMEOUT))
                 throw MakeStringException(0, "Error receiving createctx data for graph: %"GIDPF"d", graphId);
             try
             {
@@ -640,7 +647,7 @@ void CSlaveGraph::done()
     }
     catch (IException *e)
     {
-        GraphPrintLog(e, NULL);
+        GraphPrintLog(e, "In CSlaveGraph::done");
         exception.setown(e);
     }
     if (exception.get())
@@ -799,6 +806,10 @@ public:
     CThorSlaveGraphResults(CSlaveGraph &_graph,unsigned numResults) : CThorGraphResults(numResults), graph(_graph)
     {
     }
+    ~CThorSlaveGraphResults()
+    {
+        clear();
+    }
     virtual void clear()
     {
         CriticalBlock procedure(cs);
@@ -890,7 +901,7 @@ IThorResult *CSlaveGraph::getGlobalResult(CActivityBase &activity, IRowInterface
 
 ///////////////////////////
 
-class CThorCodeContextSlave : public CThorCodeContextBase
+class CThorCodeContextSlave : public CThorCodeContextBase, implements IEngineContext
 {
     mptag_t mptag;
     Owned<IDistributedFileTransaction> superfiletransaction;
@@ -927,9 +938,6 @@ public:
 
     virtual void getExternalResultRaw(unsigned & tlen, void * & tgt, const char * wuid, const char * stepname, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) { throwUnexpected(); }
 
-    virtual __int64 countDiskFile(const char * lfn, unsigned recordSize) { throwUnexpected(); } 
-    virtual __int64 countIndex(__int64 activityId, IHThorCountIndexArg & arg) { throwUnexpected(); }
-    virtual __int64 countDiskFile(__int64 id, IHThorCountFileArg & arg) { throwUnexpected(); }
     virtual void addWuException(const char * text, unsigned code, unsigned severity)
     {
         DBGLOG("%s", text);
@@ -971,7 +979,8 @@ public:
         return superfiletransaction.get();
     }
     virtual void getResultStringF(unsigned tlen, char * tgt, const char * name, unsigned sequence) { throwUnexpected(); }
-    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * name, unsigned sequence, IEngineRowAllocator * _rowAllocator, IOutputRowDeserializer * deserializer, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) { throwUnexpected(); }
+    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * name, unsigned sequence, IEngineRowAllocator * _rowAllocator, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) { throwUnexpected(); }
+    virtual void getResultDictionary(size32_t & tcount, byte * * & tgt, IEngineRowAllocator * _rowAllocator, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer, IHThorHashLookupInfo * hasher) { throwUnexpected(); }
     virtual void addWuAssertFailure(unsigned code, const char * text, const char * filename, unsigned lineno, unsigned column, bool isAbort)
     {
         DBGLOG("%s", text);
@@ -984,6 +993,19 @@ public:
         job.fireException(e);
     }
     virtual unsigned __int64 getDatasetHash(const char * name, unsigned __int64 hash)   { throwUnexpected(); }      // Should only call from master
+    virtual IEngineContext *queryEngineContext() { return this; }
+// IEngineContext impl.
+    virtual DALI_UID getGlobalUniqueIds(unsigned num, SocketEndpoint *_foreignNode)
+    {
+        if (num==0)
+            return 0;
+        SocketEndpoint foreignNode;
+        if (_foreignNode && !_foreignNode->isNull())
+            foreignNode.set(*_foreignNode);
+        else
+            foreignNode.set(globals->queryProp("@DALISERVERS"));
+        return ::getGlobalUniqueIds(num, &foreignNode);
+    }
 };
 
 class CSlaveGraphTempHandler : public CGraphTempHandler
@@ -1081,13 +1103,11 @@ void CJobSlave::startJob()
         startPerformanceMonitor(pinterval,PerfMonStandard,perfmonhook);
     }
     PrintMemoryStatusLog();
-    unsigned __int64 freeSpace = getFreeSpace(queryBaseDirectory());
-    unsigned __int64 freeSpaceRep = getFreeSpace(queryBaseDirectory(true));
-    PROGLOG("Disk space: %s = %"I64F"d, %s = %"I64F"d", queryBaseDirectory(), freeSpace/0x100000, queryBaseDirectory(true), freeSpaceRep/0x100000);
-
+    logDiskSpace();
     unsigned minFreeSpace = (unsigned)getWorkUnitValueInt("MINIMUM_DISK_SPACE", 0);
     if (minFreeSpace)
     {
+        unsigned __int64 freeSpace = getFreeSpace(queryBaseDirectory());
         if (freeSpace < ((unsigned __int64)minFreeSpace)*0x100000)
         {
             SocketEndpoint ep;
@@ -1182,7 +1202,7 @@ bool ensurePrimary(CActivityBase *activity, IPartDescriptor &partDesc, OwnedIFil
     }
     catch (IException *e)
     {
-        ActPrintLog(&activity->queryContainer(), e, NULL);
+        ActPrintLog(&activity->queryContainer(), e, "In ensurePrimary");
         e->Release();
     }
     unsigned l;

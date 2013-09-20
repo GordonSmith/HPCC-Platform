@@ -61,9 +61,147 @@ void setLocalMountRedirect(const IpAddress &ip,const char *dir,const char *mount
 
 
 
-
-class CDaliServixIntercept: public CInterface, implements IRemoteFileCreateHook
+class CDaliServixFilter : public CInterface
 {
+protected:
+    StringAttr dir, sourceRangeText;
+    SocketEndpointArray sourceRangeIps;
+    bool sourceRangeHasPorts, trace;
+
+    bool checkForPorts(SocketEndpointArray &ips)
+    {
+        ForEachItemIn(i, ips)
+        {
+           if (ips.item(i).port)
+               return true;
+        }
+        return false;
+    }
+public:
+    CDaliServixFilter(const char *_dir, const char *sourceRange, bool _trace) : dir(_dir), trace(_trace)
+    {
+        if (sourceRange)
+        {
+            sourceRangeText.set(sourceRange);
+            sourceRangeIps.fromText(sourceRange, 0);
+            sourceRangeHasPorts = checkForPorts(sourceRangeIps);
+        }
+        else
+            sourceRangeHasPorts = false;
+    }
+    bool queryTrace() const { return trace; }
+    const char *queryDirectory() const { return dir; }
+    bool testPath(const char *path) const
+    {
+        if (!dir) // if no dir in filter, match any
+            return true;
+        else
+            return startsWith(path, dir.get());
+    }
+    bool applyFilter(const SocketEndpoint &ep) const
+    {
+        if (sourceRangeText.length())
+        {
+            SocketEndpoint _ep = ep;
+            if (!sourceRangeHasPorts) // if source range doesn't have ports, only check ip
+                _ep.port = 0;
+            return NotFound != sourceRangeIps.find(_ep);
+        }
+        // NB: If no source range, use target range to decide if filter should apply
+        return testEp(ep);
+    }
+    virtual bool testEp(const SocketEndpoint &ep) const = 0;
+    virtual StringBuffer &getInfo(StringBuffer &info)
+    {
+        if (dir.length())
+            info.append(", dir=").append(dir.get());
+        if (sourceRangeText.get())
+            info.append(", sourcerange=").append(sourceRangeText.get());
+        info.append(", trace=(").append(trace ? "true" : "false").append(")");
+        return info;
+    }
+};
+
+class CDaliServixSubnetFilter : public CDaliServixFilter
+{
+    IpSubNet ipSubNet;
+public:
+    CDaliServixSubnetFilter(const char *subnet, const char *mask, const char *dir, const char *sourceRange, bool trace) :
+        CDaliServixFilter(dir, sourceRange, trace)
+    {
+        if (!ipSubNet.set(subnet, mask))
+            throw MakeStringException(0, "Invalid sub net definition: %s, %s", subnet, mask);
+    }
+    virtual bool testEp(const SocketEndpoint &ep) const
+    {
+        return ipSubNet.test(ep);
+    }
+    virtual StringBuffer &getInfo(StringBuffer &info)
+    {
+        info.append("subnet=");
+        ipSubNet.getNetText(info);
+        info.append(", mask=");
+        ipSubNet.getMaskText(info);
+        CDaliServixFilter::getInfo(info);
+        return info;
+    }
+};
+
+class CDaliServixRangeFilter : public CDaliServixFilter
+{
+    StringAttr rangeText;
+    SocketEndpointArray rangeIps;
+    bool rangeIpsHavePorts;
+public:
+    CDaliServixRangeFilter(const char *_range, const char *dir, const char *sourceRange, bool trace)
+        : CDaliServixFilter(dir, sourceRange, trace)
+    {
+        rangeText.set(_range);
+        rangeIps.fromText(_range, 0);
+        rangeIpsHavePorts = checkForPorts(rangeIps);
+    }
+    virtual bool testEp(const SocketEndpoint &ep) const
+    {
+        SocketEndpoint _ep = ep;
+        if (!rangeIpsHavePorts) // if range doesn't have ports, only check ip
+            _ep.port = 0;
+        return NotFound != rangeIps.find(_ep);
+    }
+    virtual StringBuffer &getInfo(StringBuffer &info)
+    {
+        info.append("range=").append(rangeText.get());
+        CDaliServixFilter::getInfo(info);
+        return info;
+    }
+};
+
+CDaliServixFilter *createDaliServixFilter(IPropertyTree &filterProps)
+{
+    CDaliServixFilter *filter = NULL;
+    const char *dir = filterProps.queryProp("@directory");
+    const char *sourceRange = filterProps.queryProp("@sourcerange");
+    bool trace = filterProps.getPropBool("@trace");
+    if (filterProps.hasProp("@subnet"))
+        filter = new CDaliServixSubnetFilter(filterProps.queryProp("@subnet"), filterProps.queryProp("@mask"), dir, sourceRange, trace);
+    else if (filterProps.hasProp("@range"))
+        filter = new CDaliServixRangeFilter(filterProps.queryProp("@range"), dir, sourceRange, trace);
+    else
+        throw MakeStringException(0, "Unknown DaliServix filter definition");
+    return filter;
+}
+
+class CDaliServixIntercept: public CInterface, implements IDaFileSrvHook
+{
+    CIArrayOf<CDaliServixFilter> filters;
+
+    void addFilter(CDaliServixFilter *filter)
+    {
+        filters.append(*filter);
+        StringBuffer msg("DaFileSrvHook: adding translateToLocal [");
+        filter->getInfo(msg);
+        msg.append("]");
+        PROGLOG("%s", msg.str());
+    }
 public:
     IMPLEMENT_IINTERFACE;
     virtual IFile * createIFile(const RemoteFilename & filename)
@@ -71,10 +209,33 @@ public:
         SocketEndpoint ep = filename.queryEndpoint();
         bool noport = (ep.port==0);
         setDafsEndpointPort(ep);
-        if (!filename.isLocal()||(ep.port!=DAFILESRV_PORT)) {   // assume standard port is running on local machine 
+        if (!filename.isLocal()||(ep.port!=DAFILESRV_PORT)) // assume standard port is running on local machine
+        {
 #ifdef __linux__
-#ifndef USE_SAMBA   
-            return createDaliServixFile(filename);  
+#ifndef USE_SAMBA
+            if (noport && filters.ordinality())
+            {
+                ForEachItemIn(sn, filters)
+                {
+                    CDaliServixFilter &filter = filters.item(sn);
+                    if (filter.testEp(ep))
+                    {
+                        StringBuffer lPath;
+                        filename.getLocalPath(lPath);
+                        if (filter.testPath(lPath.str()))
+                        {
+                            if (filter.queryTrace())
+                            {
+                                StringBuffer fromPath;
+                                filename.getRemotePath(fromPath);
+                                PROGLOG("Redirecting path: '%s' to '%s", fromPath.str(), lPath.str());
+                            }
+                            return ::createIFile(lPath.str());
+                        }
+                    }
+                }
+            }
+            return createDaliServixFile(filename);
 #endif
 #endif
             if (!noport)            // expect all filenames that specify port to be dafilesrc or daliservix
@@ -87,7 +248,52 @@ public:
                 return createDaliServixFile(filename);  
         }
         return NULL;
-    }   
+    }
+    virtual void addSubnetFilter(const char *subnet, const char *mask, const char *dir, const char *sourceRange, bool trace)
+    {
+        Owned<CDaliServixFilter> filter = new CDaliServixSubnetFilter(subnet, mask, dir, sourceRange, trace);
+        addFilter(filter.getClear());
+    }
+    virtual void addRangeFilter(const char *range, const char *dir, const char *sourceRange, bool trace)
+    {
+        Owned<CDaliServixFilter> filter = new CDaliServixRangeFilter(range, dir, sourceRange, trace);
+        addFilter(filter.getClear());
+    }
+    virtual IPropertyTree *addFilters(IPropertyTree *config, const SocketEndpoint *myEp)
+    {
+        if (!config)
+            return NULL;
+        Owned<IPropertyTree> result;
+        Owned<IPropertyTreeIterator> iter = config->getElements("Filter");
+        ForEach(*iter)
+        {
+            Owned<CDaliServixFilter> filter = createDaliServixFilter(iter->query());
+            // Only add filters where myIP matches filter criteria
+            if (!myEp || filter->applyFilter(*myEp))
+            {
+                addFilter(filter.getClear());
+                if (!result)
+                    result.setown(createPTree());
+                result->addPropTree("Filter", LINK(&iter->query()));
+            }
+        }
+        return result.getClear();
+    }
+    virtual IPropertyTree *addMyFilters(IPropertyTree *config, SocketEndpoint *myEp)
+    {
+        if (myEp)
+            return addFilters(config, myEp);
+        else
+        {
+            SocketEndpoint ep;
+            GetHostIp(ep);
+            return addFilters(config, &ep);
+        }
+    }
+    virtual void clearFilters()
+    {
+        filters.kill();
+    }
 } *DaliServixIntercept = NULL;
 
 bool testDaliServixPresent(const SocketEndpoint &_ep)
@@ -717,3 +923,7 @@ MODULE_EXIT()
     removeFileHooks();
 }
 
+IDaFileSrvHook *queryDaFileSrvHook()
+{
+    return DaliServixIntercept;
+}

@@ -30,10 +30,6 @@
 #define DEFTYPE_API
 #endif
 
-#ifdef _DEBUG
-    #define ENABLE_TYPET_ENUM_TYPE
-#endif
-
 #define CHEAP_UCHAR_DEF
 #ifdef _WIN32
 typedef wchar_t UChar;
@@ -62,7 +58,7 @@ enum type_vals
     type_real           = 2, 
     type_decimal        = 3, 
     type_string         = 4, 
-type_unused1            = 5, 
+    type_alias          = 5, // This is only used when serializing expression graphs
     type_date           = 6, 
 type_unused2            = 7, 
 type_unused3            = 8, 
@@ -105,6 +101,8 @@ type_unused5            = 29,
     type_sortlist       = 45,
     type_dictionary     = 46,
 
+    type_max,
+
     type_modifier       = 0xff,     // used by getKind()
     type_unsigned       = 0x100,  // combined with some of the above, when returning summary type information. Not returned by getTypeCode()
     type_ebcdic         = 0x200,   // combined with some of the above, when returning summary type information. Not returned by getTypeCode()
@@ -134,11 +132,7 @@ enum typemod_t
 #define INFINITE_LENGTH         0xFFFFFFF0
 #define UNKNOWN_LENGTH          0xFFFFFFF1
 
-#ifdef ENABLE_TYPET_ENUM_TYPE
-    typedef enum type_vals type_t;
-#else
-    typedef unsigned char type_t;
-#endif
+typedef enum type_vals type_t;
 
 //MORE: Something like this should replace caseSensitive for strings...
 interface ICollationInfo;
@@ -287,10 +281,12 @@ extern DEFTYPE_API ICharsetInfo * getCharset(_ATOM charset);
 extern DEFTYPE_API ICollationInfo * getCollation(_ATOM collation);
 extern DEFTYPE_API ITranslationInfo * getDefaultTranslation(ICharsetInfo * tgt, ICharsetInfo * src);
 extern DEFTYPE_API ITranslationInfo * queryDefaultTranslation(ICharsetInfo * tgt, ICharsetInfo * src);
+extern DEFTYPE_API bool isAscii(ITypeInfo * type);
 
 //---------------------------------------------------------------------------
 
 extern DEFTYPE_API ITypeInfo * getStretchedType(unsigned newLen, ITypeInfo * type);
+extern DEFTYPE_API ITypeInfo * getMaxLengthType(ITypeInfo * type);
 extern DEFTYPE_API ITypeInfo * getNumericType(ITypeInfo * type);
 extern DEFTYPE_API ITypeInfo * getStringType(ITypeInfo * type);
 extern DEFTYPE_API ITypeInfo * getVarStringType(ITypeInfo * type);
@@ -320,6 +316,7 @@ inline bool isFixedSize(ITypeInfo * type) { return type && (type->getSize() != U
 inline bool isUnknownSize(ITypeInfo * type) { return type && (type->getSize() == UNKNOWN_LENGTH); }
 inline bool isAnyType(ITypeInfo * type) { return type && (type->getTypeCode() == type_any); }
 inline bool isDecimalType(ITypeInfo * type) { return type && (type->getTypeCode() == type_decimal); }
+inline bool isDictionaryType(ITypeInfo * type) { return type && (type->getTypeCode() == type_dictionary); }
 
 
 //If casting a value from type before to type after is the value preserved.

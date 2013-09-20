@@ -50,9 +50,12 @@ extern HQL_API IHqlExpression * insertChildDataset(IHqlExpression * expr, IHqlEx
 extern HQL_API IHqlExpression * swapDatasets(IHqlExpression * parent);
 extern HQL_API IHqlExpression * createCompare(node_operator op, IHqlExpression * l, IHqlExpression * r);    // handles cast insertion...
 extern HQL_API IHqlExpression * createRecord(IHqlExpression * field);
+extern HQL_API IHqlExpression * queryFirstField(IHqlExpression * record);
 extern HQL_API IHqlExpression * queryLastField(IHqlExpression * record);
 extern HQL_API IHqlExpression * queryLastNonAttribute(IHqlExpression * expr);
 extern HQL_API IHqlExpression * queryNextRecordField(IHqlExpression * recorhqlutid, unsigned & idx);
+extern HQL_API void expandRecord(HqlExprArray & selects, IHqlExpression * selector, IHqlExpression * expr);
+
 extern HQL_API int compareSymbolsByName(IInterface * * pleft, IInterface * * pright);
 extern HQL_API int compareScopesByName(IInterface * * pleft, IInterface * * pright);
 extern HQL_API int compareAtoms(IInterface * * pleft, IInterface * * pright);
@@ -67,6 +70,7 @@ extern HQL_API void gatherIndexBuildSortOrder(HqlExprArray & sorts, IHqlExpressi
 extern HQL_API bool recordContainsBlobs(IHqlExpression * record);
 inline bool recordIsEmpty(IHqlExpression * record) { return queryLastField(record) == NULL; }
 extern HQL_API IHqlExpression * queryVirtualFileposField(IHqlExpression * record);
+extern HQL_API IHqlExpression * removePropertyFromFields(IHqlExpression * expr, _ATOM name);
 
 extern HQL_API IHqlExpression * flattenListOwn(IHqlExpression * list);
 extern HQL_API void flattenListOwn(HqlExprArray & out, IHqlExpression * list);
@@ -96,7 +100,6 @@ extern HQL_API unsigned countTotalFields(IHqlExpression * record, bool includeVi
 extern HQL_API bool transformContainsSkip(IHqlExpression * transform);
 extern HQL_API bool transformListContainsSkip(IHqlExpression * transforms);
 extern HQL_API bool recordContainsNestedRecord(IHqlExpression * record);
-extern HQL_API bool hasMaxLength(IHqlExpression * record);
 
 extern HQL_API IHqlExpression * queryInvalidCsvRecordField(IHqlExpression * expr);
 extern HQL_API bool isValidCsvRecord(IHqlExpression * expr);
@@ -152,10 +155,12 @@ extern HQL_API IHqlExpression * removeLocalAttribute(IHqlExpression * expr);
 extern HQL_API IHqlExpression * removeProperty(IHqlExpression * expr, _ATOM attr);
 extern HQL_API IHqlExpression * removeOperand(IHqlExpression * expr, IHqlExpression * operand);
 extern HQL_API IHqlExpression * removeChildOp(IHqlExpression * expr, node_operator op);
+extern HQL_API IHqlExpression * appendAttribute(IHqlExpression * expr, _ATOM attr);
 extern HQL_API IHqlExpression * appendOwnedOperand(IHqlExpression * expr, IHqlExpression * ownedOperand);
 extern HQL_API IHqlExpression * replaceOwnedProperty(IHqlExpression * expr, IHqlExpression * ownedProeprty);
 extern HQL_API IHqlExpression * appendOwnedOperandsF(IHqlExpression * expr, ...);
 extern HQL_API IHqlExpression * inheritAttribute(IHqlExpression * expr, IHqlExpression * donor, _ATOM name);
+extern HQL_API void inheritAttribute(HqlExprArray & attrs, IHqlExpression * donor, _ATOM name);
 extern HQL_API bool hasOperand(IHqlExpression * expr, IHqlExpression * child);
 
 extern HQL_API unsigned numRealChildren(IHqlExpression * expr);
@@ -176,6 +181,7 @@ extern HQL_API IHqlExpression * removeVirtualFields(IHqlExpression * record);
 extern HQL_API void unwindTransform(HqlExprCopyArray & exprs, IHqlExpression * transform);
 extern HQL_API bool isConstantTransform(IHqlExpression * transform);
 extern HQL_API bool isConstantDataset(IHqlExpression * expr);
+extern HQL_API bool isConstantDictionary(IHqlExpression * expr);
 extern HQL_API bool isSimpleTransformToMergeWith(IHqlExpression * expr);
 extern HQL_API IHqlExpression * queryUncastExpr(IHqlExpression * expr);
 extern HQL_API bool areConstant(const HqlExprArray & args);
@@ -304,6 +310,7 @@ public:
 
 extern HQL_API void checkDependencyConsistency(IHqlExpression * expr);
 extern HQL_API void checkDependencyConsistency(const HqlExprArray & exprs);
+extern HQL_API void checkSelectConsistency(IHqlExpression * expr);
 extern HQL_API bool isUngroup(IHqlExpression * expr);
 extern HQL_API bool containsExpression(IHqlExpression * expr, IHqlExpression * search);
 extern HQL_API bool containsOperator(IHqlExpression * expr, node_operator search);
@@ -448,12 +455,13 @@ extern HQL_API IHqlExpression * extractCppBodyAttrs(unsigned len, const char * v
 extern HQL_API unsigned cleanupEmbeddedCpp(unsigned len, char * buffer);
 extern HQL_API bool isNullList(IHqlExpression * expr);
 
+extern HQL_API IHqlExpression *getDictionaryKeyRecord(IHqlExpression *record);
+extern HQL_API IHqlExpression *getDictionarySearchRecord(IHqlExpression *record);
 extern HQL_API IHqlExpression * createSelectMapRow(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * dict, IHqlExpression *values);
 extern HQL_API IHqlExpression * createINDictExpr(IErrorReceiver * errors, ECLlocation & location, IHqlExpression *expr, IHqlExpression *dict);
 extern HQL_API IHqlExpression *createINDictRow(IErrorReceiver * errors, ECLlocation & location, IHqlExpression *row, IHqlExpression *dict);
 extern HQL_API IHqlExpression * convertTempRowToCreateRow(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * expr);
 extern HQL_API IHqlExpression * convertTempTableToInlineTable(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * expr);
-extern HQL_API IHqlExpression * convertTempTableToInlineDictionary(IErrorReceiver * errors, ECLlocation & location, IHqlExpression * expr);
 extern HQL_API void setPayloadAttribute(HqlExprArray &args);
 
 extern HQL_API bool areTypesComparable(ITypeInfo * leftType, ITypeInfo * rightType);
@@ -574,7 +582,6 @@ protected:
 
 extern HQL_API IHqlExpression * queryDefaultMaxRecordLengthExpr();
 extern HQL_API IHqlExpression * getFixedSizeAttr(unsigned size);
-extern HQL_API IHqlExpression * querySerializedFormAttr();
 extern HQL_API IHqlExpression * queryAlignedAttr();
 extern HQL_API IHqlExpression * queryLinkCountedAttr();
 extern HQL_API IHqlExpression * queryUnadornedAttr();

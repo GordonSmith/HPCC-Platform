@@ -211,15 +211,16 @@ static unsigned calcInlineFlags(BuildCtx * ctx, IHqlExpression * expr)
                 return flags;
             return RETevaluate|HEFspillinline;
         }
+    case no_fail:
+        return RETevaluate;
     case no_catchds:
         return 0;       // for the moment always do this out of line 
     case no_table:
         return 0;
-    case no_newuserdictionary:
-    case no_userdictionary:
+    case no_createdictionary:
         return RETassign;
-    case no_inlinedictionary:
-        return RETassign;
+    case no_datasetfromdictionary:
+        return RETiterate;
     case no_owned_ds:
         {
             unsigned childFlags = getInlineFlags(ctx, expr->queryChild(0));
@@ -302,8 +303,11 @@ static unsigned calcInlineFlags(BuildCtx * ctx, IHqlExpression * expr)
     }
     case no_inlinetable:
         {
-            if (transformListContainsSkip(expr->queryChild(0)))
+            IHqlExpression * transforms = expr->queryChild(0);
+            if (transformListContainsSkip(transforms))
                 return 0;
+            if (isConstantDataset(expr))
+                return RETevaluate;
             return RETassign;
         }
     case no_createrow:
@@ -625,6 +629,8 @@ GraphLocalisation queryActivityLocalisation(IHqlExpression * expr)
             }
             break;
         }
+    case no_datasetfromdictionary:
+        return GraphCoLocal;
     case no_createrow:
     case no_inlinetable:
         {
@@ -1327,6 +1333,9 @@ bool EvalContext::evaluateInParent(BuildCtx & ctx, IHqlExpression * expr, bool h
         return !translator.isCurrentActiveGraph(ctx, expr->queryChild(0));
     case no_getgraphresult:
         return !translator.isCurrentActiveGraph(ctx, expr->queryChild(1));
+    case no_getresult:
+    case no_workunit_dataset:
+        return translator.needToSerializeToSlave(expr);
     case no_failcode:
     case no_failmessage:
     case no_fail:
@@ -1424,13 +1433,13 @@ IHqlExpression * HqlCppTranslator::doCreateGraphLookup(BuildCtx & declarectx, Bu
     }
     else
     {
-        //NB: resolveLocalQuery (unlike children) can't link otherwise you get a cicular dependency.
+        //NB: resolveLocalQuery (unlike children) can't link otherwise you get a circular dependency.
         appendUniqueId(var.append("graph"), id);
         OwnedHqlExpr memberExpr = createQuoted(var, makeBoolType());
         if (declarectx.queryMatchExpr(memberExpr))
             return memberExpr.getClear();
     
-        s.clear().append("ILocalGraph * ").append(var).append(";");
+        s.clear().append("IEclGraphResults * ").append(var).append(";");
         declarectx.addQuoted(s);
         declarectx.associateExpr(memberExpr, memberExpr);
 
@@ -1502,9 +1511,17 @@ void ClassEvalContext::createMemberAlias(CtxCollection & ctxs, BuildCtx & ctx, I
     assertex(ctxs.evalctx != NULL);
     translator.expandAliases(*ctxs.evalctx, value);
 
+    const _ATOM serializeForm = internalAtom; // The format of serialized expressions in memory must match the internal serialization format
     CHqlBoundTarget tempTarget;
-    translator.buildTempExpr(*ctxs.evalctx, ctxs.declarectx, tempTarget, value, FormatNatural, false);
-    ensureSerialized(ctxs, tempTarget);
+    if (translator.needToSerializeToSlave(value))
+    {
+        translator.buildTempExpr(*ctxs.evalctx, ctxs.declarectx, tempTarget, value, FormatNatural, false);
+        ensureSerialized(ctxs, tempTarget, serializeForm);
+    }
+    else
+    {
+        translator.buildTempExpr(ctxs.clonectx, ctxs.declarectx, tempTarget, value, FormatNatural, false);
+    }
 
     tgt.setFromTarget(tempTarget);
     ctxs.declarectx.associateExpr(value, tgt);
@@ -1521,10 +1538,10 @@ void ClassEvalContext::doCallNestedHelpers(const char * member, const char * act
 }
 
 
-void ClassEvalContext::ensureSerialized(CtxCollection & ctxs, const CHqlBoundTarget & target)
+void ClassEvalContext::ensureSerialized(CtxCollection & ctxs, const CHqlBoundTarget & target, _ATOM serializeForm)
 {
     if (ctxs.serializectx)
-        translator.ensureSerialized(target, *ctxs.serializectx, *ctxs.deserializectx, "*in", "out");
+        translator.ensureSerialized(target, *ctxs.serializectx, *ctxs.deserializectx, "*in", "out", serializeForm);
 }
 
 AliasKind ClassEvalContext::evaluateExpression(BuildCtx & ctx, IHqlExpression * value, CHqlBoundExpr & tgt, bool evaluateLocally)
@@ -1611,7 +1628,8 @@ AliasKind ClassEvalContext::evaluateExpression(BuildCtx & ctx, IHqlExpression * 
 
 void ClassEvalContext::tempCompatiablityEnsureSerialized(const CHqlBoundTarget & tgt)
 {
-    ensureSerialized(onCreate, tgt);
+    const _ATOM serializeForm = internalAtom; // The format of serialized expressions in memory must match the internal serialization format
+    ensureSerialized(onCreate, tgt, serializeForm);
 }
 
 bool ClassEvalContext::isRowInvariant(IHqlExpression * expr)

@@ -61,11 +61,9 @@ include_directories (
          ${HPCC_SOURCE_DIR}/roxie/roxiemem
          ${HPCC_SOURCE_DIR}/roxie/roxie
          ${HPCC_SOURCE_DIR}/roxie/ccd
-         ${HPCC_SOURCE_DIR}/common/roxiehelper
          ${HPCC_SOURCE_DIR}/common/dllserver
          ${HPCC_SOURCE_DIR}/common/environment
          ${HPCC_SOURCE_DIR}/ecl/schedulectrl
-         ${HPCC_SOURCE_DIR}/common/commonext
          ${CMAKE_BINARY_DIR}
          ${CMAKE_BINARY_DIR}/oss
     )
@@ -73,7 +71,7 @@ include_directories (
 ADD_DEFINITIONS( -D_USRDLL -DHTHOR_EXPORTS -DSTARTQUERY_EXPORTS )
 
 HPCC_ADD_LIBRARY( hthor SHARED ${SRCS} ${INCLUDES} )
-install ( TARGETS hthor RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION ${ARCHIVE_DIR} )
+install ( TARGETS hthor RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION componentfiles/cl/lib )
 target_link_libraries ( hthor
          jlib
          mp
@@ -90,8 +88,6 @@ target_link_libraries ( hthor
          securesocket
          thorhelper
          roxiemem
-         roxiehelper
-         commonext
          schedulectrl
     )
 

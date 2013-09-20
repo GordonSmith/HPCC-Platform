@@ -66,24 +66,6 @@ char *CThorCodeContextBase::getGroupName()
     return NULL;
 }
 
-
-char *CThorCodeContextBase::getDaliServers()
-{
-    StringBuffer dali;
-    IGroup &group = queryCoven().queryComm().queryGroup();
-    Owned<INodeIterator> coven = group.getIterator();
-    bool first = true;
-    ForEach(*coven)
-    {
-        if (first)
-            first = false;
-        else
-            dali.append(',');
-        coven->query().endpoint().getUrlStr(dali);
-    }
-    return dali.detach();
-}
-
 const char *CThorCodeContextBase::loadResource(unsigned id)
 {
     return (const char *) querySo.getResource(id);
@@ -115,9 +97,19 @@ IEngineRowAllocator * CThorCodeContextBase::getRowAllocator(IOutputMetaData * me
     return job.getRowAllocator(meta, activityId);
 }
 
-ILocalGraph *CThorCodeContextBase::resolveLocalQuery(__int64 gid)
+const char * CThorCodeContextBase::cloneVString(const char * str) const
 {
-    ILocalGraph *graph = job.getGraph((graph_id)gid);
+    return job.queryRowManager()->cloneVString(str);
+}
+
+const char * CThorCodeContextBase::cloneVString(size32_t len, const char * str) const
+{
+    return job.queryRowManager()->cloneVString(len, str);
+}
+
+IEclGraphResults *CThorCodeContextBase::resolveLocalQuery(__int64 gid)
+{
+    IEclGraphResults *graph = job.getGraph((graph_id)gid);
     graph->Release(); // resolveLocalQuery doesn't own, can't otherwise will be circular ref.
     return graph;
 }

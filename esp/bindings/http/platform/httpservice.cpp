@@ -153,18 +153,7 @@ bool CEspHttpServer::rootAuth(IEspContext* ctx)
         return true;
 
     bool ret=false;
-    EspHttpBinding* thebinding=NULL;
-    int ordinality=m_apport->getBindingCount();
-    if (ordinality==1)
-    {
-        CEspBindingEntry *entry = m_apport->queryBindingItem(0);
-        thebinding = (entry) ? dynamic_cast<EspHttpBinding*>(entry->queryBinding()) : NULL;
-    }
-    else if (m_defaultBinding)
-    {
-        thebinding=dynamic_cast<EspHttpBinding*>(m_defaultBinding.get());
-    }
-
+    EspHttpBinding* thebinding=getBinding();
     if (thebinding)
     {
         thebinding->populateRequest(m_request.get());
@@ -173,12 +162,10 @@ bool CEspHttpServer::rootAuth(IEspContext* ctx)
         else
         {
             ISecUser *user = ctx->queryUser();
-            if (user && user->getAuthenticateStatus() == AS_PASSWORD_EXPIRED)
+            if (user && user->getAuthenticateStatus() == AS_PASSWORD_VALID_BUT_EXPIRED)
             {
-                DBGLOG("ESP password expired for %s", user->getName());
-                m_response->setContentType(HTTP_TYPE_TEXT_PLAIN);
-                m_response->setContent("Your ESP password has expired");
-                m_response->send();
+                m_response->redirect(*m_request.get(), "/esp/updatepasswordinput");
+                ret = true;
             }
             else
             {
@@ -244,6 +231,20 @@ static bool authenticateOptionalFailed(IEspContext& ctx, IEspHttpBinding* bindin
 #endif
 
     return false;
+}
+
+EspHttpBinding* CEspHttpServer::getBinding()
+{
+    EspHttpBinding* thebinding=NULL;
+    int ordinality=m_apport->getBindingCount();
+    if (ordinality==1)
+    {
+        CEspBindingEntry *entry = m_apport->queryBindingItem(0);
+        thebinding = (entry) ? dynamic_cast<EspHttpBinding*>(entry->queryBinding()) : NULL;
+    }
+    else if (m_defaultBinding)
+        thebinding=dynamic_cast<EspHttpBinding*>(m_defaultBinding.get());
+    return thebinding;
 }
 
 int CEspHttpServer::processRequest()
@@ -322,6 +323,8 @@ int CEspHttpServer::processRequest()
             {
                 if (!rootAuth(ctx))
                     return 0;
+                if (ctx->queryUser() && (ctx->queryUser()->getAuthenticateStatus() == AS_PASSWORD_VALID_BUT_EXPIRED))
+                    return 0;//allow user to change password
                 // authenticate optional groups
                 if (authenticateOptionalFailed(*ctx,NULL))
                     throw createEspHttpException(401,"Unauthorized Access","Unauthorized Access");
@@ -333,7 +336,11 @@ int CEspHttpServer::processRequest()
             {
                 if (!methodName.length())
                     return 0;
-                if (!rootAuth(ctx))
+#ifdef _USE_OPENLDAP
+                if (strieq(methodName.str(), "updatepasswordinput"))//process before authentication check
+                    return onUpdatePasswordInput(m_request.get(), m_response.get());
+#endif
+                if (!rootAuth(ctx) )
                     return 0;
                 if (methodName.charAt(methodName.length()-1)=='_')
                     methodName.setCharAt(methodName.length()-1, 0);
@@ -355,17 +362,14 @@ int CEspHttpServer::processRequest()
                     return onGetNavEvent(m_request.get(), m_response.get());
                 else if (!stricmp(methodName.str(), "soapreq"))
                     return onGetBuildSoapRequest(m_request.get(), m_response.get());
-#ifdef _USE_OPENLDAP
-                else if (strieq(methodName.str(), "updatepasswordinput"))
-                    return onUpdatePasswordInput(m_request.get(), m_response.get());
-#endif
             }
         }
 #ifdef _USE_OPENLDAP
         else if (strieq(method.str(), POST_METHOD) && strieq(serviceName.str(), "esp") && (methodName.length() > 0) && strieq(methodName.str(), "updatepassword"))
         {
-            if (!rootAuth(ctx))
-                return 0;
+            EspHttpBinding* thebinding = getBinding();
+            if (thebinding)
+                thebinding->populateRequest(m_request.get());
             return onUpdatePassword(m_request.get(), m_response.get());
         }
 #endif
@@ -432,7 +436,7 @@ int CEspHttpServer::processRequest()
             if (authState==authRequired)
             {
                 ISecUser *user = ctx->queryUser();
-                if (user && user->getAuthenticateStatus() == AS_PASSWORD_EXPIRED)
+                if (user && (user->getAuthenticateStatus() == AS_PASSWORD_EXPIRED || user->getAuthenticateStatus() == AS_PASSWORD_VALID_BUT_EXPIRED))
                 {
                     DBGLOG("ESP password expired for %s", user->getName());
                     m_response->setContentType(HTTP_TYPE_TEXT_PLAIN);
@@ -851,22 +855,18 @@ int CEspHttpServer::onGetFile(CHttpRequest* request, CHttpResponse* response, co
         if (pathlen>5 && !stricmp(path+pathlen-4, ".php"))
             return onRunCGI(request, response, path);
         
-        StringBuffer mimetype;
+        StringBuffer mimetype, etag, lastModified;
         MemoryBuffer content;
+        bool modified = true;
+        request->getHeader("If-None-Match", etag);
+        request->getHeader("If-Modified-Since", lastModified);
 
         StringBuffer filepath(getCFD());
         filepath.append("files/");
         filepath.append(path);
-        if (httpContentFromFile(filepath.str(), mimetype, content))
+        if (httpContentFromFile(filepath.str(), mimetype, content, modified, lastModified, etag))
         {
-            response->setContent(content.length(), content.toByteArray());
-            response->setContentType(mimetype.str());
-
-            //if file being requested is an image file then set its expiration to a year
-            //so browser does not keep reloading it
-            const char* pchExt = strrchr(path, '.');
-            if (pchExt && (!stricmp(++pchExt, "gif") || !stricmp(pchExt, "jpg") || !stricmp(pchExt, "png")))
-                response->addHeader("Cache-control",  "max-age=31536000");
+            response->CheckModifiedHTTPContent(modified, lastModified.str(), etag.str(), mimetype.str(), content);
         }
         else
         {
@@ -882,14 +882,17 @@ int CEspHttpServer::onGetXslt(CHttpRequest* request, CHttpResponse* response, co
         if (!request || !response || !path)
             return -1;
         
-        StringBuffer mimetype;
+        StringBuffer mimetype, etag, lastModified;
         MemoryBuffer content;
+        bool modified = true;
+        request->getHeader("If-None-Match", etag);
+        request->getHeader("If-Modified-Since", lastModified);
 
-        StringBuffer filepath;
-        if (httpContentFromFile(filepath.append(getCFD()).append("smc_xslt/").append(path).str(), mimetype, content) || httpContentFromFile(filepath.clear().append(getCFD()).append("xslt/").append(path).str(), mimetype, content))
+        VStringBuffer filepath("%ssmc_xslt/%s", getCFD(), path);
+        if (httpContentFromFile(filepath.str(), mimetype, content, modified, lastModified.clear(), etag) ||
+            httpContentFromFile(filepath.clear().append(getCFD()).append("xslt/").append(path).str(), mimetype, content, modified, lastModified.clear(), etag))
         {
-            response->setContent(content.length(), content.toByteArray());
-            response->setContentType(mimetype.str());
+            response->CheckModifiedHTTPContent(modified, lastModified.str(), etag.str(), mimetype.str(), content);
         }
         else
         {
@@ -960,14 +963,14 @@ int CEspHttpServer::onGet()
 {   
     if (m_request && m_request->queryParameters()->hasProp("config_") && m_viewConfig)
     {
-        StringBuffer mimetype;
+        StringBuffer mimetype, etag, lastModified;
         MemoryBuffer content;
-        httpContentFromFile("esp.xml", mimetype, content);
-
+        bool modified = true;
+        m_request->getHeader("If-None-Match", etag);
+        m_request->getHeader("If-Modified-Since", lastModified);
+        httpContentFromFile("esp.xml", mimetype, content, modified, lastModified, etag);
         m_response->setVersion(HTTP_VERSION);
-        m_response->setContent(content.length(), content.toByteArray());
-        m_response->setContentType(HTTP_TYPE_APPLICATION_XML_UTF8);
-        m_response->setStatus(HTTP_STATUS_OK);
+        m_response->CheckModifiedHTTPContent(modified, lastModified.str(), etag.str(), HTTP_TYPE_APPLICATION_XML_UTF8, content);
         m_response->send();
     }
     else

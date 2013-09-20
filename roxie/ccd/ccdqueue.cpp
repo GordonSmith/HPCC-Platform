@@ -24,6 +24,7 @@
 #include "jisem.hpp"
 #include "udplib.hpp"
 #include "ccd.hpp"
+#include "ccddebug.hpp"
 #include "ccdquery.hpp"
 #include "ccdstate.hpp"
 #include "ccdqueue.ipp"
@@ -595,7 +596,6 @@ void decIbytiDelay(unsigned channel, unsigned factor = 2)
 
 static SpinLock onDemandQueriesCrit;
 static MapXToMyClass<hash64_t, hash64_t, IQueryFactory> onDemandQueryCache;
-static MapXToMyClass<hash64_t, hash64_t, IRoxieLibraryLookupContext> onDemandLibraryLookupCache;
 
 void sendUnloadMessage(hash64_t hash, const char *id, const IRoxieContextLogger &logctx)
 {
@@ -623,14 +623,12 @@ void doUnload(IRoxieQueryPacket *packet, const IRoxieContextLogger &logctx)
     hash64_t hashValue = header.queryHash;
     SpinBlock b(onDemandQueriesCrit);
     onDemandQueryCache.remove(hashValue+channelNo);
-    onDemandLibraryLookupCache.remove(hashValue+channelNo);
 }
 
-void cacheOnDemandQuery(hash64_t hashValue, unsigned channelNo, IQueryFactory *query, IRoxieLibraryLookupContext *libraryContext)
+void cacheOnDemandQuery(hash64_t hashValue, unsigned channelNo, IQueryFactory *query)
 {
     SpinBlock b(onDemandQueriesCrit);
     onDemandQueryCache.setValue(hashValue+channelNo, query);
-    onDemandLibraryLookupCache.setValue(hashValue+channelNo, libraryContext);
 }
 
 //=================================================================================
@@ -997,18 +995,15 @@ public:
         hash64_t queryHash = packet->queryHeader().queryHash;
         unsigned activityId = packet->queryHeader().activityId & ~ROXIE_PRIORITY_MASK;
         Owned<IQueryFactory> queryFactory = getQueryFactory(queryHash, channel);
-        Owned<IRoxieLibraryLookupContext> libraryContext;
         if (!queryFactory && logctx.queryWuid())
         {
-            // Ensure that any library lookup is done in the correct QuerySet...
             Owned <IRoxieDaliHelper> daliHelper = connectToDali();
             Owned<IConstWorkUnit> wu = daliHelper->attachWorkunit(logctx.queryWuid(), NULL);
             SCMStringBuffer target;
             wu->getClusterName(target);
-            libraryContext.setown(globalPackageSetManager->getLibraryLookupContext(target.str()));
-            queryFactory.setown(createSlaveQueryFactoryFromWu(wu, channel, libraryContext));
+            queryFactory.setown(createSlaveQueryFactoryFromWu(wu, channel));
             if (queryFactory)
-                cacheOnDemandQuery(queryHash, channel, queryFactory, libraryContext);
+                cacheOnDemandQuery(queryHash, channel, queryFactory);
         }
         if (!queryFactory)
         {
@@ -1716,7 +1711,11 @@ public:
         int udpQueueSize = topology->getPropInt("@udpQueueSize", UDP_QUEUE_SIZE);
         int udpSendQueueSize = topology->getPropInt("@udpSendQueueSize", UDP_SEND_QUEUE_SIZE);
         int udpMaxSlotsPerClient = topology->getPropInt("@udpMaxSlotsPerClient", 0x7fffffff);
+#ifdef _DEBUG
         bool udpResendEnabled = topology->getPropBool("@udpResendEnabled", false);
+#else
+        bool udpResendEnabled = false;  // As long as it is known to be broken, we don't want it accidentally enabled in any release version
+#endif
         openReceiveSocket();
         maxPacketSize = sock->get_max_send_size();
         if ((maxPacketSize==0)||(maxPacketSize>65535))

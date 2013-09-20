@@ -564,7 +564,7 @@
                     <input type="hidden" name="Wuid" id="Wuid" value=""/>
                     <xsl:for-each select="ThorClusters/ThorCluster">
                         <xsl:call-template name="show-queue">
-                            <xsl:with-param name="workunits" select="//Running/ActiveWorkunit[Server='ThorMaster' and QueueName=current()/QueueName]"/>
+                            <xsl:with-param name="workunits" select="//Running/ActiveWorkunit[(Server='ThorMaster' and QueueName=current()/QueueName) or (ClusterType='Thor' and ClusterQueueName=current()/QueueName)]"/>
                             <xsl:with-param name="cluster" select="ClusterName"/>
                             <xsl:with-param name="clusterType" select="'THOR'"/>
                             <xsl:with-param name="queue" select="QueueName"/>
@@ -576,7 +576,7 @@
 
                     <xsl:for-each select="RoxieClusters/RoxieCluster">
                         <xsl:call-template name="show-queue">
-                            <xsl:with-param name="workunits" select="//Running/ActiveWorkunit[Server='RoxieServer' and QueueName=current()/QueueName]"/>
+                            <xsl:with-param name="workunits" select="//Running/ActiveWorkunit[(Server='RoxieServer' and QueueName=current()/QueueName) or (ClusterType='Roxie' and ClusterQueueName=current()/QueueName)]"/>
                             <xsl:with-param name="cluster" select="ClusterName"/>
                             <xsl:with-param name="clusterType" select="'ROXIE'"/>
                             <xsl:with-param name="queue" select="QueueName"/>
@@ -587,22 +587,12 @@
 
                     <xsl:for-each select="HThorClusters/HThorCluster">
                         <xsl:call-template name="show-queue">
-                            <xsl:with-param name="workunits" select="//Running/ActiveWorkunit[Server='HThorServer' and QueueName=current()/QueueName]"/>
+                            <xsl:with-param name="workunits" select="//Running/ActiveWorkunit[(Server='HThorServer' and QueueName=current()/QueueName) or (ClusterType='HThor' and ClusterQueueName=current()/QueueName)]"/>
                             <xsl:with-param name="cluster" select="ClusterName"/>
                             <xsl:with-param name="clusterType" select="'HTHOR'"/>
                             <xsl:with-param name="queue" select="QueueName"/>
                             <xsl:with-param name="status" select="QueueStatus"/>
                             <xsl:with-param name="status2" select="QueueStatus2"/>
-                        </xsl:call-template>
-                    </xsl:for-each>
-
-                    <xsl:for-each select="ServerJobQueues/ServerJobQueue[ServerType='ECLagent']">
-                        <xsl:call-template name="show-queue">
-                            <xsl:with-param name="workunits" select="//Running/ActiveWorkunit[Server='ECLagent' and QueueName=current()/QueueName]"/>
-                            <xsl:with-param name="cluster" select="ServerName"/>
-                            <xsl:with-param name="clusterType" select="ServerType"/>
-                            <xsl:with-param name="queue" select="QueueName"/>
-                            <xsl:with-param name="status" select="QueueStatus"/>
                         </xsl:call-template>
                     </xsl:for-each>
 
@@ -707,8 +697,23 @@
             <xsl:choose>
                 <xsl:when test="$clusterType = 'THOR'">1</xsl:when>
                 <xsl:when test="($countThorClusters &lt; 1) and ($clusterType = 'ROXIE')">1</xsl:when>
-                <xsl:when test="($countThorClusters &lt; 1) and ($counRoxieClusters &lt; 1) and ($clusterType = 'HTHOR')">1</xsl:when>
+                <xsl:when test="($countThorClusters &lt; 1) and ($countRoxieClusters &lt; 1) and ($clusterType = 'HTHOR')">1</xsl:when>
                 <xsl:otherwise>0</xsl:otherwise>
+            </xsl:choose>
+        </xsl:variable>
+        <xsl:variable name="showWarning">
+            <xsl:choose>
+                <xsl:when test="$clusterType = 'DFUserver' or $clusterType = 'ECLCCserver' or $clusterType = 'ECLagent'">
+                    <xsl:choose>
+                        <xsl:when test="$status='paused'"> Queue paused </xsl:when>
+                        <xsl:when test="$status='stopped'"> Queue stopped </xsl:when>
+                        <xsl:otherwise></xsl:otherwise>
+                    </xsl:choose>
+                </xsl:when>
+                <xsl:when test="($status2='1') or ($status2='2')"> Queue paused </xsl:when>
+                <xsl:when test="$status2='3'"> Queue paused - Cluster not attached </xsl:when>
+                <xsl:when test="$status2='5'"> Cluster not attached </xsl:when>
+                <xsl:otherwise></xsl:otherwise>
             </xsl:choose>
         </xsl:variable>
         <table class="clusters" border="2" frame="box" rules="groups" style="margin-bottom:5px">
@@ -772,11 +777,11 @@
                             </xsl:when>
                             <xsl:when test="$status2='3'">
                                 <xsl:attribute name="class">thorstoppedpausedqueuenojobs</xsl:attribute>
-                                <xsl:attribute name="title">Queue paused - Cluster stopped (NOC has stopped all ThorMasters on cluster)</xsl:attribute>
+                                <xsl:attribute name="title">Queue paused - Cluster not attached (NOC has stopped all ThorMasters on cluster)</xsl:attribute>
                             </xsl:when>
                             <xsl:when test="$status2='5'">
                                 <xsl:attribute name="class">thorstoppedrunningqueue</xsl:attribute>
-                                <xsl:attribute name="title">Queue running - Cluster Stopped</xsl:attribute>
+                                <xsl:attribute name="title">Queue running - Cluster not attached</xsl:attribute>
                             </xsl:when>
                             <xsl:otherwise>
                                 <xsl:attribute name="class">thorrunning</xsl:attribute>
@@ -794,6 +799,11 @@
                                 <xsl:value-of select="$clusterType"/> - <xsl:value-of select="$queue"/>
                             </xsl:otherwise>
                         </xsl:choose>
+                        <xsl:if test="string-length($showWarning)">
+                            <span style="background: #C00">
+                                <xsl:copy-of select="$showWarning"/>
+                            </span>
+                        </xsl:if>
                     </a>
                 </td>
             </tr>
@@ -840,13 +850,14 @@
         <xsl:param name="queue"/>
         <xsl:param name="thorlcr" select="'0'"/>
 
-        <xsl:variable name="active" select="$workunits[State='running']"/>
+        <xsl:variable name="active1" select="$workunits[State='running' and $queue = QueueName]"/>
+        <xsl:variable name="active2" select="$workunits[State='running' and $queue != QueueName]"/>
         <tbody>
             <xsl:choose>
                 <xsl:when test="$workunits[1]">
                     <tr style="border:solid 2 black">
-                        <xsl:if test="count($active)">
-                            <xsl:for-each select="$active">
+                        <xsl:if test="count($active1)">
+                            <xsl:for-each select="$active1">
                                 <xsl:if test="position() > 1">
                                     <xsl:text disable-output-escaping="yes">
                                             <![CDATA[
@@ -865,6 +876,29 @@
                         </xsl:if>
                     </tr>
 
+                    <xsl:if test="$clusterType='HTHOR'">
+                        <tr style="border:solid 2 black">
+                            <xsl:if test="count($active2)">
+                                <xsl:for-each select="$active2">
+                                    <xsl:if test="position() > 1">
+                                        <xsl:text disable-output-escaping="yes">
+                                                <![CDATA[
+                                                    </tr>
+                                                    <tr>
+                                                ]]>
+                                            </xsl:text>
+                                    </xsl:if>
+                                    <xsl:apply-templates select=".">
+                                        <xsl:with-param name="cluster" select="$cluster"/>
+                                        <xsl:with-param name="clusterType" select="$clusterType"/>
+                                        <xsl:with-param name="queue" select="$queue"/>
+                                        <xsl:with-param name="thorlcr" select="$thorlcr"/>
+                                    </xsl:apply-templates>
+                                </xsl:for-each>
+                            </xsl:if>
+                        </tr>
+                    </xsl:if>
+
                     <xsl:for-each select="$workunits[State!='running']">
                         <tr>
                             <xsl:apply-templates select=".">
@@ -875,6 +909,29 @@
                             </xsl:apply-templates>
                         </tr>
                     </xsl:for-each>
+
+                    <xsl:if test="$clusterType!='HTHOR'">
+                        <tr style="border:solid 2 black">
+                            <xsl:if test="count($active2)">
+                                <xsl:for-each select="$active2">
+                                    <xsl:if test="position() > 1">
+                                        <xsl:text disable-output-escaping="yes">
+                                                <![CDATA[
+                                                    </tr>
+                                                    <tr>
+                                                ]]>
+                                            </xsl:text>
+                                    </xsl:if>
+                                    <xsl:apply-templates select=".">
+                                        <xsl:with-param name="cluster" select="$cluster"/>
+                                        <xsl:with-param name="clusterType" select="$clusterType"/>
+                                        <xsl:with-param name="queue" select="$queue"/>
+                                        <xsl:with-param name="thorlcr" select="$thorlcr"/>
+                                    </xsl:apply-templates>
+                                </xsl:for-each>
+                            </xsl:if>
+                        </tr>
+                    </xsl:if>
                 </xsl:when>
                 <xsl:otherwise>
                     <td width="1100" colspan='4'>No active workunit</td>
@@ -985,6 +1042,9 @@
                     </xsl:if>
                 </xsl:otherwise>
             </xsl:choose>
+            <xsl:if test="$queue != QueueName">
+                <b> (on <xsl:value-of select="QueueName"/>)</b>
+            </xsl:if>
         </td>
         <td class="{$active}">
             <xsl:value-of select="Owner"/>&#160;

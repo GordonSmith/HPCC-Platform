@@ -68,7 +68,8 @@ public:
     }
     void init()
     {
-        indexFile.setown(queryThorFileManager().lookup(container.queryJob(), helper->getIndexFileName(), false, 0 != (helper->getJoinFlags() & JFindexoptional), true));
+        OwnedRoxieString indexFileName(helper->getIndexFileName());
+        indexFile.setown(queryThorFileManager().lookup(container.queryJob(), indexFileName, false, 0 != (helper->getJoinFlags() & JFindexoptional), true));
 
         unsigned keyReadWidth = (unsigned)container.queryJob().getWorkUnitValueInt("KJKRR", 0);
         if (!keyReadWidth || keyReadWidth>container.queryJob().querySlaves())
@@ -76,7 +77,7 @@ public:
         
 
         initMb.clear();
-        initMb.append(helper->getIndexFileName());
+        initMb.append(indexFileName.get());
         if (helper->diskAccessRequired())
             numTags += 2;
         initMb.append(numTags);
@@ -91,6 +92,10 @@ public:
         {
             unsigned numParts = 0;
             localKey = indexFile->queryAttributes().getPropBool("@local");
+
+            if (container.queryLocalData() && !localKey)
+                throw MakeActivityException(this, 0, "Keyed Join cannot be LOCAL unless supplied index is local");
+
             checkFormatCrc(this, indexFile, helper->getIndexFormatCrc(), true);
             Owned<IFileDescriptor> indexFileDesc = indexFile->getFileDescriptor();
             IDistributedSuperFile *superIndex = indexFile->querySuperFile();
@@ -193,7 +198,7 @@ public:
                 }
                 if (helper->diskAccessRequired())
                 {
-                    const char *fetchFilename = helper->getFileName();
+                    OwnedRoxieString fetchFilename(helper->getFileName());
                     if (fetchFilename)
                     {
                         dataFile.setown(queryThorFileManager().lookup(container.queryJob(), fetchFilename, false, 0 != (helper->getFetchFlags() & FFdatafileoptional), true));
@@ -217,7 +222,7 @@ public:
                                 }
                             }
                             else if (encrypted)
-                                throw MakeActivityException(this, 0, "File '%s' was published as encrypted but no encryption key provided", helper->getFileName());
+                                throw MakeActivityException(this, 0, "File '%s' was published as encrypted but no encryption key provided", fetchFilename.get());
                             unsigned dataReadWidth = (unsigned)container.queryJob().getWorkUnitValueInt("KJDRR", 0);
                             if (!dataReadWidth || dataReadWidth>container.queryJob().querySlaves())
                                 dataReadWidth = container.queryJob().querySlaves();

@@ -15,11 +15,7 @@
 ############################################################################## */
 define([
     "dojo/_base/declare",
-    "dojo/aspect",
-    "dojo/has",
     "dojo/dom",
-    "dojo/dom-construct",
-    "dojo/dom-class",
 
     "dijit/layout/_LayoutWidget",
     "dijit/_TemplatedMixin",
@@ -34,7 +30,7 @@ define([
 
     "dijit/Toolbar", "dijit/ToolbarSeparator", "dijit/form/Button"
 ],
-    function (declare, aspect, has, dom, domConstruct, domClass,
+    function (declare, dom,
             _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, BorderContainer, ContentPane, registry,
             ESPWorkunit,
             template) {
@@ -60,7 +56,6 @@ define([
 
             startup: function (args) {
                 this.inherited(arguments);
-                this.initEditor();
             },
 
             resize: function (args) {
@@ -73,25 +68,45 @@ define([
             },
 
             //  Plugin wrapper  ---
-            initEditor: function () {
+            init: function (params) {
+                if (this.initalized)
+                    return;
+                this.initalized = true;
+
+                var mode = "ecl";
+                if (params.sourceMode !== undefined) {
+                    mode = params.sourceMode;
+                } else if (this.WUXml) {
+                    mode = "xml";
+                }
+
                 this.editor = CodeMirror.fromTextArea(document.getElementById(this.id + "EclCode"), {
                     tabMode: "indent",
                     matchBrackets: true,
                     gutter: true,
                     lineNumbers: true,
-                    readOnly: this.readOnly
+                    mode: mode,
+                    readOnly: this.readOnly,
+                    gutter: mode === "xml" ? true : false,
+                    onGutterClick: CodeMirror.newFoldFunction(CodeMirror.tagRangeFinder)
                 });
-            },
+                dom.byId(this.id + "EclContent").style.backgroundColor = this.readOnly ? 0xd0d0d0 : 0xffffff;
 
-            init: function (params) {
                 var context = this;
                 if (params.Wuid) {
-                    this.wu = new ESPWorkunit({
-                        wuid: params.Wuid
-                    });
-                    this.wu.fetchText(function (text) {
-                        context.editor.setValue(text);
-                    });
+                    this.wu = ESPWorkunit.Get(params.Wuid);
+                    if (this.WUXml) {
+                        this.wu.fetchXML(function (xml) {
+                            context.editor.setValue(xml);
+                        });
+                    }
+                    else {
+                        this.wu.fetchText(function (text) {
+                            context.editor.setValue(text);
+                        });
+                    }
+                } else if (params.ECL) {
+                    context.editor.setValue(params.ECL);
                 }
             },
 

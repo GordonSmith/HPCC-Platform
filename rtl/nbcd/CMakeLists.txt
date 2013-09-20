@@ -27,8 +27,9 @@ project( nbcd )
 
 set ( SRCS 
       nbcd.cpp 
-      nbcds.cpp 
-      nbcdtest.cpp 
+
+      nbcd.hpp 
+
       sourcedoc.xml
     )
 
@@ -40,7 +41,7 @@ include_directories (
 ADD_DEFINITIONS( -D_USRDLL -DNBCD_EXPORTS )
 
 HPCC_ADD_LIBRARY( nbcd SHARED ${SRCS} )
-install ( TARGETS nbcd RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION ${ARCHIVE_DIR} )
+install ( TARGETS nbcd RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION componentfiles/cl/lib )
 target_link_libraries ( nbcd 
       jlib
       ${CPPUNIT_LIBRARIES}

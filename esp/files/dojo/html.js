@@ -83,7 +83,7 @@ w.destroy();
 });
 delete this.parseResults;
 }
-_8._emptyNode(this.node);
+_6.empty(this.node);
 },onBegin:function(){
 var _14=this.content;
 if(_2.isString(_14)){
@@ -134,6 +134,8 @@ _19[_1a]=this[_1a];
 var _1b=this;
 this.parseDeferred=_7.parse({rootNode:_18,noStart:!this.startup,inherited:_19,scope:this.parserScope}).then(function(_1c){
 return _1b.parseResults=_1c;
+},function(e){
+_1b._onError("Content",e,"Error parsing in _ContentSetter#"+this.id);
 });
 }
 catch(e){

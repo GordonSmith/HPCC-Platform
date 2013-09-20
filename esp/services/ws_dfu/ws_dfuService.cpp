@@ -1001,7 +1001,7 @@ void CWsDfuEx::parseStringArray(const char *input, StringArray& strarray)
 }
 
 int CWsDfuEx::superfileAction(IEspContext &context, const char* action, const char* superfile, StringArray& subfiles,
-                               const char* beforeSubFile, bool existingSuperfile, bool deleteFile, bool removeSuperfile)
+                               const char* beforeSubFile, bool existingSuperfile, bool autocreatesuper, bool deleteFile, bool removeSuperfile)
 {
     if (!action || !*action)
         throw MakeStringException(ECLWATCH_INVALID_INPUT, "Superfile action not specified");
@@ -1011,10 +1011,6 @@ int CWsDfuEx::superfileAction(IEspContext &context, const char* action, const ch
 
     if (!superfile || !*superfile)
         throw MakeStringException(ECLWATCH_INVALID_INPUT, "Superfile name not specified");
-
-    unsigned num = subfiles.length();
-    if (num < 1)
-        throw MakeStringException(ECLWATCH_INVALID_INPUT, "Subfile not specified");
 
     StringBuffer username;
     context.getUserID(username);
@@ -1026,8 +1022,9 @@ int CWsDfuEx::superfileAction(IEspContext &context, const char* action, const ch
         userdesc->set(username.str(), passwd);
     }
 
+    if (!autocreatesuper)
     {//a file lock created by the lookup() will be released after '}'
-        Owned<IDistributedFile> df = queryDistributedFileDirectory().lookup(superfile, userdesc.get(), true);   
+        Owned<IDistributedFile> df = queryDistributedFileDirectory().lookup(superfile, userdesc.get(), true);
         if (existingSuperfile)
         {
             if (!df)
@@ -1039,36 +1036,40 @@ int CWsDfuEx::superfileAction(IEspContext &context, const char* action, const ch
             throw MakeStringException(ECLWATCH_FILE_ALREADY_EXISTS,"The file %s already exists.",superfile);
     }
 
-    StringBuffer msgHead;
-    if(username.length() > 0)
-        msgHead.appendf("CWsDfuEx::SuperfileAction User=%s Action=%s, Superfile=%s Subfile(s)= ", username.str(), action, superfile);
-    else
-        msgHead.appendf("CWsDfuEx::SuperfileAction User=<unknown> Action=%s, Superfile=%s Subfile(s)= ", action, superfile);
-
-    unsigned filesInMsgBuf = 0;
-    StringBuffer msgBuf = msgHead;
     PointerArrayOf<char> subfileArray;
-    for(unsigned i = 0; i < num; i++)
+    unsigned num = subfiles.length();
+    if (num > 0)
     {
-        subfileArray.append((char*) subfiles.item(i));
-        msgBuf.appendf("%s, ", subfiles.item(i));
-        filesInMsgBuf++;
-        if (filesInMsgBuf > 9)
-        {
-            PROGLOG("%s",msgBuf.str());
-            msgBuf = msgHead;
-            filesInMsgBuf = 0;
-        }
-    }
+        StringBuffer msgHead;
+        if(username.length() > 0)
+            msgHead.appendf("CWsDfuEx::SuperfileAction User=%s Action=%s, Superfile=%s Subfile(s)= ", username.str(), action, superfile);
+        else
+            msgHead.appendf("CWsDfuEx::SuperfileAction User=<unknown> Action=%s, Superfile=%s Subfile(s)= ", action, superfile);
 
-    if (filesInMsgBuf > 0)
-        PROGLOG("%s", msgBuf.str());
+        unsigned filesInMsgBuf = 0;
+        StringBuffer msgBuf = msgHead;
+        for(unsigned i = 0; i < num; i++)
+        {
+            subfileArray.append((char*) subfiles.item(i));
+            msgBuf.appendf("%s, ", subfiles.item(i));
+            filesInMsgBuf++;
+            if (filesInMsgBuf > 9)
+            {
+                PROGLOG("%s",msgBuf.str());
+                msgBuf = msgHead;
+                filesInMsgBuf = 0;
+            }
+        }
+
+        if (filesInMsgBuf > 0)
+            PROGLOG("%s", msgBuf.str());
+    }
 
     Owned<IDFUhelper> dfuhelper = createIDFUhelper();
 
     synchronized block(m_superfilemutex);
     if(strieq(action, "add"))
-        dfuhelper->addSuper(superfile, userdesc.get(), num, (const char**) subfileArray.getArray(), beforeSubFile);
+        dfuhelper->addSuper(superfile, userdesc.get(), num, (const char**) subfileArray.getArray(), beforeSubFile, true);
     else
         dfuhelper->removeSuper(superfile, userdesc.get(), num, (const char**) subfileArray.getArray(), deleteFile, removeSuperfile);
 
@@ -1111,7 +1112,7 @@ bool CWsDfuEx::onAddtoSuperfile(IEspContext &context, IEspAddtoSuperfileRequest 
 
         if (version > 1.15)
         {
-            superfileAction(context, "add", superfile, req.getNames(), NULL, req.getExistingFile(), false);
+            superfileAction(context, "add", superfile, req.getNames(), NULL, req.getExistingFile(), false, false);
         }
         else
         {
@@ -1120,7 +1121,7 @@ bool CWsDfuEx::onAddtoSuperfile(IEspContext &context, IEspAddtoSuperfileRequest 
             if (subfilesStr && *subfilesStr)
                 parseStringArray(subfilesStr, subfileNames);
 
-            superfileAction(context, "add", superfile, subfileNames, NULL, req.getExistingFile(), false);
+            superfileAction(context, "add", superfile, subfileNames, NULL, req.getExistingFile(), false, false);
         }
 
         resp.setRedirectUrl(StringBuffer("/WsDFU/DFUInfo?Name=").append(superfile));
@@ -1241,7 +1242,12 @@ bool CWsDfuEx::DFUDeleteFiles(IEspContext &context, IEspDFUArrayActionRequest &r
                         returnStr.appendf("<Message><Value>%s</Value></Message>",errorStr.str());
                         DBGLOG("%s", errorStr.str());
                     }
-                    else 
+                    else if (!deleted)
+                    {
+                        returnStr.appendf("<Message><Value>Logical File %s not deleted. No error message.</Value></Message>",logicalFileName.str());
+                        DBGLOG("Logical File %s not deleted. No error message.\n",logicalFileName.str());
+                    }
+                    else
                     {
                         PrintLog("Deleted Logical File: %s\n",logicalFileName.str());
                         returnStr.appendf("<Message><Value>Deleted File %s</Value></Message>",logicalFileName.str());
@@ -1250,9 +1256,17 @@ bool CWsDfuEx::DFUDeleteFiles(IEspContext &context, IEspDFUArrayActionRequest &r
                 else
                 {
                     df.clear(); 
-                    deleted = queryDistributedFileDirectory().removeEntry(logicalFileName.str(),userdesc, REMOVE_FILE_SDS_CONNECT_TIMEOUT); // this can remove clusters also
+                    deleted = queryDistributedFileDirectory().removeEntry(logicalFileName.str(), userdesc, NULL, REMOVE_FILE_SDS_CONNECT_TIMEOUT); // this can remove clusters also
                     if (deleted)
+                    {
+                        PrintLog("Detached File: %s\n",logicalFileName.str());
                         returnStr.appendf("<Message><Value>Detached File %s</Value></Message>", logicalFileName.str());
+                    }
+                    else
+                    {
+                        returnStr.appendf("<Message><Value>File %s not detached.</Value></Message>",logicalFileName.str());
+                        DBGLOG("File %s not detached.\n",logicalFileName.str());
+                    }
                 }
 
                 if (!deleted)
@@ -1809,28 +1823,28 @@ void CWsDfuEx::doGetFileDetails(IEspContext &context, IUserDescriptor* udesc, co
     }
     //#17430
 
-   //new (optional) attribute on a logical file (@persistent) 
-   //indicates the ESP page that shows the details of a file.  It indicates 
-   //whether the file was created with a PERSIST() ecl attribute.
+    //new (optional) attribute on a logical file (@persistent)
+    //indicates the ESP page that shows the details of a file.  It indicates
+    //whether the file was created with a PERSIST() ecl attribute.
     FileDetails.setPersistent(df->queryAttributes().queryProp("@persistent"));
 
-   //@format - what format the file is (if not fixed with)
+    //@format - what format the file is (if not fixed with)
     FileDetails.setFormat(df->queryAttributes().queryProp("@format"));
 
-   //@maxRecordSize - what the maximum length of records is
+    //@maxRecordSize - what the maximum length of records is
     FileDetails.setMaxRecordSize(df->queryAttributes().queryProp("@maxRecordSize"));
 
-   //@csvSeparate - separators between fields for a CSV/utf file
+    //@csvSeparate - separators between fields for a CSV/utf file
     FileDetails.setCsvSeparate(df->queryAttributes().queryProp("@csvSeparate"));
 
-   //@csvQuote - character used to quote fields for a csv/utf file.
+    //@csvQuote - character used to quote fields for a csv/utf file.
     FileDetails.setCsvQuote(df->queryAttributes().queryProp("@csvQuote"));
 
-   //@csvTerminate - characters used to terminate a record in a csv.utf file
+    //@csvTerminate - characters used to terminate a record in a csv.utf file
     FileDetails.setCsvTerminate(df->queryAttributes().queryProp("@csvTerminate"));
 
-   //@csvEscape - character used to define escape for a csv/utf file.
-    if (version > 1.19)
+    //@csvEscape - character used to define escape for a csv/utf file.
+    if (version >= 1.20)
         FileDetails.setCsvEscape(df->queryAttributes().queryProp("@csvEscape"));
 
   
@@ -3100,7 +3114,7 @@ bool CWsDfuEx::onSuperfileAction(IEspContext &context, IEspSuperfileActionReques
 
         const char* action = req.getAction();
         const char* superfile = req.getSuperfile();
-        superfileAction(context, action, superfile, req.getSubfiles(), req.getBefore(), true, req.getDelete(), req.getRemoveSuperfile());
+        superfileAction(context, action, superfile, req.getSubfiles(), req.getBefore(), true, true, req.getDelete(), req.getRemoveSuperfile());
 
         resp.setRetcode(0);
         if (superfile && *superfile && action && strieq(action, "remove"))
@@ -5040,17 +5054,26 @@ int CWsDfuEx::GetIndexData(IEspContext &context, bool bSchemaOnly, const char* i
 
     Owned<IResultSetFactory> resultSetFactory = getSecResultSetFactory(context.querySecManager(), context.queryUser(), context.queryUserId(), context.queryPassword());
     Owned<IViewFileWeb> web;
+
+    Owned<IUserDescriptor> udesc;
+    ISecUser * secUser = context.queryUser();
+    if(secUser && secUser->getName() && *secUser->getName())
+    {
+        udesc.setown(createUserDescriptor());
+        udesc->set(secUser->getName(), secUser->credentials().getPassword());
+    }
+
     if (cluster && *cluster)
     {
-        web.setown(createViewFileWeb(*resultSetFactory, cluster));
+        web.setown(createViewFileWeb(*resultSetFactory, cluster, udesc.getLink()));
     }
     else if (m_clusterName.length() > 0)
     {
-        web.setown(createViewFileWeb(*resultSetFactory, m_clusterName.str()));
+        web.setown(createViewFileWeb(*resultSetFactory, m_clusterName.str(), udesc.getLink()));
     }
     else
     {
-        web.setown(createViewFileWeb(*resultSetFactory, NULL));
+        web.setown(createViewFileWeb(*resultSetFactory, NULL, udesc.getLink()));
     }
 
     ViewGatherOptions options;

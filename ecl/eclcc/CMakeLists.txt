@@ -39,7 +39,6 @@ include_directories (
          ./../../ecl/hql 
          ./../../rtl/include 
          ./../../system/jlib 
-         ./../../common/commonext 
          ./../../common/remote
     )
 
@@ -57,14 +56,11 @@ target_link_libraries ( eclcc
          nbcd 
          eclrtl 
          deftype 
-         hql 
-         commonext 
          remote 
          dalibase 
-         environment 
-         dllserver 
          workunit 
          thorhelper 
-         hqlcpp 
+         hql
+         hqlcpp
     )
 

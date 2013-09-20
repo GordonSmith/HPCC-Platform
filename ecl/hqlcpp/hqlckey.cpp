@@ -211,15 +211,6 @@ void HqlCppTranslator::buildJoinMatchFunction(BuildCtx & ctx, const char * name,
 
 //--------------------------------------------------------------------------------------------------
 
-IHqlExpression * createKeyFromComplexKey(IHqlExpression * expr)
-{
-    IHqlExpression * base = queryPhysicalRootTable(expr);
-    if (base->getOperator() == no_newkeyindex)
-        return LINK(base);
-    UNIMPLEMENTED_XY("Key", getOpString(base->getOperator()));
-    return NULL;
-}
-
 class KeyedJoinInfo : public CInterface
 {
 public:
@@ -260,10 +251,12 @@ public:
 protected:
     void buildClearRecord(BuildCtx & ctx, RecordSelectIterator & rawIter, RecordSelectIterator & keyIter);
     void buildTransformBody(BuildCtx & ctx, IHqlExpression * transform);
+    IHqlExpression * createKeyFromComplexKey(IHqlExpression * expr);
     IHqlExpression * expandDatasetReferences(IHqlExpression * expr, IHqlExpression * ds);
     IHqlExpression * optimizeTransfer(HqlExprArray & fields, HqlExprArray & values, IHqlExpression * expr, IHqlExpression * leftSelector);
     void optimizeExtractJoinFields();
     void optimizeTransfer(SharedHqlExpr & targetDataset, SharedHqlExpr & targetTransform, SharedHqlExpr & keyedFilter, OwnedHqlExpr * extraFilter);
+    IHqlExpression * querySimplifiedKey(IHqlExpression * expr);
     void splitFilter(IHqlExpression * filter, SharedHqlExpr & keyTarget);
 
 protected:
@@ -320,9 +313,15 @@ KeyedJoinInfo::KeyedJoinInfo(HqlCppTranslator & _translator, IHqlExpression * _e
     }
     else
     {
-        hasComplexIndex = true;
         originalKey.set(right);
-        key.setown(createKeyFromComplexKey(right));
+        //We could call key.set(querySimplifiedKey(right)) to succeed in some cases instead of generating an error.
+        if (translator.getTargetClusterType() == RoxieCluster)
+        {
+            hasComplexIndex = true;
+            key.setown(createKeyFromComplexKey(right));
+        }
+        else
+            translator.throwError1(HQLERR_KeyedJoinNoRightIndex_X, getOpString(right->getOperator()));
     }
 
     if (!originalKey)
@@ -345,6 +344,47 @@ KeyedJoinInfo::~KeyedJoinInfo()
 }
 
 
+IHqlExpression * KeyedJoinInfo::querySimplifiedKey(IHqlExpression * expr)
+{
+    loop
+    {
+        switch (expr->getOperator())
+        {
+        case no_sorted:
+        case no_distributed:
+        case no_sort:
+        case no_distribute:
+        case no_preservemeta:
+        case no_assertsorted:
+        case no_assertgrouped:
+        case no_assertdistributed:
+        case no_nofold:
+            break;
+        case no_newkeyindex:
+            return LINK(expr);
+        default:
+            return NULL;
+        }
+        expr = expr->queryChild(0);
+    }
+}
+
+IHqlExpression * KeyedJoinInfo::createKeyFromComplexKey(IHqlExpression * expr)
+{
+    IHqlExpression * base = queryPhysicalRootTable(expr);
+    if (!base)
+    {
+        translator.throwError1(HQLERR_KeyedJoinNoRightIndex_X, getOpString(expr->getOperator()));
+        return NULL;
+    }
+
+    if (base->getOperator() == no_newkeyindex)
+        return LINK(base);
+
+    translator.throwError1(HQLERR_KeyedJoinNoRightIndex_X, getOpString(base->getOperator()));
+    return NULL;
+}
+
 void KeyedJoinInfo::buildClearRecord(BuildCtx & ctx, RecordSelectIterator & rawIter, RecordSelectIterator & keyIter)
 {
     keyIter.first();
@@ -354,8 +394,7 @@ void KeyedJoinInfo::buildClearRecord(BuildCtx & ctx, RecordSelectIterator & rawI
         OwnedHqlExpr rawSelect = rawIter.get();
         OwnedHqlExpr keySelect = keyIter.get();
 
-        ITypeInfo * keyFieldType = keySelect->queryType();
-        OwnedHqlExpr null = createNullExpr(keyFieldType);
+        OwnedHqlExpr null = createNullExpr(keySelect);
         OwnedHqlExpr keyNull = (rawIter.isInsideIfBlock() || (rawIter.isInsideNested() && isInPayload())) ? LINK(null) : getHozedKeyValue(null);
         OwnedHqlExpr folded = foldHqlExpression(keyNull);
         translator.buildAssign(ctx, rawSelect, folded);
@@ -614,31 +653,50 @@ void KeyedJoinInfo::buildTransformBody(BuildCtx & ctx, IHqlExpression * transfor
 {
     IHqlExpression * rhs = expr->queryChild(1);
     IHqlExpression * rhsRecord = rhs->queryRecord();
-    OwnedHqlExpr serializedRhsRecord = getSerializedForm(rhsRecord);
+    IHqlExpression * rowsid = expr->queryProperty(_rowsid_Atom);
 
-    //Map the file position field in the file to the incoming parameter
-    //MORE: This doesn't cope with local/global file position distinctions.
-    OwnedHqlExpr fileposVar = createVariable("_filepos", makeIntType(8, false));
+    OwnedHqlExpr originalRight = createSelector(no_right, rhsRecord, joinSeq);
+    OwnedHqlExpr serializedRhsRecord = getSerializedForm(rhsRecord, diskAtom);
+    OwnedHqlExpr serializedRight = createSelector(no_right, serializedRhsRecord, joinSeq);
 
     OwnedHqlExpr joinDataset = createDataset(no_anon, LINK(extractJoinFieldsRecord));
-    OwnedHqlExpr newTransform = replaceMemorySelectorWithSerializedSelector(transform, rhsRecord, no_right, joinSeq);
-    OwnedHqlExpr oldRight = createSelector(no_right, serializedRhsRecord, joinSeq);
-    OwnedHqlExpr newRight = createSelector(no_right, joinDataset, joinSeq);
-    OwnedHqlExpr fileposExpr = getFilepos(newRight, false);
+    OwnedHqlExpr extractedRight = createSelector(no_right, extractJoinFieldsRecord, joinSeq);
 
+    OwnedHqlExpr newTransform = LINK(transform);
+
+    //The RIGHT passed into the transform does not match the format of the key.
+    //In particular all fields will be serialized, and unused fields are likely to be removed.
+    //So any references in the transform to RIGHT and fields from RIGHT need to be mapped accordingly.
+    //If ROWS(RIGHT) is used, and RIGHT needs to be deserialized, then it needs to be mapped first.
+    if (expr->getOperator() == no_denormalizegroup)
+    {
+        assertex(extractedRight == serializedRight);    // no fields are currently projected out.  Needs to change if they ever are.
+        if (extractedRight != originalRight)
+        {
+            //References to ROWS(originalRight) need to be replaced with DESERIALIZE(ROWS(serializedRight))
+            OwnedHqlExpr originalRows = createDataset(no_rows, LINK(originalRight), LINK(rowsid));
+            OwnedHqlExpr rowsExpr = createDataset(no_rows, LINK(extractedRight), LINK(rowsid));
+            OwnedHqlExpr deserializedRows = ensureDeserialized(rowsExpr, rhs->queryType(), diskAtom);
+            newTransform.setown(replaceExpression(newTransform, originalRows, deserializedRows));
+        }
+    }
+
+    newTransform.setown(replaceMemorySelectorWithSerializedSelector(newTransform, rhsRecord, no_right, joinSeq, diskAtom));
+
+    OwnedHqlExpr fileposExpr = getFilepos(extractedRight, false);
     if (extractJoinFieldsTransform)
     {
         IHqlExpression * fileposField = isFullJoin() ? queryVirtualFileposField(file->queryRecord()) : queryLastField(key->queryRecord());
         if (fileposField && (expr->getOperator() != no_denormalizegroup))
         {
             HqlMapTransformer fileposMapper;
-            OwnedHqlExpr select = createSelectExpr(LINK(oldRight), LINK(fileposField));
+            OwnedHqlExpr select = createSelectExpr(LINK(serializedRight), LINK(fileposField));
             OwnedHqlExpr castFilepos = ensureExprType(fileposExpr, fileposField->queryType());
             fileposMapper.setMapping(select, castFilepos);
             newTransform.setown(fileposMapper.transformRoot(newTransform));
         }
 
-        newTransform.setown(replaceSelector(newTransform, oldRight, newRight));
+        newTransform.setown(replaceSelector(newTransform, serializedRight, extractedRight));
     }
     else
     {
@@ -657,9 +715,12 @@ void KeyedJoinInfo::buildTransformBody(BuildCtx & ctx, IHqlExpression * transfor
     {
         //Last parameter is false since implementation of group keyed denormalize in roxie passes in pointers to the serialized slave data
         bool rowsAreLinkCounted = false;
-        translator.bindRows(ctx, no_right, joinSeq, expr->queryProperty(_rowsid_Atom), joinDataset, "numRows", "rows", rowsAreLinkCounted);
+        translator.bindRows(ctx, no_right, joinSeq, rowsid, joinDataset, "numRows", "rows", rowsAreLinkCounted);
     }
 
+    //Map the file position field in the file to the incoming parameter
+    //MORE: This doesn't cope with local/global file position distinctions.
+    OwnedHqlExpr fileposVar = createVariable("_filepos", makeIntType(8, false));
     ctx.associateExpr(fileposExpr, fileposVar);
     translator.doBuildTransformBody(ctx, newTransform, selfCursor);
 
@@ -741,9 +802,9 @@ IHqlExpression * KeyedJoinInfo::optimizeTransfer(HqlExprArray & fields, HqlExprA
                 }
 
                 IHqlExpression * matchField = &fields.item(match);
-                OwnedHqlExpr serializedField = getSerializedForm(matchField);
+                OwnedHqlExpr serializedField = getSerializedForm(matchField, diskAtom);
                 OwnedHqlExpr result = createSelectExpr(getActiveTableSelector(), LINK(serializedField));
-                return ensureDeserialized(result, matchField->queryType());
+                return ensureDeserialized(result, matchField->queryType(), diskAtom);
             }
             break;
         }
@@ -799,8 +860,8 @@ void KeyedJoinInfo::optimizeTransfer(SharedHqlExpr & targetDataset, SharedHqlExp
             OwnedHqlExpr newExtraFilter = hasExtra ? optimizeTransfer(fields, values, *extraFilter, oldLeft) : NULL;
             if (newFilter && (newExtraFilter || !hasExtra) && fields.ordinality() < getFieldCount(dataset->queryRecord()))
             {
-                OwnedHqlExpr extractedRecord = translator.createRecordInheritMaxLength(fields, dataset);
-                OwnedHqlExpr serializedRecord = getSerializedForm(extractedRecord);
+                OwnedHqlExpr extractedRecord = createRecord(fields);
+                OwnedHqlExpr serializedRecord = getSerializedForm(extractedRecord, diskAtom);
                 targetDataset.setown(createDataset(no_anon, LINK(serializedRecord), NULL));
 
                 HqlExprArray assigns;
@@ -808,8 +869,8 @@ void KeyedJoinInfo::optimizeTransfer(SharedHqlExpr & targetDataset, SharedHqlExp
                 ForEachItemIn(i, fields)
                 {
                     IHqlExpression * curField = &fields.item(i);
-                    OwnedHqlExpr serializedField = getSerializedForm(curField);
-                    OwnedHqlExpr value = ensureSerialized(&values.item(i));
+                    OwnedHqlExpr serializedField = getSerializedForm(curField, diskAtom);
+                    OwnedHqlExpr value = ensureSerialized(&values.item(i), diskAtom);
                     assigns.append(*createAssign(createSelectExpr(LINK(self), LINK(serializedField)), LINK(value)));
                 }
                 targetTransform.setown(createValue(no_newtransform, makeTransformType(serializedRecord->getType()), assigns));
@@ -820,15 +881,15 @@ void KeyedJoinInfo::optimizeTransfer(SharedHqlExpr & targetDataset, SharedHqlExp
                     extraFilter->setown(replaceSelector(newExtraFilter, queryActiveTableSelector(), leftSelect));
 
             }
-            else if (recordRequiresSerialization(record))
+            else if (recordRequiresSerialization(record, diskAtom))
             {
-                OwnedHqlExpr serializedRecord = getSerializedForm(record);
+                OwnedHqlExpr serializedRecord = getSerializedForm(record, diskAtom);
                 targetDataset.setown(createDataset(no_anon, LINK(serializedRecord)));
                 targetTransform.setown(createRecordMappingTransform(no_transform, serializedRecord, oldLeft));
 
-                filter.setown(replaceMemorySelectorWithSerializedSelector(filter, record, no_left, joinSeq));
+                filter.setown(replaceMemorySelectorWithSerializedSelector(filter, record, no_left, joinSeq, diskAtom));
                 if (hasExtra)
-                    extraFilter->setown(replaceMemorySelectorWithSerializedSelector(*extraFilter, record, no_left, joinSeq));
+                    extraFilter->setown(replaceMemorySelectorWithSerializedSelector(*extraFilter, record, no_left, joinSeq, diskAtom));
             }
             else
                 targetDataset.set(dataset);
@@ -962,7 +1023,7 @@ void KeyedJoinInfo::optimizeExtractJoinFields()
                 doExtract = true;
         }
 
-        if (recordRequiresSerialization(rightRecord))
+        if (recordRequiresSerialization(rightRecord, diskAtom))
             doExtract = true;
     }
 
@@ -974,8 +1035,8 @@ void KeyedJoinInfo::optimizeExtractJoinFields()
         if (extractedRecord || (fieldsAccessed.ordinality() != 0))
         {
             if (!extractedRecord)
-                extractedRecord.setown(translator.createRecordInheritMaxLength(fieldsAccessed, rawRhs));
-            extractJoinFieldsRecord.setown(getSerializedForm(extractedRecord));
+                extractedRecord.setown(createRecord(fieldsAccessed));
+            extractJoinFieldsRecord.setown(getSerializedForm(extractedRecord, diskAtom));
             OwnedHqlExpr self = getSelf(extractJoinFieldsRecord);
             OwnedHqlExpr memorySelf = getSelf(extractedRecord);
 
@@ -1011,7 +1072,7 @@ void KeyedJoinInfo::optimizeExtractJoinFields()
                         OwnedHqlExpr tgt = createSelectExpr(LINK(self), LINK(curSerializedField));
                         OwnedHqlExpr src = createSelectExpr(LINK(memorySelf), LINK(curMemoryField));
                         OwnedHqlExpr mappedSrc = fieldMapper.expandFields(src, memorySelf, left, rawRhs);
-                        assigns.append(*createAssign(tgt.getClear(), ensureSerialized(mappedSrc)));
+                        assigns.append(*createAssign(tgt.getClear(), ensureSerialized(mappedSrc, diskAtom)));
                     }
                 }
             }
@@ -1430,7 +1491,7 @@ ABoundActivity * HqlCppTranslator::doBuildActivityKeyedJoinOrDenormalize(BuildCt
 
 ABoundActivity * HqlCppTranslator::doBuildActivityKeyedDistribute(BuildCtx & ctx, IHqlExpression * expr)
 {
-    if (!targetThor())
+    if (!targetThor() || insideChildQuery(ctx))
         return buildCachedActivity(ctx, expr->queryChild(0));
 
     HqlExprArray leftSorts, rightSorts;
@@ -1544,16 +1605,16 @@ ABoundActivity * HqlCppTranslator::doBuildActivityKeyDiff(BuildCtx & ctx, IHqlEx
     if (flags.length())
         doBuildUnsignedFunction(instance->classctx, "getFlags", flags.str()+1);
 
-    //virtual const char * queryOriginalName() = 0;         // may be null
-    buildRefFilenameFunction(*instance, instance->startctx, "queryOriginalName", original);
+    //virtual const char * getOriginalName() = 0;         // may be null
+    buildRefFilenameFunction(*instance, instance->startctx, "getOriginalName", original);
     noteAllFieldsUsed(original);
 
-    //virtual const char * queryPatchName() = 0;
-    buildRefFilenameFunction(*instance, instance->startctx, "queryUpdatedName", updated);
+    //virtual const char * getUpdatedName() = 0;
+    buildRefFilenameFunction(*instance, instance->startctx, "getUpdatedName", updated);
     noteAllFieldsUsed(updated);
 
-    //virtual const char * queryOutputName() = 0;
-    buildFilenameFunction(*instance, instance->startctx, "queryOutputName", output, hasDynamicFilename(expr));
+    //virtual const char * getOutputName() = 0;
+    buildFilenameFunction(*instance, instance->startctx, "getOutputName", output, hasDynamicFilename(expr));
 
     //virtual int getSequence() = 0;
     doBuildSequenceFunc(instance->classctx, querySequence(expr), false);
@@ -1588,15 +1649,15 @@ ABoundActivity * HqlCppTranslator::doBuildActivityKeyPatch(BuildCtx & ctx, IHqlE
     if (flags.length())
         doBuildUnsignedFunction(instance->classctx, "getFlags", flags.str()+1);
 
-    //virtual const char * queryOriginalName() = 0;
-    buildRefFilenameFunction(*instance, instance->startctx, "queryOriginalName", original);
+    //virtual const char * getOriginalName() = 0;
+    buildRefFilenameFunction(*instance, instance->startctx, "getOriginalName", original);
     noteAllFieldsUsed(original);
 
-    //virtual const char * queryPatchName() = 0;
-    buildFilenameFunction(*instance, instance->startctx, "queryPatchName", patch, true);
+    //virtual const char * getPatchName() = 0;
+    buildFilenameFunction(*instance, instance->startctx, "getPatchName", patch, true);
 
-    //virtual const char * queryOutputName() = 0;
-    buildFilenameFunction(*instance, instance->startctx, "queryOutputName", output, hasDynamicFilename(expr));
+    //virtual const char * getOutputName() = 0;
+    buildFilenameFunction(*instance, instance->startctx, "getOutputName", output, hasDynamicFilename(expr));
 
     //virtual int getSequence() = 0;
     doBuildSequenceFunc(instance->classctx, querySequence(expr), false);

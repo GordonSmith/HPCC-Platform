@@ -81,7 +81,7 @@ public:
         }
         catch (IException *e)
         {
-            ActPrintLog(activity, e, NULL);
+            ActPrintLog(activity, e);
             exception.setown(e);
         }
         try { writer->flush(); }
@@ -165,7 +165,7 @@ public:
     {
         input = NULL;
         mpTag = TAG_NULL;
-        maxEmptyLoopIterations = (unsigned)container->queryJob().getWorkUnitValueInt("@maxEmptyLoopIterations", 1000);
+        maxEmptyLoopIterations = getOptUInt(THOROPT_LOOP_MAX_EMPTY, 1000);
     }
     void init(MemoryBuffer &data, MemoryBuffer &slaveData)
     {
@@ -222,6 +222,7 @@ class CLoopSlaveActivity : public CLoopSlaveActivityBase
     unsigned flags, lastMs;
     IHThorLoopArg *helper;
     bool eof, finishedLooping;
+    Owned<IBarrier> barrier;
 
 public:
     IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
@@ -239,12 +240,20 @@ public:
             if (container.queryOwner().isGlobal())
                 global = true;
         }
+        if (!container.queryLocalOrGrouped())
+            barrier.setown(container.queryJob().createBarrier(mpTag));
     }
     virtual void kill()
     {
         CLoopSlaveActivityBase::kill();
         loopPending.clear();
         curInput.clear();
+    }
+    virtual void abort()
+    {
+        CLoopSlaveActivityBase::abort();
+        if (barrier)
+            barrier->cancel();
     }
 // IThorDataLink
     virtual void start()
@@ -364,7 +373,7 @@ public:
                 unsigned doLoopAgain = (flags & IHThorLoopArg::LFnewloopagain) ? helper->loopAgainResult() : 0;
                 ownedResults.setown(queryGraph().createThorGraphResults(3));
                 // ensures remote results are available, via owning activity (i.e. this loop act)
-                // so that when aggreagate result is fetched from the master, it will retreive from the act, not the (already cleaned) graph localresults
+                // so that when aggregate result is fetched from the master, it will retrieve from the act, not the (already cleaned) graph localresults
                 ownedResults->setOwner(container.queryId());
 
                 boundGraph->prepareLoopResults(*this, ownedResults);
@@ -380,6 +389,11 @@ public:
 
                 if (flags & IHThorLoopArg::LFnewloopagain)
                 {
+                    if (!container.queryLocalOrGrouped())
+                    {
+                        if (!barrier->wait(false))
+                            return NULL; // aborted
+                    }
                     Owned<IThorResult> loopAgainResult = ownedResults->getResult(helper->loopAgainResult(), !queryGraph().isLocalChild());
                     assertex(loopAgainResult);
                     Owned<IRowStream> loopAgainRows = loopAgainResult->getRowStream();
@@ -694,8 +708,6 @@ public:
 
 class CLocalResultWriteActivity : public CLocalResultWriteActivityBase
 {
-    IHThorLocalResultWriteArg *helper;
-
 public:
     IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
 
@@ -720,6 +732,65 @@ activityslaves_decl CActivityBase *createLocalResultSpillSlave(CGraphElementBase
     return new CLocalResultSpillActivity(container);
 }
 
+
+class CDictionaryResultWriteActivity : public ProcessSlaveActivity
+{
+    IHThorDictionaryResultWriteArg *helper;
+protected:
+    IThorDataLink *input;
+public:
+    IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
+
+    CDictionaryResultWriteActivity(CGraphElementBase *_container) : ProcessSlaveActivity(_container)
+    {
+        helper = (IHThorDictionaryResultWriteArg *)queryHelper();
+        input = NULL;
+    }
+    virtual void process()
+    {
+        input = inputs.item(0);
+        startInput(input);
+        processed = THORDATALINK_STARTED;
+
+        RtlLinkedDictionaryBuilder builder(queryRowAllocator(), helper->queryHashLookupInfo());
+        loop
+        {
+            const void *row = input->nextRow();
+            if (!row)
+            {
+                row = input->nextRow();
+                if (!row)
+                    break;
+            }
+            builder.appendOwn(row);
+        }
+        Owned<CGraphBase> graph = queryJob().getGraph(container.queryResultsGraph()->queryGraphId());
+        IThorResult *result = graph->createResult(*this, helper->querySequence(), this, !queryGraph().isLocalChild());
+        Owned<IRowWriter> resultWriter = result->getWriter();
+        size32_t dictSize = builder.getcount();
+        byte ** dictRows = builder.queryrows();
+        for (size32_t row = 0; row < dictSize; row++)
+        {
+            byte *thisRow = dictRows[row];
+            if (thisRow)
+                LinkThorRow(thisRow);
+            resultWriter->putRow(thisRow);
+        }
+    }
+    void endProcess()
+    {
+        if (processed & THORDATALINK_STARTED)
+        {
+            stopInput(input);
+            processed |= THORDATALINK_STOPPED;
+        }
+    }
+};
+
+CActivityBase *createDictionaryResultWriteSlave(CGraphElementBase *container)
+{
+    return new CDictionaryResultWriteActivity(container);
+}
 
 
 activityslaves_decl CActivityBase *createGraphLoopSlave(CGraphElementBase *container)

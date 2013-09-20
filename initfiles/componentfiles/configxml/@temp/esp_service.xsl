@@ -236,6 +236,11 @@ xmlns:seisint="http://seisint.com"  xmlns:set="http://exslt.org/sets" exclude-re
                     </xsl:for-each>
                 </Authenticate>
             </xsl:when>
+            <xsl:when test="$authMethod='htpasswd'">
+              <Authenticate method="htpasswd">
+                <xsl:attribute name="htpasswdFile"> <xsl:value-of select="$bindingNode/../Authentication/@htpasswdFile"/> </xsl:attribute>
+              </Authenticate>
+            </xsl:when>
         </xsl:choose>
     </xsl:template>
 
@@ -1160,7 +1165,7 @@ xmlns:seisint="http://seisint.com"  xmlns:set="http://exslt.org/sets" exclude-re
         <xsl:param name="path"/>
         <xsl:if test="contains($path, '\')">
             <xsl:variable name="prefix" select="substring-before($path, '\')"/>
-            <xsl:value-of select="concat($prefix, '\')"/>
+            <xsl:value-of select="concat($prefix, '/')"/>
             <xsl:call-template name="GetPathName">
                 <xsl:with-param name="path" select="substring-after($path, '\')"/>
             </xsl:call-template>

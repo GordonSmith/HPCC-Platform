@@ -5,9 +5,11 @@
 */
 
 //>>built
-define("dojo/dnd/common",["../_base/connect","../_base/kernel","../_base/lang","../dom"],function(_1,_2,_3,_4){
-var _5={};
-_5.getCopyKeyState=_1.isCopyKey;
+define("dojo/dnd/common",["../sniff","../_base/kernel","../_base/lang","../dom"],function(_1,_2,_3,_4){
+var _5=_3.getObject("dojo.dnd",true);
+_5.getCopyKeyState=function(_6){
+return _6[_1("mac")?"metaKey":"ctrlKey"];
+};
 _5._uniqueId=0;
 _5.getUniqueId=function(){
 var id;
@@ -24,6 +26,5 @@ t=t.parentNode;
 }
 return " button textarea input select option ".indexOf(" "+t.tagName.toLowerCase()+" ")>=0;
 };
-_3.mixin(_3.getObject("dojo.dnd",true),_5);
 return _5;
 });

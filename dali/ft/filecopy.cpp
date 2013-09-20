@@ -360,6 +360,9 @@ bool FileTransferThread::performTransfer()
         msg.append(sprayer.encryptKey);
         msg.append(sprayer.decryptKey);
 
+        sprayer.srcFormat.serializeExtra(msg, 1);
+        sprayer.tgtFormat.serializeExtra(msg, 1);
+
         if (!catchWriteBuffer(socket, msg))
             throwError1(RFSERR_TimeoutWaitConnect, url.str());
 
@@ -2526,8 +2529,14 @@ void FileSprayer::waitForTransferSem(Semaphore & sem)
             StringBuffer list;
             ForEachItemIn(i, transferSlaves)
                 transferSlaves.item(i).logIfRunning(list);
+
             if (timeSinceProgress>RESPONSE_TIME_TIMEOUT)
-                throwError1(RFSERR_TimeoutWaitSlave, list.str());
+            {
+                //Set an error - the transfer threads will check it after a couple of minutes, and then terminate gracefully
+                CriticalBlock lock(errorCS);
+                if (!error)
+                    error.setown(MakeStringException(RFSERR_TimeoutWaitSlave, RFSERR_TimeoutWaitSlave_Text, list.str()));
+            }
         }
     }
 }
@@ -2542,7 +2551,10 @@ void FileSprayer::addTarget(unsigned idx, INode * node)
 }
 
 bool FileSprayer::isAborting()
-{ 
+{
+    if (aborting || error)
+        return true;
+
     unsigned nowTick = msTick();
     if (abortChecker && (nowTick - lastAbortCheckTick >= abortCheckFrequency))
     {
@@ -2572,9 +2584,10 @@ const char * FileSprayer::querySlaveExecutable(const IpAddress &ip, StringBuffer
         if (ret.length())
             return ret.str();
     }
-    catch (IException *) {
+    catch (IException * e) {
         if (!slave||!*slave)
             throw;
+        e->Release();
     }
     if (slave)
         ret.append(slave);

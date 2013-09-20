@@ -147,6 +147,13 @@
                 </xs:appinfo>
               </xs:annotation>
             </xs:attribute>
+            <xs:attribute name="slaveDaliClient" type="xs:boolean" use="optional" default="false">
+              <xs:annotation>
+                <xs:appinfo>
+                  <tooltip>Set to true if thor slaves require dali connectivity</tooltip>
+                </xs:appinfo>
+              </xs:annotation>
+            </xs:attribute>
           </xs:complexType>
         </xs:element>
         <xs:element name="SwapNode">
@@ -349,14 +356,14 @@
       <xs:attribute name="masterMemorySize" type="xs:nonNegativeInteger" use="optional">
         <xs:annotation>
           <xs:appinfo>
-            <tooltip>Memory (in MB) to use for Link Counted Rows on thor master. It will default to globalMemorySize if unset</tooltip>
+            <tooltip>Memory (in MB) to use for rows on thor master. It will default to globalMemorySize if unset</tooltip>
           </xs:appinfo>
         </xs:annotation>
       </xs:attribute>
       <xs:attribute name="globalMemorySize" type="xs:nonNegativeInteger" use="optional">
         <xs:annotation>
           <xs:appinfo>
-            <tooltip>Memory (in MB) to use for Link Counted Rows. It will default to physical available memory if unset</tooltip>
+            <tooltip>Memory (in MB) to use for rows. If unset, default = [75% of physical memory] / slavesPerNode</tooltip>
           </xs:appinfo>
         </xs:annotation>
       </xs:attribute>
@@ -364,6 +371,13 @@
         <xs:annotation>
           <xs:appinfo>
             <tooltip>Threshold that the memory manager should start requesting memory to be freed (percentage)</tooltip>
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="heapUseHugePages" type="xs:boolean" default="false">
+        <xs:annotation>
+          <xs:appinfo>
+            <tooltip>Allow Thor master and slave to use memory from huge pages if they have been configured.</tooltip>
           </xs:appinfo>
         </xs:annotation>
       </xs:attribute>
@@ -525,13 +539,6 @@
           </xs:appinfo>
         </xs:annotation>
       </xs:attribute>
-      <xs:attribute name="largeMemSize" type="xs:nonNegativeInteger" use="optional">
-        <xs:annotation>
-          <xs:appinfo>
-            <tooltip>Memory available to thor for heavyweith operations (MB)</tooltip>
-          </xs:appinfo>
-        </xs:annotation>
-      </xs:attribute>
       <xs:attribute name="smallSortThreshold" type="xs:nonNegativeInteger" use="optional" default="1024">
         <xs:annotation>
           <xs:appinfo>
@@ -559,6 +566,13 @@
         <xs:annotation>
           <xs:appinfo>
             <tooltip>Comma separated list of allowed PIPE program (* for allow all)</tooltip>
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="compressInternalSpills" type="xs:boolean" default="true">
+        <xs:annotation>
+          <xs:appinfo>
+            <tooltip>Compress internal writes to disk when spilling</tooltip>
           </xs:appinfo>
         </xs:annotation>
       </xs:attribute>

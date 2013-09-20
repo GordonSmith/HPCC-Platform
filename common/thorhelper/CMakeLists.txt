@@ -26,6 +26,8 @@
 project( thorhelper ) 
 
 set (    SRCS 
+
+         commonext.cpp
          csvsplitter.cpp 
          layouttrans.cpp 
          thorcommon.cpp 
@@ -40,8 +42,12 @@ set (    SRCS
          thortlex.cpp 
          thortparse.cpp 
          thorxmlread.cpp 
-         thorxmlwrite.cpp 
+         thorxmlwrite.cpp
+         roxierow.cpp
+         roxiehelper.cpp
+         roxiedebug.cpp
          
+         commonext.hpp
          csvsplitter.hpp 
          layouttrans.hpp 
          thorcommon.hpp 
@@ -52,7 +58,16 @@ set (    SRCS
          thorsoapcall.hpp 
          thorstep.hpp 
          thorxmlread.hpp 
-         thorxmlwrite.hpp 
+         thorxmlwrite.hpp
+         roxierow.hpp
+         thorralgo.ipp
+         thorrparse.ipp
+         
+         roxiedebug.hpp
+         roxiedebug.ipp
+         roxiehelper.hpp
+         roxiehelper.ipp
+         roxielmj.hpp
                  
     )
 
@@ -63,10 +78,14 @@ include_directories (
          ./../../rtl/eclrtl 
          ./../../rtl/nbcd 
          ./../../system/include 
-         ./../workunit 
+         ./../../system/mp
          ./../../system/jlib 
+         ./../../dali/base
          ./../deftype 
+         ./../workunit
          ./../../rtl/include 
+         ./../../roxie/roxiemem
+         ./../../testing/unittests
     )
 
 ADD_DEFINITIONS( -DTHORHELPER_EXPORTS -D_USRDLL )
@@ -77,8 +96,10 @@ target_link_libraries ( thorhelper
          jlib 
          nbcd 
          eclrtl 
+         roxiemem
          deftype 
          securesocket 
+         dalibase 
     )
 
 

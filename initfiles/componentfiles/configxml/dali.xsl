@@ -158,7 +158,7 @@
             </xsl:attribute>
           </xsl:if>
           <xsl:attribute name="backupComputer">
-            <xsl:value-of select="@backupComputer"/>
+            <xsl:value-of select="/Environment/Hardware/Computer[@name=current()/@backupComputer]/@netAddress"/>
           </xsl:attribute>
         </xsl:if>
         <xsl:attribute name="asyncBackup">
@@ -259,8 +259,11 @@
         </xsl:element>
         <xsl:if test="string(@ldapServer) != ''">
           <xsl:element name="ldapSecurity">
-            <xsl:copy-of select="@ldapProtocol | @authMethod | @maxConnections | @workunitsBasedn | @filesBasedn | @filesDefaultUser | @filesDefaultPassword"/>
+            <xsl:copy-of select="@ldapProtocol | @authMethod | @maxConnections | @workunitsBasedn | @filesDefaultUser | @filesDefaultPassword"/>
             <xsl:variable name="ldapServerName" select="@ldapServer"/>
+            <xsl:attribute name="filesBasedn">
+                <xsl:value-of select="/Environment/Software/LDAPServerProcess[@name=$ldapServerName]/@filesBasedn"/>
+            </xsl:attribute>
             <xsl:variable name="ldapServerNode" select="/Environment/Software/LDAPServerProcess[@name=$ldapServerName]"/>
             <xsl:if test="not($ldapServerNode)">
               <xsl:message terminate="yes">

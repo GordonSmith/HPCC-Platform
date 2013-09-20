@@ -473,6 +473,7 @@ public:
     IHqlExpression * createSortExpr(node_operator op, attribute & dsAttr, const attribute & orderAttr, HqlExprArray & args);
     IHqlExpression * createIffDataset(IHqlExpression * record, IHqlExpression * value);
 
+    bool isSingleValuedExpressionList(const attribute & attr);
     bool convertAllToAttribute(attribute &atr);
     IHqlExpression * convertToOutOfLineFunction(const ECLlocation & errpos, IHqlExpression  * expr);
 
@@ -542,7 +543,7 @@ public:
     IHqlExpression * processAlienType(const attribute & errpos);
     IHqlExpression * processIndexBuild(attribute & indexAttr, attribute * recordAttr, attribute * payloadAttr, attribute & filenameAttr, attribute & flagsAttr);
     IHqlExpression * processCompoundFunction(attribute & result, bool outOfLine);
-    IHqlExpression * processCppBody(const attribute & errpos, IHqlExpression * cpp);
+    IHqlExpression * processEmbedBody(const attribute & errpos, IHqlExpression * embedText, IHqlExpression * language, IHqlExpression *attribs);
     void processEnum(attribute & idAttr, IHqlExpression * value);
     void processError(bool full);
     void processLoadXML(attribute & a1, attribute * a2);
@@ -631,8 +632,8 @@ public:
     IHqlExpression * attachPendingWarnings(IHqlExpression * ownedExpr);
     IHqlExpression * attachMetaAttributes(IHqlExpression * ownedExpr, HqlExprArray & meta);
 
-    void addDatasetField(const attribute &errpos, _ATOM name, IHqlExpression * record, IHqlExpression *value, IHqlExpression * attrs);
-    void addDictionaryField(const attribute &errpos, _ATOM name, IHqlExpression * record, IHqlExpression *value, IHqlExpression * attrs);
+    void addDatasetField(const attribute &errpos, _ATOM name, ITypeInfo * type, IHqlExpression *value, IHqlExpression * attrs);
+    void addDictionaryField(const attribute &errpos, _ATOM name, ITypeInfo * type, IHqlExpression *value, IHqlExpression * attrs);
     void addField(const attribute &errpos, _ATOM name, ITypeInfo *type, IHqlExpression *value, IHqlExpression *attrs);
     void addFields(const attribute &errpos, IHqlExpression *record, IHqlExpression * dataset, bool clone);
     void addIfBlockToActive(const attribute &errpos, IHqlExpression * ifblock);
@@ -654,9 +655,11 @@ public:
 
     void enterType(const attribute &errpos, bool isParameteried);
     void leaveType(const YYSTYPE & errpos);
-    int checkRecordTypes(IHqlExpression *left, IHqlExpression *right, attribute &atr, unsigned maxFields = (unsigned)-1);
-    bool checkRecordCreateTransform(HqlExprArray & assigns, IHqlExpression *leftExpr, IHqlExpression *leftSelect, IHqlExpression *rightExpr, IHqlExpression *rightSelect, attribute &atr);
-    IHqlExpression * checkEnsureRecordsMatch(IHqlExpression * left, IHqlExpression * right, attribute & errpos, bool rightIsRow);
+    void checkRecordTypesMatch(IHqlExpression *ds1, IHqlExpression *ds2, const attribute & errpos);
+    int checkRecordTypesSimilar(IHqlExpression *left, IHqlExpression *right, const attribute &atr, unsigned maxFields = (unsigned)-1);
+    bool checkRecordCreateTransform(HqlExprArray & assigns, IHqlExpression *leftExpr, IHqlExpression *leftSelect, IHqlExpression *rightExpr, IHqlExpression *rightSelect, const attribute &atr);
+    IHqlExpression * checkEnsureRecordsMatch(IHqlExpression * left, IHqlExpression * right, const attribute & errpos, bool rightIsRow);
+    void ensureMapToRecordsMatch(OwnedHqlExpr & recordExpr, HqlExprArray & args, const attribute & errpos, bool isRow);
     void checkRecordIsValid(const attribute &atr, IHqlExpression *record);
     void checkValidRecordMode(IHqlExpression * dataset, attribute & atr, attribute & modeatr);
     void checkValidCsvRecord(const attribute & errpos, IHqlExpression * record);
@@ -960,11 +963,11 @@ protected:
     IHqlExpression *queryCurrentTransformRecord();
     IHqlExpression* queryFieldMap(IHqlExpression* expr);
     IHqlExpression* bindFieldMap(IHqlExpression*, IHqlExpression*);
-    void extractRecordFromExtra(SharedHqlExpr & record, SharedHqlExpr & extra);
+    void extractIndexRecordAndExtra(SharedHqlExpr & record, SharedHqlExpr & extra);
     void transferOptions(attribute & filenameAttr, attribute & optionsAttr);
     IHqlExpression * extractTransformFromExtra(SharedHqlExpr & extra);
     void expandPayload(HqlExprArray & fields, IHqlExpression * payload, IHqlSimpleScope * scope, ITypeInfo * & lastFieldType, const attribute & errpos);
-    void mergeDictionaryPayload(SharedHqlExpr & record, SharedHqlExpr & payload, const attribute & errpos);
+    void mergeDictionaryPayload(OwnedHqlExpr & record, IHqlExpression * payload, const attribute & errpos);
     void modifyIndexPayloadRecord(SharedHqlExpr & record, SharedHqlExpr & payload, SharedHqlExpr & extra, const attribute & errpos);
 
     bool haveAssignedToChildren(IHqlExpression * select);
@@ -998,6 +1001,7 @@ class HqlLex
         HqlLex(HqlGram *gram, IFileContents * _text, IXmlScope *xmlScope, IHqlExpression *macroExpr);
         ~HqlLex();   
 
+        void enterEmbeddedMode();
         static int doyyFlex(YYSTYPE & returnToken, yyscan_t yyscanner, HqlLex * lexer, bool lookup, const short * activeState);
         static int lookupIdentifierToken(YYSTYPE & returnToken, HqlLex * lexer, bool lookup, const short * activeState, const char * tokenText);
 
@@ -1078,6 +1082,7 @@ class HqlLex
         void init(IFileContents * _text);
 
     private:
+        static void doEnterEmbeddedMode(yyscan_t yyscanner);
         void declareXmlSymbol(const YYSTYPE & errpos, const char *name);
         StringBuffer &lookupXmlSymbol(const YYSTYPE & errpos, const char *name, StringBuffer &value);
         void setXmlSymbol(const YYSTYPE & errpos, const char *name, const char *value, bool append);

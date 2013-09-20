@@ -24,3 +24,8 @@ add_subdirectory (workunitservices)
 if ("${BUILD_LEVEL}" STREQUAL "COMMUNITY")
   add_subdirectory (proxies)
 endif ()
+
+add_subdirectory (v8embed)
+add_subdirectory (pyembed)
+add_subdirectory (javaembed)
+add_subdirectory (Rembed)

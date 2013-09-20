@@ -97,7 +97,7 @@
     <para>This is the list of valid keywords for use in service function
     prototypes:</para>
 
-    <para><informaltable colsep="0" frame="none" rowsep="0">
+    <para><informaltable colsep="1" frame="all" rowsep="1">
         <tgroup cols="2">
           <colspec colwidth="115.95pt" />
 
@@ -358,6 +358,13 @@
     <para>The function must fill the passed structure with correct information
     for the features of the plug-in. The structure is defined as
     follows:</para>
+    
+    <para><emphasis role="bold">Warning:</emphasis> This function may be called 
+    without the plugin being loaded fully.  It should not make any library 
+    calls or assume that dependent modules have been loaded or that it has been 
+    initialised.  Specifically:  "The system does not call DllMain for process 
+    and thread initialization and termination.  Also, the system does not load 
+    additional executable modules that are referenced by the specified module."</para>
 
     <programlisting>Struct ECLPluginDefinitionBlock
   {
@@ -494,14 +501,14 @@
   
   #define EXAMPLELIB_VERSION "EXAMPLELIB 1.0.00"
   
-  const char * const HoleDefinition =
+  static const char * const HoleDefinition =
     "SYSTEM\n"
     "MODULE (SYSTEM)\n"
     " FUNCTION StringFind(string src, string search,
         unsigned4 instance),unsigned4,c,name('elStringFind')\n"
     "END\n";
   
-  const char * const EclDefinition =
+  static const char * const EclDefinition =
     "export ExampleLib := SERVICE\n"
     " unsigned integer4 StringFind(const string src,
         const string tofind, unsigned4 instance )

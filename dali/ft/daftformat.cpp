@@ -1168,27 +1168,6 @@ void CXmlQuickPartitioner::findSplitPoint(offset_t splitOffset, PartitionCursor 
 
 //----------------------------------------------------------------------------
 
-
-
-CRecordSizePartitioner::CRecordSizePartitioner(IRecordSize * _recordSize) 
-   : CInputBasePartitioner(recordSize->getRecordSize(NULL), recordSize->getRecordSize(NULL))
-{
-    recordSize = _recordSize;
-}
-
-size32_t CRecordSizePartitioner::getSplitRecordSize(const byte * record, unsigned maxToRead)
-{
-    return recordSize->getRecordSize(record);
-}
-
-size32_t CRecordSizePartitioner::getTransformRecordSize(const byte * record, unsigned maxToRead)
-{
-    return recordSize->getRecordSize(record);
-}
-
-
-//----------------------------------------------------------------------------
-
 CRemotePartitioner::CRemotePartitioner(const SocketEndpoint & _ep, const FileFormat & _srcFormat, const FileFormat & _tgtFormat, const char * _slave, const char *_wuid)
     : wuid(_wuid)
 {
@@ -1218,7 +1197,7 @@ void CRemotePartitioner::callRemote()
     {
         StringBuffer url, tmp;
         ep.getUrlStr(url);
-        
+
         Owned<ISocket> socket = spawnRemoteChild(SPAWNdfu, slave, ep, DAFT_VERSION, queryFtSlaveLogDir(), NULL, wuid);
         if (socket)
         {
@@ -1228,7 +1207,7 @@ void CRemotePartitioner::callRemote()
 
             LOG(MCdebugProgressDetail, job, "Remote partition part %s[%d]", url.str(), whichInput);
 
-            //Send message and wait for response... 
+            //Send message and wait for response...
             //MORE: they should probably all be sent on different threads....
             msg.append((byte)FTactionpartition);
             passwordProvider.serialize(msg);
@@ -1245,6 +1224,9 @@ void CRemotePartitioner::callRemote()
             unsigned compatflags = 0;                   // compatibility flags (not yet used)
             msg.append(compatflags);
             msg.append(decryptKey);
+            //Add extra data at the end to provide backward compatibility
+            srcFormat.serializeExtra(msg, 1);
+            tgtFormat.serializeExtra(msg, 1);
 
             if (!catchWriteBuffer(socket, msg))
                 throwError1(RFSERR_TimeoutWaitConnect, url.str());
@@ -1594,33 +1576,6 @@ void CBlockedProcessorHook::updateOutputOffset(size32_t len, const byte * data)
         data += recLength;
         blockLength -= recLength;
     }
-}
-
-//----------------------------------------------------------------------------
-
-CEclTransformOutputProcessor::CEclTransformOutputProcessor(IOutputProcessor * _target, IEclTransformer * _helper) : COutputProcessorHook(_target) 
-{ 
-    helper = _helper; 
-    buffer = new byte[helper->queryRecordSize()->getRecordSize(NULL)];
-}
-
-CEclTransformOutputProcessor::~CEclTransformOutputProcessor()
-{
-    delete [] buffer;
-}
-
-void CEclTransformOutputProcessor::outputRecord(size32_t len, const byte * data)
-{
-    unsigned newSize = helper->transform(buffer, data);
-    if (newSize)
-        target->outputRecord(newSize, buffer);
-}
-
-void CEclTransformOutputProcessor::updateOutputOffset(size32_t len, const byte * data)
-{
-    unsigned newSize = helper->transform(buffer, data);
-    if (newSize)
-        target->updateOutputOffset(newSize, buffer);
 }
 
 //----------------------------------------------------------------------------

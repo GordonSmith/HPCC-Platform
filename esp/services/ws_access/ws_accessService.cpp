@@ -54,7 +54,7 @@ void Cws_accessEx::init(IPropertyTree *cfg, const char *process, const char *ser
         WARNLOG(-1, "config not found for service %s/%s",process, service);
         return;
     }
-    m_servicecfg.setown(LINK(servicecfg));
+    m_servicecfg.setown(servicecfg);
 
     /* Config is like -
     <Modules basedn="ou=le,ou=ecl,dc=le">
@@ -2533,7 +2533,7 @@ bool Cws_accessEx::onUserResetPass(IEspContext &context, IEspUserResetPassReques
             return false;
         }
 
-        bool ret = ldapsecmgr->updateUser(username, req.getNewPassword());
+        bool ret = ldapsecmgr->updateUserPassword(username, req.getNewPassword());
         if(ret)
         {
             resp.setRetcode(0);

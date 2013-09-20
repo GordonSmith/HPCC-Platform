@@ -73,7 +73,6 @@ MODULE_INIT(INIT_PRIORITY_STANDARD)
 #include "xmlwrite/thxmlwrite.ipp"
 #include "merge/thmerge.ipp"
 #include "fetch/thfetch.ipp"
-#include "soapcall/thsoapcall.ipp"
 #include "loop/thloop.ipp"
 
 CActivityBase *createGroupActivityMaster(CMasterGraphElement *container);
@@ -96,7 +95,10 @@ public:
             IHThorDiskReadArg *diskHelper = QUERYINTERFACE(helper, IHThorDiskReadArg);
             mb.append(NULL != diskHelper); // flag to slaves that they should create diskread
             if (diskHelper)
-                mb.append(diskHelper->getFileName());
+            {
+                OwnedRoxieString fileName(diskHelper->getFileName());
+                mb.append(fileName);
+            }
         }
     }
     virtual CActivityBase *factory(ThorActivityKind kind)
@@ -116,16 +118,13 @@ public:
             case TAKprefetchcountproject:
             case TAKxmlparse:
             case TAKchilditerator:
-            case TAKrawiterator:
             case TAKlinkedrawiterator:
             case TAKcatch:
             case TAKsample:
             case TAKnormalize:
             case TAKnormalizechild:
             case TAKnormalizelinkedchild:
-            case TAKtemptable:
             case TAKinlinetable:
-            case TAKtemprow:
             case TAKpull:
             case TAKnull:
             case TAKpiperead:
@@ -147,6 +146,10 @@ public:
             case TAKnwayjoin:
             case TAKgraphloopresultread:
             case TAKstreamediterator:
+            case TAKsoap_rowdataset:
+            case TAKsoap_rowaction:
+            case TAKsoap_datasetdataset:
+            case TAKsoap_datasetaction:
                 ret = new CMasterActivity(this);
                 break;
             case TAKskipcatch:
@@ -270,6 +273,16 @@ public:
             case TAKworkunitwrite:
                 ret = createWorkUnitWriteActivityMaster(this);
                 break;
+            case TAKdictionaryworkunitwrite:
+                ret = createDictionaryWorkunitWriteMaster(this);
+                break;
+            case TAKdictionaryresultwrite:
+                if (!queryOwner().queryOwner() || queryOwner().isGlobal()) // don't need dictionary in master if in local child query
+                    ret = createDictionaryResultActivityMaster(this);
+                else
+                    ret = new CMasterActivity(this);
+                break;
+                break;
             case TAKremoteresult:
                 ret = createResultActivityMaster(this);
                 break;
@@ -330,12 +343,6 @@ public:
                 break;
             case TAKmerge:
                 ret = createMergeActivityMaster(this);
-                break;
-            case TAKsoap_rowdataset:
-            case TAKsoap_rowaction:
-            case TAKsoap_datasetdataset:
-            case TAKsoap_datasetaction:
-                ret = createSoapCallActivityMaster(this);
                 break;
             case TAKkeydiff:
                 ret = createKeyDiffActivityMaster(this);

@@ -23,7 +23,6 @@
 
 
 #include "platform.h"
-#include "jexpdef.hpp"
 #include "jiface.hpp"
 
 typedef size32_t aindex_t;
@@ -135,11 +134,7 @@ public:
     CopyArrayOf() { SELF::_init(); }
     ~CopyArrayOf();
     
-#ifdef __clang__
-    PARAM item(aindex_t pos) const;  // Clang's stricter template checking is not working with inline case. Should revisit for efficiency sometime
-#else
-    inline PARAM item(aindex_t pos) const             { assertex(SELF::isItem(pos)); return Array__Member2Param(((MEMBER *)AllocatorOf<sizeof(MEMBER)>::_head)[pos]);}
-#endif
+    inline PARAM item(aindex_t pos) const;
     PARAM tos(void) const;
     PARAM tos(aindex_t) const;
 
@@ -181,11 +176,7 @@ class ArrayOf : public OwningArrayOf<MEMBER, PARAM>
     typedef ArrayOf<MEMBER,PARAM> SELF;
 
 public:
-#ifdef __clang__
-    PARAM item(aindex_t pos) const;  // Clang's stricter template checking is not working with inline case. Should revisit for efficiency sometime
-#else
-    inline PARAM item(aindex_t pos) const             { assertex(SELF::isItem(pos)); return Array__Member2Param(((MEMBER *)AllocatorOf<sizeof(MEMBER)>::_head)[pos]);}
-#endif
+    inline PARAM item(aindex_t pos) const; 
     PARAM popGet();
     PARAM tos(void) const;
     PARAM tos(aindex_t) const;

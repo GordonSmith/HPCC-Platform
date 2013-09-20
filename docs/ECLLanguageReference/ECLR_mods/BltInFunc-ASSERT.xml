@@ -12,18 +12,20 @@
       <primary>FAIL</primary>
     </indexterm> ] [ </emphasis>, <emphasis role="bold">CONST<indexterm>
       <primary>CONST</primary>
-    </indexterm> ])</emphasis><emphasis role="bold">ASSERT(
-  </emphasis><emphasis>recset, condition </emphasis><emphasis role="bold">[
-  </emphasis><emphasis>, message </emphasis><emphasis role="bold">] [
-  </emphasis>, <emphasis role="bold">FAIL ] [ </emphasis>, <emphasis
-  role="bold">CONST ])</emphasis><emphasis role="bold"><indexterm>
+    </indexterm> ])</emphasis></para>
+
+  <para><emphasis role="bold">ASSERT( </emphasis><emphasis>recset, condition
+  </emphasis><emphasis role="bold">[ </emphasis><emphasis>, message
+  </emphasis><emphasis role="bold">] [ </emphasis>, <emphasis role="bold">FAIL
+  ] [ </emphasis>, <emphasis role="bold">CONST ])</emphasis><emphasis
+  role="bold"><indexterm>
       <primary>ASSERT function</primary>
     </indexterm></emphasis></para>
 
   <para><emphasis role="bold">ASSERT( </emphasis><emphasis>recset,
   assertlist</emphasis><emphasis role="bold"> )</emphasis></para>
 
-  <para><informaltable colsep="0" frame="none" rowsep="0">
+  <para><informaltable colsep="1" frame="all" rowsep="1">
       <tgroup cols="2">
         <colspec colwidth="80.65pt" />
 
@@ -130,5 +132,6 @@ END;
 OUTPUT(PROJECT(ds, t(LEFT)));
 </programlisting>
 
-  <para>See Also: <link linkend="FAIL">FAIL</link>, <link linkend="ERROR">ERROR</link></para>
+  <para>See Also: <link linkend="FAIL">FAIL</link>, <link
+  linkend="ERROR">ERROR</link></para>
 </sect1>

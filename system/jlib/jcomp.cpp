@@ -72,6 +72,7 @@ static const char * USE_INCLUDE_TAIL[] = { "\"", "\"" };
 static const char * INCLUDEPATH[] = { "\"#\\include\"", "\"#/include\"" };
 static const char * LINK_SEPARATOR[] = { " /link ", " " };
 static const char * OBJECT_FILE_EXT[] = { "obj", "o" };
+static const char * PCH_FILE_EXT[] = { "", "gch" };
 
 static const char * LIBFLAG_DEBUG[] = { "/MDd", "" };
 static const char * LIBFLAG_RELEASE[] = { "/MD", "" };
@@ -85,6 +86,8 @@ static const char * DLL_LINK_OPTION_DEBUG[] = { "/BASE:" BASE_ADDRESS " /NOLOGO 
 static const char * EXE_LINK_OPTION_DEBUG[] = { "/BASE:" BASE_ADDRESS " /NOLOGO /LARGEADDRESSAWARE /INCREMENTAL:NO /DEBUG /DEBUGTYPE:CV", "-g -L. -Wl,-E -fPIC -pipe -O0" };
 
 static const char * CC_OPTION_RELEASE[] = { "/Zm500 /EHsc /GR /Oi /Ob1 /GF /nologo /bigobj", "-fPIC -pipe -O0" };
+
+static const char * CC_OPTION_PRECOMPILEHEADER[] = { "", " -x c++-header" };
 
 static const char * DLL_LINK_OPTION_RELEASE[] = { "/BASE:" BASE_ADDRESS " /NOLOGO /LARGEADDRESSAWARE /INCREMENTAL:NO", "-shared -L. -fPIC -pipe -O0" };
 static const char * EXE_LINK_OPTION_RELEASE[] = { "/BASE:" BASE_ADDRESS " /NOLOGO /LARGEADDRESSAWARE /INCREMENTAL:NO", "-L. -Wl,-E -fPIC -pipe -O0" };
@@ -125,7 +128,7 @@ static void doSetCompilerPath(const char * path, const char * includes, const ch
     for (;;)
     {
         StringBuffer thislib;
-        while (*libs && *libs != ';')
+        while (*libs && *libs != ENVSEPCHAR)
             thislib.append(*libs++);
         if (thislib.length())
         {
@@ -183,7 +186,7 @@ static void doSetCompilerPath(const char * path, const char * includes, const ch
     int r = stat(fname.str(), &filestatus);
     if (    (r != 0)
         ||  (!S_ISREG(filestatus.st_mode))
-        ||  (filestatus.st_mode&(S_IXOTH|S_IXGRP|S_IXUSR)==0))
+        ||  ((filestatus.st_mode&(S_IXOTH|S_IXGRP|S_IXUSR))==0))
     {
         if (r == -1) errno = ENOENT;
 #endif
@@ -254,11 +257,19 @@ CppCompiler::CppCompiler(const char * _coreName, const char * _sourceDir, const 
     verbose = _verbose;
     saveTemps = false;
     abortChecker = NULL;
+    precompileHeader = false;
 }
 
 void CppCompiler::addCompileOption(const char * option)
 {
     compilerOptions.append(' ').append(option);
+}
+
+void CppCompiler::setPrecompileHeader(bool _pch)
+{
+    if (targetCompiler!=GccCppCompiler)
+        throw MakeStringException(0, "precompiled header generation only supported for g++ and compatible compilers");
+    precompileHeader = _pch;
 }
 
 void CppCompiler::addDefine(const char * symbolName, const char * value)
@@ -398,7 +409,7 @@ bool CppCompiler::compile()
 
     if (atomic_read(&numFailed) > 0)
         ret = false;
-    else if (!onlyCompile)
+    else if (!onlyCompile && !precompileHeader)
         ret = doLink();
 
     if (!saveTemps && !onlyCompile)
@@ -415,6 +426,7 @@ bool CppCompiler::compile()
         cclog = queryCcLogName();
     Owned <IFile> dstfile = createIFile(cclog);
     dstfile->remove();
+
     Owned<IFileIO> dstIO = dstfile->open(IFOwrite);
     ForEachItemIn(i2, logFiles)
     {
@@ -426,6 +438,12 @@ bool CppCompiler::compile()
         }
     }
 
+    //Don't leave lots of blank log files around if the compile was successful
+    bool logIsEmpty = (dstIO->size() == 0);
+    dstIO.clear();
+    if (ret && logIsEmpty)
+        dstfile->remove();
+
     pool->joinAll(true, 1000);
     return ret;
 }
@@ -436,13 +454,19 @@ bool CppCompiler::compileFile(IThreadPool * pool, const char * filename, Semapho
         return false;
 
     StringBuffer cmdline;
-    cmdline.append(CC_NAME[targetCompiler]).append(" \"");
+    cmdline.append(CC_NAME[targetCompiler]);
+    if (precompileHeader)
+        cmdline.append(CC_OPTION_PRECOMPILEHEADER[targetCompiler]);
+    cmdline.append(" \"");
     if (sourceDir.length())
     {
         cmdline.append(sourceDir);
         addPathSepChar(cmdline);
     }
-    cmdline.append(filename).append(".cpp\" ");
+    cmdline.append(filename);
+    if (!precompileHeader)
+        cmdline.append(".cpp");
+    cmdline.append("\" ");
     expandCompileOptions(cmdline);
 
     if (useDebugLibrary)
@@ -460,7 +484,12 @@ bool CppCompiler::compileFile(IThreadPool * pool, const char * filename, Semapho
     }
     else
     {
-        cmdline.append(" -o ").append("\"").append(targetDir).append(filename).append('.').append(OBJECT_FILE_EXT[targetCompiler]).append("\"");
+        cmdline.append(" -o ").append("\"").append(targetDir).append(filename).append('.');
+        if (precompileHeader)
+            cmdline.append(PCH_FILE_EXT[targetCompiler]);
+        else
+            cmdline.append(OBJECT_FILE_EXT[targetCompiler]);
+        cmdline.append("\"");
     }
     
     StringBuffer expanded;

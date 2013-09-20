@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE sect1 PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
 <sect1 id="DATASET">
@@ -6,23 +6,23 @@
       <primary>DATASET</primary>
     </indexterm></title>
 
-  <para><emphasis> attr</emphasis><emphasis role="bold"> :=
+  <para><emphasis>attr</emphasis><emphasis role="bold"> :=
   DATASET(</emphasis><emphasis> file, struct, filetype </emphasis><emphasis
   role="bold">);</emphasis></para>
 
-  <para><emphasis> attr</emphasis><emphasis role="bold"> :=
+  <para><emphasis>attr</emphasis><emphasis role="bold"> :=
   DATASET(</emphasis><emphasis> dataset, file, filetype </emphasis><emphasis
   role="bold">);</emphasis></para>
 
-  <para><emphasis role="bold"> </emphasis><emphasis> attr</emphasis><emphasis
-  role="bold"> := DATASET(</emphasis><emphasis> </emphasis><emphasis
+  <para><emphasis>attr</emphasis><emphasis role="bold"> :=
+  DATASET(</emphasis><emphasis> </emphasis><emphasis
   role="bold">WORKUNIT<indexterm>
       <primary>WORKUNIT</primary>
     </indexterm>( </emphasis>[ <emphasis>wuid ,</emphasis> ]<emphasis>
   namedoutput </emphasis><emphasis role="bold">)</emphasis><emphasis>, struct
   </emphasis><emphasis role="bold">);</emphasis></para>
 
-  <para><emphasis role="bold"> [ </emphasis><emphasis>attr</emphasis><emphasis
+  <para><emphasis role="bold">[ </emphasis><emphasis>attr</emphasis><emphasis
   role="bold"> := ] DATASET(</emphasis><emphasis> recordset
   </emphasis><emphasis role="bold">[</emphasis><emphasis>, recstruct
   </emphasis><emphasis role="bold">] );</emphasis></para>
@@ -46,12 +46,19 @@
 
   <para><emphasis role="bold">[GROUPED<indexterm>
       <primary>GROUPED</primary>
+    </indexterm>] [LINKCOUNTED<indexterm>
+      <primary>LINKCOUNTED</primary>
+    </indexterm>] [STREAMED<indexterm>
+      <primary>STREAMED</primary>
     </indexterm>] DATASET<indexterm>
       <primary>DATASET</primary>
     </indexterm>(</emphasis><emphasis> struct </emphasis><emphasis
   role="bold">)</emphasis></para>
 
-  <informaltable colsep="0" frame="none" rowsep="0">
+  <para><emphasis role="bold">DATASET(</emphasis><emphasis> dict
+  </emphasis><emphasis role="bold">)</emphasis></para>
+
+  <informaltable colsep="1" frame="all" rowsep="1">
     <tgroup cols="2">
       <colspec align="left" colwidth="122.40pt" />
 
@@ -123,12 +130,12 @@
           <entry><emphasis>recordset</emphasis></entry>
 
           <entry><para>A set of in-line data records. This can simply name a
-          previously-defined set attribute or explicitly use square brackets
-          to indicate an inline set definition. Within the square brackets
+          previously-defined set definition or explicitly use square brackets
+          to indicate an in-line set definition. Within the square brackets
           records are separated by commas. The records are specified by
           either:</para><para>1) Using curly braces ({}) to surround the field
           values for each record. The field values within each record are
-          comma-delimited.</para><para>2) A comma-delimited list of inline
+          comma-delimited.</para><para>2) A comma-delimited list of in-line
           transform functions that produce the data rows. All the transform
           functions in the list must produce records in the same result
           format.</para></entry>
@@ -141,7 +148,7 @@
           <emphasis>recordset.</emphasis> Omittable <emphasis
           role="underline">only</emphasis> if the
           <emphasis>recordset</emphasis> parameter is just one record or a
-          list of inline transform functions.</entry>
+          list of in-line transform functions.</entry>
         </row>
 
         <row>
@@ -214,6 +221,26 @@
         </row>
 
         <row>
+          <entry><emphasis role="bold">LINKCOUNTED</emphasis></entry>
+
+          <entry>Specifies the DATASET being passed or returned uses the link
+          counted format (each row is stored as a separate memory allocation)
+          instead of the default (embedded) format where the rows of a dataset
+          are all stored in a single block of memory. This is primarily for
+          use in BEGINC++ functions or external C++ library functions.</entry>
+        </row>
+
+        <row>
+          <entry><emphasis role="bold">STREAMED</emphasis></entry>
+
+          <entry>Specifies the DATASET being returned is returned as a pointer
+          to an IRowStream interface (see the eclhelper.hpp include file for
+          the definition).<emphasis role="bold">Valid only as a return
+          type.</emphasis> This is primarily for use in BEGINC++ functions or
+          external C++ library functions.</entry>
+        </row>
+
+        <row>
           <entry><emphasis>struct</emphasis></entry>
 
           <entry>The RECORD structure of the dataset field or parameter. This
@@ -221,9 +248,9 @@
         </row>
 
         <row>
-          <entry><emphasis>DATASET</emphasis></entry>
+          <entry><emphasis>dict</emphasis></entry>
 
-          <entry>declares a new data table in the supercomputer.</entry>
+          <entry>The name of a DICTIONARY definition.</entry>
         </row>
       </tbody>
     </tgroup>
@@ -266,6 +293,9 @@
     </indexterm> (see <emphasis role="bold">DATASET as a Parameter Type
   </emphasis>below).</para>
 
+  <para>The eighth form is used to define a DICTIONARY as a DATASET (see
+  <emphasis role="bold">DATASET from DICTIONARY </emphasis>below).</para>
+
   <sect2 id="THOR-FLAT_Files">
     <title>THOR/FLAT Files</title>
 
@@ -299,7 +329,7 @@
     [,ENCRYPT(</emphasis><emphasis>key</emphasis><emphasis role="bold">)
     ]);</emphasis></para>
 
-    <informaltable colsep="0" frame="none" rowsep="0">
+    <informaltable colsep="1" frame="all" rowsep="1">
       <tgroup cols="2">
         <colspec align="left" colwidth="122.40pt" />
 
@@ -444,7 +474,9 @@ PtblE := DATASET('~Thor400::RTTEMP::TestFileEncrypted',
     role="bold"> ) ] [, QUOTE<indexterm>
         <primary>QUOTE</primary>
       </indexterm>( </emphasis><emphasis>characters</emphasis><emphasis
-    role="bold"> ) ]</emphasis><emphasis role="bold"> [, MAXLENGTH<indexterm>
+    role="bold"> ) ]</emphasis><emphasis role="bold"> [, ESCAPE<indexterm>
+        <primary>ESCAPE</primary>
+      </indexterm>( </emphasis><emphasis>esc</emphasis><emphasis role="bold"> ) ] [, MAXLENGTH<indexterm>
         <primary>MAXLENGTH</primary>
       </indexterm>( </emphasis><emphasis>size</emphasis><emphasis role="bold">
     ) ]</emphasis></para>
@@ -462,7 +494,7 @@ PtblE := DATASET('~Thor400::RTTEMP::TestFileEncrypted',
       </indexterm>(</emphasis><emphasis>key</emphasis><emphasis role="bold">)
     ]);</emphasis></para>
 
-    <informaltable colsep="0" frame="none" rowsep="0">
+    <informaltable colsep="1" frame="all" rowsep="1">
       <tgroup cols="2">
         <colspec align="left" colwidth="122.40pt" />
 
@@ -534,6 +566,23 @@ PtblE := DATASET('~Thor400::RTTEMP::TestFileEncrypted',
             <entry><para>A single string constant, or set of string constants,
             that define the character(s) used as the string value
             delimiter.</para></entry>
+          </row>
+
+          <row>
+            <entry><emphasis role="bold">ESCAPE</emphasis></entry>
+
+            <entry><para>Optional. The string escape character used to indicate 
+            the next character (usually a control character) is part of the data and not to be
+            interpreted as a field or row delimiter. If omitted, the default is a backslash ('\\') 
+            or the escape character specified in the spray operation that put the file on
+            disk.</para></entry>
+          </row>
+
+          <row>
+            <entry><emphasis>esc</emphasis></entry>
+
+            <entry><para>A single string constant, or set of string constants,
+            that define the character(s) used to escape control characters.</para></entry>
           </row>
 
           <row>
@@ -632,7 +681,7 @@ file3 := DATASET('MyFile.CSV',
       </indexterm>(</emphasis><emphasis>key</emphasis><emphasis role="bold">)
     ]);</emphasis></para>
 
-    <informaltable colsep="0" frame="none" rowsep="0">
+    <informaltable colsep="1" frame="all" rowsep="1">
       <tgroup cols="2">
         <colspec align="left" colwidth="122.40pt" />
 
@@ -726,7 +775,7 @@ file3 := DATASET('MyFile.CSV',
 rform := RECORD
   STRING author; //data from author tag -- tag name is lowercase and matches field name
   STRING name {XPATH('title')}; //data from title tag, renaming the field
-  STRING isbn {XPATH('@isbn')}; //isbn attribute data from book tag
+  STRING isbn {XPATH('@isbn')}; //isbn definition data from book tag
 tag
 END;
 books := DATASET('MyFile',rform,XML('library/book'));</programlisting>
@@ -748,7 +797,7 @@ books := DATASET('MyFile',rform,XML('library/book'));</programlisting>
         <primary>XML</primary>
       </indexterm> ]) );</emphasis></para>
 
-    <informaltable colsep="0" frame="none" rowsep="0">
+    <informaltable colsep="1" frame="all" rowsep="1">
       <tgroup cols="2">
         <colspec align="left" colwidth="122.40pt" />
 
@@ -868,7 +917,7 @@ OUTPUT(ds);</programlisting>
       </indexterm> and have it treated as a file. This is useful in situations
     where file operations are needed on dynamically generated data (such as
     the runtime values of a set of pre-defined expressions). It is also useful
-    to test any boundary conditions for attributes by creating a small
+    to test any boundary conditions for definitions by creating a small
     well-defined set of records with constant values<indexterm>
         <primary>constant values</primary>
       </indexterm> that specifically exercise those boundaries. This form may
@@ -883,7 +932,7 @@ OUTPUT(ds);</programlisting>
 
     <para>Example:</para>
 
-    <programlisting>//Inline DATASET using attribute values
+    <programlisting>//Inline DATASET using definition values
 myrec := {REAL diff, INTEGER1 reason};
 rms5008 := 10.0;
 rms5009 := 11.0;
@@ -1193,9 +1242,15 @@ r := ROLLUP(fatIn, id, makeChildren(LEFT, RIGHT));</programlisting>
   <sect2 id="DATASET_as_a_Parameter_Type">
     <title>DATASET as a Parameter Type</title>
 
-    <para><emphasis role="bold"> [GROUPED<indexterm>
+    <para><emphasis role="bold">[GROUPED<indexterm>
         <primary>GROUPED</primary>
-      </indexterm>] DATASET(</emphasis><emphasis> struct </emphasis><emphasis
+      </indexterm>] [LINKCOUNTED<indexterm>
+        <primary>LINKCOUNTED</primary>
+      </indexterm>] [STREAMED<indexterm>
+        <primary>STREAMED</primary>
+      </indexterm>] DATASET<indexterm>
+        <primary>DATASET</primary>
+      </indexterm>(</emphasis><emphasis> struct </emphasis><emphasis
     role="bold">)</emphasis></para>
 
     <para>This form is only used as a Value Type for passing
@@ -1203,9 +1258,9 @@ r := ROLLUP(fatIn, id, makeChildren(LEFT, RIGHT));</programlisting>
         <primary>Passing a DATASET parameter</primary>
       </indexterm>, specifying function return types, or defining a SET OF
     datasets. If GROUPED is present, the passed parameter must have been
-    grouped using the GROUP function<indexterm>
-        <primary>GROUP function</primary>
-      </indexterm>.</para>
+    grouped using the GROUP function. The LINKCOUNTED and STREAMED keywords
+    are primarily for use in BEGINC++ functions or external C++ library
+    functions.</para>
 
     <para>Example:</para>
 
@@ -1300,7 +1355,37 @@ OUTPUT(s_Name1);
 OUTPUT(s_Name2);
 OUTPUT(a_Name);
 OUTPUT(b_Name);</programlisting>
+  </sect2>
 
-    <para>See Also: <link linkend="OUTPUT">OUTPUT</link>, <link linkend="RECORD_Structure">RECORD Structure</link>, <link linkend="TABLE">TABLE</link>, <link linkend="ROW">ROW</link>, <link linkend="RECORDOF">RECORDOF</link>, <link linkend="TRANSFORM_Structure">TRANSFORM Structure</link></para>
+  <sect2 id="DATASET_from_DICTIONARY">
+    <title>DATASET from DICTIONARY</title>
+
+    <para><emphasis role="bold">DATASET(</emphasis><emphasis> dict
+    </emphasis><emphasis role="bold">)</emphasis></para>
+
+    <para>This form re-defines the<emphasis> dict </emphasis> as a
+    DATASET<indexterm>
+        <primary>Treating DICTIONARY as a DATASET</primary>
+      </indexterm>.</para>
+
+    <para>Example:</para>
+
+    <programlisting>rec := {STRING color,UNSIGNED1 code, STRING name};
+ColorCodes := DATASET([{'Black' ,0 , 'Fred'},
+                       {'Brown' ,1 , 'Sam'},
+                       {'Red'   ,2 , 'Sue'},
+                       {'White' ,3 , 'Jo'}], rec);
+
+ColorCodesDCT := DICTIONARY(ColorCodes,{Color,Code});
+
+ds := DATASET(ColorCodesDCT);
+OUTPUT(ds);         </programlisting>
+
+    <para>See Also: <link linkend="OUTPUT">OUTPUT</link>, <link
+    linkend="RECORD_Structure">RECORD Structure</link>, <link
+    linkend="TABLE">TABLE</link>, <link linkend="ROW">ROW</link>, <link
+    linkend="RECORDOF">RECORDOF</link>, <link
+    linkend="TRANSFORM_Structure">TRANSFORM Structure</link>, <link
+    linkend="DICTIONARY">DICTIONARY</link></para>
   </sect2>
 </sect1>

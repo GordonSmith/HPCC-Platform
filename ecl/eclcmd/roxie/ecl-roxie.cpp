@@ -182,12 +182,7 @@ public:
 
     virtual int processCMD()
     {
-        Owned<IClientWsSMC> client = createWsSMCClient();
-        VStringBuffer url("http://%s:%s/WsSMC", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
-
+        Owned<IClientWsSMC> client = createCmdClient(WsSMC, *this);
         Owned<IClientRoxieControlCmdRequest> req = client->createRoxieControlCmdRequest();
         req->setWait(optMsToWait);
         req->setProcessCluster(optProcess);
@@ -293,12 +288,7 @@ public:
 
     virtual int processCMD()
     {
-        Owned<IClientWsSMC> client = createWsSMCClient();
-        VStringBuffer url("http://%s:%s/WsSMC", optServer.sget(), optPort.sget());
-        client->addServiceUrl(url.str());
-        if (optUsername.length())
-            client->setUsernameToken(optUsername.get(), optPassword.sget(), NULL);
-
+        Owned<IClientWsSMC> client = createCmdClient(WsSMC, *this);
         Owned<IClientRoxieControlCmdRequest> req = client->createRoxieControlCmdRequest();
         req->setWait(optMsToWait);
         req->setProcessCluster(optProcess);
@@ -334,6 +324,17 @@ public:
     }
     virtual void usage()
     {
+        if (reload)
+            fputs("\nUsage:\n"
+                "\n"
+                "The 'roxie reload' command requests Roxie to reload queryset information from dali,\n"
+                "and waits until it has done so.\n"
+                "\n"
+                "ecl roxie reload <process_cluster>\n"
+                " Options:\n"
+                "   <process_cluster>      the roxie process cluster to reload\n",
+                stdout);
+        else
             fputs("\nUsage:\n"
                 "\n"
                 "The 'roxie check' command verifies that the state of all nodes in\n"
@@ -384,7 +385,7 @@ public:
     virtual void usage()
     {
         fprintf(stdout,"\nUsage:\n\n"
-            "ecl roixe <command> [command options]\n\n"
+            "ecl roxie <command> [command options]\n\n"
             "   Queries Commands:\n"
             "      attach         (re)attach a roxie cluster from dali\n"
             "      detach         detach a roxie cluster from dali\n"

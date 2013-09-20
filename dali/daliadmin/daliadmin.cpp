@@ -43,6 +43,9 @@
 
 #include "rmtfile.hpp"
 
+#include "workunit.hpp"
+#include "dllserver.hpp"
+
 #ifdef _WIN32
 #include <conio.h>
 #else
@@ -50,6 +53,8 @@
 #define _putch putchar
 #endif
 
+#define DEFAULT_DALICONNECT_TIMEOUT 5 // seconds
+static unsigned daliConnectTimeoutMs = 5000;
 
 static bool noninteractive=false;
 
@@ -76,7 +81,7 @@ void usage(const char *exe)
   printf("  dfsfile <logicalname>          -- get meta information for file\n");
   printf("  dfspart <logicalname> <part>   -- get meta information for part num\n");
   printf("  dfscsv <logicalnamemask>       -- get csv info. for files matching mask\n");
-  printf("  dfsgroup <logicalgroupname>    -- get IPs for logical group (aka cluster)\n");
+  printf("  dfsgroup <logicalgroupname> [filename] -- get IPs for logical group (aka cluster). Written to optional filename if provided\n");
   printf("  dfsmap <logicalname>           -- get part files (primary and replicates)\n");
   printf("  dfsexists <logicalname>        -- sets return value to 0 if file exists\n");
   printf("  dfsparents <logicalname>       -- list superfiles containing file\n");
@@ -96,6 +101,7 @@ void usage(const char *exe)
   printf("\n");
   printf("Workunit commands:\n");
   printf("  listworkunits <workunit-mask> [<prop>=<val> <lower> <upper>]\n");
+  printf("  listmatches <connection xpath> [<match xpath>=<val> [<property xpath>]]\n");
   printf("  workunittimings <WUID>\n");
   printf("\n");
   printf("Other dali server and misc commands:\n");
@@ -107,15 +113,22 @@ void usage(const char *exe)
   printf("  daliping [ <num> ]              -- time dali server connect\n");
   printf("  getxref <destxmlfile>           -- get all XREF information\n");
   printf("  dalilocks [ <ip-pattern> ] [ files ] -- get all locked files/xpaths\n");
-  printf("  unlock <sessid>                 -- unlocks an object\n");
+  printf("  unlock <xpath or logicalfile>   --  unlocks either matching xpath(s) or matching logical file(s), can contain wildcards\n");
+  printf("  validatestore [fix=<true|false>]\n"
+         "                [verbose=<true|false>]\n"
+         "                [deletefiles=<true|false>]-- perform some checks on dali meta data an optionally fix or remove redundant info \n");
+  printf("  wuidcompress <wildcard> <type>  --  scan workunits that match <wildcard> and compress resources of <type>\n");
+  printf("  wuiddecompress <wildcard> <type> --  scan workunits that match <wildcard> and decompress resources of <type>\n");
+  printf("  xmlsize <filename> [<percentage>] --  analyse size usage in xml file, display individual items above 'percentage' \n");
   printf("\n");
-  printf("Common options (can be placed in dfuutil.ini)\n");
+  printf("Common options\n");
   printf("  server=<dali-server-ip>         -- server ip\n");
   printf("                                  -- can be 1st param if numeric ip (or '.')\n");
   printf("  user=<username>                 -- for file operations\n");
   printf("  password=<password>             -- for file operations\n");
   printf("  logfile=<filename>              -- filename blank for no log\n");
   printf("  rawlog=0|1                      -- if raw omits timestamps etc\n");
+  printf("  timeout=<seconds>               -- set dali connect timeout\n");
 }
 
 #define SDS_LOCK_TIMEOUT  60000
@@ -194,11 +207,11 @@ static IRemoteConnection *connectXPathOrFile(const char *path,bool safe,StringBu
     }
     else if (strchr(path+((*path=='/')?1:0),'/')==NULL)
         safe = true;    // all root trees safe
-    Owned<IRemoteConnection> conn = querySDS().connect(remLeading(path),myProcessSession(),safe?0:RTM_LOCK_READ, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(remLeading(path),myProcessSession(),safe?0:RTM_LOCK_READ, daliConnectTimeoutMs);
     if (!conn&&lfnpath.length()) {
         lfn.makeFullnameQuery(lfnpath.clear(),DXB_SuperFile);
         path = lfnpath.str();
-        conn.setown(querySDS().connect(remLeading(path),myProcessSession(),safe?0:RTM_LOCK_READ, INFINITE));
+        conn.setown(querySDS().connect(remLeading(path),myProcessSession(),safe?0:RTM_LOCK_READ, daliConnectTimeoutMs));
     }
     if (conn.get())
         xpath.append(path);
@@ -246,7 +259,7 @@ static void import(const char *path,const char *src,bool add)
     if (!tail)
         return;
     if (!add) {
-        Owned<IRemoteConnection> bconn = querySDS().connect(remLeading(path),myProcessSession(),RTM_LOCK_READ|RTM_SUB, INFINITE);
+        Owned<IRemoteConnection> bconn = querySDS().connect(remLeading(path),myProcessSession(),RTM_LOCK_READ|RTM_SUB, daliConnectTimeoutMs);
         if (bconn) {
             Owned<IPropertyTree> broot = bconn->getRoot();
             StringBuffer bakname;
@@ -256,15 +269,25 @@ static void import(const char *path,const char *src,bool add)
             toXML(broot, *fstream);         // formatted (default)
         }
     }
-    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),0, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),0, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to %s",path);
         return;
     }
+    StringAttr newtail; // must be declared outside the following if
     Owned<IPropertyTree> root = conn->getRoot();
     if (!add) {
         Owned<IPropertyTree> child = root->getPropTree(tail);
         root->removeTree(child);
+
+        //If replacing a qualified branch then remove the qualifiers before calling addProp
+        const char * qualifier = strchr(tail, '[');
+
+        if (qualifier)
+        {
+            newtail.set(tail, qualifier-tail);
+            tail = newtail;
+        }
     }
     Owned<IPropertyTree> oldEnvironment;
     if (streq(path,"Environment"))
@@ -294,7 +317,7 @@ static void _delete_(const char *path,bool backup)
     const char *tail=splitpath(path,head,tmp);
     if (!tail)
         return;
-    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_WRITE, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_WRITE, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to %s",path);
         return;
@@ -328,7 +351,7 @@ static void set(const char *path,const char *val)
     const char *tail=splitpath(path,head,tmp);
     if (!tail)
         return;
-    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_WRITE, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_WRITE, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to %s",path);
         return;
@@ -353,7 +376,7 @@ static void get(const char *path)
     const char *tail=splitpath(path,head,tmp);
     if (!tail)
         return;
-    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_READ, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_READ, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to %s",path);
         return;
@@ -375,7 +398,7 @@ static void bget(const char *path,const char *outfn)
     const char *tail=splitpath(path,head,tmp);
     if (!tail)
         return;
-    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_READ, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_READ, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to %s",path);
         return;
@@ -395,7 +418,7 @@ static void xget(const char *path)
 {
     if (!path||!*path)
         return;
-    Owned<IRemoteConnection> conn = querySDS().connect("/",myProcessSession(),RTM_LOCK_READ, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect("/",myProcessSession(),RTM_LOCK_READ, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to /");
         return;
@@ -444,7 +467,7 @@ static void wget(const char *path)
     const char *tail=splitpath(path,head,tmp);
     if (!tail)
         return;
-    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_READ, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_READ, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to %s",path);
         return;
@@ -468,7 +491,7 @@ static void add(const char *path,const char *val)
     const char *tail=splitpath(path,head,tmp);
     if (!tail)
         return;
-    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_WRITE, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_WRITE, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to %s",path);
         return;
@@ -491,7 +514,7 @@ static void delv(const char *path)
     const char *tail=splitpath(path,head,tmp);
     if (!tail)
         return;
-    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_WRITE, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(head.str(),myProcessSession(),RTM_LOCK_WRITE, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to %s",path);
         return;
@@ -520,7 +543,7 @@ static void dfsfile(const char *lname,IUserDescriptor *userDesc, UnsignedArray *
     CDfsLogicalFileName lfn;
     lfn.set(lname);
     if (!lfn.isExternal()) {
-        Owned<IPropertyTree> tree = queryDistributedFileDirectory().getFileTree(lname,userDesc,NULL,1000*60*5,true); //,userDesc);
+        Owned<IPropertyTree> tree = queryDistributedFileDirectory().getFileTree(lname,userDesc,NULL,daliConnectTimeoutMs,true); //,userDesc);
         if (partslist)
             filterParts(tree,*partslist);
         if (!tree) {
@@ -602,17 +625,32 @@ void dfscsv(const char *dali,IUserDescriptor *udesc)
 
 //=============================================================================
 
-static void dfsgroup(const char *name)
+static void dfsgroup(const char *name, const char *outputFilename)
 {
+    Owned<IFileIOStream> io;
+    if (outputFilename)
+    {
+        OwnedIFile iFile = createIFile(outputFilename);
+        OwnedIFileIO iFileIO = iFile->open(IFOcreate);
+        io.setown(createIOStream(iFileIO));
+    }
     Owned<IGroup> group = queryNamedGroupStore().lookup(name);
-    if (!group) {
+    if (!group)
+    {
         ERRLOG("cannot find group %s",name);
         return;
     }
     StringBuffer eps;
-    for (unsigned i=0;i<group->ordinality();i++) {
+    for (unsigned i=0;i<group->ordinality();i++)
+    {
         group->queryNode(i).endpoint().getUrlStr(eps.clear());
-        OUTLOG("%s",eps.str());
+        if (io)
+        {
+            eps.newline();
+            io->write(eps.length(), eps.str());
+        }
+        else
+            OUTLOG("%s",eps.str());
     }
 }
 
@@ -671,8 +709,10 @@ static void dfsunlink(const char *lname, IUserDescriptor *user)
             Owned<IDistributedSuperFileIterator> iter = file->getOwningSuperFiles();
             if (!iter->first())
                 break;
-            IDistributedSuperFile *sf = &iter->query();
-            if (sf->removeSubFile(lname,false,false))
+            file.clear();
+            Owned<IDistributedSuperFile> sf = &iter->get();
+            iter.clear();
+            if (sf->removeSubFile(lname,false))
                 OUTLOG("removed %s from %s",lname,sf->queryLogicalName());
             else
                 ERRLOG("FAILED to remove %s from %s",lname,sf->queryLogicalName());
@@ -1000,7 +1040,7 @@ static void checksuperfile(const char *lfn,bool fix=false)
     lname.set(lfn);
     StringBuffer query;
     lname.makeFullnameQuery(query, DXB_SuperFile, true);
-    Owned<IRemoteConnection> conn = querySDS().connect(query.str(),myProcessSession(),fix?RTM_LOCK_WRITE:0, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(query.str(),myProcessSession(),fix?RTM_LOCK_WRITE:0, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to %s",lfn);
         ERRLOG("Superfile %s FAILED",lname.get());
@@ -1044,10 +1084,10 @@ static void checksuperfile(const char *lfn,bool fix=false)
         if (!sublname.isExternal()&&!sublname.isForeign()) {
             StringBuffer subquery;
             sublname.makeFullnameQuery(subquery, DXB_File, true);
-            Owned<IRemoteConnection> subconn = querySDS().connect(subquery.str(),myProcessSession(),fix?RTM_LOCK_WRITE:0, INFINITE);
+            Owned<IRemoteConnection> subconn = querySDS().connect(subquery.str(),myProcessSession(),fix?RTM_LOCK_WRITE:0, daliConnectTimeoutMs);
             if (!subconn) {
                 sublname.makeFullnameQuery(subquery.clear(), DXB_SuperFile, true);
-                subconn.setown(querySDS().connect(subquery.str(),myProcessSession(),0, INFINITE));
+                subconn.setown(querySDS().connect(subquery.str(),myProcessSession(),0, daliConnectTimeoutMs));
             }
             if (!subconn) {
                 ERRLOG("SuperFile %s is missing sub-file file %s",lname.get(),subname.str());
@@ -1081,7 +1121,7 @@ static void checksuperfile(const char *lfn,bool fix=false)
                     sdlname.set(pname.str());
                     StringBuffer sdquery;
                     sdlname.makeFullnameQuery(sdquery, DXB_SuperFile, true);
-                    Owned<IRemoteConnection> sdconn = querySDS().connect(sdquery.str(),myProcessSession(),0, INFINITE);
+                    Owned<IRemoteConnection> sdconn = querySDS().connect(sdquery.str(),myProcessSession(),0, daliConnectTimeoutMs);
                     if (!conn) {
                         WARNLOG("SubFile %s has missing owner superfile %s",sublname.get(),sdlname.get());
                     }
@@ -1211,10 +1251,10 @@ static void checksubfile(const char *lfn)
     lname.set(lfn);
     StringBuffer query;
     lname.makeFullnameQuery(query, DXB_File, true);
-    Owned<IRemoteConnection> conn = querySDS().connect(query.str(),myProcessSession(),0, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect(query.str(),myProcessSession(),0, daliConnectTimeoutMs);
     if (!conn) {
         lname.makeFullnameQuery(query.clear(), DXB_SuperFile, true);
-        conn.setown(querySDS().connect(query.str(),myProcessSession(),0, INFINITE));
+        conn.setown(querySDS().connect(query.str(),myProcessSession(),0, daliConnectTimeoutMs));
     }
     if (!conn) {
         ERRLOG("Could not connect to %s",lfn);
@@ -1231,7 +1271,7 @@ static void checksubfile(const char *lfn)
         sdlname.set(pname.str());
         StringBuffer sdquery;
         sdlname.makeFullnameQuery(sdquery, DXB_SuperFile, true);
-        Owned<IRemoteConnection> sdconn = querySDS().connect(sdquery.str(),myProcessSession(),0, INFINITE);
+        Owned<IRemoteConnection> sdconn = querySDS().connect(sdquery.str(),myProcessSession(),0, daliConnectTimeoutMs);
         if (!conn) {
             ERRLOG("SubFile %s has missing owner superfile %s",lname.get(),sdlname.get());
             ok = false;
@@ -1449,7 +1489,7 @@ static void dfsscopes(const char *name, IUserDescriptor *user)
         StringBuffer s;
         dlfn.makeScopeQuery(s,true);
         ln.clear().append("SCOPE '").append(iter->query()).append('\'');
-        Owned<IRemoteConnection> conn = querySDS().connect(s.str(),myProcessSession(),RTM_LOCK_READ, INFINITE);
+        Owned<IRemoteConnection> conn = querySDS().connect(s.str(),myProcessSession(),RTM_LOCK_READ, daliConnectTimeoutMs);
         if (!conn)
             ERRLOG("%s - Could not connect using %s",ln.str(),s.str());
         else {
@@ -1498,7 +1538,7 @@ static void cleanscopes(IUserDescriptor *user)
         scope.append(iter->query());
         dlfn.set(scope.str(),"x");
         dlfn.makeScopeQuery(s.clear(),true);
-        Owned<IRemoteConnection> conn = querySDS().connect(s.str(),myProcessSession(),RTM_LOCK_READ, INFINITE);
+        Owned<IRemoteConnection> conn = querySDS().connect(s.str(),myProcessSession(),RTM_LOCK_READ, daliConnectTimeoutMs);
         if (!conn)  
             DBGLOG("Could not connect to '%s' using %s",iter->query(),s.str());
         else {
@@ -1525,7 +1565,7 @@ static void cleanscopes(IUserDescriptor *user)
 
 static void listworkunits(const char *test,const char *min, const char *max)
 {
-    Owned<IRemoteConnection> conn = querySDS().connect("/", myProcessSession(), 0, 5*60*1000);
+    Owned<IRemoteConnection> conn = querySDS().connect("/", myProcessSession(), 0, daliConnectTimeoutMs);
     Owned<IPropertyTreeIterator> iter = conn->queryRoot()->getElements("WorkUnits/*");
     ForEach(*iter) {
         IPropertyTree &e=iter->query();
@@ -1554,6 +1594,37 @@ static void listworkunits(const char *test,const char *min, const char *max)
 
 //=============================================================================
 
+static void listmatches(const char *path, const char *match, const char *pval)
+{
+    Owned<IRemoteConnection> conn = querySDS().connect(path, myProcessSession(), 0, daliConnectTimeoutMs);
+    if (!conn)
+    {
+        PROGLOG("Failed to connect to %s", path);
+        return;
+    }
+    StringBuffer output("Listing matches for path=");
+    output.append(path);
+    if (match)
+    {
+        output.append(", match=").append(match);
+        if (pval)
+            output.append(", property value = ").append(pval);
+    }
+    Owned<IPropertyTreeIterator> iter = conn->queryRoot()->getElements(match?match:"*", iptiter_remote);
+    ForEach(*iter)
+    {
+        IPropertyTree &e=iter->query();
+        output.clear().append(e.queryName());
+        const char *val = e.queryProp(pval?pval:NULL);
+        if (val)
+            output.append(" = ").append(val);
+        outln(output.str());
+    }
+}
+
+//=============================================================================
+
+
 static const char *getNum(const char *s,unsigned &num)
 {
     while (*s&&!isdigit(*s))
@@ -1570,7 +1641,7 @@ static void workunittimings(const char *wuid)
 {
     StringBuffer path;
     path.append("/WorkUnits/").append(wuid);
-    Owned<IRemoteConnection> conn = querySDS().connect(path, myProcessSession(), 0, 5*60*1000);
+    Owned<IRemoteConnection> conn = querySDS().connect(path, myProcessSession(), 0, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("WU %s not found",wuid);
         return;
@@ -1688,7 +1759,7 @@ static unsigned clustersToGroups(IPropertyTree *envroot,const StringArray &cmpls
 
 static void clusterlist()
 {
-    Owned<IRemoteConnection> conn = querySDS().connect("/Environment/Software", myProcessSession(), RTM_LOCK_READ, 1000*60);
+    Owned<IRemoteConnection> conn = querySDS().connect("/Environment/Software", myProcessSession(), RTM_LOCK_READ, daliConnectTimeoutMs);
     if (!conn) {
         ERRLOG("Could not connect to /Environment/Software");
         return;
@@ -1835,7 +1906,7 @@ static void convertBinBranch(IPropertyTree &cluster,const char *branch)
 
 static void getxref(const char *dst)
 {
-    Owned<IRemoteConnection> conn = querySDS().connect("DFU/XREF",myProcessSession(),RTM_LOCK_READ, INFINITE);
+    Owned<IRemoteConnection> conn = querySDS().connect("DFU/XREF",myProcessSession(),RTM_LOCK_READ, daliConnectTimeoutMs);
     Owned<IPropertyTree> root = createPTreeFromIPT(conn->getRoot());
     Owned<IPropertyTreeIterator> iter = root->getElements("Cluster");
     ForEach(*iter) {
@@ -1853,6 +1924,209 @@ static void getxref(const char *dst)
     toXML(root, *fstream);          // formatted (default)
     OUTLOG("DFU/XREF saved in '%s'",dst);
     conn->close();
+}
+
+struct CTreeItem : public CInterface
+{
+    String *tail;
+    CTreeItem *parent;
+    unsigned index;
+    unsigned startOffset;
+    unsigned endOffset;
+    unsigned adjust;
+    bool supressidx;
+    CTreeItem(CTreeItem *_parent, String *_tail, unsigned _index, unsigned _startOffset)
+    {
+        parent = LINK(_parent);
+        startOffset = _startOffset;
+        endOffset = 0;
+        adjust = 0;
+        index = _index;
+        supressidx = true;
+        tail = _tail;
+    }
+    ~CTreeItem()
+    {
+        if (parent)
+            parent->Release();
+        ::Release(tail);
+    }
+    void getXPath(StringBuffer &xpath)
+    {
+        if (parent)
+            parent->getXPath(xpath);
+        xpath.append('/').append(tail->toCharArray());
+        if ((index!=0)||tail->IsShared())
+            xpath.append('[').append(index+1).append(']');
+    }
+    unsigned size() { return endOffset?(endOffset-startOffset):0; }
+    unsigned adjustedSize(bool &adjusted) { adjusted = (adjust!=0); return size()-adjust; }
+};
+
+class CXMLSizesParser : public CInterface
+{
+    Owned<IPullPTreeReader> xmlReader;
+    PTreeReaderOptions xmlOptions;
+    double pc;
+
+    class CParse : public CInterface, implements IPTreeNotifyEvent
+    {
+        CIArrayOf<CTreeItem> stack;
+        String * levtail;
+        CIArrayOf<CTreeItem> arr;
+        unsigned limit;
+        __int64 totalSize;
+
+        static int _sortF(CInterface **_left, CInterface **_right)
+        {
+            CTreeItem **left = (CTreeItem **)_left;
+            CTreeItem **right = (CTreeItem **)_right;
+            return ((*right)->size() - (*left)->size());
+        }
+    public:
+
+        IMPLEMENT_IINTERFACE;
+
+        CParse(unsigned __int64 _totalSize, double limitpc) : totalSize(_totalSize)
+        {
+            levtail = NULL;
+            limit = (unsigned)((double)totalSize*limitpc/100.0);
+        }
+        void reset()
+        {
+            stack.kill();
+        }
+
+// IPTreeNotifyEvent
+        virtual void beginNode(const char *tag, offset_t startOffset)
+        {
+            String *tail = levtail;
+            if (levtail&&(0 == strcmp(tag, levtail->toCharArray())))
+                tail->Link();
+            else
+                tail = new String(tag);
+            levtail = NULL;     // opening new child
+            CTreeItem *parent = stack.empty()?NULL:&stack.tos();
+            CTreeItem *item = new CTreeItem(parent, tail, tail->getLinkCount(), startOffset);
+            stack.append(*item);
+        }
+        virtual void newAttribute(const char *tag, const char *value)
+        {
+        }
+        virtual void beginNodeContent(const char *tag)
+        {
+        }
+        virtual void endNode(const char *tag, unsigned length, const void *value, bool binary, offset_t endOffset)
+        {
+            CTreeItem *tos = &stack.tos();
+            assertex(tos);
+            tos->endOffset = endOffset;
+            bool adjusted;
+            unsigned sz = tos->adjustedSize(adjusted);
+            if (sz>=limit)
+            {
+                CTreeItem *parent = tos->parent;
+                while (parent) {
+                    parent->adjust += sz;
+                    parent = parent->parent;
+                }
+                tos->Link();
+                arr.append(*tos);
+                levtail = tos->tail;
+            }
+            else
+                levtail = NULL;
+            stack.pop();
+        }
+
+        void printFullResults()
+        {
+            arr.sort(_sortF);
+            ForEachItemIn(m, arr)
+            {
+                CTreeItem &match = arr.item(m);
+                StringBuffer xpath;
+                match.getXPath(xpath);
+                printf("xpath=%s, size=%d\n", xpath.str(), match.size());
+            }
+        }
+        void printResultTree()
+        {
+            if (!totalSize)
+                return;
+            StringBuffer res;
+            ForEachItemIn(i, arr) {
+                CTreeItem &item = arr.item(i);
+                bool adjusted;
+                unsigned sz = item.adjustedSize(adjusted);
+                if (sz>=limit) {
+                    res.clear();
+                    item.getXPath(res);
+                    if (adjusted)
+                        res.append(" (rest)");
+                    res.padTo(40);
+                    res.appendf(" %10d(%5.2f%%)",sz,((float)sz*100.0)/(float)totalSize);
+                    printf("%s\n",res.str());
+                }
+            }
+        }
+    } *parser;
+
+public:
+    IMPLEMENT_IINTERFACE;
+
+    CXMLSizesParser(const char *fName, PTreeReaderOptions _xmlOptions=ptr_none, double _pc=1.0) : xmlOptions(_xmlOptions), pc(_pc) { go(fName); }
+    ~CXMLSizesParser() { ::Release(parser); }
+
+    void go(const char *fName)
+    {
+        OwnedIFile ifile = createIFile(fName);
+        OwnedIFileIO ifileio = ifile->open(IFOread);
+        if (!ifileio)
+            throw MakeStringException(0, "Failed to open: %s", ifile->queryFilename());
+        parser = new CParse(ifileio->size(), pc);
+        Owned<IIOStream> stream = createIOStream(ifileio);
+        xmlReader.setown(createPullXMLStreamReader(*stream, *parser, xmlOptions));
+    }
+
+    void printResultTree()
+    {
+        parser->printResultTree();
+    }
+
+    virtual bool next()
+    {
+        return xmlReader->next();
+    }
+
+    virtual void reset()
+    {
+        parser->reset();
+        xmlReader->reset();
+    }
+};
+
+static void xmlSize(const char *filename, double pc)
+{
+
+    try
+    {
+        OwnedIFile iFile = createIFile(filename);
+        if (!iFile->exists())
+            OUTLOG("File '%s' not found", filename);
+        else
+        {
+            Owned<CXMLSizesParser> parser = new CXMLSizesParser((filename&&*filename)?filename:"dalisds.xml", ptr_none, pc);
+            while (parser->next())
+                ;
+            parser->printResultTree();
+        }
+    }
+    catch (IException *e)
+    {
+        pexception("xmlSize", e);
+        e->Release();
+    }
 }
 
 //=============================================================================
@@ -2009,6 +2283,158 @@ static void unlock(const char *pattern)
     }
 }
 
+static void wuidCompress(const char *match, const char *type, bool compress)
+{
+    if (0 != stricmp("graph", type))
+    {
+        WARNLOG("Currently, only type=='graph' supported.");
+        return;
+    }
+    Owned<IWorkUnitFactory> factory = getWorkUnitFactory();
+    Owned<IConstWorkUnitIterator> iter = factory->getWorkUnitsByXPath(match);
+    ForEach(*iter)
+    {
+        IConstWorkUnit &wuid = iter->query();
+
+        StringArray graphNames;
+        Owned<IConstWUGraphIterator> graphIter = &wuid.getGraphs(GraphTypeAny);
+        ForEach(*graphIter)
+        {
+            SCMStringBuffer graphName;
+            IConstWUGraph &graph = graphIter->query();
+            Owned<IPropertyTree> xgmml = graph.getXGMMLTreeRaw();
+            if (compress != xgmml->hasProp("graphBin"))
+            {
+                graph.getName(graphName);
+                graphNames.append(graphName.s.str());
+            }
+        }
+
+        if (graphNames.ordinality())
+        {
+            SCMStringBuffer wuidName;
+            wuid.getWuid(wuidName);
+            StringAttr msg;
+            msg.set(compress?"Compressing":"Uncompressing");
+            PROGLOG("%s graphs for workunit: %s", msg.get(), wuidName.s.str());
+            Owned<IWorkUnit> wWuid = &wuid.lock();
+            ForEachItemIn(n, graphNames)
+            {
+                Owned<IWUGraph> wGraph = wWuid->updateGraph(graphNames.item(n));
+                PROGLOG("%s graph: %s", msg.get(), graphNames.item(n));
+                // get/set - will convert to/from new format (binary compress blob)
+                Owned<IPropertyTree> xgmml = wGraph->getXGMMLTree(false);
+                wGraph->setXGMMLTree(xgmml.getClear(), compress);
+            }
+        }
+    }
+}
+
+static void validateStore(bool fix, bool deleteFiles, bool verbose)
+{
+    /*
+     * Place holder for client-side dali store verification/validation. Currently performs:
+     * 1) validates GeneratedDll entries correspond to current workunits (see HPCC-9146)
+     */
+    CTimeMon totalTime, ts;
+
+    PROGLOG("Gathering list of workunits");
+    Owned<IRemoteConnection> conn = querySDS().connect("/WorkUnits", myProcessSession(), RTM_LOCK_READ, 10000);
+    if (!conn)
+        throw MakeStringException(0, "Failed to connect to /WorkUnits");
+    AtomRefTable wuids;
+    Owned<IPropertyTreeIterator> wuidIter = conn->queryRoot()->getElements("*");
+    ForEach(*wuidIter)
+    {
+        IPropertyTree &wuid = wuidIter->query();
+        wuids.queryCreate(wuid.queryName());
+    }
+    PROGLOG("%d workunits gathered. Took %d ms", wuids.count(), ts.elapsed());
+    ts.reset(0);
+
+    StringArray uidsToDelete;
+    UnsignedArray indexToDelete;
+
+    PROGLOG("Gathering associated files");
+    conn.setown(querySDS().connect("/GeneratedDlls", myProcessSession(), fix?RTM_LOCK_WRITE:RTM_LOCK_READ, 10000));
+    IPropertyTree *root = conn->queryRoot()->queryBranch(NULL); // force all to download
+
+    Owned<IPropertyTreeIterator> gdIter = root->getElements("*");
+    RegExpr RE("^.*{W2[0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]{-[0-9]+}?}{[^0-9].*|}$");
+
+    unsigned index=1;
+    ForEach(*gdIter)
+    {
+        IPropertyTree &gd = gdIter->query();
+        const char *name = gd.queryProp("@name");
+        if (name && *name)
+        {
+            if (RE.find(name))
+            {
+                StringBuffer wuid;
+                RE.substitute(wuid,"#1");
+                const char *w = wuid.str();
+                bool found = NULL != wuids.find(*w);
+                const char *uid = gd.queryProp("@uid");
+                if (!found)
+                {
+                    uidsToDelete.append(uid);
+                    indexToDelete.append(index);
+                }
+            }
+        }
+        ++index;
+    }
+    PROGLOG("%d out of %d workunit files not associated with any workunit. Took %d ms", indexToDelete.ordinality(), index, ts.elapsed());
+    ts.reset(0);
+
+    IArrayOf<IDllEntry> removedEntries;
+    unsigned numDeleted = 0;
+    ForEachItemInRev(d, indexToDelete)
+    {
+        const char *uid = uidsToDelete.item(d);
+        unsigned index = indexToDelete.item(d);
+        StringBuffer path("GeneratedDll[");
+        path.append(index).append("]");
+        IPropertyTree *gd = root->queryPropTree(path.str());
+        if (NULL == gd)
+            throwUnexpected();
+        const char *uidQuery = gd->queryProp("@uid");
+        if (0 != strcmp(uid, uidQuery))
+            throw MakeStringException(0, "Expecting uid=%s @ GeneratedDll[%d], but found uid=%s", uid, index, uidQuery);
+        if (verbose)
+            PROGLOG("Removing: %s, uid=%s", path.str(), uid);
+        if (fix)
+        {
+            Owned<IDllEntry> entry = queryDllServer().createEntry(root, gd);
+            entry->remove(false, false); // NB: This will remove child 'gd' element from root (GeneratedDlls)
+            if (deleteFiles) // delay until after meta info removed and /GeneratedDlls unlocked
+                removedEntries.append(*entry.getClear());
+        }
+        ++numDeleted;
+    }
+    if (fix)
+    {
+        conn->commit();
+        PROGLOG("Removed %d unassociated file entries. Took %d ms", numDeleted, ts.elapsed());
+        ts.reset(0);
+
+        if (deleteFiles)
+        {
+            PROGLOG("Deleting physical files..");
+            ForEachItemIn(r, removedEntries)
+            {
+                IDllEntry &entry = removedEntries.item(r);
+                PROGLOG("Removing files for: %s", entry.queryName());
+                entry.remove(true, false);
+            }
+            PROGLOG("Removed physical files. Took %d ms", ts.elapsed());
+        }
+    }
+    else
+        PROGLOG("%d unassociated file entries to remove - use 'fix=true'", numDeleted);
+    PROGLOG("Done time = %d secs", totalTime.elapsed()/1000);
+}
 
 //=============================================================================
 
@@ -2078,7 +2504,10 @@ int main(int argc, char* argv[])
             (memcmp(param,"rawlog=",8)==0)||
             (memcmp(param,"user=",5)==0)||
             (memcmp(param,"password=",9)==0) ||
-            (memcmp(param,"fix=",4)==0))
+            (memcmp(param,"fix=",4)==0) ||
+            (memcmp(param,"verbose=",8)==0) ||
+            (memcmp(param,"deletefiles=",12)==0) ||
+            (memcmp(param,"timeout=",4)==0))
             props->loadProp(param);
         else if ((i==1)&&(isdigit(*param)||(*param=='.'))&&ep.set(((*param=='.')&&param[1])?(param+1):param,DALI_SERVER_PORT))
             props->setProp("server",ep.getUrlStr(tmps.clear()).str());
@@ -2120,227 +2549,259 @@ int main(int argc, char* argv[])
     unsigned daliconnectelapsed;
     StringBuffer daliserv;
     if (!ret) {
-        if (!props->getProp("server",daliserv.clear())) {
-            ERRLOG("Dali server not specified");
-            return 1;
-        }
-        try {
-            SocketEndpoint ep(daliserv.str(),DALI_SERVER_PORT);
-            SocketEndpointArray epa;
-            epa.append(ep);
-            Owned<IGroup> group = createIGroup(epa);
-            unsigned start = msTick();
-            initClientProcess(group, DCR_Util);
-            daliconnectelapsed = msTick()-start;
-        }
-        catch (IException *e) {
-            EXCLOG(e,"daliadmin initClientProcess");
-            e->Release();
-            ret = 254;
-        }
-    }
-    if (!ret) {
-        try {
-            Owned<IUserDescriptor> userDesc;
-            if (props->getProp("user",tmps.clear())) {
-                userDesc.setown(createUserDescriptor());
-                StringBuffer ps;
-                props->getProp("password",ps);
-                userDesc->set(tmps.str(),ps.str());
-                queryDistributedFileDirectory().setDefaultUser(userDesc);
-            }
-            unsigned np = params.ordinality()-1;
-            const char *cmd = params.item(0);
-            if (stricmp(cmd,"export")==0) {
-                CHECKPARAMS(2,2);
-                _export_(params.item(1),params.item(2));
-            }   
-            else if (stricmp(cmd,"import")==0) {
-                CHECKPARAMS(2,2);
-                import(params.item(1),params.item(2),false);
-            }   
-            else if (stricmp(cmd,"importadd")==0) {
-                CHECKPARAMS(2,2);
-                import(params.item(1),params.item(2),true);
-            }
-            else if (stricmp(cmd,"delete")==0) {
-                CHECKPARAMS(1,1);
-                _delete_(params.item(1),true);
-            }
-            else if (stricmp(cmd,"set")==0) {
-                CHECKPARAMS(2,2);
-                set(params.item(1),params.item(2));
-            }
-            else if (stricmp(cmd,"get")==0) {
-                CHECKPARAMS(1,1);
-                get(params.item(1));
-            }
-            else if (stricmp(cmd,"bget")==0) {
-                CHECKPARAMS(2,2);
-                bget(params.item(1),params.item(2));
-            }
-            else if (stricmp(cmd,"wget")==0) {
-                CHECKPARAMS(1,1);
-                wget(params.item(1));
-            }
-            else if (stricmp(cmd,"xget")==0) {
-                CHECKPARAMS(1,1);
-                wget(params.item(1));
-            }
-            else if (stricmp(cmd,"add")==0) {
-                CHECKPARAMS(2,2);
-                add(params.item(1),params.item(2));
-            }
-            else if (stricmp(cmd,"delv")==0) {
-                CHECKPARAMS(1,1);
-                delv(params.item(1));
-            }
-            else if (stricmp(cmd,"count")==0) {
-                CHECKPARAMS(1,1);
-                count(params.item(1));
-            }
-            else if (stricmp(cmd,"dfsfile")==0) {
-                CHECKPARAMS(1,1);
-                dfsfile(params.item(1),userDesc);
-            }
-            else if (stricmp(cmd,"dfspart")==0) {
-                CHECKPARAMS(2,2);
-                dfspart(params.item(1),userDesc,atoi(params.item(2)));
-            }
-            else if (stricmp(cmd,"dfscsv")==0) {
-                CHECKPARAMS(1,1);
-                dfscsv(params.item(1),userDesc);
-            }
-            else if (stricmp(cmd,"dfsgroup")==0) {
-                CHECKPARAMS(1,1);
-                dfsgroup(params.item(1));
-            }
-            else if (stricmp(cmd,"dfsmap")==0) {
-                CHECKPARAMS(1,1);
-                dfsmap(params.item(1), userDesc);
-            }
-            else if (stricmp(cmd,"dfsexist")==0) {
-                CHECKPARAMS(1,1);
-                ret = dfsexists(params.item(1),userDesc);
-            }
-            else if (stricmp(cmd,"dfsparents")==0) {
-                CHECKPARAMS(1,1);
-                dfsparents(params.item(1),userDesc);
-            }
-            else if (stricmp(cmd,"dfsunlink")==0) {
-                CHECKPARAMS(1,1);
-                dfsunlink(params.item(1),userDesc);
-            }
-            else if (stricmp(cmd,"dfsverify")==0) {
-                CHECKPARAMS(1,1);
-                ret = dfsverify(params.item(1),NULL,userDesc);
-            }
-            else if (stricmp(cmd,"setprotect")==0) {
-                CHECKPARAMS(2,2);
-                setprotect(params.item(1),params.item(2),userDesc);
-            }
-            else if (stricmp(cmd,"unprotect")==0) {
-                CHECKPARAMS(2,2);
-                unprotect(params.item(1),params.item(2),userDesc);
-            }
-            else if (stricmp(cmd,"listprotect")==0) {
-                CHECKPARAMS(0,2);
-                listprotect((np>1)?params.item(1):"*",(np>2)?params.item(2):"*");
+        const char *cmd = params.item(0);
+        unsigned np = params.ordinality()-1;
 
-            }
-            else if (stricmp(cmd,"checksuperfile")==0) {
-                CHECKPARAMS(1,1);
-                bool fix = props->getPropBool("fix");
-                checksuperfile(params.item(1),fix);
-            }
-            else if (stricmp(cmd,"checksubfile")==0) {
-                CHECKPARAMS(1,1);
-                checksubfile(params.item(1));
-            }
-            else if (stricmp(cmd,"listexpires")==0) {
-                CHECKPARAMS(0,1);
-                listexpires((np>1)?params.item(1):"*",userDesc);
-            }
-            else if (stricmp(cmd,"listrelationships")==0) {
-                CHECKPARAMS(2,2);
-                listrelationships(params.item(1),params.item(2));
-            }
-            else if (stricmp(cmd,"dfsperm")==0) {
-                if (!userDesc.get()) 
-                    throw MakeStringException(-1,"dfsperm requires username to be set (user=)");
-                CHECKPARAMS(1,1);
-                ret = dfsperm(params.item(1),userDesc);
-            }
-            else if (stricmp(cmd,"dfscompratio")==0) {
-                CHECKPARAMS(1,1);
-                dfscompratio(params.item(1),userDesc);
-            }
-            else if (stricmp(cmd,"dfsscopes")==0) {
-                CHECKPARAMS(0,1);
-                dfsscopes((np>1)?params.item(1):"*",userDesc);
-            }
-            else if (stricmp(cmd,"cleanscopes")==0) {
-                CHECKPARAMS(0,0);
-                cleanscopes(userDesc);
-            }
-            else if (stricmp(cmd,"listworkunits")==0) {
-                CHECKPARAMS(0,3);
-                listworkunits((np>1)?params.item(1):NULL,(np>2)?params.item(2):NULL,(np>3)?params.item(3):NULL);
-            }
-            else if (stricmp(cmd,"workunittimings")==0) {
-                CHECKPARAMS(1,1);
-                workunittimings(params.item(1));
-            }
-            else if (stricmp(cmd,"serverlist")==0) {
-                CHECKPARAMS(1,1);
-                serverlist(params.item(1));
-            }
-            else if (stricmp(cmd,"clusterlist")==0) {
-                CHECKPARAMS(1,1);
-                clusterlist(params.item(1));
-            }
-            else if (stricmp(cmd,"auditlog")==0) {
-                CHECKPARAMS(2,3);
-                auditlog(params.item(1),params.item(2),(np>2)?params.item(3):NULL);
-            }
-            else if (stricmp(cmd,"coalesce")==0) {
-                CHECKPARAMS(0,0);
-                coalesce();
-            }
-            else if (stricmp(cmd,"mpping")==0) {
-                CHECKPARAMS(1,1);
-                mpping(params.item(1));
-            }
-            else if (stricmp(cmd,"daliping")==0) {
-                CHECKPARAMS(0,1);
-                daliping(daliserv.str(),daliconnectelapsed,(np>0)?atoi(params.item(1)):1);
-            }
-            else if (stricmp(cmd,"getxref")==0) {
-                CHECKPARAMS(1,1);
-                getxref(params.item(1));
-            }
-            else if (stricmp(cmd,"dalilocks")==0) {
-                CHECKPARAMS(0,2);
-                bool filesonly = false;
-                if (np&&(stricmp(params.item(np),"files")==0)) {
-                    filesonly = true;
-                    np--;
-                }
-                dalilocks(np>0?params.item(1):NULL,filesonly);
-            }
-            else if (stricmp(cmd,"unlock")==0) {
-                CHECKPARAMS(1,1);
-                unlock(params.item(1));
-            }
+        if (!props->getProp("server",daliserv.clear()))
+        {
+            // external commands
 
-            else 
+            if (stricmp(cmd,"xmlsize")==0)
+            {
+                CHECKPARAMS(1,2);
+                xmlSize(params.item(1), np>1?atof(params.item(2)):1.0);
+            }
+            else
                 ERRLOG("Unknown command %s",cmd);
+            return 0;
         }
-        catch (IException *e) {
-            EXCLOG(e,"daliadmin");
-            e->Release();
+        else
+        {
+            try {
+                SocketEndpoint ep(daliserv.str(),DALI_SERVER_PORT);
+                SocketEndpointArray epa;
+                epa.append(ep);
+                Owned<IGroup> group = createIGroup(epa);
+                unsigned start = msTick();
+                initClientProcess(group, DCR_Util);
+                daliconnectelapsed = msTick()-start;
+            }
+            catch (IException *e) {
+                EXCLOG(e,"daliadmin initClientProcess");
+                e->Release();
+                ret = 254;
+            }
+            if (!ret) {
+                try {
+                    Owned<IUserDescriptor> userDesc;
+                    if (props->getProp("user",tmps.clear())) {
+                        userDesc.setown(createUserDescriptor());
+                        StringBuffer ps;
+                        props->getProp("password",ps);
+                        userDesc->set(tmps.str(),ps.str());
+                        queryDistributedFileDirectory().setDefaultUser(userDesc);
+                    }
+                    daliConnectTimeoutMs = 1000 * props->getPropInt("timeout", DEFAULT_DALICONNECT_TIMEOUT);
+                    if (stricmp(cmd,"export")==0) {
+                        CHECKPARAMS(2,2);
+                        _export_(params.item(1),params.item(2));
+                    }
+                    else if (stricmp(cmd,"import")==0) {
+                        CHECKPARAMS(2,2);
+                        import(params.item(1),params.item(2),false);
+                    }
+                    else if (stricmp(cmd,"importadd")==0) {
+                        CHECKPARAMS(2,2);
+                        import(params.item(1),params.item(2),true);
+                    }
+                    else if (stricmp(cmd,"delete")==0) {
+                        CHECKPARAMS(1,1);
+                        _delete_(params.item(1),true);
+                    }
+                    else if (stricmp(cmd,"set")==0) {
+                        CHECKPARAMS(2,2);
+                        set(params.item(1),params.item(2));
+                    }
+                    else if (stricmp(cmd,"get")==0) {
+                        CHECKPARAMS(1,1);
+                        get(params.item(1));
+                    }
+                    else if (stricmp(cmd,"bget")==0) {
+                        CHECKPARAMS(2,2);
+                        bget(params.item(1),params.item(2));
+                    }
+                    else if (stricmp(cmd,"wget")==0) {
+                        CHECKPARAMS(1,1);
+                        wget(params.item(1));
+                    }
+                    else if (stricmp(cmd,"xget")==0) {
+                        CHECKPARAMS(1,1);
+                        wget(params.item(1));
+                    }
+                    else if (stricmp(cmd,"add")==0) {
+                        CHECKPARAMS(2,2);
+                        add(params.item(1),params.item(2));
+                    }
+                    else if (stricmp(cmd,"delv")==0) {
+                        CHECKPARAMS(1,1);
+                        delv(params.item(1));
+                    }
+                    else if (stricmp(cmd,"count")==0) {
+                        CHECKPARAMS(1,1);
+                        count(params.item(1));
+                    }
+                    else if (stricmp(cmd,"dfsfile")==0) {
+                        CHECKPARAMS(1,1);
+                        dfsfile(params.item(1),userDesc);
+                    }
+                    else if (stricmp(cmd,"dfspart")==0) {
+                        CHECKPARAMS(2,2);
+                        dfspart(params.item(1),userDesc,atoi(params.item(2)));
+                    }
+                    else if (stricmp(cmd,"dfscsv")==0) {
+                        CHECKPARAMS(1,1);
+                        dfscsv(params.item(1),userDesc);
+                    }
+                    else if (stricmp(cmd,"dfsgroup")==0) {
+                        CHECKPARAMS(1,2);
+                        dfsgroup(params.item(1),(np>1)?params.item(2):NULL);
+                    }
+                    else if (stricmp(cmd,"dfsmap")==0) {
+                        CHECKPARAMS(1,1);
+                        dfsmap(params.item(1), userDesc);
+                    }
+                    else if (stricmp(cmd,"dfsexist")==0) {
+                        CHECKPARAMS(1,1);
+                        ret = dfsexists(params.item(1),userDesc);
+                    }
+                    else if (stricmp(cmd,"dfsparents")==0) {
+                        CHECKPARAMS(1,1);
+                        dfsparents(params.item(1),userDesc);
+                    }
+                    else if (stricmp(cmd,"dfsunlink")==0) {
+                        CHECKPARAMS(1,1);
+                        dfsunlink(params.item(1),userDesc);
+                    }
+                    else if (stricmp(cmd,"dfsverify")==0) {
+                        CHECKPARAMS(1,1);
+                        ret = dfsverify(params.item(1),NULL,userDesc);
+                    }
+                    else if (stricmp(cmd,"setprotect")==0) {
+                        CHECKPARAMS(2,2);
+                        setprotect(params.item(1),params.item(2),userDesc);
+                    }
+                    else if (stricmp(cmd,"unprotect")==0) {
+                        CHECKPARAMS(2,2);
+                        unprotect(params.item(1),params.item(2),userDesc);
+                    }
+                    else if (stricmp(cmd,"listprotect")==0) {
+                        CHECKPARAMS(0,2);
+                        listprotect((np>1)?params.item(1):"*",(np>2)?params.item(2):"*");
+
+                    }
+                    else if (stricmp(cmd,"checksuperfile")==0) {
+                        CHECKPARAMS(1,1);
+                        bool fix = props->getPropBool("fix");
+                        checksuperfile(params.item(1),fix);
+                    }
+                    else if (stricmp(cmd,"checksubfile")==0) {
+                        CHECKPARAMS(1,1);
+                        checksubfile(params.item(1));
+                    }
+                    else if (stricmp(cmd,"listexpires")==0) {
+                        CHECKPARAMS(0,1);
+                        listexpires((np>1)?params.item(1):"*",userDesc);
+                    }
+                    else if (stricmp(cmd,"listrelationships")==0) {
+                        CHECKPARAMS(2,2);
+                        listrelationships(params.item(1),params.item(2));
+                    }
+                    else if (stricmp(cmd,"dfsperm")==0) {
+                        if (!userDesc.get())
+                            throw MakeStringException(-1,"dfsperm requires username to be set (user=)");
+                        CHECKPARAMS(1,1);
+                        ret = dfsperm(params.item(1),userDesc);
+                    }
+                    else if (stricmp(cmd,"dfscompratio")==0) {
+                        CHECKPARAMS(1,1);
+                        dfscompratio(params.item(1),userDesc);
+                    }
+                    else if (stricmp(cmd,"dfsscopes")==0) {
+                        CHECKPARAMS(0,1);
+                        dfsscopes((np>1)?params.item(1):"*",userDesc);
+                    }
+                    else if (stricmp(cmd,"cleanscopes")==0) {
+                        CHECKPARAMS(0,0);
+                        cleanscopes(userDesc);
+                    }
+                    else if (stricmp(cmd,"listworkunits")==0) {
+                        CHECKPARAMS(0,3);
+                        listworkunits((np>0)?params.item(1):NULL,(np>1)?params.item(2):NULL,(np>2)?params.item(3):NULL);
+                    }
+                    else if (stricmp(cmd,"listmatches")==0) {
+                        CHECKPARAMS(0,3);
+                        listmatches((np>0)?params.item(1):NULL,(np>1)?params.item(2):NULL,(np>2)?params.item(3):NULL);
+                    }
+                    else if (stricmp(cmd,"workunittimings")==0) {
+                        CHECKPARAMS(1,1);
+                        workunittimings(params.item(1));
+                    }
+                    else if (stricmp(cmd,"serverlist")==0) {
+                        CHECKPARAMS(1,1);
+                        serverlist(params.item(1));
+                    }
+                    else if (stricmp(cmd,"clusterlist")==0) {
+                        CHECKPARAMS(1,1);
+                        clusterlist(params.item(1));
+                    }
+                    else if (stricmp(cmd,"auditlog")==0) {
+                        CHECKPARAMS(2,3);
+                        auditlog(params.item(1),params.item(2),(np>2)?params.item(3):NULL);
+                    }
+                    else if (stricmp(cmd,"coalesce")==0) {
+                        CHECKPARAMS(0,0);
+                        coalesce();
+                    }
+                    else if (stricmp(cmd,"mpping")==0) {
+                        CHECKPARAMS(1,1);
+                        mpping(params.item(1));
+                    }
+                    else if (stricmp(cmd,"daliping")==0) {
+                        CHECKPARAMS(0,1);
+                        daliping(daliserv.str(),daliconnectelapsed,(np>0)?atoi(params.item(1)):1);
+                    }
+                    else if (stricmp(cmd,"getxref")==0) {
+                        CHECKPARAMS(1,1);
+                        getxref(params.item(1));
+                    }
+                    else if (stricmp(cmd,"dalilocks")==0) {
+                        CHECKPARAMS(0,2);
+                        bool filesonly = false;
+                        if (np&&(stricmp(params.item(np),"files")==0)) {
+                            filesonly = true;
+                            np--;
+                        }
+                        dalilocks(np>0?params.item(1):NULL,filesonly);
+                    }
+                    else if (stricmp(cmd,"unlock")==0) {
+                        CHECKPARAMS(1,1);
+                        unlock(params.item(1));
+                    }
+                    else if (stricmp(cmd,"validateStore")==0) {
+                        CHECKPARAMS(0,2);
+                        bool fix = props->getPropBool("fix");
+                        bool verbose = props->getPropBool("verbose");
+                        bool deleteFiles = props->getPropBool("deletefiles");
+                        validateStore(fix, deleteFiles, verbose);
+                    }
+                    else if (stricmp(cmd,"wuidCompress")==0) {
+                        CHECKPARAMS(2,2);
+                        wuidCompress(params.item(1), params.item(2), true);
+                    }
+                    else if (stricmp(cmd,"wuidDecompress")==0) {
+                        CHECKPARAMS(2,2);
+                        wuidCompress(params.item(1), params.item(2), false);
+                    }
+                    else
+                        ERRLOG("Unknown command %s",cmd);
+                }
+                catch (IException *e) {
+                    EXCLOG(e,"daliadmin");
+                    e->Release();
+                }
+                closedownClientProcess();
+            }
         }
-        closedownClientProcess();
     }
     setDaliServixSocketCaching(false);
     setNodeCaching(false);

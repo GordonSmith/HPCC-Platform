@@ -56,22 +56,18 @@ public:
     bool     isChildQuery;
     bool     groupedChildIterators;
     bool     allowSplitBetweenSubGraphs;
-    bool     supportsChildQueries;
     bool     preventKeyedSplit;
     bool     preventSteppedSplit;
-    bool     mangleSpillNameWithWuid;
     bool     minimizeSkewBeforeSpill;
     bool     useMpForDistribute;
     bool     expandSingleConstRow;
     bool     createSpillAsDataset;
-    bool     useLinkedRawIterator;
     bool     optimizeSharedInputs;
     bool     combineSiblings;
 
     IHqlExpression * graphIdExpr;
     unsigned nextResult;
     unsigned clusterSize;
-    StringAttr filenameMangler;
     ClusterType targetClusterType;
 
     //Used
@@ -83,7 +79,7 @@ public:
     inline bool canSplit() const            { return targetClusterType != HThorCluster; }
     inline bool checkResources() const      { return isThorCluster(targetClusterType) && !isChildQuery; }
     inline bool targetRoxie() const         { return targetClusterType == RoxieCluster; }
-    inline bool targetThor() const          { return targetClusterType == ThorCluster || targetClusterType == ThorLCRCluster; }
+    inline bool targetThor() const          { return targetClusterType == ThorLCRCluster; }
 };
 
 struct CResources : public CInterface
@@ -190,13 +186,14 @@ public:
     CResources resources;
     unsigned depth;
     unsigned depthSequence;
-    bool beenResourced;
-    bool isUnconditional;
-    bool mergedConditionSource;
-    bool hasConditionSource;
-    bool isDead;
-    bool startedGeneratingResourced;
-    bool inheritedExpandedDependencies;
+    bool beenResourced:1;
+    bool isUnconditional:1;
+    bool mergedConditionSource:1;
+    bool hasConditionSource:1;
+    bool hasSequentialSource:1;
+    bool isDead:1;
+    bool startedGeneratingResourced:1;
+    bool inheritedExpandedDependencies:1;
     struct
     {
         ResourceGraphInfo * other;
@@ -313,6 +310,7 @@ public:
     void resourceRemoteGraph(HqlExprArray & exprs, HqlExprArray & transformed);
     void setChildQuery(bool value);
     void setNewChildQuery(IHqlExpression * graphIdExpr, unsigned numResults);
+    void setSequential(bool _sequential) { sequential = _sequential; }
     void setUseGraphResults(bool _useGraphResults) 
     { 
         options.useGraphResults = _useGraphResults; 
@@ -422,6 +420,8 @@ protected:
     bool spillMultiCondition;
     bool spotThroughAggregate;
     bool insideNeverSplit;
+    bool insideSteppedNeverSplit;
+    bool sequential;
     CResourceOptions options;
     HqlExprArray rootConditions;
     HqlExprCopyArray activeSelectors;

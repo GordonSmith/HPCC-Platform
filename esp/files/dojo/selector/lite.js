@@ -21,7 +21,7 @@ var _b=_9?_9.ownerDocument||_9:_2.doc||document,_c=(_5?/^([\w]*)#([\w\-]+$)|^(\.
 _9=_9||_b;
 if(_c){
 if(_c[2]){
-var _d=_2.byId?_2.byId(_c[2]):_b.getElementById(_c[2]);
+var _d=_2.byId?_2.byId(_c[2],_b):_b.getElementById(_c[2]);
 if(!_d||(_c[1]&&_c[1]!=_d.tagName.toLowerCase())){
 return [];
 }

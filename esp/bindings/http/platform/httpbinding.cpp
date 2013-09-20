@@ -326,7 +326,21 @@ EspHttpBinding::EspHttpBinding(IPropertyTree* tree, const char *bindname, const 
                 m_secmgr.setown(SecLoader::loadSecManager("Local", "EspHttpBinding", NULL));
                 m_authmap.setown(m_secmgr->createAuthMap(authcfg));
             }
+            else if(stricmp(m_authmethod.str(), "htpasswd") == 0)
+            {
+                Owned<IPropertyTree> cfg;
+                Owned<IPropertyTree> process_config = getProcessConfig(tree, procname);
+                if(process_config.get() != NULL)
+                    cfg.setown(process_config->getPropTree("htpasswdSecurity"));
+                if(cfg == NULL)
+                {
+                    ERRLOG("can't find htpasswdSecurity in configuration");
+                    throw MakeStringException(-1, "can't find htpasswdSecurity in configuration");
+                }
 
+                m_secmgr.setown(SecLoader::loadSecManager("htpasswd", "EspHttpBinding", LINK(cfg)));
+                m_authmap.setown(m_secmgr->createAuthMap(authcfg));
+            }
             IRestartManager* restartManager = dynamic_cast<IRestartManager*>(m_secmgr.get());
             if(restartManager!=NULL)
             {
@@ -533,7 +547,7 @@ bool EspHttpBinding::basicAuth(IEspContext* ctx)
     if(user == NULL)
     {
         WARNLOG("Can't find user in context");
-        ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "Access Denied: No username provided", NULL);
+        ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "Access Denied: No username provided");
         return false;
     }
 
@@ -550,10 +564,10 @@ bool EspHttpBinding::basicAuth(IEspContext* ctx)
     bool authenticated = m_secmgr->authorize(*user, rlist);
     if(!authenticated)
     {
-        if (user->getAuthenticateStatus() == AS_PASSWORD_EXPIRED)
-            ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "ESP password is expired", NULL);
+        if (user->getAuthenticateStatus() == AS_PASSWORD_EXPIRED || user->getAuthenticateStatus() == AS_PASSWORD_VALID_BUT_EXPIRED)
+            ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "ESP password is expired");
         else
-            ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "Access Denied: User or password invalid", NULL);
+            ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "Access Denied: User or password invalid");
         return false;
     }
     bool authorized = true;
@@ -1434,38 +1448,66 @@ int EspHttpBinding::onGetRespSampleXml(IEspContext &ctx, CHttpRequest* request, 
 
 int EspHttpBinding::onStartUpload(IEspContext &ctx, CHttpRequest* request, CHttpResponse* response, const char *serv, const char *method)
 {
-    if (!ctx.validateFeatureAccess(FILE_UPLOAD, SecAccess_Full, false))
-        throw MakeStringException(-1, "Permission denied.");
-
-    StringBuffer netAddress, path;
-    request->getParameter("NetAddress", netAddress);
-    request->getParameter("Path", path);
-
-    if ((netAddress.length() < 1) || (path.length() < 1))
+    StringBuffer errMsg;
+    try
     {
-        DBGLOG(">> Upload destination not specified.");
-        return 0;
+        if (!ctx.validateFeatureAccess(FILE_UPLOAD, SecAccess_Full, false))
+            throw MakeStringException(-1, "Permission denied.");
+
+        StringBuffer netAddress, path;
+        request->getParameter("NetAddress", netAddress);
+        request->getParameter("Path", path);
+
+        if ((netAddress.length() < 1) || (path.length() < 1))
+            throw MakeStringException(-1, "Upload destination not specified.");
+
+        StringArray fileNames;
+        request->readContentToFiles(netAddress, path, fileNames);
+        return onFinishUpload(ctx, request, response, serv, method);
+    }
+    catch (IException* e)
+    {
+        StringBuffer msg;
+        e->errorMessage(msg);
+        errMsg.appendf("Exception in File Upload - %s\n", msg.str());
+    }
+    catch (...)
+    {
+        errMsg.append("Exception in File Upload - Unknown Exception\n");
     }
 
-    request->readContentToFile(netAddress, path);
+    WARNLOG("%s", errMsg.str());
+    StringBuffer content(
+        "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+            "<head>"
+                "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>"
+                "<title>Enterprise Services Platform</title>"
+            "</head>"
+            "<body>"
+                "<div id=\"DropzoneFileData\"><br/><b>");
+    content.append(errMsg.str());
+    content.append("</b></div>"
+            "</body>"
+        "</html>");
 
-    return onFinishUpload(ctx, request, response, serv, method);
+    response->setContent(content.str());
+    response->send();
+    return 0;
 }
 
 int EspHttpBinding::onFinishUpload(IEspContext &ctx, CHttpRequest* request, CHttpResponse* response,    const char *serv, const char *method)
 {
     response->setContentType("text/html; charset=UTF-8");
     StringBuffer content(
-    "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
-        "<head>"
-            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>"
-            "<title>Enterprise Services Platform</title>"
+        "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+            "<head>"
+                "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>"
+                "<title>Enterprise Services Platform</title>"
+            "</head>"
             "<body>"
-                "<form name=\"DropzoneFileForm\">"
-                    "<div id=\"DropzoneFileData\">"
-                        "<br/><b>File has been uploaded.</b>"
-                    "</div>"
-                "</form>"
+                "<div id=\"DropzoneFileData\">"
+                    "<br/><b>File has been uploaded.</b>"
+                "</div>"
             "</body>"
         "</html>");
 
@@ -2075,9 +2117,10 @@ int EspHttpBinding::formatResultsPage(IEspContext &context, const char *serv, co
 
 bool EspHttpBinding::setContentFromFile(IEspContext &context, CHttpResponse &resp, const char *filepath)
 {
-    StringBuffer mimetype;
+    StringBuffer mimetype, etag, lastModified;
     MemoryBuffer content;
-    if (httpContentFromFile(filepath, mimetype, content))
+    bool modified = false;
+    if (httpContentFromFile(filepath, mimetype, content, modified, lastModified, etag))
     {
         resp.setContent(content.length(), content.toByteArray());
         resp.setContentType(mimetype.str());

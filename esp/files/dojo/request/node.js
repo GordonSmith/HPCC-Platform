@@ -55,8 +55,13 @@ if(_17){
 clearTimeout(_17);
 }
 _f.text=_15.join("");
+try{
 _3(_f);
 def.resolve(_f);
+}
+catch(error){
+def.reject(error);
+}
 });
 });
 req.on("error",def.reject);

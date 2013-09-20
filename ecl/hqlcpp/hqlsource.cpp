@@ -162,6 +162,7 @@ bool isSimpleSource(IHqlExpression * expr)
         case no_xmlproject:
         case no_null:
         case no_datasetfromrow:
+        case no_datasetfromdictionary:
         case no_getgraphresult:
         case no_getgraphloopresult:
         case no_rows:
@@ -278,7 +279,7 @@ static IHqlExpression * createFileposCall(HqlCppTranslator & translator, _ATOM n
 
 void VirtualFieldsInfo::gatherVirtualFields(IHqlExpression * _record, bool ignoreVirtuals, bool ensureSerialized)
 {
-    OwnedHqlExpr record = ensureSerialized ? getSerializedForm(_record) : LINK(_record);
+    OwnedHqlExpr record = ensureSerialized ? getSerializedForm(_record, diskAtom) : LINK(_record);
     if (record != _record)
         requiresDeserialize = true;
 
@@ -493,7 +494,7 @@ static IHqlExpression * createPhysicalIndexRecord(HqlMapTransformer & mapper, IH
                 //Simplest would be to move getSerializedForm code + call that first.
                 if (cur->hasProperty(_linkCounted_Atom))
                 {
-                    newField = getSerializedForm(cur);
+                    newField = getSerializedForm(cur, diskAtom);
                     assertex(newField != cur);
                 }
                 else
@@ -940,8 +941,6 @@ void SourceBuilder::analyse(IHqlExpression * expr)
             break;
         }
     case no_stepped:
-        if ((translator.getTargetClusterType() == ThorCluster) && translator.queryOptions().checkThorRestrictions)
-            throwError(HQLERR_ThorNotSupportStepping);
         if (steppedExpr)
             throwError(HQLERR_MultipleStepped);
         steppedExpr.set(expr);
@@ -1271,7 +1270,7 @@ void SourceBuilder::buildTransformElements(BuildCtx & ctx, IHqlExpression * expr
         {
             IHqlExpression * record = expr->queryRecord();
             assertex(fieldInfo.virtualsAtEnd);
-            assertex(!recordRequiresSerialization(record));
+            assertex(!recordRequiresSerialization(record, diskAtom));
             CHqlBoundExpr bound;
             StringBuffer s;
             translator.getRecordSize(ctx, expr, bound);
@@ -1359,7 +1358,24 @@ void SourceBuilder::buildTransformElements(BuildCtx & ctx, IHqlExpression * expr
                     if (!returnIfFilterFails)
                         translator.buildFilter(ctx, test);
                     else
-                        translator.buildFilteredReturn(ctx, test, failedFilterValue);
+                    {
+                        LinkedHqlExpr mismatchReturnValue = failedFilterValue;
+                        //If the output row has already been generated, then returning at this point will leak any
+                        //child datasets. To avoid that we explicitly call the destructor on the output row.
+                        if (recordRequiresDestructor(expr->queryRecord()))
+                        {
+                            if (lastTransformer && lastTransformer->queryNormalizedSelector() == expr->queryNormalizedSelector())
+                            {
+                                StringBuffer s;
+                                translator.buildMetaForRecord(s, expr->queryRecord());
+                                s.append(".destruct(crSelf.row())");
+                                OwnedHqlExpr cleanupAction = createQuoted(s.str(), makeVoidType());
+                                //Create a compound expression (destroy-old, return-value)
+                                mismatchReturnValue.setown(createCompound(LINK(cleanupAction), LINK(mismatchReturnValue)));
+                            }
+                        }
+                        translator.buildFilteredReturn(ctx, test, mismatchReturnValue);
+                    }
                 }
             }
         }
@@ -1528,10 +1544,10 @@ void SourceBuilder::buildTransformElements(BuildCtx & ctx, IHqlExpression * expr
                 //and would mean the roxie/thor code required changing
                 if (translator.targetRoxie())
                 {
-                    OwnedHqlExpr serializedRhsRecord = getSerializedForm(memoryRhsRecord);
+                    OwnedHqlExpr serializedRhsRecord = getSerializedForm(memoryRhsRecord, diskAtom);
                     OwnedHqlExpr serializedRhs = createDataset(no_null, LINK(serializedRhsRecord));
                     rightCursor = translator.bindTableCursor(subctx, serializedRhs, "right", no_right, querySelSeq(expr));
-                    transform.setown(replaceMemorySelectorWithSerializedSelector(transform, memoryRhsRecord, no_right, querySelSeq(expr)));
+                    transform.setown(replaceMemorySelectorWithSerializedSelector(transform, memoryRhsRecord, no_right, querySelSeq(expr), diskAtom));
                 }
                 else
                 {
@@ -2758,7 +2774,7 @@ void DiskReadBuilder::buildMembers(IHqlExpression * expr)
         else if (xmlFromPipe)
         {
             translator.doBuildXmlReadMember(*instance, expr, "queryXmlTransformer", usesContents);
-            translator.doBuildVarStringFunction(instance->classctx, "queryXmlIteratorPath", queryPropertyChild(xmlFromPipe, rowAtom, 0));
+            translator.doBuildVarStringFunction(instance->classctx, "getXmlIteratorPath", queryPropertyChild(xmlFromPipe, rowAtom, 0));
         }
         
         StringBuffer flags;
@@ -2803,14 +2819,6 @@ void DiskReadBuilder::buildTransform(IHqlExpression * expr)
 
         unsigned maxColumns = countTotalFields(tableExpr->queryRecord(), false);
         translator.doBuildUnsignedFunction(instance->classctx, "getMaxColumns", maxColumns);
-
-        if (!translator.queryOptions().supportDynamicRows)
-        {
-            unsigned csvMax = translator.getCsvMaxLength(mode);
-            unsigned rowMax = translator.getMaxRecordSize(tableExpr->queryRecord());
-            if (rowMax > csvMax)
-                translator.WARNINGAT2(queryLocation(expr), HQLWRN_CsvMaxLengthMismatch, rowMax, csvMax);
-        }
         return;
     }
 
@@ -3749,6 +3757,8 @@ static void createExpanded(HqlExprArray & fields, IHqlExpression * expr)
                 {
                     HqlExprArray attrs;
                     unwindChildren(attrs, expr);
+                    //MORE: Any default will now have the wrong type => remove it for the moment (ideally it would be projected)
+                    removeProperty(attrs, defaultAtom);
                     fields.append(*createField(expr->queryName(), LINK(expandedType), attrs));
                 }
             }
@@ -3891,17 +3901,14 @@ void MonitorExtractor::expandSelects(IHqlExpression * expr, IHqlSimpleScope * ex
 
 void MonitorExtractor::buildKeySegmentInExpr(BuildMonitorState & buildState, KeySelectorInfo & selectorInfo, BuildCtx & ctx, const char * target, IHqlExpression & thisKey, MonitorFilterKind filterKind)
 {
-    if (translator.queryOptions().optimizeInSegmentMonitor)
+    //Generally this slightly increases the code size, but reduces the number of
+    //temporary sets which is generally more efficient.
+    OwnedHqlExpr simplified = querySimplifyInExpr(&thisKey);
+    if (simplified)
     {
-        //Generally this slightly increases the code size, but reduces the number of
-        //temporary sets which is generally more efficient.
-        OwnedHqlExpr simplified = querySimplifyInExpr(&thisKey);
-        if (simplified)
-        {
-            OwnedHqlExpr folded = foldHqlExpression(simplified);
-            buildKeySegmentExpr(buildState, selectorInfo, ctx, target, *folded, filterKind);
-            return;
-        }
+        OwnedHqlExpr folded = foldHqlExpression(simplified);
+        buildKeySegmentExpr(buildState, selectorInfo, ctx, target, *folded, filterKind);
+        return;
     }
 
     IHqlExpression * expandedSelector = selectorInfo.expandedSelector;
@@ -6805,26 +6812,21 @@ void HqlCppTranslator::buildXmlReadTransform(IHqlExpression * dataset, StringBuf
     StringBuffer s, id, className;
     getUniqueId(id);
     className.append("cx2r").append(id);
-    factoryName.append("fx2r").append(id);
 
     const char * interfaceName = "IXmlToRowTransformer";
+
 
     StringBuffer prolog, epilog;
     prolog.append("struct ").append(className).append(" : public RtlCInterface, implements ").append(interfaceName);
     epilog.append(";");
 
-    BuildCtx classctx(declarectx);
-    classctx.setNextPriority(XmlTransformerPrio);
-    IHqlStmt * transformClass = classctx.addQuotedCompound(prolog, epilog);
-    transformClass->setIncomplete(true);
+    GlobalClassBuilder builder(*this, declarectx, className, "CXmlToRowTransformer", interfaceName);
+    builder.buildClass(XmlTransformerPrio);
+    builder.setIncomplete(true);
 
-    s.clear().append(className).append("() { ctx = NULL; activityId = 0; }");
+    BuildCtx & classctx = builder.classctx;
+    s.clear().append("inline ").append(className).append("(unsigned _activityId) : CXmlToRowTransformer(_activityId) {}");
     classctx.addQuoted(s);
-    s.clear().append(className).append("(ICodeContext * _ctx, unsigned _activityId) { ctx = _ctx; activityId = _activityId; }");
-    classctx.addQuoted(s);
-    classctx.addQuoted("inline void setContext(ICodeContext * _ctx) { ctx = _ctx; }");
-    classctx.addQuoted("virtual void Link() const { RtlCInterface::Link(); }");
-    classctx.addQuoted("virtual bool Release() const { return RtlCInterface::Release(); }");
 
     BuildCtx funcctx(classctx);
     funcctx.addQuotedCompound("virtual size32_t transform(ARowBuilder & crSelf, IColumnProvider * row, IThorDiskCallback * fpp)");
@@ -6845,21 +6847,12 @@ void HqlCppTranslator::buildXmlReadTransform(IHqlExpression * dataset, StringBuf
     usesContents = xmlUsesContents;
     rootSelfRow = NULL;
 
-    classctx.addQuoted("ICodeContext * ctx;");
-    classctx.addQuoted("unsigned activityId;");
     buildMetaMember(classctx, dataset, false, "queryRecordSize");
 
-    transformClass->setIncomplete(false);
+    builder.setIncomplete(false);
+    builder.completeClass(XmlTransformerPrio);
 
-    BuildCtx factoryctx(*code, declareAtom);
-    factoryctx.setNextPriority(XmlTransformerPrio);
-    factoryctx.addQuoted(s.clear().append(interfaceName).append(" * ").append(factoryName).append("(ICodeContext * ctx, unsigned activityId) { return new ").append(className).append("(ctx, activityId); }"));
-    if (spanMultipleCppFiles())
-    {
-        s.clear().append("extern ").append(interfaceName).append(" * ").append(factoryName).append("(ICodeContext * ctx, unsigned activityId);");
-        BuildCtx protoctx(*code, mainprototypesAtom);
-        protoctx.addQuoted(s);
-    }
+    factoryName.append(builder.accessorName);
 
     OwnedHqlExpr matchedValue = createAttribute(internalAtom, createConstant(factoryName.str()), createConstant(usesContents));
     declarectx.associateExpr(xmlMarker, matchedValue);
@@ -6966,6 +6959,11 @@ ABoundActivity * HqlCppTranslator::doBuildActivityXmlRead(BuildCtx & ctx, IHqlEx
 
     buildInstancePrefix(instance);
 
+    //MORE: Improve when we support projecting xml instead of reading all
+    SourceFieldUsage * fieldUsage = querySourceFieldUsage(tableExpr);
+    if (fieldUsage && !fieldUsage->seenAll())
+        fieldUsage->noteAll();
+
     //---- virtual const char * getFileName() { return "x.d00"; } ----
     buildFilenameFunction(*instance, instance->startctx, "getFileName", filename, hasDynamicFilename(tableExpr));
     buildEncryptHelper(instance->startctx, tableExpr->queryProperty(encryptAtom));
@@ -6973,7 +6971,7 @@ ABoundActivity * HqlCppTranslator::doBuildActivityXmlRead(BuildCtx & ctx, IHqlEx
     bool usesContents = false;
     doBuildXmlReadMember(*instance, tableExpr, "queryTransformer", usesContents);
 
-    doBuildVarStringFunction(instance->classctx, "queryIteratorPath", queryRealChild(mode, 0));
+    doBuildVarStringFunction(instance->classctx, "getXmlIteratorPath", queryRealChild(mode, 0));
 
     buildMetaMember(instance->classctx, tableExpr, false, "queryDiskRecordSize");  // A lie, but I don't care....
 
@@ -7034,7 +7032,7 @@ public:
         selSeq.set(querySelSeq(fetchExpr));
         fetchRhs = fetchExpr->queryChild(1);
         memoryRhsRecord = fetchRhs->queryRecord();
-        serializedRhsRecord.setown(getSerializedForm(memoryRhsRecord));
+        serializedRhsRecord.setown(getSerializedForm(memoryRhsRecord, diskAtom));
     }
 
     virtual void buildMembers(IHqlExpression * expr);
@@ -7094,9 +7092,8 @@ void FetchBuilder::buildMembers(IHqlExpression * expr)
         }
     case no_xml:
         {
-            //MORE: MaxLength?
-            // virtual const char * queryIteratorPath()
-            translator.doBuildVarStringFunction(instance->classctx, "queryIteratorPath", queryRealChild(tableExpr->queryChild(2), 0));
+            // virtual const char * getXmlIteratorPath()
+            translator.doBuildVarStringFunction(instance->classctx, "getXmlIteratorPath", queryRealChild(tableExpr->queryChild(2), 0));
             break;
         }
     default:

@@ -134,6 +134,7 @@ public:
                 lastReport = now;
             }
         }
+        throwUnexpected(); // loop never terminates, but some compilers complain about missing return without this line
     }
 };
 
@@ -752,7 +753,7 @@ int main(int argc, char * argv[] )
             printf("ERROR: my ip does not appear to be in range\n");
             usage();
         }
-        roxiemem::setTotalMemoryLimit(1048576000, 0, NULL);
+        roxiemem::setTotalMemoryLimit(false, 1048576000, 0, NULL);
         testNxN();
         roxiemem::releaseRoxieHeap();
     }

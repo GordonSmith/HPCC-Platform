@@ -165,9 +165,9 @@ interface ILdapClient : extends IInterface
     virtual void setResourceBasedn(const char* rbasedn, SecResourceType rtype = RT_DEFAULT) = 0;
     virtual ILdapConfig* getLdapConfig() = 0;
     virtual bool userInGroup(const char* userdn, const char* groupdn) = 0;
-    virtual bool updateUser(ISecUser& user, const char* newPassword) = 0;
+    virtual bool updateUserPassword(ISecUser& user, const char* newPassword, const char* currPassword = 0) = 0;
     virtual bool updateUser(const char* type, ISecUser& user) = 0;
-    virtual bool updateUser(const char* username, const char* newPassword) = 0;
+    virtual bool updateUserPassword(const char* username, const char* newPassword) = 0;
     virtual bool getResources(SecResourceType rtype, const char * basedn, const char* prefix, IArrayOf<ISecResource>& resources) = 0;
     virtual bool getResourcesEx(SecResourceType rtype, const char * basedn, const char* prefix, const char* searchstr, IArrayOf<ISecResource>& resources) = 0;
     virtual bool getPermissionsArray(const char* basedn, SecResourceType rtype, const char* name, IArrayOf<CPermission>& permissions) = 0;
@@ -187,6 +187,7 @@ interface ILdapClient : extends IInterface
     virtual int countResources(const char* basedn, const char* searchstr, int limit) = 0;
     virtual ILdapConfig* queryConfig() = 0;
     virtual const char* getPasswordStorageScheme() = 0;
+    virtual bool createUserScope(ISecUser& user) = 0;
 };
 
 ILdapClient* createLdapClient(IPropertyTree* cfg);
@@ -357,6 +358,13 @@ public:
                 return LDAP_INVALID_CREDENTIALS;
             }
             int rc = LdapSimpleBind(ld, (char*)userdn, (char*)password);
+            if (rc != LDAP_SUCCESS && server_type == OPEN_LDAP && strchr(userdn,','))
+            {   //Fedora389 is happier without the domain component specified
+                StringBuffer cn(userdn);
+                cn.replace(',',(char)NULL);
+                if (cn.length())//disallow call if no cn
+                    rc = LdapSimpleBind(ld, (char*)cn.str(), (char*)password);
+            }
             if (rc != LDAP_SUCCESS )
             {
                 // For Active Directory, try binding with NT format username

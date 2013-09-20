@@ -155,7 +155,7 @@ bool SDSPasswordProvider::getPassword(const IpAddress & ip, StringBuffer & usern
 }
 
 static CriticalSection passwordProviderCrit;
-static SDSPasswordProvider * passwordProvider;
+static SDSPasswordProvider * passwordProvider = NULL;
 MODULE_INIT(INIT_PRIORITY_ENV_ENVIRONMENT)
 {
     return true;
@@ -169,8 +169,11 @@ MODULE_EXIT()
 void __stdcall setPasswordsFromSDS()
 {
     CriticalBlock block(passwordProviderCrit);
-    passwordProvider = new SDSPasswordProvider();
-    setPasswordProvider(passwordProvider);
+    if (passwordProvider == NULL)
+    {
+        passwordProvider = new SDSPasswordProvider();
+        setPasswordProvider(passwordProvider);
+    }
 }
 
 void __stdcall resetPasswordsFromSDS()
@@ -438,13 +441,77 @@ bool getRemoteRunInfo(const char * keyName, const char * exeName, const char * v
     return false;
 }
 
+#define SDS_CONNECT_TIMEOUT 30000
 bool envGetConfigurationDirectory(const char *category, const char *component,const char *instance, StringBuffer &dirout)
 {
     SessionId sessid = myProcessSession();
     if (!sessid)
         return false;
-    Owned<IRemoteConnection> conn = querySDS().connect("/Environment/Software/Directories",sessid, 0, 10000);
+    Owned<IRemoteConnection> conn = querySDS().connect("/Environment/Software/Directories",sessid, 0, SDS_CONNECT_TIMEOUT);
     if (conn) 
         return getConfigurationDirectory(conn->queryRoot(),category,component,instance,dirout);
     return false;
+}
+
+IPropertyTree *envGetNASConfiguration(IPropertyTree *source)
+{
+    if ((NULL==source) || !source->hasProp("NAS"))
+        return NULL;
+
+    // check for NAS node : <Hardware><NAS><Filter ....><Filter ....>..</NAS></Hardware>
+    if (source->hasProp("NAS/Filter"))
+        return createPTreeFromIPT(source->queryPropTree("NAS"));
+    else
+    {
+        // check for 'flat' format : <Hardware><NAS ...../><NAS ..../>....</Hardware>
+        Owned<IPropertyTreeIterator> nasIter = source->getElements("NAS");
+        if (!nasIter->first())
+            return NULL;
+        Owned<IPropertyTree> nas = createPTree("NAS");
+        do
+        {
+            IPropertyTree *filter = &nasIter->query();
+            nas->addPropTree("Filter", LINK(filter));
+        }
+        while (nasIter->next());
+        return nas.getClear();
+    }
+}
+
+IPropertyTree *envGetNASConfiguration()
+{
+    SessionId sessid = myProcessSession();
+    if (!sessid)
+        return NULL;
+    Owned<IRemoteConnection> conn = querySDS().connect("/Environment/Hardware", sessid, 0, SDS_CONNECT_TIMEOUT);
+    if (!conn)
+        return NULL;
+    return envGetNASConfiguration(conn->queryRoot());
+}
+
+IPropertyTree *envGetInstallNASHooks(SocketEndpoint *myEp)
+{
+    Owned<IPropertyTree> nasPTree = envGetNASConfiguration();
+    return envGetInstallNASHooks(nasPTree, myEp);
+}
+
+IPropertyTree *envGetInstallNASHooks(IPropertyTree *nasPTree, SocketEndpoint *myEp)
+{
+    IDaFileSrvHook *daFileSrvHook = queryDaFileSrvHook();
+    if (!daFileSrvHook) // probably always installed
+        return NULL;
+    daFileSrvHook->clearFilters();
+    if (!nasPTree)
+        return NULL;
+    return daFileSrvHook->addMyFilters(nasPTree, myEp);
+}
+
+void envInstallNASHooks(SocketEndpoint *myEp)
+{
+    Owned<IPropertyTree> installedFilters = envGetInstallNASHooks(myEp);
+}
+
+void envInstallNASHooks(IPropertyTree *nasPTree, SocketEndpoint *myEp)
+{
+    Owned<IPropertyTree> installedFilters = envGetInstallNASHooks(nasPTree, myEp);
 }

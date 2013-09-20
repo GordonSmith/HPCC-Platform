@@ -18,9 +18,15 @@
 #define HQLCPPSYS_HPP
 
 const char * cppSystemText[]  = {
-
-    //NB: entrypoint needs to be specified because the identifiers aren't case sensitive.
+    //Definition of all the system functions that are explicitly called by the code generator
+    //Should consider moving this to a reserved module within the ecllibrary.
     "shared dummyRecord := { string1 x };",
+
+    //typedefs to clarify the prototypes.  One day these will become real classes.
+    "shared IOutputRowSerializer := boolean;",
+    "shared IOutputRowDeserializer := boolean;",
+    "shared IHThorHashLookupInfo := boolean;",
+    
     "export InternalCppService := SERVICE",
     //  searchTableStringN(unsigned4 num, string table, string search) : library='eclrtl';
     //  memcpy(void * target, void * src, unsigned len);
@@ -300,54 +306,55 @@ const char * cppSystemText[]  = {
     "   unsigned8 castUInt6(unsigned8 value) :  eclrtl,pure,library='eclrtl',include,entrypoint='rtliCastUInt6';",
     "   unsigned8 castUInt7(unsigned8 value) :  eclrtl,pure,library='eclrtl',include,entrypoint='rtliCastUInt7';",
 
-    "   DecAbs() :  bcd,library='nbcd',entrypoint='DecAbs';",
-    "   DecAdd() :  bcd,library='nbcd',entrypoint='DecAdd';",
-    "   integer4 DecCompareDecimal(const data v1, const data1 v2) : bcd,pure,library='nbcd',entrypoint='DecCompareDecimal';",
-    "   integer4 DecCompareUDecimal(const data v1, const data1 v2) : bcd,pure,library='nbcd',entrypoint='DecCompareUDecimal';",
-    "   integer4 DecCompareNull() : bcd,library='nbcd',entrypoint='DecCompareNull';",
-    "   integer4 DecDistinct() :    bcd,library='nbcd',entrypoint='DecDistinct';",
-    "   integer4 DecDistinctR() :   bcd,library='nbcd',entrypoint='DecDistinctR';",
-    "   DecDivide() :   bcd,library='nbcd',entrypoint='DecDivide';",
-    "   DecModulus() :  bcd,library='nbcd',entrypoint='DecModulus';",
-    "   DecSub() :  bcd,library='nbcd',entrypoint='DecSub';",
-    "   DecSubR() : bcd,library='nbcd',entrypoint='DecSubR';",
-    "   DecNegate() :   bcd,library='nbcd',entrypoint='DecNegate';",
-    "   unsigned4 DecPopString(string tgt) :    bcd,library='nbcd',entrypoint='DecPopString';",
-    "   DecPopVString(string tgt) : bcd,library='nbcd',entrypoint='DecPopCString';",
-    "   varstring DecPopVStringX() :    bcd,library='nbcd',entrypoint='DecPopCStringX';",
-    "   integer8 DecPopInt64() :    bcd,library='nbcd',entrypoint='DecPopInt64';",
-    "   DecPopDecimal(data1 tgt,unsigned1 len,unsigned1 prec) : bcd,library='nbcd',entrypoint='DecPopDecimal';",
-    "   DecPopUDecimal(data1 tgt,unsigned1 len,unsigned1 prec) : bcd,library='nbcd',entrypoint='DecPopUDecimal';",
-    "   unsigned4 DecPopUlong() :   bcd,library='nbcd',entrypoint='DecPopUlong';",
-    "   real8 DecPopReal() :    bcd,library='nbcd',entrypoint='DecPopReal';",
-    "   DecPushString(const string tgt) :   bcd,library='nbcd',entrypoint='DecPushString';",
-    "   DecPushCString(const varstring src) :   bcd,library='nbcd',entrypoint='DecPushCString';",
-    "   DecPushInt64(integer8 src) :    bcd,library='nbcd',entrypoint='DecPushInt64';",
-    "   DecPushLong(integer4 src) : bcd,library='nbcd',entrypoint='DecPushLong';",
-    "   DecPushDecimal(const data1 src, unsigned1 declen, unsigned1 prec) : bcd,library='nbcd',entrypoint='DecPushDecimal';",
-    "   DecPushUDecimal(const data1 src, unsigned1 declen, unsigned1 prec) : bcd,library='nbcd',entrypoint='DecPushUDecimal';",
-    "   DecPushUInt64(unsigned8 src) :  bcd,library='nbcd',entrypoint='DecPushUInt64';",
-    "   DecPushULong(unsigned4 src) :   bcd,library='nbcd',entrypoint='DecPushULong';",
-    "   DecRound() :    bcd,library='nbcd',entrypoint='DecRound';",
-    "   DecRoundUp() :  bcd,library='nbcd',entrypoint='DecRoundUp';",
-    "   DecRoundTo(unsigned4 places) :  bcd,library='nbcd',entrypoint='DecRoundTo';",
-    "   DecDup() :  bcd,library='nbcd',entrypoint='DecDup';",
-    "   DecMul() :  bcd,library='nbcd',entrypoint='DecMul';",
-    "   DecDivideR() :  bcd,library='nbcd',entrypoint='DecDivideR';",
-    "   DecLongPower(integer4 pow) :    bcd,library='nbcd',entrypoint='DecLongPower';",
-    "   DecPushReal(real8 d) :  bcd,library='nbcd',entrypoint='DecPushReal';",
-    "   DecPushUtf8(utf8 d) :   bcd,library='nbcd',entrypoint='rtlDecPushUtf8';",
-    "   DecTruncate() :    bcd,library='nbcd',entrypoint='DecTruncate';",
-    "   DecTruncateAt(unsigned4 places) :  bcd,library='nbcd',entrypoint='DecTruncateAt';",
+    "   DecAbs() :  eclrtl,library='eclrtl',entrypoint='DecAbs';",
+    "   DecAdd() :  eclrtl,library='eclrtl',entrypoint='DecAdd';",
+    "   integer4 DecCompareDecimal(const data v1, const data1 v2) : eclrtl,pure,library='eclrtl',entrypoint='DecCompareDecimal';",
+    "   integer4 DecCompareUDecimal(const data v1, const data1 v2) : eclrtl,pure,library='eclrtl',entrypoint='DecCompareUDecimal';",
+    "   integer4 DecCompareNull() : eclrtl,library='eclrtl',entrypoint='DecCompareNull';",
+    "   integer4 DecDistinct() :    eclrtl,library='eclrtl',entrypoint='DecDistinct';",
+    "   integer4 DecDistinctR() :   eclrtl,library='eclrtl',entrypoint='DecDistinctR';",
+    "   DecDivide(unsigned1 dbz) :   eclrtl,library='eclrtl',entrypoint='DecDivide';",
+    "   DecModulus(unsigned1 dbz) :  eclrtl,library='eclrtl',entrypoint='DecModulus';",
+    "   DecSub() :  eclrtl,library='eclrtl',entrypoint='DecSub';",
+    "   DecSubR() : eclrtl,library='eclrtl',entrypoint='DecSubR';",
+    "   DecNegate() :   eclrtl,library='eclrtl',entrypoint='DecNegate';",
+    "   unsigned4 DecPopString(string tgt) :    eclrtl,library='eclrtl',entrypoint='DecPopString';",
+    "   DecPopVString(string tgt) : eclrtl,library='eclrtl',entrypoint='DecPopCString';",
+    "   varstring DecPopVStringX() :    eclrtl,library='eclrtl',entrypoint='DecPopCStringX';",
+    "   integer8 DecPopInt64() :    eclrtl,library='eclrtl',entrypoint='DecPopInt64';",
+    "   DecPopDecimal(data1 tgt,unsigned1 len,unsigned1 prec) : eclrtl,library='eclrtl',entrypoint='DecPopDecimal';",
+    "   DecPopUDecimal(data1 tgt,unsigned1 len,unsigned1 prec) : eclrtl,library='eclrtl',entrypoint='DecPopUDecimal';",
+    "   unsigned4 DecPopUlong() :   eclrtl,library='eclrtl',entrypoint='DecPopUlong';",
+    "   real8 DecPopReal() :    eclrtl,library='eclrtl',entrypoint='DecPopReal';",
+    "   DecPushString(const string tgt) :   eclrtl,library='eclrtl',entrypoint='DecPushString';",
+    "   DecPushCString(const varstring src) :   eclrtl,library='eclrtl',entrypoint='DecPushCString';",
+    "   DecPushInt64(integer8 src) :    eclrtl,library='eclrtl',entrypoint='DecPushInt64';",
+    "   DecPushLong(integer4 src) : eclrtl,library='eclrtl',entrypoint='DecPushLong';",
+    "   DecPushDecimal(const data1 src, unsigned1 declen, unsigned1 prec) : eclrtl,library='eclrtl',entrypoint='DecPushDecimal';",
+    "   DecPushUDecimal(const data1 src, unsigned1 declen, unsigned1 prec) : eclrtl,library='eclrtl',entrypoint='DecPushUDecimal';",
+    "   DecPushUInt64(unsigned8 src) :  eclrtl,library='eclrtl',entrypoint='DecPushUInt64';",
+    "   DecPushULong(unsigned4 src) :   eclrtl,library='eclrtl',entrypoint='DecPushULong';",
+    "   DecRound() :    eclrtl,library='eclrtl',entrypoint='DecRound';",
+    "   DecRoundUp() :  eclrtl,library='eclrtl',entrypoint='DecRoundUp';",
+    "   DecRoundTo(unsigned4 places) :  eclrtl,library='eclrtl',entrypoint='DecRoundTo';",
+    "   DecDup() :  eclrtl,library='eclrtl',entrypoint='DecDup';",
+    "   DecMul() :  eclrtl,library='eclrtl',entrypoint='DecMul';",
+    "   DecDivideR(unsigned1 dbz) :  eclrtl,library='eclrtl',entrypoint='DecDivideR';",
+    "   DecLongPower(integer4 pow) :    eclrtl,library='eclrtl',entrypoint='DecLongPower';",
+    "   DecPushReal(real8 d) :  eclrtl,library='eclrtl',entrypoint='DecPushReal';",
+    "   DecPushUtf8(utf8 d) :   eclrtl,library='eclrtl',entrypoint='rtlDecPushUtf8';",
+    "   DecTruncate() :    eclrtl,library='eclrtl',entrypoint='DecTruncate';",
+    "   DecTruncateAt(unsigned4 places) :  eclrtl,library='eclrtl',entrypoint='DecTruncateAt';",
 
-    "   DecSetPrecision(unsigned1 len, unsigned1 prec) : bcd,library='nbcd',entrypoint='DecSetPrecision';",
-    "   integer4 DecPopLong() : bcd,library='nbcd',entrypoint='DecPopLong';",
-    "   DecSwap() : bcd,library='nbcd',entrypoint='DecSwap';",
-    "   DecUint4Power(unsigned4 pow) :  bcd,library='nbcd',entrypoint='DecUint4Power';",
-    "   string DecPopStringX() :    bcd,library='nbcd',entrypoint='DecPopStringX';",
-    "   DecLock() : bcd,library='nbcd',entrypoint='DecLock';",
-    "   DecUnlock() :   bcd,library='nbcd',entrypoint='DecUnlock';",
-    "   boolean DecValid(boolean isSigned, const data src) : bcd,pure,library='nbcd',entrypoint='DecValid';",
+    "   DecSetPrecision(unsigned1 len, unsigned1 prec) : eclrtl,library='eclrtl',entrypoint='DecSetPrecision';",
+    "   integer4 DecPopLong() : eclrtl,library='eclrtl',entrypoint='DecPopLong';",
+    "   DecSwap() : eclrtl,library='eclrtl',entrypoint='DecSwap';",
+    "   DecUint4Power(unsigned4 pow) :  eclrtl,library='eclrtl',entrypoint='DecUint4Power';",
+    "   string DecPopStringX() :    eclrtl,library='eclrtl',entrypoint='DecPopStringX';",
+    "   DecLock() : eclrtl,library='eclrtl',entrypoint='DecLock';",
+    "   DecUnlock() :   eclrtl,library='eclrtl',entrypoint='DecUnlock';",
+    "   boolean DecValid(boolean isSigned, const data src) : eclrtl,pure,library='eclrtl',entrypoint='DecValid';",
+    "   boolean DecValidTos() : eclrtl,pure,library='eclrtl',entrypoint='DecValidTos';",
 
     "   integer8 _ROUND(real8 arg) :    eclrtl,pure,library='eclrtl',entrypoint='rtlRound';",
     "   real8 roundTo(real8 arg, integer4 _places) : eclrtl,pure,library='eclrtl',entrypoint='rtlRoundTo';",
@@ -356,6 +363,7 @@ const char * cppSystemText[]  = {
     "   unsigned4 rtlRandom() : eclrtl,library='eclrtl',entrypoint='rtlRandom';",
     "   _fail(integer4 code, const varstring msg) : eclrtl,library='eclrtl',entrypoint='rtlFail';",
     "   sysFail(integer4 code, const varstring msg) :   eclrtl,library='eclrtl',entrypoint='rtlSysFail';",
+    "   failDivideByZero() : eclrtl,library='eclrtl',entrypoint='rtlFailDivideByZero';",
 
     "   unsigned4 crcData(const data src, unsigned4 initval) :  eclrtl,pure,library='eclrtl',entrypoint='rtlCrcData';",
     "   unsigned4 crcUnicode(const unicode src, unsigned4 initval) :    eclrtl,pure,library='eclrtl',entrypoint='rtlCrcUnicode';",
@@ -395,10 +403,12 @@ const char * cppSystemText[]  = {
     "   data16 hashMd5Finish(data _state) : eclrtl,entrypoint='rtlHashMd5Finish';",
 
     "   boolean validReal(const data src) : eclrtl,pure,library='eclrtl',entrypoint='rtlIsValidReal';",
+    "   real8 createRealNull() : eclrtl,pure,library='eclrtl',entrypoint='rtlCreateRealNull';",
 
     "   deserializeRaw(data field, boolean o) : eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='deserializeRaw';",
     "   data deserializeDataX(boolean o) :  eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='deserializeDataX';",
     "   dataset deserializeDatasetX(boolean o) :    eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='deserializeDataX';",
+    "   _linkcounted_ dictionary deserializeDictionaryX(boolean _deserializer, boolean _input) : eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='deserializeDictionaryX';",
     "   grouped dataset deserializeGroupedDatasetX(boolean o) : eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='deserializeDataX';",
     "   _linkcounted_ dataset deserializeRowsetX(boolean _deserializer, boolean _input) : eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='deserializeRowsetX';",
     "   _linkcounted_ grouped dataset deserializeGroupedRowsetX(boolean _deserializer, boolean _input) : eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='deserializeGroupedRowsetX';",
@@ -422,6 +432,7 @@ const char * cppSystemText[]  = {
     "   serializeRaw(const data field, boolean o) : eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='serializeRaw';",
     "   serializeDataX(const data value, boolean o) :   eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='serializeDataX';",
     "   serializeDatasetX(dataset value, boolean o) :   eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='serializeDataX';",
+    "   serializeDictionaryX(linkcounted dictionary value, boolean _ser, boolean o) : eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='serializeDictionaryX';",
     "   serializeGroupedDatasetX(grouped dataset value, boolean o) :    eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='serializeDataX';",
     "   serializeRowsetX(_array_ dataset value, boolean _ser, boolean o) : eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='serializeRowsetX';",
     "   serializeGroupedRowsetX(_array_ grouped dataset value, boolean _ser, boolean o) : eclrtl,include='eclrtl.hpp',library='eclrtl',entrypoint='serializeGroupedRowsetX';",
@@ -583,8 +594,9 @@ const char * cppSystemText[]  = {
     "   executeGraph(const varstring graph, boolean realThor, unsigned4 lenExtract, row parentExtract) : ctxmethod,entrypoint='executeGraph';",
     "   executeChildQueryInstance(unsigned4 lenExtract, row parentExtract)  : method,entrypoint='execute';",
     "   evaluateChildQueryInstance(unsigned4 lenExtract, row parentExtract) : method,entrypoint='evaluate';",       // actually returns something el
-    "   dataset getChildQueryResult(unsigned4 id)   : method,pure,entrypoint='getResult';",
     "   _linkcounted_ dataset getChildQueryLinkedResult(unsigned4 id)   : method,allocator(false),pure,entrypoint='getLinkedResult';",
+    "   _linkcounted_ dictionary getChildQueryDictionaryResult(unsigned4 id)   : method,allocator(false),pure,entrypoint='getDictionaryResult';",
+    
     //MORE: Should this be utf8?
     "   varstring getenv(const varstring name, const varstring defaultValue) : pure,ctxmethod,entrypoint='getEnv';",
 
@@ -642,15 +654,17 @@ const char * cppSystemText[]  = {
     "   varunicode  getResultVarUnicode(const varstring stepname, unsigned4 sequence) : ctxmethod,pure,entrypoint='getResultVarUnicode';",
     "   set of any getResultSet(const varstring stepname, unsigned4 sequence, boolean xmltransformer, boolean csvtransformer) : ctxmethod,pure,entrypoint='getResultSet',newset;",
 
-    "   _linkcounted_ dataset getResultRowset(const varstring stepname, unsigned4 sequence, boolean _allocator, boolean _deserializer, boolean isGrouped, boolean xmltransformer, boolean csvtransformer) : ctxmethod,allocator(false),pure,entrypoint='getResultRowset';",
+    "   _linkcounted_ dataset getResultRowset(const varstring stepname, unsigned4 sequence, boolean _allocator, boolean isGrouped, boolean xmltransformer, boolean csvtransformer) : ctxmethod,allocator(false),pure,entrypoint='getResultRowset';",
+    "   linkcounted dictionary getResultDictionary(const varstring stepname, unsigned4 sequence, boolean xmltransformer, boolean csvtransformer, boolean hasher) : ctxmethod,pure,entrypoint='getResultDictionary';",
+
+    "   const varstring  cloneVString(const varstring str) : ctxmethod,pure,entrypoint='cloneVString';",
+    "   const varstring  cloneVStringX(const string str) : ctxmethod,pure,entrypoint='cloneVString';",
 
     //Don't make these pure because they may change over time.
     "   boolean isResult(const varstring stepname, unsigned4 sequence) : gctxmethod,entrypoint='isResult';",
     "   boolean fileExists(const varstring lfn) : gctxmethod,entrypoint='fileExists';",
     "   varstring getExpandLogicalName(const varstring lfn) : ctxmethod,entrypoint='getExpandLogicalName';",
     "   deleteFile(const varstring lfn) : gctxmethod,entrypoint='deleteFile';",
-    "   integer8 countRoxieDiskFile(unsigned4 id, boolean monitors) : ctxmethod,entrypoint='countDiskFile';",       // id is actually 8 bytes, for backward compatibility
-    "   integer4 getRecoveringCount() : ctxmethod,entrypoint='getRecoveringCount';",
 
     "   setResultInt(const varstring stepname, unsigned4 sequence, integer8 value) : ctxmethod,entrypoint='setResultInt';",
     "   setResultUInt(const varstring stepname, unsigned4 sequence, unsigned8 value) : ctxmethod,entrypoint='setResultUInt';",
@@ -736,8 +750,8 @@ const char * cppSystemText[]  = {
     "   getBytesFromBuilder() : omethod,entrypoint='getbytes';", 
     "   unsigned integer4 getClusterSize() : ctxmethod, entrypoint='getNodes';",
 
-    "   dataset getLocalResult(unsigned4 id) :  method,pure,entrypoint='getResult';",
     "   _linkcounted_ dataset getLocalLinkedResult(unsigned4 id) : method,allocator(false),pure,entrypoint='getLinkedResult';",
+    "   linkcounted dictionary getLocalDictionaryResult(unsigned4 id) : method,allocator(false),pure,entrypoint='getDictionaryResult';",
     "   unsigned4 getGraphLoopCounter() : ctxmethod,entrypoint='getGraphLoopCounter';",
 
     "   _linkcounted_ row(dummyRecord) finalizeRowClear(unsigned4 _size) : omethod,entrypoint='finalizeRowClear';",
@@ -762,8 +776,8 @@ const char * cppSystemText[]  = {
     "   walkIndirectMetaMember(row _x, boolean _visitor) : omethod,entrypoint='walkIndirectMembers';",
     "   _linkcounted_ dataset linkdataset2linkdataset(_linkcounted_ dataset _x) : include,allocator(false),context,entrypoint='linkdataset2linkdataset';",
 
-    "   unsigned4 rtlSerializeRow(unsigned4 _outLen, dummyRecord _out, boolean _serializer, dummyRecord _in) : eclrtl,include,entrypoint='rtlSerializeRow';",
     "   dummyRecord rtlSerializeToBuilder(boolean _serializer, dummyRecord _in) : eclrtl,include,entrypoint='rtlSerializeToBuilder';",
+    "   dummyRecord rtlDeserializeToBuilder(boolean _serializer, dummyRecord _in) : eclrtl,include,entrypoint='rtlDeserializeToBuilder';",
     "   _linkcounted_ row(dummyRecord) rtlDeserializeRow(boolean _allocator, boolean _deserializer, dummyRecord _in) : eclrtl,include,entrypoint='rtlDeserializeRow';",
 
     "   releaseRow(row _x) : include,entrypoint='rtlReleaseRow';",
@@ -771,35 +785,86 @@ const char * cppSystemText[]  = {
     "   linkRow(row _x) : include,entrypoint='rtlLinkRow';",
     "   _linkcounted_ dataset linkRowset(_linkcounted_ dataset _x) : include,allocator(false),entrypoint='rtlLinkRowset';",
 
-    "   _linkcounted_ dataset deserializerRowsetHelper(boolean _deserializer, boolean _input) : eclrtl,include,entrypoint='rtlDeserializeRowset';",
-    "   serializerRowsetHelper(boolean _output, boolean _serializer, _linkcounted_ dataset _x) : eclrtl,include,entrypoint='rtlSerializeRowset';",
+    "   _linkcounted_ dataset deserializeChildRowsetFromStream(boolean _deserializer, boolean _input) : eclrtl,include,entrypoint='rtlDeserializeChildRowset';",
+    "   serializeChildRowsetToStream(boolean _output, boolean _serializer, _linkcounted_ dataset _x) : eclrtl,include,entrypoint='rtlSerializeChildRowset';",
 
+    "   linkcounted dictionary deserializeChildDictionaryFromStream(boolean _deserializer, boolean _input) : eclrtl,include,entrypoint='rtlDeserializeChildDictionary';",
+    "   linkcounted dictionary deserializeChildDictionaryFromDatasetFromStream(boolean _deserializer, boolean _hasher, boolean _input) : eclrtl,include,entrypoint='rtlDeserializeChildDictionaryFromDataset';",
+    "   serializeChildDictionaryToStream(boolean _output, boolean _serializer, _linkcounted_ dictionary _x) : eclrtl,include,entrypoint='rtlSerializeChildDictionary';",
+    "   serializeChildDictionaryToDatasetToStream(boolean _output, boolean _serializer, _linkcounted_ dictionary _x) : eclrtl,include,entrypoint='rtlSerializeChildDictionaryToDataset';",
+
+    "   dictionary rtlSerializeDictionary(IOutputRowSerializer _ser, linkcounted dictionary x) : eclrtl,include,library='eclrtl',entrypoint='rtlSerializeDictionary';",
+    "   dataset rtlSerializeDictionaryToDataset(IOutputRowSerializer _ser, linkcounted dictionary x) : eclrtl,include,library='eclrtl',entrypoint='rtlSerializeDictionaryToDataset';",
+    "   linkcounted dictionary rtlDeserializeDictionary(IOutputRowDeserializer _ser, dictionary x) : eclrtl,include,library='eclrtl',entrypoint='rtlDeserializeDictionary';",
+    "   linkcounted dictionary rtlDeserializeDictionaryFromDataset(IOutputRowDeserializer _ser, IHThorHashLookupInfo _hashInfo, dataset x) : eclrtl,include,library='eclrtl',entrypoint='rtlDeserializeDictionaryFromDataset';",
+
+
+//Methods of IRowDeserializerSource
     "   row(dummyRecord) deserializerPeek(unsigned4 _maxSize) : omethod,entrypoint='peek';",
     "   unsigned4 deserializerBeginNested() : omethod,entrypoint='beginNested';",
     "   boolean deserializerFinishedNested(unsigned4 pos) : omethod,entrypoint='finishedNested';",
-
     "   unsigned4 deserializerReadN(data _target) : omethod,entrypoint='read';",
     "   unsigned4 deserializerReadSize() : omethod,entrypoint='readSize';",
     "   unsigned4 deserializerReadPackedInt(data _target) : omethod,entrypoint='readPackedInt';",
     "   unsigned4 deserializerReadUtf8(boolean rowBuilder, unsigned4 offset, unsigned4 fixedSize, unsigned4 len) : omethod,entrypoint='readUtf8';",
     "   unsigned4 deserializerReadVStr(boolean rowBuilder, unsigned4 offset, unsigned4 fixedSize) : omethod,entrypoint='readVStr';",
     "   unsigned4 deserializerReadVUni(boolean rowBuilder, unsigned4 offset, unsigned4 fixedSize) : omethod,entrypoint='readVUni';",
-
     "   deserializerSkipN(unsigned4 _size) : omethod,entrypoint='skip';",
     "   deserializerSkipPacketInt() : omethod,entrypoint='skipPackedInt';",
     "   deserializerSkipUtf8(unsigned4 _size) : omethod,entrypoint='skipUtf8';",
     "   deserializerSkipVStr() : omethod,entrypoint='skipVStr';",
     "   deserializerSkipVUni() : omethod,entrypoint='skipVUni';",
 
+//Methods of IRowSerializerTarget
     "   serializerPut(const data _target) : omethod,entrypoint='put';",
     "   unsigned4 serializerBeginNested() : omethod,entrypoint='beginNested';",
     "   serializerEndNested(unsigned4 pos) : omethod,entrypoint='endNested';",
 
     // Dictionary support
     "    integer8 dictionaryCount(_linkcounted_ dictionary dict) : eclrtl,include,pure,entrypoint='rtlDictionaryCount';",
-    "   _linkcounted_ row(dummyRecord) dictionaryLookup(boolean meta, _linkcounted_ dictionary dict, row key, _linkcounted_ row defaultrow) : eclrtl,include,pure,entrypoint='rtlDictionaryLookup';",
-    "    boolean dictionaryLookupExists(boolean meta, _linkcounted_ dictionary dict, row key) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupExists';",
+    "    boolean dictionaryExists(_linkcounted_ dictionary dict) : eclrtl,include,pure,entrypoint='rtlDictionaryExists';",
+    "   _linkcounted_ row(dummyRecord) dictionaryLookup(IHThorHashLookupInfo meta, _linkcounted_ dictionary dict, row key, _linkcounted_ row defaultrow) : eclrtl,include,pure,entrypoint='rtlDictionaryLookup';",
+    "   _linkcounted_ row(dummyRecord) dictionaryLookupString(_linkcounted_ dictionary dict, const string key, _linkcounted_ row defaultrow) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupString';",
+    "   _linkcounted_ row(dummyRecord) dictionaryLookupStringN(_linkcounted_ dictionary dict, const unsigned4 size, const string key, _linkcounted_ row defaultrow) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupStringN';",
+    "   _linkcounted_ row(dummyRecord) dictionaryLookupSigned(_linkcounted_ dictionary dict, const integer key, _linkcounted_ row defaultrow) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupSigned';",
+    "   _linkcounted_ row(dummyRecord) dictionaryLookupUnsigned(_linkcounted_ dictionary dict, const unsigned key, _linkcounted_ row defaultrow) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupUnsigned';",
+    "   _linkcounted_ row(dummyRecord) dictionaryLookupSignedN(_linkcounted_ dictionary dict, const unsigned4 size, const integer key, _linkcounted_ row defaultrow) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupSignedN';",
+    "   _linkcounted_ row(dummyRecord) dictionaryLookupUnsignedN(_linkcounted_ dictionary dict, const unsigned4 size, const unsigned key, _linkcounted_ row defaultrow) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupUnsignedN';",
 
+    "   boolean dictionaryLookupExists(boolean meta, _linkcounted_ dictionary dict, row key) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupExists';",
+    "   boolean dictionaryLookupExistsString(_linkcounted_ dictionary dict, const string key) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupExistsString';",
+    "   boolean dictionaryLookupExistsStringN(_linkcounted_ dictionary dict, const unsigned4 size, const string key) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupExistsStringN';",
+    "   boolean dictionaryLookupExistsSigned(_linkcounted_ dictionary dict, const integer key) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupExistsSigned';",
+    "   boolean dictionaryLookupExistsUnsigned(_linkcounted_ dictionary dict, const unsigned key) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupExistsUnsigned';",
+    "   boolean dictionaryLookupExistsSignedN(_linkcounted_ dictionary dict, const unsigned4 size, const integer key) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupExistsSignedN';",
+    "   boolean dictionaryLookupExistsUnsignedN(_linkcounted_ dictionary dict, const unsigned4 size, const unsigned key) : eclrtl,include,pure,entrypoint='rtlDictionaryLookupExistsUnsignedN';",
+
+    // Marshalling parameters to external languages
+    "   bindBooleanParam(const varstring name, boolean val) : method,entrypoint='bindBooleanParam';",
+    "   bindDataParam(const varstring name, data val) : method,entrypoint='bindDataParam';",
+    "   bindRealParam(const varstring name, real val) : method,entrypoint='bindRealParam';",
+    "   bindSignedParam(const varstring name, integer val) : method,entrypoint='bindSignedParam';",
+    "   bindUnsignedParam(const varstring name, unsigned val) : method,entrypoint='bindUnsignedParam';",
+    "   bindStringParam(const varstring name, const string val) : method,entrypoint='bindStringParam';",
+    "   bindVStringParam(const varstring name, const varstring val) : method,entrypoint='bindVStringParam';",
+    "   bindUTF8Param(const varstring name, const utf8 val) : method,entrypoint='bindUTF8Param';",
+    "   bindUnicodeParam(const varstring name, const unicode val) : method,entrypoint='bindUnicodeParam';",
+
+    "   bindSetParam(const varstring name, integer4 typeCode, unsigned4 elemSize, const set of any val) : method,entrypoint='bindSetParam';",
+
+    "   boolean getBooleanResult() : method,entrypoint='getBooleanResult';",
+    "   data getDataResult() : method,entrypoint='getDataResult';",
+    "   real getRealResult() : method,entrypoint='getRealResult';",
+    "   integer getSignedResult() : method,entrypoint='getSignedResult';",
+    "   string getStringResult() : method,entrypoint='getStringResult';",
+    "   unsigned getUnsignedResult() : method,entrypoint='getUnsignedResult';",
+    "   utf8 getUTF8Result() : method,entrypoint='getUTF8Result';",
+    "   unicode getUnicodeResult() : method,entrypoint='getUnicodeResult';",
+
+    "   set of any getSetResult(integer4 typeCode, unsigned4 elemSize) : method,entrypoint='getSetResult';",
+
+    "   compileEmbeddedScript(const utf8 script) : method,entrypoint='compileEmbeddedScript';",
+    "   import(const utf8 script) : method,entrypoint='importFunction';",
     "   END;",
     NULL };
 

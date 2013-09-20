@@ -26,20 +26,6 @@
 #include "roxiedebug.hpp"
 #include "thorstep.hpp"
 
-interface IRoxieQuerySetManager;
-interface IRoxieListener : extends IInterface
-{
-    virtual void start() = 0;
-    virtual bool stop(unsigned timeout) = 0;
-    virtual void stopListening() = 0;
-    virtual void addAccess(bool allow, bool allowBlind, const char *ip, const char *mask, const char *query, const char *errMsg, int errCode) = 0;
-    virtual unsigned queryPort() const = 0;
-    virtual const SocketEndpoint &queryEndpoint() const = 0;
-    virtual bool suspend(bool suspendIt) = 0;
-
-    virtual void runOnce(const char *query) = 0;
-};
-
 interface ILRUChain
 {
     virtual ILRUChain *queryPrev() const = 0;
@@ -73,36 +59,14 @@ interface IRoxieServerQueryPacket : public IInterface, public ILRUChain
     virtual void setDebugResponse(unsigned sequence, IRoxieQueryPacket *) = 0;
 };
 
-IRoxieListener *createRoxieSocketListener(unsigned port, unsigned poolSize, unsigned listenQueue, bool suspended);
-IRoxieListener *createRoxieWorkUnitListener(unsigned poolSize, bool suspended);
-bool suspendRoxieListener(unsigned port, bool suspended);
-extern IArrayOf<IRoxieListener> socketListeners;
-
-
 interface IRoxieInput;
 interface IProbeManager;
 interface IRoxieServerLoopResultProcessor;
 
-interface IWorkUnitRowReader : public IInterface
-{
-    virtual const void * nextInGroup() = 0;
-};
-
-interface IDeserializedResultStore : public IInterface
-{
-    virtual int addResult(ConstPointerArray *data, IOutputMetaData *meta) = 0;
-    virtual int appendResult(int oldId, ConstPointerArray *data, IOutputMetaData *meta) = 0;
-    virtual IWorkUnitRowReader *createDeserializedReader(int id) const = 0;
-    virtual void serialize(unsigned & tlen, void * & tgt, int id, ICodeContext *ctx) const = 0;
-};
-
-extern IDeserializedResultStore *createDeserializedResultStore();
-
-class FlushingStringBuffer;
 interface IActivityGraph;
 typedef MapBetween<unsigned, unsigned, unsigned, unsigned> MapIdToActivityIndex;
 
-struct LibraryCallFactoryExtra
+class LibraryCallFactoryExtra
 {
 public:
     void calcUnused();
@@ -122,62 +86,8 @@ public:
 interface IRoxieServerActivity;
 interface IRoxieServerChildGraph;
 interface IRoxieServerContext;
+interface IRoxieSlaveContext;
 class ClusterWriteHandler;
-
-interface IRoxieSlaveContext : extends IRoxieContextLogger
-{
-    virtual ICodeContext *queryCodeContext() = 0;
-    virtual void checkAbort() = 0;
-    virtual void notifyAbort(IException *E) = 0;
-    virtual IActivityGraph * queryChildGraph(unsigned id) = 0;
-    virtual void noteChildGraph(unsigned id, IActivityGraph *childGraph) = 0;
-    virtual roxiemem::IRowManager &queryRowManager() = 0;
-    virtual unsigned parallelJoinPreload() = 0;
-    virtual unsigned concatPreload() = 0;
-    virtual unsigned fetchPreload() = 0;
-    virtual unsigned fullKeyedJoinPreload() = 0;
-    virtual unsigned keyedJoinPreload() = 0;
-    virtual unsigned prefetchProjectPreload() = 0;
-    virtual void addSlavesReplyLen(unsigned len) = 0;
-    virtual const char *queryAuthToken() = 0;
-    virtual const IResolvedFile *resolveLFN(const char *filename, bool isOpt) = 0;
-    virtual IRoxieWriteHandler *createLFN(const char *filename, bool overwrite, bool extend, const StringArray &clusters) = 0;
-    virtual void onFileCallback(const RoxiePacketHeader &header, const char *lfn, bool isOpt, bool isLocal) = 0;
-    virtual IActivityGraph * getLibraryGraph(const LibraryCallFactoryExtra &extra, IRoxieServerActivity *parentActivity) = 0;
-    virtual void noteProcessed(const IRoxieContextLogger &_activityContext, const IRoxieServerActivity *activity, unsigned _idx, unsigned _processed, unsigned __int64 _totalCycles, unsigned __int64 _localCycles) const = 0;
-    virtual IProbeManager *queryProbeManager() const = 0;
-    virtual bool queryTimeActivities() const = 0;
-    virtual IDebuggableContext *queryDebugContext() const = 0;
-    virtual void printResults(IXmlWriter *output, const char *name, unsigned sequence) = 0;
-    virtual void setWUState(WUState state) = 0;
-    virtual bool checkWuAborted() = 0;
-    virtual IWorkUnit *updateWorkUnit() const = 0;
-    virtual IConstWorkUnit *queryWorkUnit() const = 0;
-    virtual IRoxieServerContext *queryServerContext() = 0;
-};
-
-interface IRoxieServerContext : extends IInterface
-{
-    virtual IGlobalCodeContext *queryGlobalCodeContext() = 0;
-    virtual FlushingStringBuffer *queryResult(unsigned sequence) = 0;
-    virtual void setResultXml(const char *name, unsigned sequence, const char *xml) = 0;
-    virtual void appendResultDeserialized(const char *name, unsigned sequence, ConstPointerArray *data, bool extend, IOutputMetaData *meta) = 0;
-    virtual void appendResultRawContext(const char *name, unsigned sequence, int len, const void * data, int numRows, bool extend, bool saveInContext) = 0;
-    virtual IWorkUnitRowReader *getWorkunitRowReader(const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, IEngineRowAllocator *rowAllocator, bool isGrouped) = 0;
-    virtual roxiemem::IRowManager &queryRowManager() = 0;
-
-    virtual void process() = 0;
-    virtual void done(bool failed) = 0;
-    virtual void flush(unsigned seqNo) = 0;
-    virtual unsigned getMemoryUsage() = 0;
-    virtual unsigned getSlavesReplyLen() = 0;
-
-    virtual unsigned getXmlFlags() const = 0;
-    virtual bool outputResultsToWorkUnit() const = 0;
-    virtual bool outputResultsToSocket() const = 0;
-
-    virtual IRoxieDaliHelper *checkDaliConnection() = 0;
-};
 
 interface IRoxieInput : extends IInterface, extends IInputBase
 {
@@ -188,6 +98,7 @@ interface IRoxieInput : extends IInterface, extends IInputBase
     virtual unsigned queryId() const = 0;
 
     virtual bool nextGroup(ConstPointerArray & group);
+    virtual void readAll(RtlLinkedDatasetBuilder &builder);
     virtual unsigned __int64 queryTotalCycles() const = 0;
     virtual unsigned __int64 queryLocalCycles() const = 0;
     virtual const void * nextSteppedGE(const void * seek, unsigned numFields, bool &wasCompleteMatch, const SmartStepExtra & stepExtra) { throwUnexpected(); }  // can only be called on stepping fields.
@@ -302,7 +213,6 @@ interface IRoxieServerActivityFactory : extends IActivityFactory
 };
 interface IGraphResult : public IInterface
 {
-    virtual void getResult(unsigned & lenResult, void * & result) = 0;
     virtual void getLinkedResult(unsigned & countResult, byte * * & result) = 0;
     virtual IRoxieInput * createIterator() = 0;
 };
@@ -342,18 +252,9 @@ interface IRoxieServerChildGraph : public IInterface
     virtual void associateIterationOutputs(IRoxieServerLoopResultProcessor & processor) = 0;
 };
 
-extern void doDebugRequest(IRoxieQueryPacket *packet, const IRoxieContextLogger &logctx);
 interface IQueryFactory;
-interface ILoadedDllEntry;
 
 extern IActivityGraph *createActivityGraph(const char *graphName, unsigned id, ActivityArray &x, IRoxieServerActivity *parent, IProbeManager *probeManager, const IRoxieContextLogger &logctx);
-extern IProbeManager *createProbeManager();
-extern IProbeManager *createDebugManager(IDebuggableContext *debugContext, const char *graphName);
-extern IRoxieSlaveContext *createSlaveContext(const IQueryFactory *factory, const SlaveContextLogger &logctx, unsigned timeLimit, memsize_t memoryLimit, IRoxieQueryPacket *packet);
-extern IRoxieServerContext *createRoxieServerContext(IPropertyTree *context, const IQueryFactory *factory, SafeSocket &client, bool isXml, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, unsigned priority, const IRoxieContextLogger &logctx, XmlReaderOptions xmlReadFlags);
-extern IRoxieServerContext *createOnceServerContext(const IQueryFactory *factory, const IRoxieContextLogger &_logctx);
-extern IRoxieServerContext *createWorkUnitServerContext(IConstWorkUnit *wu, const IQueryFactory *factory, const IRoxieContextLogger &logctx);
-extern WorkflowMachine *createRoxieWorkflowMachine(IPropertyTree *_workflowInfo, bool doOnce, const IRoxieContextLogger &_logctx);
 
 extern ruid_t getNextRuid();
 extern void setStartRuid(unsigned restarts);
@@ -423,12 +324,12 @@ extern IRoxieServerActivityFactory *createRoxieServerNewChildAggregateActivityFa
 extern IRoxieServerActivityFactory *createRoxieServerNewChildGroupAggregateActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerNewChildThroughNormalizeActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerDatasetResultActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, bool _isRoot);
-extern IRoxieServerActivityFactory *createRoxieServerTempTableActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerInlineTableActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerWorkUnitReadActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerLocalResultReadActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, unsigned graphId);
 extern IRoxieServerActivityFactory *createRoxieServerLocalResultStreamReadActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerLocalResultWriteActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, unsigned _usageCount, unsigned _graphId, bool _isRoot);
+extern IRoxieServerActivityFactory *createRoxieServerDictionaryResultWriteActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, unsigned _usageCount, unsigned _graphId, bool _isRoot);
 extern IRoxieServerActivityFactory *createRoxieServerGraphLoopResultReadActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, unsigned graphId);
 extern IRoxieServerActivityFactory *createRoxieServerGraphLoopResultWriteActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, unsigned _usageCount, unsigned _graphId);
 extern IRoxieServerActivityFactory *createRoxieServerDedupActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
@@ -487,6 +388,7 @@ extern IRoxieServerActivityFactory *createRoxieServerCaseActivityFactory(unsigne
 extern IRoxieServerActivityFactory *createRoxieServerIfActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, bool _graphInvariant);
 extern IRoxieServerActivityFactory *createRoxieServerParseActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, IResourceContext *rc);
 extern IRoxieServerActivityFactory *createRoxieServerWorkUnitWriteActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, unsigned _usageCount, bool _isRoot);
+extern IRoxieServerActivityFactory *createRoxieServerWorkUnitWriteDictActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, unsigned _usageCount, bool _isRoot);
 extern IRoxieServerActivityFactory *createRoxieServerRemoteResultActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, unsigned _usageCount, bool _isRoot);
 extern IRoxieServerActivityFactory *createRoxieServerXmlParseActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerDiskReadActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, const RemoteActivityId &_remoteId, IPropertyTree &_graphNode);
@@ -503,7 +405,6 @@ extern IRoxieServerActivityFactory *createRoxieServerSoapRowCallActivityFactory(
 extern IRoxieServerActivityFactory *createRoxieServerSoapRowActionActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, bool _isRoot);
 extern IRoxieServerActivityFactory *createRoxieServerSoapDatasetCallActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerSoapDatasetActionActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, bool _isRoot);
-extern IRoxieServerActivityFactory *createRoxieServerRawIteratorActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerLinkedRawIteratorActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 
 extern IRoxieServerActivityFactory *createRoxieServerNWayGraphLoopResultReadActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, unsigned graphId);
@@ -521,5 +422,7 @@ extern IRoxieServerActivityFactory *createRoxieServerPrefetchProjectActivityFact
 extern IRoxieServerActivityFactory *createRoxieServerStreamedIteratorActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerWhenActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind);
 extern IRoxieServerActivityFactory *createRoxieServerWhenActionActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, bool _isRoot);
+
+extern void throwRemoteException(IMessageUnpackCursor *extra);
 
 #endif

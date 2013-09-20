@@ -394,6 +394,13 @@
             <xsl:choose>
                 <xsl:when test="$matchingData|$matchingData2">
                     <xsl:choose>
+                        <xsl:when test="$rowSchema/@maxOccurs">
+                              <xsl:call-template name="grab-dataset">
+                                    <xsl:with-param name="level" select="$level"/>
+                                    <xsl:with-param name="schema" select="$rowSchema"/>
+                                    <xsl:with-param name="data" select="$matchingData[1]"/>
+                                </xsl:call-template>
+                        </xsl:when>
                         <xsl:when test="$rowSchema/xs:complexType">
                             <xsl:for-each select="$matchingData|$matchingData2">
                                 <xsl:call-template name="grab-data">
@@ -414,6 +421,9 @@
                         </xsl:when>
                         <xsl:otherwise>
                             <data>
+                                <xsl:if test="number($escapeResults) and not(starts-with($rowSchema/@name, '__html__'))">
+                                    <xsl:attribute name="escape">1</xsl:attribute>
+                                </xsl:if>
                                 <xsl:for-each select="$matchingData|$matchingData2">
                                     <xsl:value-of select="."/>
                                     <xsl:if test="position()!=last()">, </xsl:if>

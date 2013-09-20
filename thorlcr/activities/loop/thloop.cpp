@@ -107,7 +107,7 @@ public:
         global = !loopGraph->isLocalOnly();
         if (container.queryLocalOrGrouped())
             return;
-        maxEmptyLoopIterations = (unsigned)container.queryJob().getWorkUnitValueInt("@maxEmptyLoopIterations", 1000);
+        maxEmptyLoopIterations = getOptUInt(THOROPT_LOOP_MAX_EMPTY, 1000);
     }
     void process()
     {
@@ -149,6 +149,8 @@ class CLoopActivityMaster : public CLoopActivityMasterBase
     IHThorLoopArg *helper;
     IThorBoundLoopGraph *boundGraph;
     unsigned flags;
+    Owned<IBarrier> barrier;
+
     void checkEmpty()
     {
         // similar to sync, but continiously listens for messages from slaves
@@ -184,7 +186,7 @@ public:
     CLoopActivityMaster(CMasterGraphElement *info) : CLoopActivityMasterBase(info)
     {
         if (!container.queryLocalOrGrouped())
-            mpTag = container.queryJob().allocateMPTag();
+            barrier.setown(container.queryJob().createBarrier(mpTag));
     }
     void init()
     {
@@ -237,10 +239,21 @@ public:
                     initLoopResults(loopCounter);
                 boundGraph->execute(*this, (flags & IHThorLoopArg::LFcounter)?loopCounter:0, ownedResults, (IRowWriterMultiReader *)NULL, 0, extractBuilder.size(), extractBuilder.getbytes());
                 ++loopCounter;
+                if (flags & IHThorLoopArg::LFnewloopagain)
+                {
+                    if (!barrier->wait(false))
+                        break;
+                }
             }
         }
         else
             checkEmpty();
+    }
+    virtual void abort()
+    {
+        CLoopActivityMasterBase::abort();
+        if (barrier)
+            barrier->cancel();
     }
 };
 
@@ -363,4 +376,24 @@ public:
 CActivityBase *createGraphLoopResultActivityMaster(CMasterGraphElement *container)
 {
     return new CGraphLoopResultWriteActivityMaster(container);
+}
+
+
+class CDictionaryResultActivityMaster : public CLocalResultActivityMasterBase
+{
+public:
+    CDictionaryResultActivityMaster(CMasterGraphElement *info) : CLocalResultActivityMasterBase(info)
+    {
+    }
+    virtual void createResult()
+    {
+        IHThorDictionaryResultWriteArg *helper = (IHThorDictionaryResultWriteArg *)queryHelper();
+        Owned<CGraphBase> graph = queryJob().getGraph(container.queryResultsGraph()->queryGraphId());
+        graph->createResult(*this, helper->querySequence(), this, true); // NB graph owns result
+    }
+};
+
+CActivityBase *createDictionaryResultActivityMaster(CMasterGraphElement *container)
+{
+    return new CDictionaryResultActivityMaster(container);
 }

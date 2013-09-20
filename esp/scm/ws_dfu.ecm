@@ -92,6 +92,7 @@ ESPStruct DFUFileDetail
     string CsvQuote;
     string CsvTerminate;
     [min_ver("1.20")] string CsvEscape;
+
     string Modified;
     string Ecl;
     bool ZipFile(false);

@@ -285,9 +285,8 @@ This is required by its binding with ESP service '<xsl:value-of select="$espServ
                 <xsl:message terminate="yes">This XSL transformation can only be run by an XSLT processor supporting exslt sets!</xsl:message>
             </xsl:if>
             <Plugins>
-                <xsl:attribute name="path"><xsl:for-each select="set:distinct($pluginsNodes)"><xsl:if test="../@type != 'lib'"><xsl:choose><xsl:when test="$isLinuxInstance"><xsl:value-of select="translate(../@destPath, '\', '/')"/><xsl:value-of select="translate(., '\', '/')"/><xsl:text disable-output-escaping="yes">:</xsl:text></xsl:when><xsl:otherwise><xsl:value-of select="../@destPath"/><!--already has \ --><xsl:value-of select="."/><xsl:text disable-output-escaping="yes">;</xsl:text></xsl:otherwise></xsl:choose></xsl:if></xsl:for-each></xsl:attribute>
+               <xsl:attribute name="path"><xsl:value-of select="@pluginsPath"/></xsl:attribute>
             </Plugins>
-
         </EspService>
         <EspBinding name="{$bindName}" service="{$serviceName}" protocol="{$bindingNode/@protocol}" type="{$bindType}" plugin="{$servicePlugin}" netAddress="0.0.0.0" port="{$bindingNode/@port}">
             <xsl:call-template name="bindAuthentication">
@@ -562,12 +561,10 @@ This is required by its binding with ESP service '<xsl:value-of select="$espServ
         <EspService name="{$serviceName}" type="{$serviceType}" plugin="{$servicePlugin}">
             <xsl:variable name="ldapservername" select="$bindingNode/../Authentication/@ldapServer"/>
             <xsl:choose>
-                <xsl:when test="string(@filesBasedn) != ''">
-                    <Files basedn="{@filesBasedn}"/>
+                <xsl:when test="$ldapservername != ''">
+                <xsl:variable name="filesbasedn" select="/Environment/Software/LDAPServerProcess[@name=$ldapservername]/@filesBasedn"/>
+                <Files basedn="{$filesbasedn}"/>
                 </xsl:when>
-                <xsl:otherwise>
-                    <Files basedn="ou=Files,ou=ecl"/>
-                </xsl:otherwise>
             </xsl:choose>
             <Resources>
                 <xsl:for-each select="../EspProcess[Authentication/@ldapServer=$ldapservername]/EspBinding">
@@ -658,6 +655,11 @@ This is required by its binding with ESP service '<xsl:value-of select="$espServ
                </xsl:for-each>
             </xsl:if>         
          </Authenticate>
+      </xsl:when>
+      <xsl:when test="$authMethod='htpasswd'">
+        <Authenticate method="htpasswd">
+          <xsl:attribute name="htpasswdFile"> <xsl:value-of select="$bindingNode/../Authentication/@htpasswdFile"/> </xsl:attribute>
+        </Authenticate>
       </xsl:when>
         </xsl:choose>
     </xsl:template>

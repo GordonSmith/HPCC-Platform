@@ -323,8 +323,12 @@ static void DeepAssign(IEspContext &context, IConstDFUWorkUnit *src, IEspDFUWork
                     info.setown(file->getFileDescriptor());
                     if(info)
                     {
-                        info->getNode(0)->endpoint().getIpText(socket);
-                        dest.setSourceIP(socket.str());
+                        Owned<INode> node = info->getNode(0);
+                        if (node)
+                        {
+                            node->endpoint().getIpText(socket);
+                            dest.setSourceIP(socket.str());
+                        }
                         const char *defaultdir = info->queryDefaultDir();
                         if (defaultdir&&*defaultdir) 
                             addPathSepChar(dir.append(defaultdir));
@@ -349,7 +353,7 @@ static void DeepAssign(IEspContext &context, IConstDFUWorkUnit *src, IEspDFUWork
         if(rowtag.length() > 0)
             dest.setRowTag(rowtag.str());
 
-        if (version > 1.03 && (file->getFormat() == DFUff_csv))
+        if (version >= 1.04 && (file->getFormat() == DFUff_csv))
         {
             StringBuffer separate, terminate, quote, escape;
             file->getCsvOptions(separate,terminate,quote, escape);
@@ -359,7 +363,7 @@ static void DeepAssign(IEspContext &context, IConstDFUWorkUnit *src, IEspDFUWork
                 dest.setSourceCsvTerminate(terminate.str());
             if(quote.length() > 0)
                 dest.setSourceCsvQuote(quote.str());
-            if((version > 1.04) && (escape.length() > 0))
+            if((version >= 1.05) && (escape.length() > 0))
                 dest.setSourceCsvEscape(escape.str());
         }
     }
@@ -394,8 +398,12 @@ static void DeepAssign(IEspContext &context, IConstDFUWorkUnit *src, IEspDFUWork
                     info.setown(file->getFileDescriptor());
                     if(info)
                     {
-                        info->getNode(0)->endpoint().getIpText(socket);
-                        dest.setDestIP(socket.str());
+                        Owned<INode> node = info->getNode(0);
+                        if (node)
+                        {
+                            node->endpoint().getIpText(socket);
+                            dest.setDestIP(socket.str());
+                        }
                         const char *defaultdir = info->queryDefaultDir();
                         if (defaultdir&&*defaultdir) 
                             addPathSepChar(dir.append(defaultdir));
@@ -863,7 +871,6 @@ bool CFileSprayEx::onGetDFUWorkunits(IEspContext &context, IEspGetDFUWorkunits &
             } while (clusters->next());
         }
 
-        __int64 cachehint=0;
         __int64 pagesize = req.getPageSize();
         __int64 pagefrom = req.getPageStartFrom();
         __int64 displayFrom = 0;
@@ -941,11 +948,16 @@ bool CFileSprayEx::onGetDFUWorkunits(IEspContext &context, IEspGetDFUWorkunits &
 
         filters[filterCount] = DFUsf_term;
 
+        __int64 cacheHint = req.getCacheHint();
+        if (cacheHint < 0) //Not set yet
+            cacheHint = 0;
 
         IArrayOf<IEspDFUWorkunit> result;
         Owned<IDFUWorkUnitFactory> factory = getDFUWorkUnitFactory();
-        unsigned numWUs = factory->numWorkUnitsFiltered(filters, filterbuf.bufferBase());
-        Owned<IConstDFUWorkUnitIterator> itr = factory->getWorkUnitsSorted(sortorder, filters, filterbuf.bufferBase(), (int) displayFrom, (int) pagesize+1, req.getOwner(), &cachehint);
+        unsigned numWUs;
+        Owned<IConstDFUWorkUnitIterator> itr = factory->getWorkUnitsSorted(sortorder, filters, filterbuf.bufferBase(), (int) displayFrom, (int) pagesize+1, req.getOwner(), &cacheHint, &numWUs);
+        if (version >= 1.07)
+            resp.setCacheHint(cacheHint);
 
         //unsigned actualCount = 0;
         itr->first();
@@ -992,7 +1004,7 @@ bool CFileSprayEx::onGetDFUWorkunits(IEspContext &context, IEspGetDFUWorkunits &
                 resultWU->setStateMessage(statemsg.str());
                 resultWU->setPercentDone(prog->getPercentDone());
             }
-            result.append(*LINK(resultWU.getClear()));
+            result.append(*resultWU.getLink());
             itr->next();
         }
 
@@ -1454,7 +1466,7 @@ bool CFileSprayEx::onDFUWorkunitsAction(IEspContext &context, IEspDFUWorkunitsAc
                     res->setResult(failedMsg.str());
                 }
 
-                results.append(*LINK(res.getClear()));
+                results.append(*res.getLink());
             }
         }
         else if (!strcmp(action, "Restore"))
@@ -1509,7 +1521,7 @@ bool CFileSprayEx::onDFUWorkunitsAction(IEspContext &context, IEspDFUWorkunitsAc
                 res->setAction("Restore");
                 res->setResult(msg.str());
 
-                results.append(*LINK(res.getClear()));
+                results.append(*res.getLink());
             }
         }
         else if(!strcmp(action, "Protect"))
@@ -1545,7 +1557,7 @@ bool CFileSprayEx::onDFUWorkunitsAction(IEspContext &context, IEspDFUWorkunitsAc
                     res->setResult(failedMsg.str());
                 }
 
-                results.append(*LINK(res.getClear()));
+                results.append(*res.getLink());
             }
         }
         else if(!strcmp(action, "Unprotect"))
@@ -1581,7 +1593,7 @@ bool CFileSprayEx::onDFUWorkunitsAction(IEspContext &context, IEspDFUWorkunitsAc
                     res->setResult(failedMsg.str());
                 }
 
-                results.append(*LINK(res.getClear()));
+                results.append(*res.getLink());
             }
         }
         else if(!strcmp(action, "SetToFailed"))
@@ -1619,7 +1631,7 @@ bool CFileSprayEx::onDFUWorkunitsAction(IEspContext &context, IEspDFUWorkunitsAc
                     failedMsg.append(eMsg);
                     res->setResult(failedMsg.str());
                 }
-                results.append(*LINK(res.getClear()));
+                results.append(*res.getLink());
             }
         }
         else
@@ -1756,7 +1768,7 @@ bool CFileSprayEx::onGetDFUExceptions(IEspContext &context, IEspGetDFUExceptions
             resultE->setCode(e.errorCode());
             StringBuffer msg;
             resultE->setMessage(e.errorMessage(msg).str());
-            result.append(*LINK(resultE.getClear()));
+            result.append(*resultE.getLink());
             itr->next();
         }
 
@@ -2681,7 +2693,7 @@ int CFileSprayEx::doFileCheck(const char* mask, const char* netaddr, const char*
         Owned<IConstEnvironment> env = factory->openEnvironmentByFile();
         Owned<IPropertyTree> pEnvRoot = &env->getPTree();
         IPropertyTree* pEnvSoftware = pEnvRoot->queryPropTree("Software");
-        IPropertyTree* pRoot = createPTreeFromXMLString("<Environment/>");
+        Owned<IPropertyTree> pRoot = createPTreeFromXMLString("<Environment/>");
         IPropertyTree* pSoftware = pRoot->addPropTree("Software", createPTree("Software"));
         if (pEnvSoftware && pSoftware)
         {
@@ -3226,7 +3238,7 @@ bool CFileSprayEx::onDeleteDropZoneFiles(IEspContext &context, IEspDeleteDropZon
                 res->setResult(failedMsg.str());
             }
 
-            results.append(*LINK(res.getClear()));
+            results.append(*res.getLink());
         }
 
         resp.setFirstColumn("File");

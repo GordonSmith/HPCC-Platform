@@ -46,6 +46,7 @@
 #include "slave.hpp"
 #include "portlist.h"
 #include "dafdesc.hpp"
+#include "rmtfile.hpp"
 
 #include "slavmain.hpp"
 
@@ -75,13 +76,13 @@ void mergeCmdParams(IPropertyTree *props)
         loadCmdProp(props, *cmdArgs++);
 }
 
-static void replyError(const char *errorMsg)
+static void replyError(unsigned errorCode, const char *errorMsg)
 {
     SocketEndpoint myEp = queryMyNode()->endpoint();
     StringBuffer str("Node '");
     myEp.getUrlStr(str);
     str.append("' exception: ").append(errorMsg);
-    Owned<IException> e = MakeStringException(0, "%s", str.str());
+    Owned<IException> e = MakeStringException(errorCode, "%s", str.str());
     CMessageBuffer msg;
     serializeException(e, msg);
     queryClusterComm().send(msg, 0, MPTAG_THORREGISTRATION);
@@ -106,7 +107,7 @@ static bool RegisterSelf(SocketEndpoint &masterEp)
         msg.read(vminor);
         if (vmajor != THOR_VERSION_MAJOR || vminor != THOR_VERSION_MINOR)
         {
-            replyError("Thor master/slave version mismatch");
+            replyError(TE_FailedToRegisterSlave, "Thor master/slave version mismatch");
             return false;
         }
         Owned<IGroup> group = deserializeIGroup(msg);
@@ -116,13 +117,13 @@ static bool RegisterSelf(SocketEndpoint &masterEp)
         rank_t groupPos = group->rank(queryMyNode());
         if (RANK_NULL == groupPos)
         {
-            replyError("Node not part of thorgroup");
+            replyError(TE_FailedToRegisterSlave, "Node not part of thorgroup");
             return false;
         }
         if (globals->hasProp("@SLAVENUM") && (mySlaveNum != (unsigned)groupPos))
         {
             VStringBuffer errStr("Slave group rank[%d] does not match provided cmd line slaveNum[%d]", mySlaveNum, (unsigned)groupPos);
-            replyError(errStr.str());
+            replyError(TE_FailedToRegisterSlave, errStr.str());
             return false;
         }
         globals->Release();
@@ -132,14 +133,16 @@ static bool RegisterSelf(SocketEndpoint &masterEp)
         const char *_masterBuildTag = globals->queryProp("@masterBuildTag");
         const char *masterBuildTag = _masterBuildTag?_masterBuildTag:"no build tag";
         PROGLOG("Master build: %s", masterBuildTag);
-#ifndef _DEBUG
         if (!_masterBuildTag || 0 != strcmp(BUILD_TAG, _masterBuildTag))
         {
             StringBuffer errStr("Thor master/slave build mismatch, master = ");
-            replyError(errStr.append(masterBuildTag).append(", slave = ").append(BUILD_TAG).str());
+            errStr.append(masterBuildTag).append(", slave = ").append(BUILD_TAG);
+            ERRLOG("%s", errStr.str());
+#ifndef _DEBUG
+            replyError(TE_FailedToRegisterSlave, errStr.str());
             return false;
-        }
 #endif
+        }
         msg.read((unsigned &)masterSlaveMpTag);
         msg.clear();
         msg.setReplyTag(MPTAG_THORREGISTRATION);
@@ -306,35 +309,14 @@ int main( int argc, char *argv[]  )
         markNodeCentral(masterEp);
         if (RegisterSelf(masterEp))
         {
-#define ISDALICLIENT // JCSMORE plugins *can* access dali - though I think we should probably prohibit somehow.
-#ifdef ISDALICLIENT
-            const char *daliServers = globals->queryProp("@DALISERVERS");
-            if (!daliServers)
-            {
-                LOG(MCerror, thorJob, "No Dali server list specified\n");
-                return 1;
-            }
-            Owned<IGroup> serverGroup = createIGroup(daliServers, DALI_SERVER_PORT);
-            unsigned retry = 0;
-            loop {
-                try {
-                    LOG(MCdebugProgress, thorJob, "calling initClientProcess");
-                    initClientProcess(serverGroup,DCR_ThorSlave, getFixedPort(TPORT_mp));
-                    break;
-                }
-                catch (IJSOCK_Exception *e) {
-                    if ((e->errorCode()!=JSOCKERR_port_in_use))
-                        throw;
-                    FLLOG(MCexception(e), thorJob, e,"InitClientProcess");
-                    if (retry++>10)
-                        throw;
-                    e->Release();
-                    LOG(MCdebugProgress, thorJob, "Retrying");
-                    Sleep(retry*2000);
-                }
-            }
-            setPasswordsFromSDS();
-#endif
+            MilliSleep(20000);
+            if (globals->getPropBool("Debug/@slaveDaliClient"))
+                enableThorSlaveAsDaliClient();
+
+            IDaFileSrvHook *daFileSrvHook = queryDaFileSrvHook();
+            if (daFileSrvHook) // probably always installed
+                daFileSrvHook->addFilters(globals->queryPropTree("NAS"), &slfEp);
+
             StringBuffer thorPath;
             globals->getProp("@thorPath", thorPath);
             recursiveCreateDirectory(thorPath.str());
@@ -367,11 +349,15 @@ int main( int argc, char *argv[]  )
                 setBaseDirectory(overrideBaseDirectory, false);
             if (overrideReplicateDirectory&&*overrideBaseDirectory)
                 setBaseDirectory(overrideReplicateDirectory, true);
-            StringBuffer tempdirstr;
-            const char *tempdir = globals->queryProp("@thorTempDirectory");
-            if (getConfigurationDirectory(globals->queryPropTree("Directories"),"temp","thor",globals->queryProp("@name"),tempdirstr))
-                tempdir = tempdirstr.str();
-            SetTempDir(tempdir,true);
+            StringBuffer tempDirStr;
+            if (getConfigurationDirectory(globals->queryPropTree("Directories"),"temp","thor",globals->queryProp("@name"), tempDirStr))
+                globals->setProp("@thorTempDirectory", tempDirStr.str());
+            else
+                tempDirStr.append(globals->queryProp("@thorTempDirectory"));
+            logDiskSpace(); // Log before temp space is cleared
+            StringBuffer tempPrefix("thtmp");
+            tempPrefix.append(getMachinePortBase()).append("_");
+            SetTempDir(tempDirStr.str(), tempPrefix.str(), true);
 
             useMemoryMappedRead(globals->getPropBool("@useMemoryMappedRead"));
 
@@ -443,10 +429,8 @@ int main( int argc, char *argv[]  )
         setMultiThorMemoryNotify(0,NULL);
     roxiemem::releaseRoxieHeap();
 
-#ifdef ISDALICLIENT
-    closeEnvironment();
-    closedownClientProcess();   // dali client closedown
-#endif
+    if (globals->getPropBool("Debug/@slaveDaliClient"))
+        disableThorSlaveAsDaliClient();
 
 #ifdef USE_MP_LOG
     stopLogMsgReceivers();

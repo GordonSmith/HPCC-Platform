@@ -150,7 +150,7 @@ void getResources(IHqlExpression * expr, CResources & resources, const CResource
         resources.setLightweight();
         setHashResources(expr, resources, options);
         break;
-    case no_shuffle:
+    case no_subsort:
         if (expr->hasProperty(manyAtom))
             resources.setHeavyweight();
         else
@@ -528,17 +528,7 @@ IHqlExpression * CResourceOptions::createSpillName(bool isGraphResult)
     StringBuffer s;
     s.append("~spill::");
     getUniqueId(s);
-    if (!mangleSpillNameWithWuid)
-        return createConstant(s.str());
-    s.append("_");
-    if (filenameMangler)
-    {
-        s.append(filenameMangler);
-        return createConstant(s.str());
-    }
-
-    ITypeInfo * type = makeStringType(UNKNOWN_LENGTH, NULL, NULL);
-    return createValue(no_concat, type, createConstant(s.str()), createValue(no_wuid, LINK(type)));
+    return createConstant(s.str());
 }
 
 //---------------------------------------------------------------------------
@@ -560,6 +550,7 @@ bool queryAddUniqueToActivity(IHqlExpression * expr)
     case no_getgraphloopresult:
     case no_xmlproject:
     case no_datasetfromrow:
+    case no_datasetfromdictionary:
     case no_rows:
     case no_allnodes:
     case no_thisnode:
@@ -654,6 +645,7 @@ ResourceGraphInfo::ResourceGraphInfo(CResourceOptions * _options) : resources(_o
     isUnconditional = false;
     mergedConditionSource = false;
     hasConditionSource = false;
+    hasSequentialSource = false;
     isDead = false;
     startedGeneratingResourced = false;
     inheritedExpandedDependencies = false;
@@ -901,6 +893,9 @@ bool ResourceGraphInfo::mergeInSource(ResourceGraphInfo & other, const CResource
     if (options->checkResources() && !allocateResources(other.resources, limit))
         return false;
 
+    if (hasSequentialSource && other.hasSequentialSource)
+        return false;
+
     mergeGraph(other, isConditionalLink, mergeConditions);
     return true;
 }
@@ -916,6 +911,12 @@ void ResourceGraphInfo::mergeGraph(ResourceGraphInfo & other, bool isConditional
 
     if (other.hasConditionSource)
         hasConditionSource = true;
+
+    if (other.hasSequentialSource)
+    {
+        assertex(!hasSequentialSource);
+        hasSequentialSource = true;
+    }
 
     //Recalculate the dependents, because sources of the source merged in may no longer be indirect
     //although they may be via another path.  
@@ -947,6 +948,9 @@ void ResourceGraphInfo::mergeGraph(ResourceGraphInfo & other, bool isConditional
 bool ResourceGraphInfo::mergeInSibling(ResourceGraphInfo & other, const CResources & limit)
 {
     if ((!isUnconditional || !other.isUnconditional) && !hasSameConditions(other))
+        return false;
+
+    if (hasSequentialSource && other.hasSequentialSource)
         return false;
 
     if (isDependentOn(other, false) || other.isDependentOn(*this, false))
@@ -1211,7 +1215,10 @@ IHqlExpression * ResourcerInfo::createSpilledRead(IHqlExpression * spillReason)
             args.append(*LINK(recordCountAttr));
         if (options->targetThor() && original->isDataset() && !options->isChildQuery)
             args.append(*createAttribute(_distributed_Atom));
-        dataset.setown(createDataset(no_getgraphresult, args));
+        if (original->isDictionary())
+            dataset.setown(createDictionary(no_getgraphresult, args));
+        else
+            dataset.setown(createDataset(no_getgraphresult, args));
         loseDistribution = false;
     }
     else if (useGlobalResult())
@@ -1223,7 +1230,10 @@ IHqlExpression * ResourcerInfo::createSpilledRead(IHqlExpression * spillReason)
         IHqlExpression * recordCountAttr = queryRecordCountInfo(original);
         if (recordCountAttr)
             args.append(*LINK(recordCountAttr));
-        dataset.setown(createDataset(no_workunit_dataset, args));
+        if (original->isDictionary())
+            dataset.setown(createDictionary(no_workunit_dataset, args));
+        else
+            dataset.setown(createDataset(no_workunit_dataset, args));
     }
     else
     {
@@ -1546,6 +1556,7 @@ bool ResourcerInfo::expandRatherThanSpill(bool noteOtherSpills)
         case no_compound_childgroupaggregate:
         case no_compound_selectnew:
         case no_compound_inline:
+        case no_datasetfromdictionary:
             expr = expr->queryChild(0);
             break;
         case no_filter:
@@ -1646,7 +1657,7 @@ bool ResourcerInfo::expandRatherThanSplit()
                 return false;
             if (!isNewSelector(expr))
             {
-                if (!options->useLinkedRawIterator || !hasLinkCountedModifier(expr))
+                if (!hasLinkCountedModifier(expr))
                     return false;
                 return true;
             }
@@ -1720,7 +1731,7 @@ bool ResourcerInfo::isSpilledWrite()
 
 IHqlExpression * ResourcerInfo::wrapRowOwn(IHqlExpression * expr)
 {
-    if (!original->isDataset())
+    if (!original->isDataset() && !original->isDictionary())
         expr = createRow(no_selectnth, expr, getSizetConstant(1));
     return expr;
 }
@@ -1735,16 +1746,9 @@ EclResourcer::EclResourcer(IErrorReceiver * _errors, IConstWorkUnit * _wu, Clust
     targetClusterType = _targetClusterType; 
     clusterSize = _clusterSize ? _clusterSize : FIXED_CLUSTER_SIZE;
     insideNeverSplit = false;
-    options.mangleSpillNameWithWuid = false;
+    insideSteppedNeverSplit = false;
+    sequential = false;
     options.minimizeSpillSize = _translatorOptions.minimizeSpillSize;
-
-    bool wuidIsConstant = (targetClusterType == RoxieCluster) || !wu->getCloneable();
-    if (wuidIsConstant)
-    {
-        SCMStringBuffer wuNameText;
-        wu->getWuid(wuNameText);
-        options.filenameMangler.set(wuNameText.str());
-    }
 
     unsigned totalMemory = _translatorOptions.resourceMaxMemory ? _translatorOptions.resourceMaxMemory : DEFAULT_TOTAL_MEMORY;
     unsigned maxSockets = _translatorOptions.resourceMaxSockets ? _translatorOptions.resourceMaxSockets : DEFAULT_MAX_SOCKETS;
@@ -1756,7 +1760,6 @@ EclResourcer::EclResourcer(IErrorReceiver * _errors, IConstWorkUnit * _wu, Clust
     resourceLimit->set(RESactivities, maxActivities);
     switch (targetClusterType)
     {
-    case ThorCluster:
     case ThorLCRCluster:
         resourceLimit->set(RESheavy, maxHeavy).set(REShashdist, maxDistribute);
         resourceLimit->set(RESmastersocket, maxSockets).set(RESslavememory,totalMemory);
@@ -1802,14 +1805,12 @@ EclResourcer::EclResourcer(IErrorReceiver * _errors, IConstWorkUnit * _wu, Clust
     options.useGraphResults = false;        // modified by later call
     options.groupedChildIterators = _translatorOptions.groupedChildIterators;
     options.allowSplitBetweenSubGraphs = false;//(targetClusterType == RoxieCluster);
-    options.supportsChildQueries = (targetClusterType != ThorCluster);
     options.clusterSize = clusterSize;
     options.preventKeyedSplit = _translatorOptions.preventKeyedSplit;
     options.preventSteppedSplit = _translatorOptions.preventSteppedSplit;
     options.minimizeSkewBeforeSpill = _translatorOptions.minimizeSkewBeforeSpill;
     options.expandSingleConstRow = true;
     options.createSpillAsDataset = _translatorOptions.optimizeSpillProject && (targetClusterType != HThorCluster);
-    options.useLinkedRawIterator = _translatorOptions.useLinkedRawIterator;
     options.combineSiblings = _translatorOptions.combineSiblingGraphs && (targetClusterType != HThorCluster) && (targetClusterType != RoxieCluster);
     options.optimizeSharedInputs = _translatorOptions.optimizeSharedGraphInputs && options.combineSiblings;
 }
@@ -2073,8 +2074,8 @@ protected:
 class EclChildSplitPointLocator : public EclHoistLocator
 {
 public:
-    EclChildSplitPointLocator(IHqlExpression * _original, HqlExprCopyArray & _selectors, HqlExprCopyArray & _originalMatches, HqlExprArray & _matches, BoolArray & _singleNode, BoolArray & _alwaysHoistMatches, bool _groupedChildIterators, bool _supportsChildQueries)
-    : EclHoistLocator(_originalMatches, _matches, _singleNode, _alwaysHoistMatches), selectors(_selectors), groupedChildIterators(_groupedChildIterators), supportsChildQueries(_supportsChildQueries)
+    EclChildSplitPointLocator(IHqlExpression * _original, HqlExprCopyArray & _selectors, HqlExprCopyArray & _originalMatches, HqlExprArray & _matches, BoolArray & _singleNode, BoolArray & _alwaysHoistMatches, bool _groupedChildIterators)
+    : EclHoistLocator(_originalMatches, _matches, _singleNode, _alwaysHoistMatches), selectors(_selectors), groupedChildIterators(_groupedChildIterators)
     { 
         original = _original;
         okToSelect = false; 
@@ -2124,10 +2125,7 @@ protected:
         if (executedOnce)
         {
             if (conditionalDepth != 0)
-            {
-                if (supportsChildQueries || canProcessInline(NULL, ds))
-                    alwaysHoist = false;
-            }
+                alwaysHoist = false;
         }
         return alwaysHoist;
     }
@@ -2167,7 +2165,7 @@ protected:
                     if (isCompoundAggregate(ds))
                         break;
 
-                    if (!expr->isDatarow() && !expr->isDataset())
+                    if (!expr->isDatarow() && !expr->isDataset() && !expr->isDictionary())
                     {
                         if (queryHoistDataset(ds))
                         {
@@ -2201,7 +2199,7 @@ protected:
             {
                 IHqlExpression * rhs = expr->queryChild(1);
                 //if rhs is a new, evaluatable, dataset then we want to add it
-                if (rhs->isDataset() && isEvaluateable(rhs))
+                if ((rhs->isDataset() || rhs->isDictionary()) && isEvaluateable(rhs))
                 {
                     if (queryNoteDataset(rhs))
                         return;
@@ -2215,7 +2213,7 @@ protected:
             return;
         case no_globalscope:
         case no_evalonce:
-            if (expr->isDataset() || expr->isDatarow())
+            if (expr->isDataset() || expr->isDatarow() || expr->isDictionary())
                 noteDataset(expr, expr->queryChild(0), true);
             else
                 noteScalar(expr, expr->queryChild(0));
@@ -2232,6 +2230,11 @@ protected:
         case no_getgraphloopresult:
             noteDataset(expr, expr, true);
             return;
+        case no_createdictionary:
+            if (isEvaluateable(expr) && !isConstantDictionary(expr))
+                noteDataset(expr, expr, true);
+            return;
+
         case no_selectnth:
             if (expr->queryChild(1)->isConstant())
             {
@@ -2296,20 +2299,20 @@ protected:
             {
                 IHqlExpression * cond = expr->queryChild(0);
                 analyseExpr(cond);
-                if (expr->isDataset() || expr->isDatarow())
+                if (expr->isDataset() || expr->isDatarow() || expr->isDictionary())
                     conditionalDepth++;
                 doAnalyseChildren(expr, 1);
-                if (expr->isDataset() || expr->isDatarow())
+                if (expr->isDataset() || expr->isDatarow() || expr->isDictionary())
                     conditionalDepth--;
                 break;
             }
         case no_mapto:
             {
                 analyseExpr(expr->queryChild(0));
-                if (expr->isDataset() || expr->isDatarow())
+                if (expr->isDataset() || expr->isDatarow() || expr->isDictionary())
                     conditionalDepth++;
                 analyseExpr(expr->queryChild(1));
-                if (expr->isDataset() || expr->isDatarow())
+                if (expr->isDataset() || expr->isDatarow() || expr->isDictionary())
                     conditionalDepth--;
                 break;
             }
@@ -2441,6 +2444,9 @@ protected:
         //depends on at least the following...
         //a) cost of serializing v cost of re-evaluating (which can depend on the engine).
         //b) How many times it will be evaluated in the child context
+        if (ds->getOperator() == no_createdictionary)
+            return true;
+
         if (isInlineTrivialDataset(ds))
             return false;
 
@@ -2468,7 +2474,6 @@ protected:
     bool gathered;
     bool groupedChildIterators;
     bool executedOnce;
-    bool supportsChildQueries;
 };
 
 
@@ -2476,7 +2481,7 @@ protected:
 void EclResourcer::gatherChildSplitPoints(IHqlExpression * expr, BoolArray & alwaysHoistChild, ResourcerInfo * info, unsigned first, unsigned last)
 {
     //NB: Don't call member functions to ensure correct nesting of transform mutexes.
-    EclChildSplitPointLocator locator(expr, activeSelectors, info->originalChildDependents, info->childDependents, info->childSingleNode, alwaysHoistChild, options.groupedChildIterators, options.supportsChildQueries);
+    EclChildSplitPointLocator locator(expr, activeSelectors, info->originalChildDependents, info->childDependents, info->childSingleNode, alwaysHoistChild, options.groupedChildIterators);
     unsigned max = expr->numChildren();
 
     //If child queries are supported then don't hoist the expressions if they might only be evaluated once
@@ -2535,7 +2540,7 @@ protected:
         case no_thisnode:
             if (allNodesDepth == 0)
             {
-                if (expr->isDataset() || expr->isDatarow())
+                if (expr->isDataset() || expr->isDatarow() || expr->isDictionary())
                     noteDataset(expr, expr->queryChild(0), true);
                 else
                     noteScalar(expr, expr->queryChild(0));
@@ -2554,14 +2559,73 @@ protected:
 };
 
 
+static bool isPotentialCompoundSteppedIndexRead(IHqlExpression * expr)
+{
+    loop
+    {
+        switch (expr->getOperator())
+        {
+        case no_compound_diskread:
+        case no_compound_disknormalize:
+        case no_compound_diskaggregate:
+        case no_compound_diskcount:
+        case no_compound_diskgroupaggregate:
+        case no_compound_childread:
+        case no_compound_childnormalize:
+        case no_compound_childaggregate:
+        case no_compound_childcount:
+        case no_compound_childgroupaggregate:
+        case no_compound_selectnew:
+        case no_compound_inline:
+            return false;
+        case no_compound_indexread:
+        case no_newkeyindex:
+            return true;
+        case no_getgraphloopresult:
+            return true; // Could be an index read in another graph iteration, so don't combine
+        case no_keyedlimit:
+        case no_preload:
+        case no_filter:
+        case no_hqlproject:
+        case no_newusertable:
+        case no_limit:
+        case no_sorted:
+        case no_preservemeta:
+        case no_distributed:
+        case no_grouped:
+        case no_stepped:
+        case no_section:
+        case no_sectioninput:
+        case no_dataset_alias:
+            break;
+        case no_choosen:
+            {
+                IHqlExpression * arg2 = expr->queryChild(2);
+                if (arg2 && !arg2->isPure())
+                    return false;
+                break;
+            }
+        default:
+            return false;
+        }
+        expr = expr->queryChild(0);
+    }
+}
 
 bool EclResourcer::findSplitPoints(IHqlExpression * expr)
 {
     ResourcerInfo * info = queryResourceInfo(expr);
     bool savedInsideNeverSplit = insideNeverSplit;
+    bool savedInsideSteppedNeverSplit = insideSteppedNeverSplit;
+    if (insideSteppedNeverSplit && info)
+    {
+        if (!isPotentialCompoundSteppedIndexRead(expr) && (expr->getOperator() != no_datasetlist))
+            insideSteppedNeverSplit = false;
+    }
+
     if (info && info->numUses)
     {
-        if (insideNeverSplit)
+        if (insideNeverSplit || insideSteppedNeverSplit)
             info->neverSplit = true;
         if (info->isAlreadyInScope && (info->numUses == 0) && expr->isDatarow())
         {
@@ -2585,7 +2649,7 @@ bool EclResourcer::findSplitPoints(IHqlExpression * expr)
     {
         info = queryCreateResourceInfo(expr);
         info->numUses++;
-        if (insideNeverSplit)
+        if (insideNeverSplit || insideSteppedNeverSplit)
             info->neverSplit = true;
 
         bool isActivity = true;
@@ -2657,7 +2721,7 @@ bool EclResourcer::findSplitPoints(IHqlExpression * expr)
         case no_mergejoin:
         case no_nwayjoin:
             if (options.preventSteppedSplit)
-                insideNeverSplit = true;
+                insideSteppedNeverSplit = true;
             break;
         case no_compound_diskread:
         case no_compound_disknormalize:
@@ -2684,6 +2748,7 @@ bool EclResourcer::findSplitPoints(IHqlExpression * expr)
         if (!type || type->isScalar())
         {
             insideNeverSplit = savedInsideNeverSplit;
+            insideSteppedNeverSplit = savedInsideSteppedNeverSplit;
             return false;
         }
 
@@ -2716,12 +2781,14 @@ bool EclResourcer::findSplitPoints(IHqlExpression * expr)
                     findSplitPoints(cur);
                 }
                 insideNeverSplit = savedInsideNeverSplit;
+                insideSteppedNeverSplit = savedInsideSteppedNeverSplit;
                 gatherChildSplitPoints(expr, alwaysHoistChild, info, first, last);
                 break;
             }
         }
 
         insideNeverSplit = false;
+        insideSteppedNeverSplit = false;
         ForEachItemIn(i2, info->childDependents)
         {
             IHqlExpression & cur = info->childDependents.item(i2);
@@ -2738,6 +2805,7 @@ bool EclResourcer::findSplitPoints(IHqlExpression * expr)
     }
 
     insideNeverSplit = savedInsideNeverSplit;
+    insideSteppedNeverSplit = savedInsideSteppedNeverSplit;
     return info->containsActivity;
 }
 
@@ -2806,6 +2874,8 @@ void EclResourcer::createInitialGraph(IHqlExpression * expr, IHqlExpression * ow
             thisGraph.setown(createGraph());
             connectGraphs(thisGraph, expr, ownerGraph, owner, linkKind);
             info->numExternalUses++;
+            if (!ownerGraph && sequential)
+                thisGraph->hasSequentialSource = true;
         }
         info->graph.set(thisGraph);
 
@@ -3653,7 +3723,6 @@ void EclResourcer::spotUnbalancedSplitters(HqlExprArray & exprs)
     {
     case HThorCluster:
         break;
-    case ThorCluster:
     case ThorLCRCluster:
         {
             //Thor only handles one graph at a time, so only walk expressions within a single graph.
@@ -4184,7 +4253,7 @@ IHqlExpression * EclResourcer::replaceResourcedReferences(ResourcerInfo * info, 
                 replacement.setown(createResourced(&cur, NULL, false, false));
 
             IHqlExpression * original = &info->originalChildDependents.item(i);
-            if (!original->isDataset() && !original->isDatarow())
+            if (!original->isDataset() && !original->isDatarow() && !original->isDictionary())
                 replacement.setown(getScalarReplacement(original, replacement));
 
             replacements.append(*replacement.getClear());
@@ -4743,7 +4812,7 @@ IHqlExpression * resourceThorGraph(HqlCppTranslator & translator, IHqlExpression
 
 static IHqlExpression * doResourceGraph(HqlCppTranslator & translator, HqlExprCopyArray * activeRows, IHqlExpression * expr, 
                                         ClusterType targetClusterType, unsigned clusterSize,
-                                        IHqlExpression * graphIdExpr, unsigned * numResults, bool isChild, bool useGraphResults)
+                                        IHqlExpression * graphIdExpr, unsigned * numResults, bool isChild, bool useGraphResults, bool sequential)
 {
     HqlExprArray transformed;
     {
@@ -4752,6 +4821,7 @@ static IHqlExpression * doResourceGraph(HqlCppTranslator & translator, HqlExprCo
             resourcer.setChildQuery(true);
         resourcer.setNewChildQuery(graphIdExpr, *numResults);
         resourcer.setUseGraphResults(useGraphResults);
+        resourcer.setSequential(sequential);
 
         if (activeRows)
             resourcer.tagActiveCursors(*activeRows);
@@ -4769,18 +4839,18 @@ static IHqlExpression * doResourceGraph(HqlCppTranslator & translator, HqlExprCo
 
 IHqlExpression * resourceLibraryGraph(HqlCppTranslator & translator, IHqlExpression * expr, ClusterType targetClusterType, unsigned clusterSize, IHqlExpression * graphIdExpr, unsigned * numResults)
 {
-    return doResourceGraph(translator, NULL, expr, targetClusterType, clusterSize, graphIdExpr, numResults, false, true);       //?? what value for isChild (e.g., thor library call).  Need to gen twice?
+    return doResourceGraph(translator, NULL, expr, targetClusterType, clusterSize, graphIdExpr, numResults, false, true, false);       //?? what value for isChild (e.g., thor library call).  Need to gen twice?
 }
 
 
-IHqlExpression * resourceNewChildGraph(HqlCppTranslator & translator, HqlExprCopyArray & activeRows, IHqlExpression * expr, ClusterType targetClusterType, IHqlExpression * graphIdExpr, unsigned * numResults)
+IHqlExpression * resourceNewChildGraph(HqlCppTranslator & translator, HqlExprCopyArray & activeRows, IHqlExpression * expr, ClusterType targetClusterType, IHqlExpression * graphIdExpr, unsigned * numResults, bool sequential)
 {
-    return doResourceGraph(translator, &activeRows, expr, targetClusterType, 0, graphIdExpr, numResults, true, true);
+    return doResourceGraph(translator, &activeRows, expr, targetClusterType, 0, graphIdExpr, numResults, true, true, sequential);
 }
 
 IHqlExpression * resourceLoopGraph(HqlCppTranslator & translator, HqlExprCopyArray & activeRows, IHqlExpression * expr, ClusterType targetClusterType, IHqlExpression * graphIdExpr, unsigned * numResults, bool insideChildQuery)
 {
-    return doResourceGraph(translator, &activeRows, expr, targetClusterType, 0, graphIdExpr, numResults, insideChildQuery, true);
+    return doResourceGraph(translator, &activeRows, expr, targetClusterType, 0, graphIdExpr, numResults, insideChildQuery, true, false);
 }
 
 IHqlExpression * resourceRemoteGraph(HqlCppTranslator & translator, IHqlExpression * expr, ClusterType targetClusterType, unsigned clusterSize)

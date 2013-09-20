@@ -28,6 +28,7 @@
 #include "eclcmd_common.hpp"
 #include "eclcmd_core.hpp"
 
+
 //=========================================================================================
 
 IClientWsPackageProcess *getWsPackageSoapService(const char *server, const char *port, const char *username, const char *password)
@@ -96,15 +97,18 @@ public:
             usage();
             return false;
         }
+        if (optProcess.isEmpty())
+            optProcess.set("*");
+
         return true;
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         Owned<IClientActivatePackageRequest> request = packageProcessClient->createActivatePackageRequest();
         request->setTarget(optTarget);
         request->setPackageMap(optPackageMap);
+        request->setProcess(optProcess);
 
         Owned<IClientActivatePackageResponse> resp = packageProcessClient->ActivatePackage(request);
         if (resp->getExceptions().ordinality())
@@ -130,6 +134,7 @@ private:
 
     StringAttr optTarget;
     StringAttr optPackageMap;
+    StringAttr optProcess;
 };
 
 class EclCmdPackageDeActivate : public EclCmdCommon
@@ -183,15 +188,18 @@ public:
             usage();
             return false;
         }
+        if (optProcess.isEmpty())
+            optProcess.set("*");
+
         return true;
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         Owned<IClientDeActivatePackageRequest> request = packageProcessClient->createDeActivatePackageRequest();
         request->setTarget(optTarget);
         request->setPackageMap(optPackageMap);
+        request->setProcess(optProcess);
 
         Owned<IClientDeActivatePackageResponse> resp = packageProcessClient->DeActivatePackage(request);
         if (resp->getExceptions().ordinality())
@@ -216,6 +224,7 @@ private:
 
     StringAttr optTarget;
     StringAttr optPackageMap;
+    StringAttr optProcess;
 };
 
 class EclCmdPackageList : public EclCmdCommon
@@ -226,12 +235,6 @@ public:
     }
     virtual bool parseCommandLineOptions(ArgvIterator &iter)
     {
-        if (iter.done())
-        {
-            usage();
-            return false;
-        }
-
         for (; !iter.done(); iter.next())
         {
             const char *arg = iter.query();
@@ -246,6 +249,8 @@ public:
                 }
                 continue;
             }
+            if (EclCmdCommon::matchCommandLineOption(iter, true)!=EclCmdOptionMatch)
+                return false;
         }
         return true;
     }
@@ -253,20 +258,14 @@ public:
     {
         if (!EclCmdCommon::finalizeOptions(globals))
             return false;
-        if (optTarget.isEmpty())
-        {
-            fprintf(stderr, "\nTarget cluster must be specified\n");
-            usage();
-            return false;
-        }
         return true;
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         Owned<IClientListPackageRequest> request = packageProcessClient->createListPackageRequest();
         request->setTarget(optTarget);
+        request->setProcess("*");
 
         Owned<IClientListPackageResponse> resp = packageProcessClient->ListPackage(request);
         if (resp->getExceptions().ordinality())
@@ -279,10 +278,9 @@ public:
             for (unsigned i=0; i<num; i++)
             {
                 IConstPackageListMapData& req = pkgMapInfo.item(i);
-                const char *id = req.getId();
-                printf("\nPackage Name = %s\n", id);
-                IArrayOf<IConstPackageListData> &pkgInfo = req.getPkgListData();
+                printf("\nPackage Id = %s  active = %d\n", req.getId(), req.getActive());
 
+                IArrayOf<IConstPackageListData> &pkgInfo = req.getPkgListData();
                 unsigned int numPkgs = pkgInfo.ordinality();
                 for (unsigned int j = 0; j <numPkgs; j++)
                 {
@@ -290,9 +288,9 @@ public:
                     const char *id = req.getId();
                     const char *queries = req.getQueries();
                     if (queries && *queries)
-                        printf("\t\tid = %s  queries = %s\n", id, queries);
+                        printf("\t\tname = %s  queries = %s\n", id, queries);
                     else
-                        printf("\t\tid = %s\n", id);
+                        printf("\t\tname = %s\n", id);
                 }
             }
         }
@@ -343,6 +341,8 @@ public:
                 }
                 continue;
             }
+            if (EclCmdCommon::matchCommandLineOption(iter, true)!=EclCmdOptionMatch)
+                return false;
         }
         return true;
     }
@@ -350,20 +350,14 @@ public:
     {
         if (!EclCmdCommon::finalizeOptions(globals))
             return false;
-        if (optTarget.isEmpty())
-        {
-            fprintf(stderr, "\nTarget cluster must be specified\n");
-            usage();
-            return false;
-        }
         return true;
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         Owned<IClientGetPackageRequest> request = packageProcessClient->createGetPackageRequest();
         request->setTarget(optTarget);
+        request->setProcess("*");
 
         Owned<IClientGetPackageResponse> resp = packageProcessClient->GetPackage(request);
         if (resp->getExceptions().ordinality())
@@ -443,21 +437,26 @@ public:
             usage();
             return false;
         }
+
+        if (optProcess.isEmpty())
+            optProcess.set("*");
         return true;
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-
         fprintf(stdout, "\n ... deleting package map %s now\n\n", optPackageMap.sget());
 
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         Owned<IClientDeletePackageRequest> request = packageProcessClient->createDeletePackageRequest();
         request->setTarget(optTarget);
         request->setPackageMap(optPackageMap);
+        request->setProcess(optProcess);
 
         Owned<IClientDeletePackageResponse> resp = packageProcessClient->DeletePackage(request);
         if (resp->getExceptions().ordinality())
             outputMultiExceptions(resp->getExceptions());
+        else
+            printf("Successfully deleted package %s\n", optPackageMap.get());
 
         return 0;
     }
@@ -471,13 +470,14 @@ public:
                     "ecl packagemap delete <target> <packagemap>\n"
                     " Options:\n"
                     "   <target>               name of the target to use \n"
-                    "   <packagemap>           name of the package map to delete",
+                    "   <packagemap>           name of the package map to delete\n",
                     stdout);
         EclCmdCommon::usage();
     }
 private:
     StringAttr optPackageMap;
     StringAttr optTarget;
+    StringAttr optProcess;
 };
 
 class EclCmdPackageAdd : public EclCmdCommon
@@ -510,6 +510,8 @@ public:
                 }
                 continue;
             }
+            if (iter.matchOption(optPackageMapId, ECLOPT_PMID))
+                continue;
             if (iter.matchOption(optDaliIP, ECLOPT_DALIIP))
                 continue;
             if (iter.matchFlag(optActivate, ECLOPT_ACTIVATE)||iter.matchFlag(optActivate, ECLOPT_ACTIVATE_S))
@@ -544,11 +546,18 @@ public:
         if (optProcess.isEmpty())
             optProcess.set("*");
 
+        if (optPackageMapId.isEmpty())
+        {
+            StringBuffer name;
+            splitFilename(optFileName.get(), NULL, NULL, &name, &name);
+            optPackageMapId.set(name.str());
+        }
+        optPackageMapId.toLowerCase();
         return true;
     }
     virtual int processCMD()
     {
-        Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
+        Owned<IClientWsPackageProcess> packageProcessClient = createCmdClient(WsPackageProcess, *this);
         StringBuffer pkgInfo;
         pkgInfo.loadFile(optFileName);
 
@@ -558,7 +567,7 @@ public:
         request->setActivate(optActivate);
         request->setInfo(pkgInfo);
         request->setTarget(optTarget);
-        request->setPackageMap(optFileName);
+        request->setPackageMap(optPackageMapId);
         request->setProcess(optProcess);
         request->setDaliIp(optDaliIP);
         request->setOverWrite(optOverWrite);
@@ -580,7 +589,8 @@ public:
                     " Options:\n"
                     "   -O, --overwrite             overwrite existing information\n"
                     "   -A, --activate              activate the package information\n"
-                    "   --daliip=<ip>               ip of the remote dali to use for logical file lookups"
+                    "   --daliip=<ip>               ip of the remote dali to use for logical file lookups\n"
+                   "   --pmid                       id of package map - defaults to filename if not specified."
 // NOT-YET          "  --packageprocessname         if not set use this package process name for all clusters"
                     "   <target>                    name of target to use when adding package map information\n"
                     "   <filename>                  name of file containing package map information\n",
@@ -596,14 +606,13 @@ private:
     bool optOverWrite;
     StringBuffer pkgInfo;
     StringAttr optDaliIP;
+    StringAttr optPackageMapId;
 };
 
-
-
-class EclCmdPackageCopyFiles : public EclCmdCommon
+class EclCmdPackageValidate : public EclCmdCommon
 {
 public:
-    EclCmdPackageCopyFiles() :optOverWrite (false)
+    EclCmdPackageValidate() : optValidateActive(false)
     {
     }
     virtual bool parseCommandLineOptions(ArgvIterator &iter)
@@ -619,18 +628,22 @@ public:
             const char *arg = iter.query();
             if (*arg!='-')
             {
-                if (optFileName.isEmpty())
+                if (optTarget.isEmpty())
+                    optTarget.set(arg);
+                else if (optFileName.isEmpty())
                     optFileName.set(arg);
                 else
                 {
-                    fprintf(stderr, "\nargument is already defined %s\n", arg);
+                    fprintf(stderr, "\nunrecognized argument %s\n", arg);
                     return false;
                 }
                 continue;
             }
-            if (iter.matchOption(optDaliIp, ECLOPT_DALIIP))
+            if (iter.matchFlag(optValidateActive, ECLOPT_ACTIVE))
                 continue;
-            if (iter.matchFlag(optOverWrite, ECLOPT_OVERWRITE))
+            if (iter.matchOption(optPMID, ECLOPT_PMID) || iter.matchOption(optPMID, ECLOPT_PMID_S))
+                continue;
+            if (iter.matchOption(optQueryId, ECLOPT_QUERYID))
                 continue;
             if (EclCmdCommon::matchCommandLineOption(iter, true)!=EclCmdOptionMatch)
                 return false;
@@ -645,10 +658,19 @@ public:
             return false;
         }
         StringBuffer err;
-        if (optFileName.isEmpty())
-            err.append("\n ... Missing package file name\n\n");
-        else if (optTarget.isEmpty())
-            err.append("\n ... Specify a process name\n\n");
+        int pcount=0;
+        if (optFileName.length())
+            pcount++;
+        if (optPMID.length())
+            pcount++;
+        if (optValidateActive)
+            pcount++;
+        if (pcount==0)
+            err.append("\n ... Package file name, --pmid, or --active required\n\n");
+        else if (pcount > 1)
+            err.append("\n ... Package file name, --pmid, and --active are mutually exclusive\n\n");
+        if (optTarget.isEmpty())
+            err.append("\n ... Specify a cluster name\n\n");
 
         if (err.length())
         {
@@ -661,22 +683,70 @@ public:
     virtual int processCMD()
     {
         Owned<IClientWsPackageProcess> packageProcessClient = getWsPackageSoapService(optServer, optPort, optUsername, optPassword);
-        StringBuffer pkgInfo;
-        pkgInfo.loadFile(optFileName);
+        Owned<IClientValidatePackageRequest> request = packageProcessClient->createValidatePackageRequest();
 
-        fprintf(stdout, "\n ... looking up files in packagemap to see what needs copying\n\n");
+        if (optFileName.length())
+        {
+            StringBuffer pkgInfo;
+            pkgInfo.loadFile(optFileName);
+            fprintf(stdout, "\nvalidating packagemap file %s\n\n", optFileName.sget());
+            request->setInfo(pkgInfo);
+        }
 
-        Owned<IClientCopyFilesRequest> request = packageProcessClient->createCopyFilesRequest();
-        request->setInfo(pkgInfo);
+        request->setActive(optValidateActive);
+        request->setPMID(optPMID);
         request->setTarget(optTarget);
-        request->setPackageName(optFileName);
-        request->setOverWrite(optOverWrite);
-        if (!optDaliIp.isEmpty())
-            request->setDaliIp(optDaliIp.get());
+        request->setQueryIdToVerify(optQueryId);
 
-        Owned<IClientCopyFilesResponse> resp = packageProcessClient->CopyFiles(request);
-        if (resp->getExceptions().ordinality())
+        bool validateMessages = false;
+        Owned<IClientValidatePackageResponse> resp = packageProcessClient->ValidatePackage(request);
+        if (resp->getExceptions().ordinality()>0)
+        {
+            validateMessages = true;
             outputMultiExceptions(resp->getExceptions());
+        }
+        StringArray &errors = resp->getErrors();
+        if (errors.ordinality()>0)
+        {
+            validateMessages = true;
+            fputs("   Error(s):\n", stderr);
+            ForEachItemIn(i, errors)
+                fprintf(stderr, "      %s\n", errors.item(i));
+        }
+        StringArray &warnings = resp->getWarnings();
+        if (warnings.ordinality()>0)
+        {
+            validateMessages = true;
+            fputs("   Warning(s):\n", stderr);
+            ForEachItemIn(i, warnings)
+                fprintf(stderr, "      %s\n", warnings.item(i));
+        }
+        StringArray &unmatchedQueries = resp->getQueries().getUnmatched();
+        if (unmatchedQueries.ordinality()>0)
+        {
+            validateMessages = true;
+            fputs("\n   Queries without matching package:\n", stderr);
+            ForEachItemIn(i, unmatchedQueries)
+                fprintf(stderr, "      %s\n", unmatchedQueries.item(i));
+        }
+        StringArray &unusedPackages = resp->getPackages().getUnmatched();
+        if (unusedPackages.ordinality()>0)
+        {
+            validateMessages = true;
+            fputs("\n   Packages without matching queries:\n", stderr);
+            ForEachItemIn(i, unusedPackages)
+                fprintf(stderr, "      %s\n", unusedPackages.item(i));
+        }
+        StringArray &unusedFiles = resp->getFiles().getUnmatched();
+        if (unusedFiles.ordinality()>0)
+        {
+            fputs("\n   Files without matching package definitions:\n", stderr);
+            ForEachItemIn(i, unusedFiles)
+                fprintf(stderr, "      %s\n", unusedFiles.item(i));
+        }
+
+        if (!validateMessages)
+            fputs("   Validation was successful\n", stdout);
 
         return 0;
     }
@@ -685,16 +755,14 @@ public:
     {
         fputs("\nUsage:\n"
                     "\n"
-                    "The 'copyFiles' command will copy any file listed in the packages contained \n"
-                    "in the packagemap file that are not currently known to the cluster.\n"
-                    "This will NOT load the package information \n"
+                    "The 'validate' command will checkout the contents of the package map file \n"
                     "\n"
-                    "ecl packagemap copyFiles [options] <target> <filename>\n"
+                    "ecl packagemap validate <target> <filename>\n"
                     " Options:\n"
-                    "   -O, --overwrite             overwrite existing information\n"
-                    "  --daliip=<daliip>            ip of the source dali to use for file lookups\n"
-                    "   <target>                    name of target to use when adding package information\n"
-                    "   <filename>                  name of file containing package information\n",
+                    "   <target>                    name of target to use when validating package map information\n"
+                    "   <filename>                  name of file containing package map information\n"
+                    "   --active                    validate the active packagemap\n"
+                    "   -pm, --pmid                 id of packagemap to validate\n",
                     stdout);
 
         EclCmdCommon::usage();
@@ -702,9 +770,9 @@ public:
 private:
     StringAttr optFileName;
     StringAttr optTarget;
-    StringAttr optDaliIp;
-    StringBuffer pkgInfo;
-    bool optOverWrite;
+    StringAttr optPMID;
+    StringAttr optQueryId;
+    bool optValidateActive;
 };
 
 IEclCommand *createPackageSubCommand(const char *cmdname)
@@ -723,9 +791,9 @@ IEclCommand *createPackageSubCommand(const char *cmdname)
         return new EclCmdPackageInfo();
     if (strieq(cmdname, "list"))
         return new EclCmdPackageList();
-    if (strieq(cmdname, "copyFiles"))
-        return new EclCmdPackageCopyFiles();
-    return NULL;
+    if (strieq(cmdname, "validate"))
+        return new EclCmdPackageValidate();
+return NULL;
 }
 
 //=========================================================================================
@@ -744,12 +812,12 @@ public:
             "ecl packagemap <command> [command options]\n\n"
             "   packagemap Commands:\n"
             "      add          add a package map to the environment\n"
-            "      copyFiles    copy missing data files to the appropriate cluster\n"
-            "      delete       delete a packag emap\n"
+            "      delete       delete a package map\n"
             "      activate     activate a package map\n"
             "      deactivate   deactivate a package map (package map will not get loaded)\n"
             "      list         list loaded package map names\n"
-            "      info         return active package map information for a cluster\n"
+            "      info         return active package map information\n"
+            "      validate     validate information in the package map file \n"
         );
     }
 };

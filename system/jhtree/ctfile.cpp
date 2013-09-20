@@ -130,7 +130,7 @@ void CKeyHdr::load(KeyHdr &_hdr)
     SwapBigEndian(hdr);
 
     if (0xffff != hdr.version && KEYBUILD_VERSION < hdr.version)
-        throw MakeKeyException(KeyExcpt_IncompatVersion, "This build is compatible with key versions <= %hu. Key is version %hu", KEYBUILD_VERSION, hdr.version);
+        throw MakeKeyException(KeyExcpt_IncompatVersion, "This build is compatible with key versions <= %u. Key is version %u", KEYBUILD_VERSION, (unsigned) hdr.version);
 }
 
 void CKeyHdr::write(IWriteSeq *out, CRC32 *crc)
@@ -365,7 +365,7 @@ bool CWriteNode::add(offset_t pos, const void *indata, size32_t insize, unsigned
     }
 
     if (insize>keyLen)
-        throw MakeStringException(0, "key+payload exceeds max length");
+        throw MakeStringException(0, "key+payload (%u) exceeds max length (%u)", insize, keyLen);
     memcpy(lastKeyValue, indata, insize);
     lastSequence = sequence;
     hdr.numKeys++;

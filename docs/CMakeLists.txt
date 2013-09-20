@@ -31,7 +31,7 @@ set (FO_XSL ${CMAKE_CURRENT_BINARY_DIR}/BuildTools/fo.xsl)
 set (VERSION_DIR ${CMAKE_CURRENT_BINARY_DIR}/)
 
 
-if ( ${HPCC_MATURITY} STREQUAL "release" )
+if ( "${HPCC_MATURITY}" STREQUAL "release" )
 	set (DOC_VERSION "${DOC_VERSION}.${HPCC_SEQUENCE}")
 else()
 	set (DOC_VERSION "${DOC_VERSION}.${HPCC_SEQUENCE}${HPCC_MATURITY}")
@@ -52,17 +52,19 @@ add_subdirectory(ECLProgrammersGuide)
 #add_subdirectory(ECLReference)
 add_subdirectory(ECLStandardLibraryReference)
 add_subdirectory(HPCCClientTools)
+add_subdirectory(HPCCCertify)
 add_subdirectory(HPCCDataHandling)
 add_subdirectory(HPCCDataTutorial)
 add_subdirectory(IMDB)
+add_subdirectory(InstantCloud)
 add_subdirectory(Installing_and_RunningTheHPCCPlatform)
 add_subdirectory(RDDERef)
 add_subdirectory(RunningHPCCinaVirtualMachine)
 add_subdirectory(UsingConfigManager)
-add_subdirectory(HDFSConnector)
 add_subdirectory(ECLPlayground)
 add_subdirectory(ECLPluginForEclipse)
-
+add_subdirectory(ECLScheduler)
+add_subdirectory(ECLWatch)
 
 
 #WIP -  Docs

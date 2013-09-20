@@ -31,6 +31,7 @@
 #include "hqlcollect.hpp"
 #include "hqlrepository.hpp"
 #include "hqlerror.hpp"
+#include "dasess.hpp"
 
 static ViewTransformerRegistry * theTransformerRegistry;
 static ITypeInfo * stringType;
@@ -152,8 +153,16 @@ ViewFailTransformer::ViewFailTransformer() : ViewFieldTransformer(failAtom)
 void ViewFailTransformer::transform(unsigned & lenTarget, char * & target, unsigned lenSource, const char * source)
 {
     throwError(FVERR_FailTransformation);
-    lenTarget = 0;
-    target = NULL;
+}
+
+
+ViewExceptionTransformer::ViewExceptionTransformer(IException * _e) : ViewFieldTransformer(failAtom), e(_e)
+{
+}
+
+void ViewExceptionTransformer::transform(unsigned & lenTarget, char * & target, unsigned lenSource, const char * source)
+{
+    throw LINK(e);
 }
 
 
@@ -292,17 +301,28 @@ void ViewTransformerRegistry::addPlugins(const char * name)
     HqlParseContext parseCtx(dataServer, NULL);
     HqlLookupContext ctx(parseCtx, &errors);
     getRootScopes(scopes, dataServer, ctx);
+
     ForEachItemIn(i, scopes)
     {
         IHqlScope * scope = &scopes.item(i);
         HqlExprArray symbols;
-        scope->getSymbols(symbols);
-
-        ForEachItemIn(j, symbols)
+        try
         {
-            IHqlExpression & cur = symbols.item(j);
-            if (cur.getOperator() == no_service)
-                addServiceDefinition(&cur);
+            scope->ensureSymbolsDefined(ctx);
+            scope->getSymbols(symbols);
+
+            ForEachItemIn(j, symbols)
+            {
+                IHqlExpression & cur = symbols.item(j);
+                if (cur.getOperator() == no_service)
+                    addServiceDefinition(&cur);
+            }
+        }
+        catch (IException * e)
+        {
+            const char * name = scope->queryName()->str();
+            VStringBuffer msg("Error loading plugin %s", name);
+            EXCLOG(e, msg.str());
         }
     }
 }
@@ -803,22 +823,31 @@ void MappingParser::parseTransformList(ViewFieldTransformerArray & transforms)
         }
 
         ViewFieldTransformer * transform;
-        if (childName)
+        try
         {
-            transform = theTransformerRegistry->resolve(mappingName, childName, args);
-            if (!transform)
+            if (childName)
             {
-                //Maybe they specified the module name - should provide a 3 valued lookup
-                transform = theTransformerRegistry->resolve(childName, grandName, args);
+                transform = theTransformerRegistry->resolve(mappingName, childName, args);
+                if (!transform)
+                {
+                    //Maybe they specified the module name - should provide a 3 valued lookup
+                    transform = theTransformerRegistry->resolve(childName, grandName, args);
+                }
+                if (!transform)
+                    throwError2(FVERR_UnrecognisedMappingFunctionXY, mappingName.get(), childName.get());
             }
-            if (!transform)
-                throwError2(FVERR_UnrecognisedMappingFunctionXY, mappingName.get(), childName.get());
+            else
+            {
+                transform = theTransformerRegistry->resolve(mappingName, args);
+                if (!transform)
+                    throwError1(FVERR_UnrecognisedMappingFunctionX, mappingName.get());
+            }
         }
-        else
+        catch (IException * e)
         {
-            transform = theTransformerRegistry->resolve(mappingName, args);
-            if (!transform)
-                throwError1(FVERR_UnrecognisedMappingFunctionX, mappingName.get());
+            EXCLOG(e, "Processing field mapping");
+            transform = new ViewExceptionTransformer(e);
+            e->Release();
         }
 
         transforms.append(*transform);

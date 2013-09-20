@@ -577,9 +577,6 @@ void CMemberInfo::gatherMaxRowSize(SizeStruct & totalSize, IHqlExpression * newS
 
 void CMemberInfo::checkAssignOk(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * newSize, unsigned fixedExtra)
 {
-    if (!translator.checkForRowOverflow())
-        return;
-
     //If no size beyond the constant value then this can't be increasing the size of the row => no need to check
     if (matchesConstantValue(newSize, 0))
         return;
@@ -608,9 +605,6 @@ void CMemberInfo::checkAssignOk(HqlCppTranslator & translator, BuildCtx & ctx, I
     {
         unsigned maxRowSize = row->getMaxSize();
         unsigned fixedSize = totalSize.getFixedSize();
-        bool supportDynamicRows = translator.queryOptions().supportDynamicRows;
-        if (!supportDynamicRows && (fixedSize > maxRowSize))
-            translator.throwError2(HQLERR_RowTooLarge, fixedSize, maxRowSize);
 
         //This removes calls that can be constant folded - a bit confusing in the generated code sometimes..
         if (!row->queryBuilder() && !totalSize.queryVarSize())
@@ -622,13 +616,7 @@ void CMemberInfo::checkAssignOk(HqlCppTranslator & translator, BuildCtx & ctx, I
         if (value)
         {
             unsigned constSize = (unsigned)value->getIntValue();
-            if (!supportDynamicRows)
-            {
-                if (constSize > maxRowSize)
-                    translator.throwError2(HQLERR_RowTooLarge, constSize, maxRowSize);
-                return;
-            }
-            else if (constSize <= getMinRecordSize(row->queryRecord()))
+            if (constSize <= getMinRecordSize(row->queryRecord()))
                 return;
         }
 
@@ -914,23 +902,23 @@ void CContainerInfo::buildClear(HqlCppTranslator & translator, BuildCtx & ctx, I
     }
 }
 
-void CContainerInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CContainerInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     ForEachItemIn(idx, children)
     {
         CMemberInfo & cur = children.item(idx);
         Owned<IReferenceSelector> ds = cur.getSelector(ctx, selector);
-        cur.buildDeserialize(translator, ctx, ds, helper);
+        cur.buildDeserialize(translator, ctx, ds, helper, serializeForm);
     }
 }
 
-void CContainerInfo::buildSerialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CContainerInfo::buildSerialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     ForEachItemIn(idx, children)
     {
         CMemberInfo & cur = children.item(idx);
         Owned<IReferenceSelector> ds = cur.getSelector(ctx, selector);
-        cur.buildSerialize(translator, ctx, ds, helper);
+        cur.buildSerialize(translator, ctx, ds, helper, serializeForm);
     }
 }
 
@@ -977,7 +965,7 @@ void CContainerInfo::setRow(HqlCppTranslator & translator, BuildCtx & ctx, IRefe
     if (!recordTypesMatch(selector->queryType(), source->queryType()))
         throwError(HQLERR_RecordNotCompatible);
 
-    assertex(!recordRequiresSerialization(column->queryRecord()));
+    assertex(!recordRequiresLinkCount(column->queryRecord()));
     CHqlBoundExpr targetAddress, sourceAddress, length;
     source->buildAddress(ctx, sourceAddress);
 
@@ -991,9 +979,8 @@ void CContainerInfo::setRow(HqlCppTranslator & translator, BuildCtx & ctx, IRefe
 
     //If copying from one identical record to another then the source record must be large enough,
     //so only need to check it it is a child record....
-    if (!cachedSize.isFixedSize() && (container || translator.queryOptions().supportDynamicRows))
+    if (!cachedSize.isFixedSize())
     {
-        //Note - if we are cop
         OwnedHqlExpr translatedLength = length.getTranslatedExpr();
         checkAssignOk(translator, ctx, selector, translatedLength, 0);
     }
@@ -1163,7 +1150,7 @@ void CIfBlockInfo::buildExpr(HqlCppTranslator & translator, BuildCtx & ctx, IRef
     throwUnexpected();
 }
 
-void CIfBlockInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CIfBlockInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     //MORE: This should really associate offset of the ifblock with the offset of its first child as well.
     CHqlBoundExpr boundSize;
@@ -1178,17 +1165,17 @@ void CIfBlockInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ct
 
     //MORE: This test could be avoided if the first child is *actually* variable length
     ensureTargetAvailable(translator, condctx, selector, CContainerInfo::getTotalMinimumSize());
-    CContainerInfo::buildDeserialize(translator, condctx, selector, helper);
+    CContainerInfo::buildDeserialize(translator, condctx, selector, helper, serializeForm);
 }
 
-void CIfBlockInfo::buildSerialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CIfBlockInfo::buildSerialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     OwnedHqlExpr cond = selector->queryRootRow()->bindToRow(condition, queryRootSelf());
     CHqlBoundExpr bound;
     translator.buildSimpleExpr(ctx, cond, bound);
     BuildCtx condctx(ctx);
     condctx.addFilter(bound.expr);
-    CContainerInfo::buildSerialize(translator, condctx, selector, helper);
+    CContainerInfo::buildSerialize(translator, condctx, selector, helper, serializeForm);
 }
 
 bool CIfBlockInfo::prepareReadAhead(HqlCppTranslator & translator, ReadAheadState & state)
@@ -1446,7 +1433,7 @@ void CColumnInfo::buildClear(HqlCppTranslator & translator, BuildCtx & ctx, IRef
     setColumn(translator, ctx, selector, null);
 }
 
-void CColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     CHqlBoundExpr boundSize;
     OwnedHqlExpr unboundSize = ensureType(buildSizeOfUnbound(translator, ctx, selector), sizetType);
@@ -1455,7 +1442,7 @@ void CColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx
     doBuildDeserialize(translator, ctx, selector, helper, boundSize.expr);
 }
 
-void CColumnInfo::buildSerialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CColumnInfo::buildSerialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     OwnedHqlExpr sizeOfExpr = createValue(no_sizeof, LINK(sizetType), LINK(selector->queryExpr()));
     CHqlBoundExpr boundSize;
@@ -1645,7 +1632,7 @@ IHqlExpression * CPackedIntColumnInfo::buildSizeOfUnbound(HqlCppTranslator & tra
     return createValue(no_translated, LINK(sizetType), translator.bindTranslatedFunctionCall(getPackedSizeAtom, args));
 }
 
-void CPackedIntColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CPackedIntColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     OwnedHqlExpr size = getSizetConstant(queryType()->queryPromotedType()->getSize()+1);    // an over-estimate, but more efficient than working out exactly.
     checkAssignOk(translator, ctx, selector, size, 0);
@@ -1716,7 +1703,7 @@ void CSpecialStringColumnInfo::gatherSize(SizeStruct & target)
 }
 
 
-void CSpecialStringColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CSpecialStringColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     OwnedHqlExpr address = getColumnAddress(translator, ctx, selector, sizetType);
     OwnedHqlExpr addressStr = getColumnAddress(translator, ctx, selector, queryType(), sizeof(size32_t));
@@ -1854,7 +1841,7 @@ IHqlExpression * CSpecialVStringColumnInfo::buildSizeOfUnbound(HqlCppTranslator 
     return createTranslatedOwned(length);
 }
 
-void CSpecialVStringColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CSpecialVStringColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     BoundRow * row = selector->queryRootRow();
 
@@ -2022,7 +2009,7 @@ IHqlExpression * CAlienColumnInfo::buildSizeOfUnbound(HqlCppTranslator & transla
     return doBuildSizeOfUnbound(translator, ctx, selector, NULL);
 }
 
-void CAlienColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CAlienColumnInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     OwnedHqlExpr unboundSize = doBuildSizeOfUnbound(translator, ctx, selector, helper);
         
@@ -2217,7 +2204,7 @@ void CBitfieldContainerInfo::buildClear(HqlCppTranslator & translator, BuildCtx 
     setColumn(translator, condctx, selector, null);
 }
 
-void CBitfieldContainerInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper)
+void CBitfieldContainerInfo::buildDeserialize(HqlCppTranslator & translator, BuildCtx & ctx, IReferenceSelector * selector, IHqlExpression * helper, _ATOM serializeForm)
 {
     OwnedHqlExpr size = getSizetConstant(column->queryType()->getSize());
     doBuildDeserialize(translator, ctx, selector, helper, size);
@@ -2619,6 +2606,8 @@ void CXmlColumnInfo::buildColumnAssign(HqlCppTranslator & translator, BuildCtx &
     {
         _ATOM func = NULL;
         IHqlExpression * defaultValue = queryPropertyChild(column, xmlDefaultAtom, 0);
+        if (!defaultValue)
+            defaultValue = queryPropertyChild(column, defaultAtom, 0);
 
         switch (type->getTypeCode())
         {
@@ -2707,10 +2696,7 @@ IHqlExpression * CXmlColumnInfo::getXmlDatasetExpr(HqlCppTranslator & translator
     //Create the builder for generating a temporary set.
     IHqlExpression * record = expr->queryRecord();
     Owned<IHqlCppDatasetBuilder> builder;
-    if (recordRequiresSerialization(expr->queryRecord()) || translator.queryOptions().tempDatasetsUseLinkedRows)
-        builder.setown(translator.createLinkedDatasetBuilder(record));
-    else
-        builder.setown(translator.createBlockedDatasetBuilder(record));
+    builder.setown(translator.createLinkedDatasetBuilder(record));
     builder->buildDeclare(ctx);
 
     //Generate the code to process a child iterator
@@ -2763,6 +2749,8 @@ IHqlExpression * CXmlColumnInfo::getXmlSetExpr(HqlCppTranslator & translator, Bu
     builder->buildDeclare(ctx);
 
     LinkedHqlExpr defaultValue = queryPropertyChild(column, xmlDefaultAtom, 0);
+    if (!defaultValue)
+        defaultValue.set(queryPropertyChild(column, defaultAtom, 0));
     bool defaultIsAllValue = defaultValue && (defaultValue->getOperator() == no_all);
     if (checkForAll)
     {
@@ -2802,9 +2790,12 @@ IHqlExpression * CXmlColumnInfo::getCallExpr(HqlCppTranslator & translator, Buil
     Linked<ITypeInfo> type = queryPhysicalType();
     _ATOM func = NULL;
     IHqlExpression * defaultValue = queryPropertyChild(column, xmlDefaultAtom, 0);
+    if (!defaultValue)
+        defaultValue = queryPropertyChild(column, defaultAtom, 0);
 
     switch (type->getTypeCode())
     {
+    case type_dictionary:
     case type_table:
     case type_groupedtable:
         return getXmlDatasetExpr(translator, ctx, selector);
@@ -3095,17 +3086,6 @@ void ColumnToOffsetMap::ensureMaxSizeCached()
         bool isKnownSize;
         cachedMaxSize = getMaxRecordSize(record, defaultMaxRecordSize, isKnownSize, cachedDefaultMaxSizeUsed);
     }
-}
-
-void ColumnToOffsetMap::checkValidMaxSize()
-{
-    ensureMaxSizeCached();
-    if (!cachedDefaultMaxSizeUsed)
-        return;
-
-    StringBuffer s;
-    getExprECL(record, s);
-    throwError1(HQLERR_MaxLengthNotSetOnRecord, s.str());
 }
 
 unsigned ColumnToOffsetMap::getMaxSize()
@@ -3436,7 +3416,7 @@ IHqlExpression * SerializationRow::ensureSerialized(IHqlExpression * path, IHqlE
     Owned<ITypeInfo> unqualifiedType = getFullyUnqualifiedType(pathType);
     Owned<ITypeInfo> serializeType = cloneEssentialFieldModifiers(pathType, unqualifiedType);
     if (colocal && path->isDataset() && 
-        (hasLinkedRow(pathType) || (hasOutOfLineModifier(pathType) && translator.queryOptions().tempDatasetsUseLinkedRows)))
+        (hasLinkedRow(pathType) || hasOutOfLineModifier(pathType)))
         serializeType.setown(setLinkCountedAttr(serializeType, true));
     return addSerializedValue(path, serializeType, colocal, isConditional);
 }
@@ -3446,7 +3426,7 @@ IHqlExpression * SerializationRow::addSerializedValue(IHqlExpression * path, ITy
     _ATOM name = NULL;
     if (path->getOperator() == no_select)
         name = path->queryChild(1)->queryName();
-    Owned<ITypeInfo> newType = getSimplifiedType(type, isConditional, (colocal == NULL));
+    Owned<ITypeInfo> newType = getSimplifiedType(type, isConditional, (colocal == NULL), internalAtom);
     OwnedHqlExpr newSelect = createField(name, newType);
 
     OwnedHqlExpr deserialized;
@@ -3457,9 +3437,14 @@ IHqlExpression * SerializationRow::addSerializedValue(IHqlExpression * path, ITy
     }
     else
     {
-        OwnedHqlExpr srcValue = ::ensureSerialized(path);
+        OwnedHqlExpr srcValue = ::ensureSerialized(path, internalAtom);
         extractBuilder->buildAssign(newSelect, srcValue);
-        deserialized.setown(ensureDeserialized(newSelect, type));
+
+        Linked<ITypeInfo> evaluateType = type;
+        if (evaluateType->getTypeCode() == type_dictionary)
+            evaluateType.setown(setLinkCountedAttr(evaluateType, true));
+
+        deserialized.setown(ensureDeserialized(newSelect, evaluateType, internalAtom));
         if (deserialized != newSelect)
             deserialized.setown(createAlias(deserialized, NULL));           // force it to be evaluated once per start
     }

@@ -1,5 +1,5 @@
 /*##############################################################################
-#    HPCC SYSTEMS software Copyright (C) 2012 HPCC Systems.
+#    HPCC SYSTEMS software Copyright (C) 2013 HPCC Systems.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -21,6 +21,15 @@
 /*
 This file contains interface definitions for the meta-information, dataset processing an activities.
 It should only contain pure interface definitions or inline functions.
+
+A note on naming conventions:
+  getXXX implies that the returned value should be released by the caller
+  queryXXX implies that it should not
+
+Methods named getXXX returning const char * from generated code will return a value that MAY need releasing (via roxiemem)
+or that may be constants. Callers should always call roxiemem::ReleaseRoxieRow on the returned value - this will do nothing
+if the supplied pointer was not from the roxiemem heap. Usually an OwnedRoxieString is the easiest way to achieve this.
+
 */
 
 #include "jscm.hpp"
@@ -30,8 +39,8 @@ It should only contain pure interface definitions or inline functions.
 
 //Should be incremented whenever the virtuals in the context or a helper are changed, so
 //that a work unit can't be rerun.  Try as hard as possible to retain compatibility.
-#define ACTIVITY_INTERFACE_VERSION      140
-#define MIN_ACTIVITY_INTERFACE_VERSION  138             //minimum value that is compatible with current interface - without using selectInterface
+#define ACTIVITY_INTERFACE_VERSION      149
+#define MIN_ACTIVITY_INTERFACE_VERSION  149             //minimum value that is compatible with current interface - without using selectInterface
 
 typedef unsigned char byte;
 
@@ -134,6 +143,7 @@ interface IRecordSize : public IInterface
 {
     virtual size32_t getRecordSize(const void *rec) = 0;
     virtual size32_t getFixedSize() const = 0;
+    virtual size32_t getMinRecordSize() const = 0;
     inline bool isFixedSize()      const { return getFixedSize()!=0; }
     inline bool isVariableSize()   const { return getFixedSize()==0; }
 };
@@ -157,6 +167,8 @@ public:
     virtual void outputEndNested(const char *fieldname) = 0;
     virtual void outputSetAll() = 0;
     virtual void outputUtf8(unsigned len, const char *field, const char *fieldname) = 0;
+    virtual void outputBeginArray(const char *fieldname) = 0;
+    virtual void outputEndArray(const char *fieldname) = 0;
     inline void outputCString(const char *field, const char *fieldname) { outputString((size32_t)strlen(field), field, fieldname); }
 };
 
@@ -211,8 +223,10 @@ interface IEngineRowAllocator : extends IInterface
     virtual IOutputMetaData * queryOutputMeta() = 0;
     virtual unsigned queryActivityId() = 0;
     virtual StringBuffer &getId(StringBuffer &) = 0;
-    virtual IOutputRowSerializer *createRowSerializer(ICodeContext *ctx = NULL) = 0;
-    virtual IOutputRowDeserializer *createRowDeserializer(ICodeContext *ctx) = 0;
+    virtual IOutputRowSerializer *createDiskSerializer(ICodeContext *ctx = NULL) = 0;
+    virtual IOutputRowDeserializer *createDiskDeserializer(ICodeContext *ctx) = 0;
+    virtual IOutputRowSerializer *createInternalSerializer(ICodeContext *ctx = NULL) = 0;
+    virtual IOutputRowDeserializer *createInternalDeserializer(ICodeContext *ctx) = 0;
 };
 
 interface IRowSerializerTarget
@@ -295,8 +309,6 @@ interface RtlITypeInfo
     virtual size32_t size(const byte * self, const byte * selfrow) const = 0;
     virtual size32_t process(const byte * self, const byte * selfrow, const RtlFieldInfo * field, IFieldProcessor & target) const = 0;  // returns the size
     virtual size32_t toXML(const byte * self, const byte * selfrow, const RtlFieldInfo * field, IXmlWriter & out) const = 0;
-    virtual void serialize(IRtlFieldTypeSerializer & out) const = 0;
-    virtual void deserialize(IRtlFieldTypeDeserializer & in) = 0;
 
     virtual const char * queryLocale() const = 0;
     virtual const RtlFieldInfo * const * queryFields() const = 0;               // null terminated list
@@ -360,9 +372,13 @@ enum
     MDFgrouped              = 0x0001,
     MDFhasxml               = 0x0002,
     MDFneeddestruct         = 0x0004,
-    MDFneedserialize        = 0x0008,
+    MDFneedserializedisk    = 0x0008,
     MDFunknownmaxlength     = 0x0010,               // max length couldn't be determined from the record structure
     MDFhasserialize         = 0x0020,
+    MDFneedserializeinternal= 0x0040,
+    MDFdiskmatchesinternal  = 0x0080,
+
+    MDFneedserializemask    = (MDFneedserializedisk|MDFneedserializeinternal),
 };
 
 interface IIndirectMemberVisitor
@@ -377,19 +393,22 @@ interface IOutputMetaData : public IRecordSize
     inline bool isGrouped()                 { return (getMetaFlags() & MDFgrouped) != 0; }
     inline bool hasXML()                    { return (getMetaFlags() & MDFhasxml) != 0; }
 
-    virtual size32_t getMinRecordSize() const = 0;
     virtual void toXML(const byte * self, IXmlWriter & out) = 0;
     virtual unsigned getVersion() const = 0;
     virtual unsigned getMetaFlags() = 0;
     virtual const RtlTypeInfo * queryTypeInfo() const { return NULL; }                                          // non null for meta from generated code
-    virtual IOutputMetaData * querySerializedMeta() = 0;
 
     virtual void destruct(byte * self) = 0;
-    virtual IOutputRowSerializer * createRowSerializer(ICodeContext * ctx, unsigned activityId) = 0;        // ctx is currently allowed to be NULL
-    virtual IOutputRowDeserializer * createRowDeserializer(ICodeContext * ctx, unsigned activityId) = 0;
-    virtual ISourceRowPrefetcher * createRowPrefetcher(ICodeContext * ctx, unsigned activityId) = 0;
-    virtual void process(const byte * self, IFieldProcessor & target, unsigned from, unsigned to) {}            // from and to are *hints* for the range of fields to call through with
 
+    virtual IOutputMetaData * querySerializedDiskMeta() = 0;
+    virtual IOutputRowSerializer * createDiskSerializer(ICodeContext * ctx, unsigned activityId) = 0;        // ctx is currently allowed to be NULL
+    virtual IOutputRowDeserializer * createDiskDeserializer(ICodeContext * ctx, unsigned activityId) = 0;
+    virtual ISourceRowPrefetcher * createDiskPrefetcher(ICodeContext * ctx, unsigned activityId) = 0;
+
+    virtual IOutputRowSerializer * createInternalSerializer(ICodeContext * ctx, unsigned activityId) = 0;        // ctx is currently allowed to be NULL
+    virtual IOutputRowDeserializer * createInternalDeserializer(ICodeContext * ctx, unsigned activityId) = 0;
+
+    virtual void process(const byte * self, IFieldProcessor & target, unsigned from, unsigned to) {}            // from and to are *hints* for the range of fields to call through with
     virtual void walkIndirectMembers(const byte * self, IIndirectMemberVisitor & visitor) = 0;
 };
 
@@ -445,7 +464,6 @@ protected:
 
 interface IXmlToRowTransformer;
 interface ICsvToRowTransformer;
-interface IHThorCountIndexArg;
 interface IHThorCountFileArg;
 interface IThorDiskCallback;
 interface IThorIndexCallback;
@@ -462,8 +480,8 @@ interface IResourceContext
 //Provided by engine=>can extent
 interface IEclGraphResults : public IInterface
 {
-    virtual void getResult(size32_t & retSize, void * & ret, unsigned id) = 0;
     virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id) = 0;
+    virtual void getDictionaryResult(size32_t & tcount, byte * * & tgt, unsigned id) = 0;
 };
 
 //Provided by engine=>can extent
@@ -473,21 +491,36 @@ interface IThorChildGraph : public IInterface
     virtual IEclGraphResults * evaluate(unsigned parentExtractSize, const byte * parentExtract) = 0;
 };
 
-interface ILocalGraph : public IInterface
-{
-    virtual void getResult(unsigned & len, void * & data, unsigned id) = 0;
-    virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id) = 0;
-};
-
 //NB: New methods must always be added at the end of this interface to retain backward compatibility
 interface IContextLogger;
 interface IDebuggableContext;
 interface IDistributedFileTransaction;
 interface IUserDescriptor;
 interface IHThorArg;
+interface IHThorHashLookupInfo;
+interface IEngineContext;
 
 interface ICodeContext : public IResourceContext
 {
+    // Fetching interim results from workunit/query context
+
+    virtual bool getResultBool(const char * name, unsigned sequence) = 0;
+    virtual void getResultData(unsigned & tlen, void * & tgt, const char * name, unsigned sequence) = 0;
+    virtual void getResultDecimal(unsigned tlen, int precision, bool isSigned, void * tgt, const char * stepname, unsigned sequence) = 0;
+    virtual void getResultDictionary(size32_t & tcount, byte * * & tgt, IEngineRowAllocator * _rowAllocator, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer, IHThorHashLookupInfo * hasher) = 0;
+    virtual void getResultRaw(unsigned & tlen, void * & tgt, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) = 0;
+    virtual void getResultSet(bool & isAll, size32_t & tlen, void * & tgt, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) = 0;
+    virtual __int64 getResultInt(const char * name, unsigned sequence) = 0;
+    virtual double getResultReal(const char * name, unsigned sequence) = 0;
+    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * name, unsigned sequence, IEngineRowAllocator * _rowAllocator, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) = 0;
+    virtual void getResultString(unsigned & tlen, char * & tgt, const char * name, unsigned sequence) = 0;
+    virtual void getResultStringF(unsigned tlen, char * tgt, const char * name, unsigned sequence) = 0;
+    virtual void getResultUnicode(unsigned & tlen, UChar * & tgt, const char * name, unsigned sequence) = 0;
+    virtual char *getResultVarString(const char * name, unsigned sequence) = 0;
+    virtual UChar *getResultVarUnicode(const char * name, unsigned sequence) = 0;
+
+    // Writing results to workunit/query context/output
+
     virtual void setResultBool(const char *name, unsigned sequence, bool value) = 0;
     virtual void setResultData(const char *name, unsigned sequence, int len, const void * data) = 0;
     virtual void setResultDecimal(const char * stepname, unsigned sequence, int len, int precision, bool isSigned, const void *val) = 0; 
@@ -501,68 +534,71 @@ interface ICodeContext : public IResourceContext
     virtual void setResultVarString(const char * name, unsigned sequence, const char * value) = 0;
     virtual void setResultVarUnicode(const char * name, unsigned sequence, UChar const * value) = 0;
 
-    virtual bool getResultBool(const char * name, unsigned sequence) = 0;
-    virtual void getResultData(unsigned & tlen, void * & tgt, const char * name, unsigned sequence) = 0;
-    virtual void getResultDecimal(unsigned tlen, int precision, bool isSigned, void * tgt, const char * stepname, unsigned sequence) = 0;
-    virtual void getResultRaw(unsigned & tlen, void * & tgt, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) = 0;
-    virtual void getResultSet(bool & isAll, size32_t & tlen, void * & tgt, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) = 0;
-    virtual __int64 getResultInt(const char * name, unsigned sequence) = 0;
-    virtual double getResultReal(const char * name, unsigned sequence) = 0;
-    virtual void getResultString(unsigned & tlen, char * & tgt, const char * name, unsigned sequence) = 0;
-    virtual void getResultUnicode(unsigned & tlen, UChar * & tgt, const char * name, unsigned sequence) = 0;
-    virtual char *getResultVarString(const char * name, unsigned sequence) = 0;
-    virtual UChar *getResultVarUnicode(const char * name, unsigned sequence) = 0;
+    // Checking persists etc are up to date
+
     virtual unsigned getResultHash(const char * name, unsigned sequence) = 0;
+    virtual unsigned __int64 getDatasetHash(const char * name, unsigned __int64 crc) = 0;
 
-    virtual char *getWuid() = 0; // caller frees return string.
-    virtual void getExternalResultRaw(unsigned & tlen, void * & tgt, const char * wuid, const char * stepname, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) = 0;    // shouldn't really be here, but it broke thor.
-    virtual char *getDaliServers() = 0; // caller frees return string.
-    virtual void executeGraph(const char * graphName, bool realThor, size32_t parentExtractSize, const void * parentExtract) = 0;
+    // Fetching various environment information, typically accessed via std.system
 
-    virtual __int64 countDiskFile(const char * lfn, unsigned recordSize) = 0;
-    virtual __int64 countIndex(__int64 activityId, IHThorCountIndexArg & arg) = 0;
-    virtual __int64 countDiskFile(__int64 activityId, IHThorCountFileArg & arg) = 0;        // only used for roxie...
-    virtual char * getExpandLogicalName(const char * logicalName) = 0;
-    virtual void addWuException(const char * text, unsigned code, unsigned severity) = 0; //n.b. this might be better named: it should only be used for adding user-generated exceptions (via the logging plug-in) --- there's a call in IAgentContext which takes a source argument too
-    virtual IUserDescriptor *queryUserDescriptor() = 0;
-    virtual IThorChildGraph * resolveChildQuery(__int64 activityId, IHThorArg * colocal) = 0;
-
-    virtual unsigned __int64 getDatasetHash(const char * name, unsigned __int64 crc) = 0;   // Moved for build(,update) processing
-    virtual unsigned getRecoveringCount() = 0;                                              // No simple idea how to implement this in thor!
-
-    //these are only really relevant in thor
-    virtual unsigned getNodes() = 0;
-    virtual unsigned getNodeNum() = 0;
-    virtual char *getFilePart(const char *logicalPart, bool create=false) = 0; // caller frees return string.
-    virtual unsigned __int64 getFileOffset(const char *logicalPart) = 0;
-
-    virtual IDistributedFileTransaction *querySuperFileTransaction() = 0;
+    virtual char *getClusterName() = 0; // caller frees return string.
+    virtual char *getEnv(const char *name, const char *defaultValue) const = 0;
+    virtual char *getGroupName() = 0; // caller frees return string.
     virtual char *getJobName() = 0; // caller frees return string.
     virtual char *getJobOwner() = 0; // caller frees return string.
-    virtual char *getClusterName() = 0; // caller frees return string.
-    virtual unsigned getPriority() const = 0;
-    virtual char *getPlatform() = 0; // caller frees return string.
+    virtual unsigned getNodeNum() = 0;
+    virtual unsigned getNodes() = 0;
     virtual char *getOS() = 0; // caller frees return string
+    virtual char *getPlatform() = 0; // caller frees return string.
+    virtual unsigned getPriority() const = 0;
+    virtual char *getWuid() = 0; // caller frees return string.
 
-    virtual ILocalGraph * resolveLocalQuery(__int64 activityId) { return NULL; }
+    // Exception handling
 
-    virtual char *getEnv(const char *name, const char *defaultValue) const = 0;
+    virtual void addWuException(const char * text, unsigned code, unsigned severity) = 0; //n.b. this might be better named: it should only be used for adding user-generated exceptions (via the logging plug-in) --- there's a call in IAgentContext which takes a source argument too
+    virtual void addWuAssertFailure(unsigned code, const char * text, const char * filename, unsigned lineno, unsigned column, bool isAbort) = 0;
+
+    // File resolution etc
+
+    virtual char * getExpandLogicalName(const char * logicalName) = 0;
+    virtual unsigned __int64 getFileOffset(const char *logicalPart) = 0;
+    virtual char *getFilePart(const char *logicalPart, bool create=false) = 0; // caller frees return string.
+    virtual IDistributedFileTransaction *querySuperFileTransaction() = 0;
+    virtual IUserDescriptor *queryUserDescriptor() = 0;
+
+    // Graphs, child queries etc
+
+    virtual void executeGraph(const char * graphName, bool realThor, size32_t parentExtractSize, const void * parentExtract) = 0;
     virtual unsigned getGraphLoopCounter() const { return 0; }
+    virtual IThorChildGraph * resolveChildQuery(__int64 activityId, IHThorArg * colocal) = 0;
+    virtual IEclGraphResults * resolveLocalQuery(__int64 activityId) { return NULL; }
+
+    // Logging etc
+
     virtual unsigned logString(const char *text) const = 0;
     virtual const IContextLogger &queryContextLogger() const = 0;
-    virtual void getResultStringF(unsigned tlen, char * tgt, const char * name, unsigned sequence) = 0;
-    virtual char *getGroupName() = 0; // caller frees return string.
-    virtual char * queryIndexMetaData(char const * lfn, char const * xpath) = 0;
-    virtual IEngineRowAllocator * getRowAllocator(IOutputMetaData * meta, unsigned activityId) const = 0;
-    virtual void getResultRowset(size32_t & tcount, byte * * & tgt, const char * name, unsigned sequence, IEngineRowAllocator * _rowAllocator, IOutputRowDeserializer * deserializer, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) = 0;
     virtual IDebuggableContext *queryDebugContext() const { return NULL; }
-    virtual void getRowXML(size32_t & lenResult, char * & result, IOutputMetaData & info, const void * row, unsigned flags) = 0;
-    virtual void addWuAssertFailure(unsigned code, const char * text, const char * filename, unsigned lineno, unsigned column, bool isAbort) = 0;
+
+    // Memory management
+
+    virtual IEngineRowAllocator * getRowAllocator(IOutputMetaData * meta, unsigned activityId) const = 0;
+    virtual const char * cloneVString(const char *str) const = 0;
+    virtual const char * cloneVString(size32_t len, const char *str) const = 0;
+
+    // Called from generated code for FROMXML/TOXML
+
     virtual const void * fromXml(IEngineRowAllocator * _rowAllocator, size32_t len, const char * utf8, IXmlToRowTransformer * xmlTransformer, bool stripWhitespace) = 0;
+    virtual void getRowXML(size32_t & lenResult, char * & result, IOutputMetaData & info, const void * row, unsigned flags) = 0;
+
+    // Miscellaneous
+
+    virtual void getExternalResultRaw(unsigned & tlen, void * & tgt, const char * wuid, const char * stepname, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer) = 0;    // shouldn't really be here, but it broke thor.
+    virtual char * queryIndexMetaData(char const * lfn, char const * xpath) = 0;
+    virtual IEngineContext *queryEngineContext() = 0;
 };
 
 
-//Provided by engine=>can extent
+//Provided by engine=>can extend
 interface IFilePositionProvider : extends IInterface
 {
     virtual unsigned __int64 getFilePosition(const void * row) = 0;
@@ -572,14 +608,14 @@ interface IFilePositionProvider : extends IInterface
 typedef size32_t (*rowTransformFunction)(ARowBuilder & rowBuilder, const byte * src);
 
 interface IColumnProvider;
-//Provided by engine=>can extent
+//Provided by engine=>can extend
 interface IColumnProviderIterator : extends IInterface
 {
     virtual IColumnProvider * first() = 0;
     virtual IColumnProvider * next() = 0;
 };
 
-//Provided by engine=>can extent
+//Provided by engine=>can extend
 interface IColumnProvider : extends IInterface
 {
     virtual bool        getBool(const char * path) = 0;
@@ -663,7 +699,6 @@ enum ThorActivityKind
     TAKworkunitwrite,
     TAKfunnel,
     TAKapply,
-    TAKtemptable,
     TAKhashdistribute,
     TAKhashdedup,
     TAKnormalize,
@@ -761,7 +796,6 @@ enum ThorActivityKind
     TAKchildcase,
     TAKremotegraph,
     TAKlibrarycall,
-    TAKrawiterator,
     TAKlocalstreamread,
     TAKprocess,
     TAKgraphloop,
@@ -791,7 +825,6 @@ enum ThorActivityKind
     TAKlinkedrawiterator,
     TAKnormalizelinkedchild,
     TAKfilterproject,
-    TAKtemprow,
     TAKdiskexists,              // non-grouped count of dataset (not child), (may filter input)
     TAKindexexists,
     TAKchildexists,
@@ -802,7 +835,7 @@ enum ThorActivityKind
     TAKcaseaction,
     TAKwhen_dataset,
     TAKwhen_action,
-    TAKshuffle,
+    TAKsubsort,
     TAKindexgroupexists,
     TAKindexgroupcount,
     TAKhashdistributemerge,
@@ -814,6 +847,8 @@ enum ThorActivityKind
     TAKexternalsource,
     TAKexternalsink,
     TAKexternalprocess,
+    TAKdictionaryworkunitwrite,
+    TAKdictionaryresultwrite,
 
     TAKlast
 };
@@ -824,7 +859,6 @@ enum ActivityInterfaceEnum
     TAIarg,
     TAIpipereadarg_1,
     TAIindexwritearg_1,
-    TAIcountarg_1,
     TAIfirstnarg_1,
     TAIchoosesetsarg_1,
     TAIchoosesetsexarg_1,
@@ -855,7 +889,6 @@ enum ActivityInterfaceEnum
     TAIthroughaggregateextra_1,
     TAIdistributionarg_1,
     TAIhashaggregateextra_1,
-    TAItemptablearg_1,
     TAIsamplearg_1,
     TAIentharg_1,
     TAIfunnelarg_1,
@@ -870,7 +903,6 @@ enum ActivityInterfaceEnum
     TAIalljoinarg_1,
     TAIhashjoinextra_1,
     TAIkeyeddistributearg_1,
-    TAIcountindexarg_1,
     TAIcountfilearg_1,
     TAIbinfetchextra_1,
     TAIworkunitwritearg_1,
@@ -927,9 +959,6 @@ enum ActivityInterfaceEnum
     TAInwayjoinarg_1,
     TAInwaymergeextra_1,
     TAInwaygraphloopresultreadarg_1,
-    TAIcompoundreadextra_2,
-    TAIcompoundgroupaggregateextra_2,
-    TAIsoapactionarg_2,
     TAInwayselectarg_1,
     TAIalgorithm_1,
     TAInonemptyarg_1,
@@ -946,19 +975,15 @@ enum ActivityInterfaceEnum
     TAIfilterprojectarg_1,
     TAIsteppedsourceextra_1,
     TAIcatcharg_1,
-    TAIsortarg_2,
     TAIsectioninputarg_1,
     TAIwhenactionarg_1,
     TAIcountrowaggregator_1,
-    TAIpipereadarg_2,
     TAIstreamediteratorarg_1,
     TAIexternal_1,
-    TAIpipethrougharg_2,
-    TAIpipewritearg_2,
     TAIinlinetablearg_1,
-    TAIshuffleextra_1,
-    TAIhashdeduparg_2,
-    TAIsoapcallextra_2,
+    TAIsubsortextra_1,
+    TAIdictionaryworkunitwritearg_1,
+    TAIdictionaryresultwritearg_1,
 
 //Should remain as last of all meaningful tags, but before aliases
     TAImax,
@@ -1108,15 +1133,11 @@ struct IHThorIndexWriteArg : public IHThorArg
     virtual unsigned getExpiryDays() = 0;
     virtual void getUpdateCRCs(unsigned & eclCRC, unsigned __int64 & totalCRC) = 0;
     virtual unsigned getFormatCrc() = 0;
-    virtual const char * queryCluster(unsigned idx) = 0;        // result only valid until next call.
+    virtual const char * getCluster(unsigned idx) = 0;
     virtual bool getIndexLayout(size32_t & _retLen, void * & _retData) = 0;
     virtual bool getIndexMeta(size32_t & lenName, char * & name, size32_t & lenValue, char * & value, unsigned idx) = 0;
     virtual unsigned getWidth() = 0;                // only guaranteed present if TIWhaswidth defined
     virtual ICompare * queryCompare() = 0;          // only guaranteed present if TIWhaswidth defined
-};
-
-struct IHThorCountArg : public IHThorArg
-{
 };
 
 struct IHThorFirstNArg : public IHThorArg
@@ -1153,7 +1174,7 @@ struct IHThorDiskWriteArg : public IHThorArg
     virtual void getUpdateCRCs(unsigned & eclCRC, unsigned __int64 & totalCRC) = 0;
     virtual void getEncryptKey(size32_t & keyLen, void * & key) = 0;
     virtual unsigned getFormatCrc() = 0;
-    virtual const char * queryCluster(unsigned idx) = 0;        // result only valid until next call.
+    virtual const char * getCluster(unsigned idx) = 0;
 };
 
 struct IHThorFilterArg : public IHThorArg
@@ -1333,8 +1354,13 @@ struct IHThorLinkedRawIteratorArg : public IHThorArg
 };
 
 
+enum {
+    RFrolledismatchleft = 0x00001,      // Is the value of left passed to matches() the result of the rollup?
+};
+
 struct IHThorRollupArg : public IHThorArg
 {
+    virtual unsigned getFlags() = 0;
     virtual bool matches(const void * _left, const void * _right) = 0;
     virtual size32_t transform(ARowBuilder & rowBuilder, const void * _left, const void * _right) = 0;
 };
@@ -1408,20 +1434,6 @@ struct IHThorHashAggregateExtra : public IInterface
 struct IHThorHashAggregateArg : public IHThorAggregateArg, public IHThorHashAggregateExtra
 {
     COMMON_NEWTHOR_FUNCTIONS
-};
-
-/*
- * This class has been deprecated in 3.8 in favour of IHThorInlineTableArg.
- * CThorTempRowArg also now derives from IHThorInlineTableArg.
- *
- * As of 3.8, only old code will implement this interface.
- */
-struct IHThorTempTableArg : public IHThorArg
-{
-    virtual size32_t getRow(ARowBuilder & rowBuilder, unsigned row) = 0;
-    virtual unsigned numRows() = 0;
-    virtual bool isConstant()                           { return true; }    // deprecated in favour of getFlags
-    virtual size32_t getRowSingle(ARowBuilder & rowBuilder) = 0;            // deprecated, TempRow derives from InlineTable
 };
 
 struct IHThorInlineTableArg : public IHThorArg
@@ -1502,7 +1514,7 @@ struct IHThorSortArg : public IHThorArg
 struct IHThorAlgorithm : public IInterface
 {
     virtual unsigned getAlgorithmFlags() = 0;
-    virtual const char * queryAlgorithm() = 0;
+    virtual const char * getAlgorithm() = 0;
 };
 
 typedef IHThorSortArg IHThorSortedArg;
@@ -1519,12 +1531,12 @@ struct IHThorTopNArg : public IHThorSortArg, public IHThorTopNExtra
     COMMON_NEWTHOR_FUNCTIONS
 };
 
-struct IHThorShuffleExtra : public IInterface
+struct IHThorSubSortExtra : public IInterface
 {
     virtual bool isSameGroup(const void * _left, const void * _right) = 0;
 };
 
-struct IHThorShuffleArg : public IHThorSortArg, public IHThorShuffleExtra
+struct IHThorSubSortArg : public IHThorSortArg, public IHThorSubSortExtra
 {
     COMMON_NEWTHOR_FUNCTIONS
 };
@@ -1728,18 +1740,6 @@ struct IHThorKeyedDistributeArg : public IHThorArg
 };
 
 
-struct IHThorCountIndexArg : public IHThorArg
-{
-    // Inside the indexRead remote activity:
-    virtual const char * getIndexFileName() = 0;
-    virtual IOutputMetaData * queryIndexRecordSize() = 0; //Excluding fpos and sequence
-    virtual void createSegmentMonitors(IIndexReadContext *ctx) = 0;
-    virtual bool hasPostFilter() { return false; };
-    virtual size32_t isValid(const void * src, unsigned __int64 _fpos, IBlobProvider * blobs) { return true; }
-    virtual void extractLookupFields() {}
-    virtual bool canMatchAny()                              { return true; }
-};
-
 struct IHThorCountFileArg : public IHThorArg
 {
     virtual const char * getFileName() = 0;
@@ -1807,7 +1807,6 @@ struct IHThorHashDedupArg : public IHThorArg
     virtual IOutputMetaData * queryKeySize() = 0;
     virtual size32_t recordToKey(ARowBuilder & rowBuilder, const void * _record) = 0;
     virtual ICompare * queryKeyCompare()=0;
-    //the following are only valid if selectInterface(TAIhashdeduparg_2) returns non-null
     virtual unsigned getFlags() = 0;
     virtual IHash    * queryKeyHash()=0;
     virtual ICompare * queryRowKeyCompare()=0; // lhs is a row, rhs is a key
@@ -1855,9 +1854,9 @@ enum
 struct IHThorKeyDiffArg : public IHThorArg
 {
     virtual unsigned getFlags() = 0;
-    virtual const char * queryOriginalName() = 0;
-    virtual const char * queryUpdatedName() = 0;
-    virtual const char * queryOutputName() = 0;
+    virtual const char * getOriginalName() = 0;
+    virtual const char * getUpdatedName() = 0;
+    virtual const char * getOutputName() = 0;
     virtual int getSequence() = 0;
     virtual unsigned getExpiryDays() = 0;
 };
@@ -1865,9 +1864,9 @@ struct IHThorKeyDiffArg : public IHThorArg
 struct IHThorKeyPatchArg : public IHThorArg
 {
     virtual unsigned getFlags() = 0;
-    virtual const char * queryOriginalName() = 0;           // may be null
-    virtual const char * queryPatchName() = 0;
-    virtual const char * queryOutputName() = 0;
+    virtual const char * getOriginalName() = 0;           // may be null
+    virtual const char * getPatchName() = 0;
+    virtual const char * getOutputName() = 0;
     virtual int getSequence() = 0;
     virtual unsigned getExpiryDays() = 0;
 };
@@ -1881,7 +1880,7 @@ struct IHThorWorkunitReadArg : public IHThorArg
 {
     virtual const char * queryName() = 0;
     virtual int querySequence() = 0;
-    virtual const char * queryWUID() = 0;
+    virtual const char * getWUID() = 0;
     virtual ICsvToRowTransformer * queryCsvTransformer() = 0;
     virtual IXmlToRowTransformer * queryXmlTransformer() = 0;
 };
@@ -1922,18 +1921,17 @@ struct ICsvParameters
         preserveWhitespace =  0x0020,
         manyHeaderFooter =    0x0040,
         defaultEscape =       0x0080,
-        supportsEscape =      0x0100, // MORE: deprecate on next major version
     }; // flags values
     virtual unsigned     getFlags() = 0;
     virtual bool         queryEBCDIC() = 0;
-    virtual const char * queryHeader()              { return NULL; }
+    virtual const char * getHeader()              { return NULL; }
     virtual unsigned     queryHeaderLen() = 0;
     virtual size32_t     queryMaxSize() = 0;
-    virtual const char * queryQuote(unsigned idx) = 0;
-    virtual const char * querySeparator(unsigned idx) = 0;
-    virtual const char * queryTerminator(unsigned idx) = 0;
-    virtual const char * queryEscape(unsigned idx) = 0;
-    virtual const char * queryFooter()              { return NULL; }
+    virtual const char * getQuote(unsigned idx) = 0;
+    virtual const char * getSeparator(unsigned idx) = 0;
+    virtual const char * getTerminator(unsigned idx) = 0;
+    virtual const char * getEscape(unsigned idx) = 0;
+    virtual const char * getFooter()              { return NULL; }
 };
 
 struct ITypedOutputStream
@@ -1977,7 +1975,7 @@ struct IHThorCsvFetchArg : public IHThorFetchBaseArg, public IHThorFetchContext,
 struct IHThorXmlParseArg : public IHThorArg
 {
     virtual size32_t transform(ARowBuilder & rowBuilder, const void * left, IColumnProvider * parsed) = 0;
-    virtual const char * queryIteratorPath() = 0;
+    virtual const char * getXmlIteratorPath() = 0;
     virtual void getSearchText(size32_t & retLen, char * & retText, const void * _self) = 0;
     virtual bool searchTextNeedsFree() = 0;
     virtual bool requiresContents() { return false; }
@@ -1986,7 +1984,6 @@ struct IHThorXmlParseArg : public IHThorArg
 struct IHThorXmlFetchExtra : public IInterface
 {
     virtual size32_t transform(ARowBuilder & rowBuilder, IColumnProvider * rowLeft, const void * right, unsigned __int64 _fpos) = 0;
-    virtual const char * queryIteratorPath() = 0;               // required so that xpaths to extract data are correct
     virtual bool requiresContents() { return false; }
 };
 
@@ -1999,9 +1996,9 @@ struct IHThorXmlFetchArg : public IHThorFetchBaseArg, public IHThorFetchContext,
 struct IHThorXmlWriteExtra : public IInterface
 {
     virtual void toXML(const byte * self, IXmlWriter & out) = 0;
-    virtual const char * queryIteratorPath()           { return NULL; }             // supplies the prefix and suffix for a row
-    virtual const char * queryHeader()                 { return NULL; }
-    virtual const char * queryFooter()                 { return NULL; }
+    virtual const char * getXmlIteratorPath()         { return NULL; }             // supplies the prefix and suffix for a row
+    virtual const char * getHeader()                   { return NULL; }
+    virtual const char * getFooter()                   { return NULL; }
     virtual unsigned getXmlFlags()                     { return 0; }
 };
 
@@ -2036,12 +2033,12 @@ struct IHThorPipeReadArg : public IHThorArg
     virtual unsigned getPipeFlags() = 0;
     virtual ICsvToRowTransformer * queryCsvTransformer() = 0;
     virtual IXmlToRowTransformer * queryXmlTransformer() = 0;
-    virtual const char * queryXmlIteratorPath() = 0;
+    virtual const char * getXmlIteratorPath() = 0;
 };
 
 struct IHThorPipeWriteArg : public IHThorArg
 {
-    virtual char * getPipeProgram() = 0;
+    virtual const char * getPipeProgram() = 0;
     virtual int getSequence() = 0;
     virtual IOutputMetaData * queryDiskRecordSize() = 0;
     virtual char * getNameFromRow(const void * _self)       { return NULL; }
@@ -2053,7 +2050,7 @@ struct IHThorPipeWriteArg : public IHThorArg
 
 struct IHThorPipeThroughArg : public IHThorArg
 {
-    virtual char * getPipeProgram() = 0;
+    virtual const char * getPipeProgram() = 0;
     virtual char * getNameFromRow(const void * _self)       { return NULL; }
     virtual bool recreateEachRow()                          { return false; }
     virtual unsigned getPipeFlags() = 0;
@@ -2061,7 +2058,7 @@ struct IHThorPipeThroughArg : public IHThorArg
     virtual IHThorXmlWriteExtra * queryXmlOutput() = 0;
     virtual ICsvToRowTransformer * queryCsvTransformer() = 0;
     virtual IXmlToRowTransformer * queryXmlTransformer() = 0;
-    virtual const char * queryXmlIteratorPath() = 0;
+    virtual const char * getXmlIteratorPath() = 0;
 };
 
 
@@ -2083,28 +2080,26 @@ enum
 
 struct IHThorWebServiceCallActionArg : public IHThorArg
 {
-    virtual const char * queryHosts() = 0;
-    virtual const char * queryService() = 0;
+    virtual const char * getHosts() = 0;
+    virtual const char * getService() = 0;
 
 //writing to the soap service.
     virtual void toXML(const byte * self, IXmlWriter & out) = 0;
-    virtual const char * queryHeader()                  { return NULL; }
-    virtual const char * queryFooter()                  { return NULL; }
+    virtual const char * getHeader()                  { return NULL; }
+    virtual const char * getFooter()                  { return NULL; }
     virtual unsigned getFlags() = 0;
     virtual unsigned numParallelThreads()               { return 0; }
     virtual unsigned numRecordsPerBatch()               { return 0; }
-    virtual const char * queryUserName()                { return NULL; }
-    virtual const char * queryPassword()                { return NULL; }
-    virtual int numRetries()                            { return -1; }
-    virtual unsigned getTimeout()                       { return (unsigned)-1; }
-    virtual const char * querySoapAction()              { return NULL; }
-    virtual const char * queryNamespaceName()           { return NULL; }
-    virtual const char * queryNamespaceVar()            { return NULL; }
-    virtual const char * queryHttpHeaderName()          { return NULL; }
-    virtual const char * queryHttpHeaderValue()         { return NULL; }
-    virtual unsigned     getTimeLimit()                 { return (unsigned)-1; }
-    virtual const char * queryProxyAddress()            { return NULL; }
-    virtual const char * queryAcceptType()              { return NULL; }
+    virtual int numRetries()                             { return -1; }
+    virtual double getTimeout()                         { return (double)-1.0; }
+    virtual double getTimeLimit()                       { return (double)0.0; }
+    virtual const char * getSoapAction()              { return NULL; }
+    virtual const char * getNamespaceName()           { return NULL; }
+    virtual const char * getNamespaceVar()            { return NULL; }
+    virtual const char * getHttpHeaderName()          { return NULL; }
+    virtual const char * getHttpHeaderValue()         { return NULL; }
+    virtual const char * getProxyAddress()            { return NULL; }
+    virtual const char * getAcceptType()              { return NULL; }
 };
 typedef IHThorWebServiceCallActionArg IHThorSoapActionArg ;
 typedef IHThorWebServiceCallActionArg IHThorHttpActionArg ;
@@ -2113,20 +2108,13 @@ typedef IHThorWebServiceCallActionArg IHThorHttpActionArg ;
 struct IHThorWebServiceCallExtra : public IInterface
 {
     virtual IXmlToRowTransformer * queryInputTransformer() = 0;
-    virtual const char * queryInputIteratorPath()       { return NULL; }
+    virtual const char * getInputIteratorPath()       { return NULL; }
     virtual size32_t onFailTransform(ARowBuilder & rowBuilder, const void * left, IException * e) { return 0; }
     virtual void getLogText(size32_t & lenText, char * & text, const void * left) = 0;  // iff SOAPFlogusermsg set
 };
 typedef IHThorWebServiceCallExtra IHThorSoapCallExtra;
 
-struct IHThorWebServiceCallExtra2 : public IInterface
-{
-    virtual double getTimeoutMS()   { return (double)-1.0; }//not specified, use default
-    virtual double getTimeLimitMS() { return (double)-1.0; }//not specified, use default
-};
-typedef IHThorWebServiceCallExtra2 IHThorSoapCallExtra2;
-
-struct IHThorWebServiceCallArg : public IHThorWebServiceCallActionArg, public IHThorWebServiceCallExtra, public IHThorWebServiceCallExtra2
+struct IHThorWebServiceCallArg : public IHThorWebServiceCallActionArg, public IHThorWebServiceCallExtra
 {
     COMMON_NEWTHOR_FUNCTIONS
 };
@@ -2237,6 +2225,7 @@ enum
     SSFalwaysfilter     = 0x0001,
     SSFhaspriority      = 0x0002,
     SSFhasprefetch      = 0x0004,
+    SSFisjoin           = 0x0008,
 };
 
 interface IHThorSteppedSourceExtra : extends IInterface
@@ -2435,7 +2424,7 @@ struct IHThorCsvReadArg: public IHThorDiskReadBaseArg
 struct IHThorXmlReadArg: public IHThorDiskReadBaseArg
 {
     virtual IXmlToRowTransformer * queryTransformer() = 0;
-    virtual const char * queryIteratorPath() = 0;
+    virtual const char * getXmlIteratorPath() = 0;
     virtual unsigned __int64 getChooseNLimit() = 0;
     virtual unsigned __int64 getRowLimit() = 0;
     virtual void onLimitExceeded() = 0;
@@ -2701,8 +2690,25 @@ interface IHThorHashLookupInfo
 {
     virtual IHash * queryHash() = 0;
     virtual ICompare * queryCompare() = 0;
+    virtual IHash * queryHashLookup() = 0;
+    virtual ICompare * queryCompareLookup() = 0;
 };
 
+
+struct IHThorDictionaryWorkUnitWriteArg : public IHThorArg
+{
+    virtual int getSequence() = 0;
+    virtual const char * queryName() = 0;
+    virtual unsigned getFlags() = 0;
+    virtual IHThorHashLookupInfo * queryHashLookupInfo() = 0;
+};
+
+struct IHThorDictionaryResultWriteArg : public IHThorArg
+{
+    virtual unsigned querySequence() = 0;
+    virtual bool usedOutsideGraph() = 0;
+    virtual IHThorHashLookupInfo * queryHashLookupInfo() = 0;
+};
 
 //------------------------- Other stuff -------------------------
 
@@ -2740,6 +2746,7 @@ struct IGlobalCodeContext
 struct IEclProcess : public IInterface
 {
     virtual int perform(IGlobalCodeContext * gctx, unsigned wfid) = 0;
+    virtual unsigned getActivityVersion() const = 0;
 };
 
 

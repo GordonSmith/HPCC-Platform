@@ -242,7 +242,7 @@ public:
     virtual IAuthMap * createFeatureMap(IPropertyTree * authconfig) {return NULL;}
     virtual IAuthMap * createSettingMap(IPropertyTree * authconfig) {return NULL;}
 
-    virtual bool updateUser(ISecUser& user, const char* newPassword);
+    virtual bool updateUserPassword(ISecUser& user, const char* newPassword, const char* currPassword = NULL);
     virtual bool IsPasswordExpired(ISecUser& user){return false;}
     void getAllGroups(StringArray & groups) { UNIMPLEMENTED;}
     
@@ -283,6 +283,8 @@ public:
     {
         return m_passwordExpirationWarningDays;
     }
+
+    virtual bool createUserScopes() {UNIMPLEMENTED; return false;}
 
 protected:
     const char* getServer(){return m_dbserver.toCharArray();}

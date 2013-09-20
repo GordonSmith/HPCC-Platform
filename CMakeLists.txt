@@ -12,7 +12,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-################################################################################    
+################################################################################
 
 #
 #########################################################
@@ -25,7 +25,7 @@
 #   1. Check out sources (for example, to directory ~/hpcc)
 #   2. Create a build directory - either as a child of hpcc or elsewhere
 #   3. cd to the build directory
-#   4a.To create makefiles to build native release version for local machine, run 
+#   4a.To create makefiles to build native release version for local machine, run
 #       cmake ~/hpcc
 #   4b.To create makefiles to build native debug version, run
 #       cmake -DCMAKE_BUILD_TYPE=Debug ~/hpcc
@@ -39,7 +39,7 @@
 #   1. Check out sources (for example, to directory c:\hpcc)
 #   2. Create a build directory - either as a child of hpcc or elsewhere
 #   3. cd to the build directory
-#   4. To create a Visual Studio project, run 
+#   4. To create a Visual Studio project, run
 #       cmake c:\hpcc -G "Visual Studio 9 2008"
 #      The sln file hpccsystems-platform.sln will be created in the current directory, and will support debug and release targets
 #   5. To build the project, load the solution into the visual studio IDE and build in the usual way.
@@ -168,12 +168,14 @@ elseif ( UNIX )
 
     message ( "-- Auto Detecting Packaging type")
     message ( "-- distro uses ${packageManagement}, revision is ${packageRevisionArch}" )
-
-    if ( ${packageManagement} STREQUAL "DEB" )
+    if ( "${packageManagement}" STREQUAL "RPM" AND WITH_PLUGINS )
+        set ( CPACK_RPM_PACKAGE_VERSION "${projname}-with-plugins")
+    endif()
+    if ( "${packageManagement}" STREQUAL "DEB" )
         set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_RPM_PACKAGE_VERSION}-${version}-${stagever}${packageRevisionArch}")
-    elseif ( ${packageManagement} STREQUAL "RPM" )
+    elseif ( "${packageManagement}" STREQUAL "RPM" )
         set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_RPM_PACKAGE_VERSION}-${version}-${stagever}.${packageRevisionArch}")
-        else()
+    else()
         set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_RPM_PACKAGE_VERSION}_${version}-${stagever}${CPACK_SYSTEM_NAME}")
     endif ()
 endif ()
@@ -258,7 +260,7 @@ if (NOT "${CMAKE_VERSION}" VERSION_LESS "2.8.1")
         elseif ( "${packageManagement}" STREQUAL "RPM" )
             set ( CPACK_GENERATOR "${packageManagement}" )
             ###
-            ## CPack instruction required for RPM 
+            ## CPack instruction required for RPM
             ###
             message("-- Will build RPM package")
             message ("-- Packing BASH installation files")
@@ -281,13 +283,17 @@ else()
     message("WARNING: CMAKE 2.8.1 or later required to create RPMs from this project")
 endif()
 
+if ( UNIX )
+    set ( CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" )
+endif ( UNIX )
 if ( PLATFORM )
-    set ( CPACK_PACKAGING_INSTALL_PREFIX "${PREFIX}/${DIR_NAME}" )
 else ( PLATFORM )
-    set ( CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_RPM_PACKAGE_VERSION}-${version}-${stagever}-${CPACK_SYSTEM_NAME}")
+    if ( APPLE OR WIN32 )
+        set ( CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_RPM_PACKAGE_VERSION}-${version}-${stagever}${CPACK_SYSTEM_NAME}" )
+    endif()
     set ( CPACK_MONOLITHIC_INSTALL TRUE )
     set ( CPACK_PACKAGE_VENDOR "HPCC Systems" )
-    file(WRITE "${PROJECT_BINARY_DIR}/welcome.txt" 
+    file(WRITE "${PROJECT_BINARY_DIR}/welcome.txt"
         "HPCC Systems - Client Tools\r"
         "===========================\r\r"
         "This installer will install the HPCC Systems Client Tools.")
@@ -297,11 +303,23 @@ else ( PLATFORM )
     if (WIN32)
       set ( CPACK_NSIS_DISPLAY_NAME "Client Tools" )
       set ( CPACK_PACKAGE_INSTALL_DIRECTORY "${DIR_NAME}\\\\${version}\\\\clienttools")
-      set ( CPACK_PACKAGE_INSTALL_REGISTRY_KEY "${DIR_NAME}\\\\${version}\\\\clienttools")
+      set ( CPACK_PACKAGE_INSTALL_REGISTRY_KEY "clienttools_${version}")
+      set ( CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON" )
+      set ( CPACK_NSIS_URL_INFO_ABOUT "http:\\\\\\\\hpccsystems.com" )
+      set ( CPACK_NSIS_CONTACT ${CPACK_PACKAGE_CONTACT} )
       set ( CPACK_NSIS_DEFINES "
-        !define MUI_STARTMENUPAGE_DEFAULTFOLDER \\\"${CPACK_PACKAGE_VENDOR}\\\\${CPACK_NSIS_DISPLAY_NAME}\\\"
+        !define MUI_STARTMENUPAGE_DEFAULTFOLDER \\\"${CPACK_PACKAGE_VENDOR}\\\\${version}\\\\${CPACK_NSIS_DISPLAY_NAME}\\\"
         !define MUI_FINISHPAGE_NOAUTOCLOSE
       ")
+
+      file(STRINGS "${PROJECT_SOURCE_DIR}/../sign/passphrase.txt" PFX_PASSWORD LIMIT_COUNT 1)
+
+      add_custom_target(SIGN 
+          COMMAND signtool sign /f "${PROJECT_SOURCE_DIR}/../sign/hpcc_code_signing.pfx" /p "${PFX_PASSWORD}" /t "http://timestamp.verisign.com/scripts/timstamp.dll" "${CMAKE_BINARY_DIR}/${CPACK_PACKAGE_NAME}*.exe"
+          COMMENT "Digital Signature"
+      )
+      add_dependencies(SIGN PACKAGE)
+      set_property(TARGET SIGN PROPERTY FOLDER "CMakePredefinedTargets")
     endif()
 endif( PLATFORM )
 

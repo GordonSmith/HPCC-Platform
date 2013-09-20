@@ -81,7 +81,8 @@ class CXmlReadSlaveActivity : public CDiskReadSlaveActivityBase, public CThorDat
                 stream.set(crcStream);
             }
             inputIOstream.setown(createBufferedIOStream(stream));
-            xmlParser.setown(createXMLParse(*inputIOstream.get(), activity.helper->queryIteratorPath(), *this, (0 != (TDRxmlnoroot & activity.helper->getFlags()))?xr_noRoot:xr_none, 0 != (TDRusexmlcontents & activity.helper->getFlags())));
+            OwnedRoxieString xmlIterator(activity.helper->getXmlIteratorPath());
+            xmlParser.setown(createXMLParse(*inputIOstream.get(), xmlIterator, *this, (0 != (TDRxmlnoroot & activity.helper->getFlags()))?ptr_noRoot:ptr_none, 0 != (TDRusexmlcontents & activity.helper->getFlags())));
         }
         virtual void close(CRC32 &fileCRC)
         {
@@ -98,13 +99,15 @@ class CXmlReadSlaveActivity : public CDiskReadSlaveActivityBase, public CThorDat
 
             try
             {
-                while (xmlParser->next()) {
+                while (xmlParser->next())
+                {
                     if (lastMatch)
                     {
                         RtlDynamicRowBuilder row(allocator);
                         size32_t sz = xmlTransformer->transform(row, lastMatch, this);
                         lastMatch.clear();
-                        if (sz) {
+                        if (sz)
+                        {
                             localOffset = 0;
                             ++activity.diskProgress;
                             return row.finalizeRowClear(sz);
@@ -112,9 +115,18 @@ class CXmlReadSlaveActivity : public CDiskReadSlaveActivityBase, public CThorDat
                     }
                 }
             }
-            catch (IXMLReadException *e)
+            catch (IPTreeException *e)
             {
-                if (XmlRead_syntax != e->errorCode())
+                StringBuffer context;
+                e->errorMessage(context).newline();
+                context.append("Logical filename = ").append(activity.logicalFilename).newline();
+                context.append("Physical file part = ").append(iFile->queryFilename()).newline();
+                context.append("offset = ").append(localOffset);
+                throw MakeStringException(e->errorCode(), "%s", context.str());
+            }
+            catch (IPTreeReadException *e)
+            {
+                if (PTreeRead_syntax != e->errorCode())
                     throw;
                 Owned<IException> _e = e;
                 offset_t localFPos = makeLocalFposOffset(activity.queryContainer().queryJob().queryMyRank()-1, e->queryOffset());
@@ -126,7 +138,7 @@ class CXmlReadSlaveActivity : public CDiskReadSlaveActivityBase, public CThorDat
                 appendDataAsHex(context, sizeof(localFPos), &localFPos);
                 context.newline();
                 context.append(e->queryContext());
-                throw createXmlReadException(e->errorCode(), e->queryDescription(), context.str(), e->queryLine(), e->queryOffset());
+                throw createPTreeReadException(e->errorCode(), e->queryDescription(), context.str(), e->queryLine(), e->queryOffset());
             }
             catch (IOutOfMemException *e)
             {

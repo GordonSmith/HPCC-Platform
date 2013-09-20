@@ -41,11 +41,11 @@ public:
     {
         IHThorSortArg *helper = (IHThorSortArg *)queryHelper();
         IHThorAlgorithm *algo = static_cast<IHThorAlgorithm *>(helper->selectInterface(TAIalgorithm_1));
-        char const *algoname = algo->queryAlgorithm();
+        OwnedRoxieString algoname = algo->getAlgorithm();
         unsigned flags = algo->getAlgorithmFlags();
         if (algoname && (0 != stricmp(algoname, "quicksort")))
         {
-            Owned<IException> e = MakeActivityException(this, 0, "Ignoring, unsupported sort order algorithm '%s'", algoname);
+            Owned<IException> e = MakeActivityException(this, 0, "Ignoring, unsupported sort order algorithm '%s'", algoname.get());
             reportExceptionToWorkunit(container.queryJob().queryWorkUnit(), e);
         }
     }
@@ -77,11 +77,11 @@ protected:
     {
         IHThorSortArg *helper = (IHThorSortArg *)queryHelper();
         IHThorAlgorithm *algo = static_cast<IHThorAlgorithm *>(helper->selectInterface(TAIalgorithm_1));
-        char const *algoname = algo->queryAlgorithm();
+        OwnedRoxieString algoname(algo->getAlgorithm());
         unsigned flags = algo->getAlgorithmFlags();
         if (algoname && (0 != stricmp(algoname, "quicksort")))
         {
-            Owned<IException> e = MakeActivityException(this, 0, "Ignoring, unsupported sort order algorithm '%s'", algoname);
+            Owned<IException> e = MakeActivityException(this, 0, "Ignoring, unsupported sort order algorithm '%s'", algoname.get());
             reportExceptionToWorkunit(container.queryJob().queryWorkUnit(), e);
         }
     }
@@ -136,7 +136,7 @@ protected:
                 skewThreshold = container.queryJob().getWorkUnitValueInt("defaultSkewThreshold", 0);
         }
         StringBuffer cosortfilenames;
-        const char *cosortlogname = helper->getSortedFilename();
+        OwnedRoxieString cosortlogname(helper->getSortedFilename());
         if (cosortlogname&&*cosortlogname) {
 
             Owned<IDistributedFile> file = queryThorFileManager().lookup(container.queryJob(), cosortlogname);
@@ -159,10 +159,10 @@ protected:
         try {   
             imaster->SortSetup(rowif,helper->queryCompare(),helper->querySerialize(),cosortfilenames.length()!=0,true,cosortfilenames.toCharArray(),auxrowif);
             if (barrier->wait(false)) { // local sort complete
-                size32_t maxdeviance=globals->getPropInt("@sort_max_deviance", 10*1024*1024);
+                size32_t maxdeviance = getOptUInt(THOROPT_SORT_MAX_DEVIANCE, 10*1024*1024);
                 try
                 {
-                    imaster->Sort(skewThreshold,skewWarning,skewError,maxdeviance,true,false,false,(unsigned)globals->getPropInt("@smallSortThreshold"));
+                    imaster->Sort(skewThreshold,skewWarning,skewError,maxdeviance,true,false,false,getOptUInt(THOROPT_SMALLSORT));
                 }
                 catch (IThorException *e)
                 {

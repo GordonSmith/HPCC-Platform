@@ -25,7 +25,7 @@
 
 //Following constants configure different sizes etc.
 
-#define DISK_BLOCK_SIZE     8096            // Size of chunks read directly from file.
+#define DISK_BLOCK_SIZE     0x10000         // Size of chunks read directly from file.
 #define PAGED_WU_LIMIT      0x20000         // Page load work unit results >= this size.
 #define WU_BLOCK_SIZE       0x4000          // Size of chunks read from Work unit
 #define DISKREAD_PAGE_SIZE  200             // Number of rows to read in each chunk from file.
@@ -33,7 +33,7 @@
 
 interface IRecordSizeEx : public IRecordSize
 {
-    IRecordSize::getRecordSize;
+    using IRecordSize::getRecordSize;
     virtual size32_t getRecordSize(unsigned maxLength, const void *rec) = 0;
 };
 
@@ -54,6 +54,10 @@ public:
     virtual size32_t getFixedSize() const
     {
         return recordSize->getFixedSize();
+    }
+    virtual size32_t getMinRecordSize() const
+    {
+        return recordSize->getMinRecordSize();
     }
 private:
     Linked<IRecordSize> recordSize;
@@ -118,7 +122,7 @@ public:
     void addVirtualField(const char * name, const char * xpath, ITypeInfo * type);
 
     void extractKeyedInfo(UnsignedArray & offsets, TypeInfoArray & types);
-    unsigned fixedSize() { return storedFixedSize; }
+    unsigned fixedSize() { return minRecordSize; }
     bool isFixedSize() { return isStoredFixedWidth; }
     bool isSingleSet() { return ((fields.ordinality() == 1) && (fields.item(0).type->getTypeCode() == type_set)); }
     inline unsigned getMaxRecordSize()                      { return maxRecordSize; }
@@ -131,6 +135,7 @@ public:
     {
         return getRecordSize(rec);
     }
+    virtual size32_t getMinRecordSize() const;
 
 protected:
     void addSimpleField(const char * name, const char * xpath, ITypeInfo * type);
@@ -144,7 +149,7 @@ protected:
     CIArrayOf<DataSourceMetaItem> fields;
     IntArray attributes;
     unsigned keyedSize;
-    unsigned storedFixedSize;
+    unsigned minRecordSize;
     unsigned maxRecordSize;
     unsigned bitsRemaining;
     unsigned numVirtualFields;

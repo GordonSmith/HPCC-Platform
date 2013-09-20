@@ -325,6 +325,7 @@ extern IPropertyTree* ccdChannels;
 extern IPropertyTree* topology;
 extern StringArray allQuerySetNames;
 
+extern bool allFilesDynamic;
 extern bool crcResources;
 extern bool logFullQueries;
 extern bool blindLogging;
@@ -338,14 +339,12 @@ extern unsigned initIbytiDelay;
 extern unsigned minIbytiDelay;
 extern bool copyResources;
 extern bool chunkingHeap;
-extern unsigned keyedJoinFlowLimit;
 extern unsigned perChannelFlowLimit;
 extern unsigned parallelLoopFlowLimit;
 extern unsigned numServerThreads;
 extern unsigned numRequestArrayThreads;
 extern unsigned readTimeout;
 extern unsigned indexReadChunkSize;
-extern unsigned smartSteppingChunkRows;
 extern SocketEndpoint ownEP;
 extern unsigned maxBlockSize;
 extern unsigned maxLockAttempts;
@@ -358,7 +357,6 @@ extern unsigned socketCheckInterval;
 extern memsize_t defaultMemoryLimit;
 extern unsigned defaultTimeLimit[3];
 extern unsigned defaultWarnTimeLimit[3];
-extern bool deleteUnneededFiles;
 extern bool checkPrimaries;
 extern bool pretendAllOpt;
 extern ClientCertificate clientCert;
@@ -373,7 +371,6 @@ extern unsigned preabortIndexReadsThreshold;
 extern bool traceStartStop;
 extern bool traceServerSideCache;
 extern bool timeActivities;
-extern int defaultCheckingHeap;
 extern unsigned watchActivityId;
 extern unsigned testSlaveFailure;
 extern unsigned dafilesrvLookupTimeout;
@@ -382,7 +379,6 @@ extern unsigned mtu_size;
 extern StringBuffer fileNameServiceDali;
 extern StringBuffer roxieName;
 extern bool trapTooManyActiveQueries;
-extern bool allowRoxieOnDemand;
 extern unsigned maxEmptyLoopIterations;
 extern unsigned maxGraphLoopIterations;
 extern HardwareInfo hdwInfo;
@@ -394,11 +390,11 @@ extern bool probeAllRows;
 extern bool steppingEnabled;
 extern bool simpleLocalKeyedJoins;
 extern bool enableKeyDiff;
-extern bool enableForceKeyDiffCopy;
 extern bool useTreeCopy;
-extern XmlReaderOptions defaultXmlReadFlags;
+extern PTreeReaderOptions defaultXmlReadFlags;
 extern bool mergeSlaveStatistics;
 extern bool roxieMulticastEnabled;   // enable use of multicast for sending requests to slaves
+extern bool preloadOnceData;
 
 extern unsigned udpMulticastBufferSize;
 extern size32_t diskReadBufferSize;
@@ -451,6 +447,8 @@ inline unsigned getBondedChannel(unsigned partNo)
 
 extern void FatalError(const char *format, ...)  __attribute__((format(printf, 1, 2)));
 extern unsigned getNextInstanceId();
+extern void closedown();
+extern void saveTopology();
 
 #define LOGGING_INTERCEPTED     0x01
 #define LOGGING_TIMEACTIVITIES  0x02

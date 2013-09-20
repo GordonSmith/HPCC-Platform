@@ -28,8 +28,6 @@ struct ECLRTL_API RtlTypeInfoBase : public RtlTypeInfo
     virtual size32_t size(const byte * self, const byte * selfrow) const;
     virtual size32_t process(const byte * self, const byte * selfrow, const RtlFieldInfo * field, IFieldProcessor & target) const;
     virtual size32_t toXML(const byte * self, const byte * selfrow, const RtlFieldInfo * field, IXmlWriter & target) const;
-    virtual void serialize(IRtlFieldTypeSerializer & out) const;
-    virtual void deserialize(IRtlFieldTypeDeserializer & in);
 
     virtual const char * queryLocale() const;
     virtual const RtlFieldInfo * const * queryFields() const;
@@ -228,6 +226,16 @@ struct ECLRTL_API RtlRowTypeInfo : public RtlCompoundTypeInfo
 struct ECLRTL_API RtlDatasetTypeInfo : public RtlCompoundTypeInfo
 {
     inline RtlDatasetTypeInfo(unsigned _fieldType, unsigned _length, const RtlTypeInfo * _child) : RtlCompoundTypeInfo(_fieldType, _length, _child) {}
+
+    virtual size32_t size(const byte * self, const byte * selfrow) const;
+    virtual size32_t process(const byte * self, const byte * selfrow, const RtlFieldInfo * field, IFieldProcessor & target) const;
+    virtual size32_t toXML(const byte * self, const byte * selfrow, const RtlFieldInfo * field, IXmlWriter & target) const;
+};
+
+
+struct ECLRTL_API RtlDictionaryTypeInfo : public RtlCompoundTypeInfo
+{
+    inline RtlDictionaryTypeInfo(unsigned _fieldType, unsigned _length, const RtlTypeInfo * _child) : RtlCompoundTypeInfo(_fieldType, _length, _child) {}
 
     virtual size32_t size(const byte * self, const byte * selfrow) const;
     virtual size32_t process(const byte * self, const byte * selfrow, const RtlFieldInfo * field, IFieldProcessor & target) const;

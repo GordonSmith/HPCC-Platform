@@ -23,15 +23,23 @@
 
 #define EXAMPLELIB_VERSION "EXAMPLELIB 1.0.00"
 
-const char * HoleDefinition = NULL;
+static const char * HoleDefinition = NULL;
 
-const char * EclDefinition = 
+static const char * EclDefinition =
 "export ExampleLib := SERVICE\n"
 "  string EchoString(const string src) : c, pure,entrypoint='elEchoString'; \n"
 "END;";
 
 EXAMPLELIB_API bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb) 
 {
+    //  Warning:    This function may be called without the plugin being loaded fully.  
+    //              It should not make any library calls or assume that dependent modules
+    //              have been loaded or that it has been initialised.
+    //
+    //              Specifically:  "The system does not call DllMain for process and thread 
+    //              initialization and termination.  Also, the system does not load 
+    //              additional executable modules that are referenced by the specified module."
+
     if (pb->size != sizeof(ECLPluginDefinitionBlock))
         return false;
 

@@ -50,6 +50,8 @@
 #include "roxiehelper.hpp"
 #include "jlzw.hpp"
 
+using roxiemem::OwnedRoxieString;
+
 #include <new>
 
 #ifdef _USE_CPPUNIT
@@ -381,7 +383,7 @@ public:
 
             try
             {
-                queryXml.setown(createPTreeFromXMLString(rawText.str(), ipt_caseInsensitive, (XmlReaderOptions)(xr_ignoreWhiteSpace|xr_ignoreNameSpaces)));
+                queryXml.setown(createPTreeFromXMLString(rawText.str(), ipt_caseInsensitive, (PTreeReaderOptions)(ptr_ignoreWhiteSpace|ptr_ignoreNameSpaces)));
             }
             catch (IException *E)
             {
@@ -397,7 +399,7 @@ public:
             sanitizeQuery(queryXml, queryName, sanitizedText, isHTTP, uid, isRequest, isRequestArray);
             DBGLOG("Received debug query %s", sanitizedText.str());
 
-            FlushingStringBuffer response(client, false, true, false, false, queryDummyContextLogger());
+            FlushingStringBuffer response(client, false, MarkupFmt_XML, false, false, queryDummyContextLogger());
             response.startDataset("Debug", NULL, (unsigned) -1);
 
             if (!debugCmdHandler.get())
@@ -505,8 +507,8 @@ public:
 
 //=======================================================================================
 
-EclAgent::EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bool _resetWorkflow, bool _noRetry, char const * _logname, const char *_allowedPipeProgs, IPropertyTree *queryXML, IProperties *_globals, IPropertyTree *_config)
-    : wuRead(wu), wuid(_wuid), checkVersion(_checkVersion), resetWorkflow(_resetWorkflow), noRetry(_noRetry), allowedPipeProgs(_allowedPipeProgs), globals(_globals), config(_config)
+EclAgent::EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bool _resetWorkflow, bool _noRetry, char const * _logname, const char *_allowedPipeProgs, IPropertyTree *_queryXML, IProperties *_globals, IPropertyTree *_config, ILogMsgHandler * _logMsgHandler)
+    : wuRead(wu), wuid(_wuid), checkVersion(_checkVersion), resetWorkflow(_resetWorkflow), noRetry(_noRetry), allowedPipeProgs(_allowedPipeProgs), globals(_globals), config(_config), logMsgHandler(_logMsgHandler)
 {
     isAborting = false;
     isStandAloneExe = false;
@@ -554,10 +556,10 @@ EclAgent::EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bo
         SCMStringBuffer jobName;
         debugContext->debugInitialize(wuid, wu->getJobName(jobName).str(), true);
     }
-    if (queryXML)
+    if (_queryXML)
     {
         Owned<IWorkUnit> w = updateWorkUnit();
-        w->setXmlParams(queryXML);
+        w->setXmlParams(_queryXML);
     }
     Owned<const IPropertyTree> xmlParams = wuRead->getXmlParams();
     if (xmlParams)
@@ -1040,7 +1042,7 @@ void EclAgent::getExternalResultRaw(unsigned & tlen, void * & tgt, const char * 
     }
 }
 
-void EclAgent::getResultRowset(size32_t & tcount, byte * * & tgt, const char * stepname, unsigned sequence, IEngineRowAllocator * _rowAllocator, IOutputRowDeserializer * deserializer, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer)
+void EclAgent::getResultRowset(size32_t & tcount, byte * * & tgt, const char * stepname, unsigned sequence, IEngineRowAllocator * _rowAllocator, bool isGrouped, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer)
 {
     tgt = NULL;
     PROTECTED_GETRESULT(stepname, sequence, "Rowset", "rowset",
@@ -1049,7 +1051,23 @@ void EclAgent::getResultRowset(size32_t & tcount, byte * * & tgt, const char * s
         Owned<IXmlToRawTransformer> rawXmlTransformer = createXmlRawTransformer(xmlTransformer);
         Owned<ICsvToRawTransformer> rawCsvTransformer = createCsvRawTransformer(csvTransformer);
         r->getResultRaw(result, rawXmlTransformer, rawCsvTransformer);
+        Owned<IOutputRowDeserializer> deserializer = _rowAllocator->createDiskDeserializer(queryCodeContext());
         rtlDataset2RowsetX(tcount, tgt, _rowAllocator, deserializer, datasetBuffer.length(), datasetBuffer.toByteArray(), isGrouped);
+    );
+}
+
+void EclAgent::getResultDictionary(size32_t & tcount, byte * * & tgt, IEngineRowAllocator * _rowAllocator, const char * stepname, unsigned sequence, IXmlToRowTransformer * xmlTransformer, ICsvToRowTransformer * csvTransformer, IHThorHashLookupInfo * hasher)
+{
+    tcount = 0;
+    tgt = NULL;
+    PROTECTED_GETRESULT(stepname, sequence, "Rowset", "rowset",
+        MemoryBuffer datasetBuffer;
+        MemoryBuffer2IDataVal result(datasetBuffer);
+        Owned<IXmlToRawTransformer> rawXmlTransformer = createXmlRawTransformer(xmlTransformer);
+        Owned<ICsvToRawTransformer> rawCsvTransformer = createCsvRawTransformer(csvTransformer);
+        r->getResultRaw(result, rawXmlTransformer, rawCsvTransformer);
+        Owned<IOutputRowDeserializer> deserializer = _rowAllocator->createDiskDeserializer(queryCodeContext());
+        rtlDeserializeDictionary(tcount, tgt, _rowAllocator, deserializer, datasetBuffer.length(), datasetBuffer.toByteArray());
     );
 }
 
@@ -1438,27 +1456,6 @@ static unsigned __int64 getFileSize(IFile * file)
     return size;
 }
 
-
-__int64 EclAgent::countDiskFile(const char * name, unsigned recordSize)
-{
-    Owned<ILocalOrDistributedFile> ldFile = resolveLFN(name, "CountDisk");
-
-    offset_t size = 0;
-    Owned<IFileDescriptor> fdesc;
-    if (ldFile)
-    {
-        size = ldFile->getPartFileSize(0);
-        fdesc.setown(ldFile->getFileDescriptor());
-    }
-
-    if(fdesc->isGrouped()) recordSize++; //MORE: if codegen supplied group info, could x-check with dfs, like we do on disk read
-    if (size % recordSize)
-    {
-        failv(0, "Physical file %s has size %"I64F"d which is not a multiple of record size %d", ldFile->queryLogicalName(), size, recordSize);
-    }
-    return size / recordSize;
-}
-
 bool EclAgent::fileExists(const char *name)
 {
     unsigned __int64 size = 0;
@@ -1474,47 +1471,6 @@ bool EclAgent::fileExists(const char *name)
 void EclAgent::deleteFile(const char * logicalName)
 {
     queryDistributedFileDirectory().removeEntry(logicalName, queryUserDescriptor());
-}
-
-__int64 EclAgent::countIndex(__int64 id, IHThorCountIndexArg & arg)
-{
-    throwUnexpected();
-}
-
-__int64 EclAgent::countDiskFile(__int64 id, IHThorCountFileArg & arg)
-{
-    Owned<IHThorCountFileArg> a = &arg;  // make sure it gets destroyed....
-
-    //MORE: This needs rewriting if it is to be called from a child query, but I expect the
-    //whole activity to be replaced with something else in that case.
-    try
-    {
-        arg.onCreate(queryCodeContext(), NULL, NULL);
-        arg.onStart(NULL, NULL);
-    }
-    catch(IException * e)
-    {
-        throw makeHThorException(TAKcountdisk, (unsigned)id, 0, e);
-    }
-
-    StringBuffer mangled;
-    mangleHelperFileName(mangled, arg.getFileName(), queryWuid(), arg.getFlags());
-    Owned<ILocalOrDistributedFile> ldFile = resolveLFN(mangled, "CountDisk", 0 != (arg.getFlags() & TDRoptional));
-    if (ldFile) 
-    {
-        IRecordSize * rs = arg.queryRecordSize();
-        assertex(rs->isFixedSize());
-        unsigned recordSize = rs->getFixedSize();
-        Owned<IFileDescriptor> fdesc = ldFile->getFileDescriptor();
-        if(fdesc->isGrouped()) recordSize++; //MORE: if codegen supplied group info, could x-check with dfs, like we do on disk read
-        offset_t size  = ldFile->getFileSize();
-        if (size % recordSize)
-        {
-            failv(0, "Physical file %s has size %"I64F"d which is not a multiple of record size %d", ldFile->queryLogicalName(), size, recordSize);
-        }
-        return size / recordSize;
-    }
-    return 0;
 }
 
 char * EclAgent::getExpandLogicalName(const char * logicalName)
@@ -1608,7 +1564,7 @@ char *EclAgent::getPlatform()
         Owned<IConstWUClusterInfo> clusterInfo = getTargetClusterInfo(cluster);
         if (!clusterInfo)
             throw MakeStringException(-1, "Unknown Cluster '%s'", cluster);
-        return strdup(clusterTypeString(clusterInfo->getPlatform()));
+        return strdup(clusterTypeString(clusterInfo->getPlatform(), false));
     }
     else
         return strdup("standalone");
@@ -1617,6 +1573,8 @@ char *EclAgent::getPlatform()
 char *EclAgent::getEnv(const char *name, const char *defaultValue) const 
 {
     const char *val = globals->queryProp(name);
+    if (!val)
+        val = getenv(name);
     if (val)
         return strdup(val);
     else if (defaultValue)
@@ -1862,6 +1820,7 @@ void EclAgent::doProcess()
     try
     {
         LOG(MCrunlock, unknownJob, "Waiting for workunit lock");
+        unsigned eclccCodeVersion;
         {
             WorkunitUpdate w = updateWorkUnit();
             LOG(MCrunlock, unknownJob, "Obtained workunit lock");
@@ -1870,8 +1829,10 @@ void EclAgent::doProcess()
             w->setTracingValue("EclAgentBuild", BUILD_TAG);
             if (agentTopology->hasProp("@name"))
                 w->addProcess("EclAgent", agentTopology->queryProp("@name"), logname.str());
-            if (checkVersion && ((w->getCodeVersion() > ACTIVITY_INTERFACE_VERSION) || (w->getCodeVersion() < MIN_ACTIVITY_INTERFACE_VERSION)))
-                failv(0, "Workunit was compiled for eclagent interface version %d, this eclagent requires version %d..%d", w->getCodeVersion(), MIN_ACTIVITY_INTERFACE_VERSION, ACTIVITY_INTERFACE_VERSION);
+
+            eclccCodeVersion = w->getCodeVersion();
+            if (checkVersion && ((eclccCodeVersion > ACTIVITY_INTERFACE_VERSION) || (eclccCodeVersion < MIN_ACTIVITY_INTERFACE_VERSION)))
+                failv(0, "Workunit was compiled for eclagent interface version %d, this eclagent requires version %d..%d", eclccCodeVersion, MIN_ACTIVITY_INTERFACE_VERSION, ACTIVITY_INTERFACE_VERSION);
             if(noRetry && (w->getState() == WUStateFailed))
                 throw MakeStringException(0, "Ecl agent started in 'no retry' mode for failed workunit, so failing");
             w->setState(WUStateRunning);
@@ -1896,6 +1857,10 @@ void EclAgent::doProcess()
         {
             MTIME_SECTION(timer, "Process");
             Owned<IEclProcess> process = loadProcess();
+
+            if (checkVersion && (process->getActivityVersion() != eclccCodeVersion))
+                failv(0, "Inconsistent interface versions.  Workunit was created using eclcc for version %u, but the c++ compiler used version %u", eclccCodeVersion, process->getActivityVersion());
+
             PrintLog("Starting process");
             runProcess(process);
             failed = false;
@@ -1996,7 +1961,11 @@ void EclAgent::doProcess()
         while (clusterNames.ordinality())
             restoreCluster();
         if (!queryResolveFilesLocally())
+        {
             w->deleteTempFiles(NULL, false, deleteJobTemps);
+            if (deleteJobTemps)
+                w->deleteTemporaries();
+        }
 
         wuRead.clear(); // have a write lock still, but don't want to leave dangling unlocked wuRead after releasing write lock
                         // or else something can delete whilst still referenced (e.g. on complete signal)
@@ -2046,13 +2015,18 @@ void EclAgent::doProcess()
 void EclAgent::runProcess(IEclProcess *process)
 {
     assertex(rowManager==NULL);
-    rowManager.setown(roxiemem::createRowManager(0, NULL, queryDummyContextLogger(), this, false)); 
+    allocatorMetaCache.setown(createRowAllocatorCache(this));
+    rowManager.setown(roxiemem::createRowManager(0, NULL, queryDummyContextLogger(), allocatorMetaCache, false));
     setHThorRowManager(rowManager.get());
-    rtlSetReleaseRowHook(queryHThorRtlRowCallback());
 
     //Get memory limit. Workunit specified value takes precedence over config file
-    int memLimitMB = globals->getPropInt("defaultMemoryLimitMB", DEFAULT_MEM_LIMIT);
+    int memLimitMB = agentTopology->getPropInt("@defaultMemoryLimitMB", DEFAULT_MEM_LIMIT);
+    memLimitMB = globals->getPropInt("defaultMemoryLimitMB", memLimitMB);
     memLimitMB = queryWorkUnit()->getDebugValueInt("hthorMemoryLimit", memLimitMB);
+
+    bool allowHugePages = agentTopology->getPropBool("@heapUseHugePages", false);
+    allowHugePages = globals->getPropBool("heapUseHugePages", allowHugePages);
+
 #ifndef __64BIT__
     if (memLimitMB > 4096)
     {
@@ -2062,7 +2036,7 @@ void EclAgent::runProcess(IEclProcess *process)
     }
 #endif
     memsize_t memLimitBytes = (memsize_t)memLimitMB * 1024 * 1024;
-    roxiemem::setTotalMemoryLimit(memLimitBytes, 0, NULL);
+    roxiemem::setTotalMemoryLimit(allowHugePages, memLimitBytes, 0, NULL);
 
     if (debugContext)
         debugContext->checkBreakpoint(DebugStateReady, NULL, NULL);
@@ -2084,7 +2058,7 @@ void EclAgent::runProcess(IEclProcess *process)
 #ifdef _DEBUG_LEAKS
     rowManager.clear();//Early release of rowManager, so activity IDs of leaked blocks are available
 #endif
-    allAllocators.kill();//release meta before libraries unloaded
+    allocatorMetaCache.clear(); //release meta before libraries unloaded
     queryLibraries.kill();
 
     if (debugContext)
@@ -2248,7 +2222,7 @@ void EclAgentWorkflowMachine::doExecutePersistItem(IRuntimeWorkflowItem & item)
     if(!persist)
     {
         StringBuffer errmsg;
-        errmsg.append("Internal error in generated code: for wfid ").append(wfid).append(", persist CRC wfid ").append(item.queryPersistWfid()).append(" did not call returnPersitVersion");
+        errmsg.append("Internal error in generated code: for wfid ").append(wfid).append(", persist CRC wfid ").append(item.queryPersistWfid()).append(" did not call returnPersistVersion");
         throw MakeStringException(0, "%s", errmsg.str());
     }
     if(strcmp(name.str(), persist->logicalName.get()) != 0)
@@ -2682,25 +2656,6 @@ const char *EclAgent::queryWuid()
     return wuid.get();
 }
 
-char * EclAgent::getDaliServers()
-{
-    if (!isCovenActive())
-        return strdup("");
-    StringBuffer dali;
-    IGroup &group = queryCoven().queryComm().queryGroup();
-    Owned<INodeIterator> coven = group.getIterator();
-    bool first = true;
-    ForEach(*coven)
-    {
-        if (first)
-            first = false;
-        else
-            dali.append(',');
-        coven->query().endpoint().getUrlStr(dali);
-    }
-    return dali.detach();
-}
-
 char * EclAgent::getJobName()
 {
     SCMStringBuffer out;
@@ -3094,12 +3049,13 @@ extern int HTHOR_API eclagent_main(int argc, const char *argv[], StringBuffer * 
 
     //Build log file specification
     StringBuffer logfilespec;
+    ILogMsgHandler * logMsgHandler = NULL;
     if (!standAloneExe)
     {
         Owned<IComponentLogFileCreator> lf = createComponentLogFileCreator(agentTopology, "eclagent");
         lf->setMsgFields(MSGFIELD_timeDate | MSGFIELD_msgID | MSGFIELD_process | MSGFIELD_thread | MSGFIELD_code);
         lf->setCreateAliasFile(false);
-        lf->beginLogging();
+        logMsgHandler = lf->beginLogging();
         PROGLOG("Logging to %s", lf->queryLogFileSpec());
         logfilespec.set(lf->queryLogFileSpec());
     }
@@ -3232,7 +3188,7 @@ extern int HTHOR_API eclagent_main(int argc, const char *argv[], StringBuffer * 
             {
                 MTIME_SECTION(timer, "SDS_Initialize");
                 Owned<IGroup> serverGroup = createIGroup(daliServers.str(), DALI_SERVER_PORT);
-                initClientProcess(serverGroup, DCR_EclAgent, 0, NULL, NULL, MP_WAIT_FOREVER, false);
+                initClientProcess(serverGroup, DCR_EclAgent, 0, NULL, NULL, MP_WAIT_FOREVER);
             }
 #ifdef MONITOR_ECLAGENT_STATUS  
             serverstatus = new CSDSServerStatus("ECLagent");
@@ -3254,13 +3210,16 @@ extern int HTHOR_API eclagent_main(int argc, const char *argv[], StringBuffer * 
             if (getConfigurationDirectory(agentTopology->queryPropTree("Directories"),"mirror","eclagent",agentTopology->queryProp("@name"),baseDir.clear()))
                 setBaseDirectory(baseDir.str(), true);
 
+            if (agentTopology->getPropBool("@useNASTranslation", true))
+                envInstallNASHooks();
+
             if (standAloneWorkUnit)
             {
                 //Stand alone program, but dali is specified => create a workunit in dali, and store the results there....
                 Owned<IWorkUnitFactory> factory = getWorkUnitFactory();
                 Owned<IWorkUnit> daliWu = factory->createWorkUnit(NULL, "eclagent", "eclagent");
                 IExtendedWUInterface * extendedWu = queryExtendedWU(daliWu);
-                extendedWu->copyWorkUnit(standAloneWorkUnit);
+                extendedWu->copyWorkUnit(standAloneWorkUnit, true);
                 daliWu->getWuid(wuid);
                 globals->setProp("WUID", wuid.str());
                 standAloneWorkUnit.clear();
@@ -3306,7 +3265,7 @@ extern int HTHOR_API eclagent_main(int argc, const char *argv[], StringBuffer * 
 
             if (w)
             {
-                EclAgent agent(w, wuid.str(), globals->getPropInt("IGNOREVERSION", 0)==0, globals->getPropBool("WFRESET", false), globals->getPropBool("NORETRY", false), logfilespec.str(), globals->queryProp("allowedPipePrograms"), query.getClear(), globals, agentTopology);
+                EclAgent agent(w, wuid.str(), globals->getPropInt("IGNOREVERSION", 0)==0, globals->getPropBool("WFRESET", false), globals->getPropBool("NORETRY", false), logfilespec.str(), globals->queryProp("allowedPipePrograms"), query.getClear(), globals, agentTopology, logMsgHandler);
                 const bool isRemoteWorkunit = (daliServers.length() != 0);
                 const bool resolveFilesLocally = !isRemoteWorkunit || globals->getPropBool("USELOCALFILES", false);
                 const bool writeResultsToStdout = !isRemoteWorkunit || globals->getPropBool("RESULTSTOSTDOUT", false);
@@ -3390,6 +3349,7 @@ void usage(const char * exeName)
 
 int STARTQUERY_API start_query(int argc, const char *argv[])
 {
+    EnableSEHtoExceptionMapping();
     InitModuleObjects();
 
     for (int idx = 1; idx < argc; idx++)

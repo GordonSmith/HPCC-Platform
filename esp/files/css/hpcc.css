@@ -1,4 +1,4 @@
-﻿/*##############################################################################
+/*##############################################################################
 #    Copyright (C) 2011 HPCC Systems.
 #
 #    All rights reserved. This program is free software: you can redistribute it and/or modify
@@ -14,6 +14,8 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ############################################################################## */
+
+/*ELEMENT STYLES***************/
 html, body {
     background: white;
     width: 100%;
@@ -22,10 +24,7 @@ html, body {
     color: rgb(51, 51, 51);
     font-family: Lucida Sans,Lucida Grande,Arial !important;
     font-size: 13px !important;
-    padding-top: 0px;
-    padding-right: 0px;
-    padding-bottom: 0px;
-    padding-left: 0px;
+    padding: 0;
 }
 
 button {
@@ -51,8 +50,177 @@ h1 {
     font-size: 1.5em;
 }
 
+/*Use this when creating a small popup form*/
+.smallForm label{
+  float: left;
+    width: 26%;
+    margin: 0 15px 0 0;
+    text-align: left;
+    padding-top: 4px;
+    font-weight:bold;
+    height:20px;
+}
+
+form {
+    margin:0;
+    padding:0;
+    width:100%;
+}
+
+form label{
+    float: left;
+    width: 14%;
+    margin: 0 15px 0 0;
+    text-align: left;
+    padding-top: 4px;
+    font-weight:bold;
+    height:20px;
+    color:rgb(71, 71, 71);
+}
+
+form textarea{
+    font-size: 13px;
+    font-family: Arial;
+    width:auto;
+    height:auto;
+    float:left;
+}
+
+form ul{
+    list-style:none;
+    margin:0;
+    padding:0;
+}
+
+form li{
+    margin: 0;
+    padding: 6px 1% 9px 1%;
+    clear: both;
+    position: relative;
+    height:20px;
+}
+
+form div{
+    margin:4px 0 0 0;
+}
+form h1{
+    font-size: 1.5em;
+    margin-left:15px;
+}
+form h2{
+    padding:5px 0;
+    color:rgb(22, 22, 22);
+}
+
+table td{
+    vertical-align: top;
+}
+
+form table label{
+    width:13em;
+}
+
+/* Double-color dashed line */
+        
+hr.dashedLine {
+    border: 0;
+    border-bottom: 1px dashed #ccc;
+    background-color: rgb(0, 170, 213);
+    background: none;
+}
+
+ h2 img:first-of-type{
+    margin-left:15px;
+}
+/*IDs************************/
+
+#myProgressBar{
+    width:200px;
+}
+
+#borderContainer {
+    width:100%;
+    height:100%;
+}
+
+#helpAction, #helpScope{
+    width:12px; 
+    height:12px;
+}
+
+#appLayout {
+    height: 100%;
+}
+
+#longList label{
+    float: left;
+    width: 14%;
+    margin: 0 15px 0 0;
+    text-align: right;
+    padding-top: 4px;
+    font-weight:bold;
+    height:20px;
+}
+
+#loadingOverlay {
+    background: url("/esp/files/img/loadingAnimation.gif") no-repeat 10px 23px rgb(255, 255, 255);
+}
+
+#loadingOverlay .loadingMessage {
+        padding: 25px 40px;
+        color: rgb(153, 153, 153);
+    }
+
+#timings, #properties {
+    padding: 0;
+    overflow: hidden;
+}
+
+#container{
+    width:960px;
+}
+
+#mainMenu{
+    margin-bottom:10px;
+}
+
+#widgetWUInfoResponse{
+    padding-left:10px;
+}
+
+/*CLASSES******************/
+.hidden{
+    color:rgb(214, 214, 214);
+    display: none !important;
+}
+
+.hpccApp {
+    height: 100%;
+}
+
+.toolTip{
+width:inherit;
+}
+
+.toolTip img{
+vertical-align: middle;
+margin-left:-20px;
+}
+
+
+.pageOverlay{
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    position: absolute;
+    z-index: 1001;
+}
+
 .CodeMirror {
 }
+
 .CodeMirror-scroll {
     position: absolute;
     height: 100%;
@@ -70,30 +238,194 @@ h1 {
     background-color: rgb(208, 233, 252);
 }
 
-#appLayout {
-    height: 100%;
+.dijitValidationTextBoxLabel {
+    width:170px;
+    text-align: left;
 }
 
-.pageOverlay {
-    left: 0px;
-    top: 0px;
-    width: 100%;
-    height: 100%;
-    display: block;
+.dijitToasterContainer {
+    width: 64em;
+}
+
+.claro .dijitReadOnly input {
+    background:url("../img/locked.png") no-repeat scroll;
+    background-position: right ;
+}
+
+.claro .dijitReadOnly * {
+    background-color: rgb(219, 219, 219);
+}
+
+.claro .dijitReadOnly .dijitTextBoxReadOnlyFocused{
+    background-color: rgb(219, 219, 219);
+}
+
+.claro .dijitReadOnly .dijitInputInner {
+    color: rgb(122, 122, 122)
+}
+
+
+.smallForm .dijitValidationTextBoxLabel {
+    width: auto;
+}
+
+
+.iconUsers{
+    background-image: url("../img/users_silhouette.png");
+    width: 16px;
+    height: 16px;
+    border:none;
+    display:inline-block;
+    vertical-align: middle;
+}
+
+.iconGroups{
+    background-image: url("../img/groups_silhouette.png");
+    width: 16px;
+    height: 16px;
+    border:none;
+    display:inline-block;
+    vertical-align: middle;
+}
+
+.iconAlign{
+    vertical-align: middle;
+}
+
+.iconFilter{
+    background-image: url("../img/filter.png");
+    width: 16px;
+    height: 16px;
+    border:none;
+    display:inline-block;
+    vertical-align: middle;
+}
+
+.iconFolder{
+    background-image: url("../img/folder.png");
+    width: 16px;
+    height: 16px;
+    border:none;
+    display:inline-block;
+    vertical-align: middle;
+}
+
+.iconNoFilter{
+    background-image: url("../img/noFilter.png");
+    width: 16px;
+    height: 16px;
+    border:none;
+    display:inline-block;
+    vertical-align: middle;
+}
+
+.iconRefresh {
+    background-image: url("../img/refresh2.png"); 
+    width: 16px;
+    height: 16px;
+}
+
+.iconLogicalFile {
+    background-image: url("../img/folder_table.png"); 
+    width: 16px;
+    height: 16px;
+}
+
+
+/*WUSTATES*/
+.iconWorkunit {
+    background-image: url("../img/workunit.png"); 
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+}
+
+
+.iconCompiled, .iconCompleted{
+    background-image: url("../img/workunit_completed.png"); 
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+
+}
+
+.iconRunning, .iconCompiling, .iconDebugRunning {
+    background-image: url("../img/workunit_running.png"); 
+    width: 16px;
+    height: 16px; 
+    display: inline-block;  
+}
+
+.iconFailed, .iconStateAborted{
+    background-image: url("../img/workunit_failed.png"); 
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+}
+
+
+.iconArchived, .iconBlocked, .iconScheduled, .iconWait, .iconUploadingFiles, .iconDebugPaused{
+    background-image: url("../img/workunit_warning.png"); 
+    width: 16px;
+    height: 16px;
+    display: inline-block;    
+}
+
+.iconAborting{
+    background-image: url("../img/workunit_aborting.png"); 
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+}
+
+.iconSubmitted{
+    background-image: url("../img/workunit_submitted.png"); 
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+}
+
+.iconDeleted{
+    background-image: url("../img/workunit_deleted.png"); 
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+}
+
+.ErrorCell{
+    background: red;
+    color: white;
+}
+
+.ValidationError{
+    color:red;
+    font-weight:bold;
+    margin-bottom:10px;
+
+}
+
+.WarningCell{
+    background: yellow;
+}
+
+.Prompt{
+    font-weight:bold;
+}
+
+.resultGridCell {
+    vertical-align:text-top;
+    font-family: monospace;
+}
+
+.dgrid {
     position: absolute;
-    z-index: 1001;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: auto;
 }
 
-#loadingOverlay {
-    background: url("/esp/files/img/loadingAnimation.gif") no-repeat 10px 23px rgb(255, 255, 255);
-}
-
-    #loadingOverlay .loadingMessage {
-        padding: 25px 40px;
-        color: rgb(153, 153, 153);
-    }
-
-#timings, #properties {
-    padding: 0px;
-    overflow: hidden;
+.bottomFormButtons{
+    margin-top:20px;
 }

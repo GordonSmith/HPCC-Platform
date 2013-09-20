@@ -174,17 +174,9 @@ public:
         countResult = 0;
         OwnedConstThorRow _rowset = allocator->createRowset((unsigned)rowStreamCount);
         const void **rowset = (const void **)_rowset.get();
-        loop
+        while (countResult < rowStreamCount)
         {
             OwnedConstThorRow row = stream->nextRow();
-            if (!row)
-            {
-                row.setown(stream->nextRow());
-                if (row)
-                    rowset[countResult++] = NULL;
-                else
-                    break;
-            }
             rowset[countResult++] = row.getClear();
         }
         result = (byte **)_rowset.getClear();
@@ -357,7 +349,8 @@ CGraphElementBase::CGraphElementBase(CGraphBase &_owner, IPropertyTree &_xgmml) 
     kind = (ThorActivityKind)xgmml->getPropInt("att[@name=\"_kind\"]/@value", TAKnone);
     sink = isActivitySink(kind);
     bool coLocal = xgmml->getPropBool("att[@name=\"coLocal\"]/@value", false);
-    isLocal = coLocal || xgmml->getPropBool("att[@name=\"local\"]/@value", false);
+    isLocalData = xgmml->getPropBool("att[@name=\"local\"]/@value", false); // local execute + local data access only
+    isLocal = isLocalData || coLocal; // local execute
     isGrouped = xgmml->getPropBool("att[@name=\"grouped\"]/@value", false);
     resultsGraph = NULL;
     ownerId = xgmml->getPropInt("att[@name=\"_parentActivity\"]/@value", 0);
@@ -451,6 +444,11 @@ void CGraphElementBase::ActPrintLog(IException *e, const char *format, ...)
     va_start(args, format);
     ::ActPrintLogArgs(this, e, thorlog_all, MCexception(e), format, args);
     va_end(args);
+}
+
+void CGraphElementBase::ActPrintLog(IException *e)
+{
+    ActPrintLog(e, "%s", "");
 }
 
 void CGraphElementBase::abort(IException *e)
@@ -556,16 +554,20 @@ void CGraphElementBase::onCreate()
 
 void CGraphElementBase::onStart(size32_t parentExtractSz, const byte *parentExtract)
 {
-    if (nullAct ||onStartCalled) return;
-    if (haveStartCtx)
-    {
-        baseHelper->onStart(parentExtract, &startCtxMb);
-        startCtxMb.reset();
-        haveStartCtx = false;
-    }
-    else
-        baseHelper->onStart(parentExtract, NULL);
+    if (onStartCalled)
+        return;
     onStartCalled = true;
+    if (!nullAct)
+    {
+        if (haveStartCtx)
+        {
+            baseHelper->onStart(parentExtract, &startCtxMb);
+            startCtxMb.reset();
+            haveStartCtx = false;
+        }
+        else
+            baseHelper->onStart(parentExtract, NULL);
+    }
 }
 
 bool CGraphElementBase::executeDependencies(size32_t parentExtractSz, const byte *parentExtract, int controlId, bool async)
@@ -806,7 +808,7 @@ void CGraphElementBase::createActivity(size32_t parentExtractSz, const byte *par
                 break;
         }
     }
-    catch (IException *e) { ActPrintLog(e, NULL); activity.clear(); throw; }
+    catch (IException *e) { ActPrintLog(e); activity.clear(); throw; }
 }
 
 ICodeContext *CGraphElementBase::queryCodeContext()
@@ -827,6 +829,7 @@ bool isGlobalActivity(CGraphElementBase &container)
         case TAKindexwrite:
         case TAKkeydiff:
         case TAKkeypatch:
+        case TAKdictionaryworkunitwrite:
             return true;
         case TAKdiskwrite:
         {
@@ -836,6 +839,12 @@ bool isGlobalActivity(CGraphElementBase &container)
         }
         case TAKspill:
             return false;
+        case TAKcsvread:
+        {
+            Owned<IHThorCsvReadArg> helper = (IHThorCsvReadArg *)container.helperFactory();
+            // if header lines, then [may] need to co-ordinate across slaves
+            return helper->queryCsvParameters()->queryHeaderLen() > 0;
+        }
 // dependent on child acts?
         case TAKlooprow:
         case TAKloopcount:
@@ -938,7 +947,6 @@ bool isGlobalActivity(CGraphElementBase &container)
 
         case TAKindexread:
         case TAKindexnormalize:
-        case TAKcsvread:
         case TAKxmlread:
         case TAKdiskexists:
         case TAKindexexists:
@@ -953,22 +961,21 @@ bool isGlobalActivity(CGraphElementBase &container)
         case TAKrollupgroup:
         case TAKcombinegroup:
         case TAKsoap_rowdataset:
+        case TAKhttp_rowdataset:
         case TAKsoap_rowaction:
         case TAKsoap_datasetdataset:
         case TAKsoap_datasetaction:
-        case TAKrawiterator:
         case TAKlinkedrawiterator:
         case TAKchilditerator:
         case TAKstreamediterator:
         case TAKworkunitread:
         case TAKchilddataset:
-        case TAKtemptable:
         case TAKinlinetable:
-        case TAKtemprow:
         case TAKnull:
         case TAKemptyaction:
         case TAKlocalresultread:
         case TAKlocalresultwrite:
+        case TAKdictionaryresultwrite:
         case TAKgraphloopresultread:
         case TAKgraphloopresultwrite:
         case TAKnwaygraphloopresultread:
@@ -1044,6 +1051,7 @@ void CGraphBase::clean()
     ::Release(doneBarrier);
     localResults.clear();
     graphLoopResults.clear();
+    childGraphsTable.kill();
     childGraphs.kill();
     disconnectActivities();
     containers.kill();
@@ -1106,9 +1114,10 @@ void CGraphBase::deserializeStartContexts(MemoryBuffer &mb)
 void CGraphBase::reset()
 {
     setCompleteEx(false);
+    graphCancelHandler.reset();
     if (0 == containers.count())
     {
-        SuperHashIteratorOf<CGraphBase> iter(childGraphs);
+        SuperHashIteratorOf<CGraphBase> iter(childGraphsTable);
         ForEach(iter)
             iter.query().reset();
     }
@@ -1131,14 +1140,15 @@ void CGraphBase::reset()
 void CGraphBase::addChildGraph(CGraphBase &graph)
 {
     CriticalBlock b(crit);
-    childGraphs.replace(graph);
+    childGraphs.append(graph);
+    childGraphsTable.replace(graph);
     job.associateGraph(graph);
 }
 
 IThorGraphIterator *CGraphBase::getChildGraphs() const
 {
     CriticalBlock b(crit);
-    return new CGraphTableIterator(childGraphs);
+    return new CGraphArrayCopyIterator(childGraphs);
 }
 
 bool CGraphBase::fireException(IException *e)
@@ -1193,7 +1203,7 @@ void CGraphBase::executeSubGraph(size32_t parentExtractSz, const byte *parentExt
     }
     catch (IException *e)
     {
-        GraphPrintLog(e, NULL);
+        GraphPrintLog(e);
         exception.setown(e);
     }
     if (!queryOwner())
@@ -1234,13 +1244,23 @@ void CGraphBase::join()
 void CGraphBase::doExecute(size32_t parentExtractSz, const byte *parentExtract, bool checkDependencies)
 {
     if (isComplete()) return;
-    if (aborted) throw MakeGraphException(this, 0, "subgraph aborted");
+    if (queryAborted())
+    {
+        if (abortException)
+            throw abortException.getLink();
+        throw MakeGraphException(this, 0, "subgraph aborted(1)");
+    }
     if (!prepare(parentExtractSz, parentExtract, checkDependencies, false, false))
     {
         setComplete();
         return;
     }
-    if (aborted) throw MakeGraphException(this, 0, "subgraph aborted");
+    if (queryAborted())
+    {
+        if (abortException)
+            throw abortException.getLink();
+        throw MakeGraphException(this, 0, "subgraph aborted(2)");
+    }
     Owned<IException> exception;
     try
     {
@@ -1254,13 +1274,14 @@ void CGraphBase::doExecute(size32_t parentExtractSz, const byte *parentExtract, 
         }
         if (!preStart(parentExtractSz, parentExtract)) return;
         start();
-        if (!wait(aborted?MEDIUMTIMEOUT:INFINITE)) // can't wait indefinetely, query may have aborted and stall, but prudent to wait a short time for underlying graphs to unwind.
+        if (!wait(aborted?MEDIUMTIMEOUT:INFINITE)) // can't wait indefinitely, query may have aborted and stall, but prudent to wait a short time for underlying graphs to unwind.
             GraphPrintLogEx(this, thorlog_null, MCuserWarning, "Graph wait cancelled, aborted=%s", aborted?"true":"false");
         graphDone = true;
     }
     catch (IException *e)
     {
-        GraphPrintLog(e, NULL); exception.setown(e);
+        GraphPrintLog(e);
+        exception.setown(e);
     }
     try
     {
@@ -1291,7 +1312,7 @@ void CGraphBase::doExecute(size32_t parentExtractSz, const byte *parentExtract, 
     }
     catch (IException *e)
     {
-        GraphPrintLog(e, NULL);
+        GraphPrintLog(e);
         if (!exception.get())
             exception.setown(e);
         else
@@ -1370,7 +1391,7 @@ void CGraphBase::end()
         catch (IException *e)
         {
             Owned<IException> e2 = MakeActivityException(element.queryActivity(), e, "Error calling kill()");
-            GraphPrintLog(e2, NULL);
+            GraphPrintLog(e2);
             e->Release();
         }
     }
@@ -1591,24 +1612,28 @@ bool CGraphBase::wait(unsigned timeout)
 
 void CGraphBase::abort(IException *e)
 {
-    if (aborted) return;
-    crit.enter();
-    abortException.set(e);
-    aborted = true;
-    job.queryJobComm().cancel(0, mpTag);
+    if (aborted)
+        return;
 
-    if (0 == containers.count())
     {
-        Owned<IThorGraphIterator> iter = getChildGraphs();
-        ForEach(*iter)
+        CriticalBlock cb(crit);
+
+        abortException.set(e);
+        aborted = true;
+        graphCancelHandler.cancel(0);
+
+        if (0 == containers.count())
         {
-            CGraphBase &graph = iter->query();
-            graph.abort(e);
+            Owned<IThorGraphIterator> iter = getChildGraphs();
+            ForEach(*iter)
+            {
+                CGraphBase &graph = iter->query();
+                graph.abort(e);
+            }
         }
     }
-    if (started)
+    if (started && !graphDone)
     {
-        crit.leave();
         Owned<IThorActivityIterator> iter = getTraverseIterator();
         ForEach (*iter)
         {
@@ -1621,8 +1646,6 @@ void CGraphBase::abort(IException *e)
         if (doneBarrier)
             doneBarrier->cancel();
     }
-    else
-        crit.leave();
 }
 
 void CGraphBase::GraphPrintLog(const char *format, ...)
@@ -1641,6 +1664,11 @@ void CGraphBase::GraphPrintLog(IException *e, const char *format, ...)
     va_end(args);
 }
 
+void CGraphBase::GraphPrintLog(IException *e)
+{
+    GraphPrintLog(e, "%s", "");
+}
+
 void CGraphBase::setLogging(bool tf)
 {
     CGraphElementIterator iterC(containers);
@@ -1655,6 +1683,7 @@ void CGraphBase::createFromXGMML(IPropertyTree *_node, CGraphBase *_owner, CGrap
     node.setown(createPTreeFromIPT(_node));
     xgmml = node->queryPropTree("att/graph");
     sink = xgmml->getPropBool("att[@name=\"rootGraph\"]/@value", false);
+    sequential = xgmml->getPropBool("@sequential");
     graphId = node->getPropInt("@id");
     global = false;
     localOnly = -1; // unset
@@ -1730,6 +1759,8 @@ void CGraphBase::createFromXGMML(IPropertyTree *_node, CGraphBase *_owner, CGrap
 
 void CGraphBase::executeChildGraphs(size32_t parentExtractSz, const byte *parentExtract)
 {
+    // JCSMORE - would need to respect codegen 'sequential' flag, if these child graphs
+    // could be executed in parallel.
     Owned<IThorGraphIterator> iter = getChildGraphs();
     ForEach(*iter)
     {
@@ -1853,11 +1884,11 @@ IThorResult *CGraphBase::createGraphLoopResult(CActivityBase &activity, IRowInte
     return graphLoopResults->createResult(activity, rowIf, distributed, spillPriority);
 }
 
-// ILocalGraph
-void CGraphBase::getResult(size32_t & len, void * & data, unsigned id)
+// IEclGraphResults
+void CGraphBase::getDictionaryResult(unsigned & count, byte * * & ret, unsigned id)
 {
     Owned<IThorResult> result = getResult(id, true); // will get collated distributed result
-    result->getResult(len, data);
+    result->getLinkedResult(count, ret);
 }
 
 void CGraphBase::getLinkedResult(unsigned & count, byte * * & ret, unsigned id)
@@ -2356,11 +2387,11 @@ void CJobBase::init()
 #endif
     bool crcChecking = 0 != getWorkUnitValueInt("THOR_ROWCRC", globals->getPropBool("@THOR_ROWCRC", defaultCrcChecking));
     bool usePackedAllocator = 0 != getWorkUnitValueInt("THOR_PACKEDALLOCATOR", globals->getPropBool("@THOR_PACKEDALLOCATOR", false));
-    unsigned memorySpillAt = getWorkUnitValueInt("memorySpillAt", globals->getPropInt("@memorySpillAt", 80));
+    unsigned memorySpillAt = (unsigned)getWorkUnitValueInt("memorySpillAt", globals->getPropInt("@memorySpillAt", 80));
     thorAllocator.setown(createThorAllocator(((memsize_t)globalMemorySize)*0x100000, memorySpillAt, crcChecking, usePackedAllocator));
 
     unsigned defaultMemMB = globalMemorySize*3/4;
-    unsigned largeMemSize = getOptInt("@largeMemSize", defaultMemMB);
+    unsigned largeMemSize = getOptUInt("@largeMemSize", defaultMemMB);
     if (globalMemorySize && largeMemSize >= globalMemorySize)
         throw MakeStringException(0, "largeMemSize(%d) can not exceed globalMemorySize(%d)", largeMemSize, globalMemorySize);
     PROGLOG("Global memory size = %d MB, memory spill at = %d%%, large mem size = %d MB", globalMemorySize, memorySpillAt, largeMemSize);
@@ -2519,7 +2550,7 @@ void CJobBase::addDependencies(IPropertyTree *xgmml, bool failIfMissing)
                     subGraph.setGlobal(true);
             }
         }
-        bool log = queryForceLogging(subGraph.queryGraphId(), subGraph.isGlobal());
+        bool log = queryForceLogging(subGraph.queryGraphId(), (NULL == subGraph.queryOwner()) || subGraph.isGlobal());
         subGraph.setLogging(log);
     }
 }
@@ -2597,16 +2628,29 @@ mptag_t CJobBase::deserializeMPTag(MemoryBuffer &mb)
     return tag;
 }
 
-unsigned CJobBase::getOptInt(const char *opt, unsigned dft)
+// these getX methods for property in workunit settings, then global setting, defaulting to provided 'dft' if not present
+bool CJobBase::getOptBool(const char *opt, bool dft)
 {
-    const char *wOpt = (opt&&(*opt)=='@') ? opt+1 : opt; // strip @ for options in workunit
-    return (unsigned)getWorkUnitValueInt(wOpt, globals->getPropInt(opt, dft));
+    if (!opt || !*opt)
+        return dft; // probably error
+    VStringBuffer gOpt("@%s", opt);
+    return getWorkUnitValueBool(opt, globals->getPropBool(gOpt, dft));
+}
+
+int CJobBase::getOptInt(const char *opt, int dft)
+{
+    if (!opt || !*opt)
+        return dft; // probably error
+    VStringBuffer gOpt("@%s", opt);
+    return (int)getWorkUnitValueInt(opt, globals->getPropInt(gOpt, dft));
 }
 
 __int64 CJobBase::getOptInt64(const char *opt, __int64 dft)
 {
-    const char *wOpt = (opt&&(*opt)=='@') ? opt+1 : opt; // strip @ for options in workunit
-    return getWorkUnitValueInt(opt, globals->getPropInt64(opt, dft));
+    if (!opt || !*opt)
+        return dft; // probably error
+    VStringBuffer gOpt("@%s", opt);
+    return getWorkUnitValueInt(opt, globals->getPropInt64(gOpt, dft));
 }
 
 // IGraphCallback
@@ -2669,7 +2713,7 @@ IThorResource &queryThor()
 CActivityBase::CActivityBase(CGraphElementBase *_container) : container(*_container), timeActivities(_container->queryJob().queryTimeActivities())
 {
     mpTag = TAG_NULL;
-    abortSoon = cancelledReceive = reInit = false;
+    abortSoon = receiving = cancelledReceive = reInit = false;
     baseHelper.set(container.queryHelper());
     parentExtractSz = 0;
     parentExtract = NULL;
@@ -2708,6 +2752,11 @@ void CActivityBase::ActPrintLog(IException *e, const char *format, ...)
     va_end(args);
 }
 
+void CActivityBase::ActPrintLog(IException *e)
+{
+    ActPrintLog(e, "%s", "");
+}
+
 bool CActivityBase::fireException(IException *e)
 {
     IThorException *te = QUERYINTERFACE(e, IThorException);
@@ -2743,7 +2792,7 @@ IOutputRowSerializer * CActivityBase::queryRowSerializer()
 {
     if (CABserializerlock.lock()) {
         if (!rowSerializer)
-            rowSerializer.setown(queryRowMetaData()->createRowSerializer(queryCodeContext(),queryActivityId()));
+            rowSerializer.setown(queryRowMetaData()->createDiskSerializer(queryCodeContext(),queryActivityId()));
         CABserializerlock.unlock();
     }
     return rowSerializer;
@@ -2753,7 +2802,7 @@ IOutputRowDeserializer * CActivityBase::queryRowDeserializer()
 {
     if (CABdeserializerlock.lock()) {
         if (!rowDeserializer)
-            rowDeserializer.setown(queryRowMetaData()->createRowDeserializer(queryCodeContext(),queryActivityId()));
+            rowDeserializer.setown(queryRowMetaData()->createDiskDeserializer(queryCodeContext(),queryActivityId()));
         CABdeserializerlock.unlock();
     }
     return rowDeserializer;
@@ -2768,9 +2817,15 @@ IRowInterfaces *CActivityBase::getRowInterfaces()
 bool CActivityBase::receiveMsg(CMessageBuffer &mb, const rank_t rank, const mptag_t mpTag, rank_t *sender, unsigned timeout)
 {
     BooleanOnOff onOff(receiving);
-    if (cancelledReceive)
-        return false;
-    return container.queryJob().queryJobComm().recv(mb, rank, mpTag, sender, timeout);
+    CTimeMon t(timeout);
+    unsigned remaining = timeout;
+    // check 'cancelledReceive' every 10 secs
+    while (!cancelledReceive && ((MP_WAIT_FOREVER==timeout) || !t.timedout(&remaining)))
+    {
+        if (container.queryJob().queryJobComm().recv(mb, rank, mpTag, sender, remaining>10000?10000:remaining))
+            return true;
+    }
+    return false;
 }
 
 void CActivityBase::cancelReceiveMsg(const rank_t rank, const mptag_t mpTag)
@@ -2780,3 +2835,23 @@ void CActivityBase::cancelReceiveMsg(const rank_t rank, const mptag_t mpTag)
         container.queryJob().queryJobComm().cancel(rank, mpTag);
 }
 
+bool CActivityBase::getOptBool(const char *prop, bool defVal) const
+{
+    bool def = queryJob().getOptBool(prop, defVal);
+    VStringBuffer path("hint[@name=\"%s\"]/@value", prop);
+    return container.queryXGMML().getPropBool(path.str(), def);
+}
+
+int CActivityBase::getOptInt(const char *prop, int defVal) const
+{
+    int def = queryJob().getOptInt(prop, defVal);
+    VStringBuffer path("hint[@name=\"%s\"]/@value", prop);
+    return container.queryXGMML().getPropInt(path.toLowerCase().str(), def);
+}
+
+__int64 CActivityBase::getOptInt64(const char *prop, __int64 defVal) const
+{
+    __int64 def = queryJob().getOptInt64(prop, defVal);
+    VStringBuffer path("hint[@name=\"%s\"]/@value", prop);
+    return container.queryXGMML().getPropInt64(path.str(), def);
+}

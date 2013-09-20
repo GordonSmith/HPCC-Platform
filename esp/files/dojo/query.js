@@ -156,8 +156,8 @@ if(!_33){
 return new _30([]);
 }
 }
-var _34=typeof _32=="string"?_2f(_32,_33):_32?_32.orphan?_32:[_32]:[];
-if(_34.orphan){
+var _34=typeof _32=="string"?_2f(_32,_33):_32?(_32.end&&_32.on)?_32:[_32]:[];
+if(_34.end&&_34.on){
 return _34;
 }
 return new _30(_34);

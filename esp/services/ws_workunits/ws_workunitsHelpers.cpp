@@ -121,7 +121,7 @@ void ensureWsWorkunitAccess(IEspContext& context, const char* wuid, SecAccessFla
     Owned<IWorkUnitFactory> wf = getWorkUnitFactory(context.querySecManager(), context.queryUser());
     Owned<IConstWorkUnit> cw = wf->openWorkUnit(wuid, false);
     if (!cw)
-        throw MakeStringException(ECLWATCH_ECL_WU_ACCESS_DENIED, "Failed to open workunit %s when ensuring workunit access", wuid);
+        throw MakeStringException(ECLWATCH_CANNOT_OPEN_WORKUNIT, "Failed to open workunit %s when ensuring workunit access", wuid);
     ensureWsWorkunitAccess(context, *cw, minAccess);
 }
 
@@ -436,78 +436,94 @@ void WsWuInfo::getTimers(IEspECLWorkunit &info, unsigned flags)
     }
 }
 
+struct mapEnums { int val; const char *str; };
+
+mapEnums queryFileTypes[] = {
+   { FileTypeCpp, "cpp" },
+   { FileTypeDll, "dll" },
+   { FileTypeResText, "res" },
+   { FileTypeHintXml, "hint" },
+   { FileTypeXml, "xml" },
+   { FileTypeSize,  NULL },
+};
+
+const char *getEnumText(int value, mapEnums *map)
+{
+    const char *defval = map->str;
+    while (map->str)
+    {
+        if (value==map->val)
+            return map->str;
+        map++;
+    }
+    assertex(!"Unexpected value in setEnum");
+    return defval;
+}
+
 void WsWuInfo::getHelpers(IEspECLWorkunit &info, unsigned flags)
 {
     try
     {
+        IArrayOf<IEspECLHelpFile> helpers;
+
         Owned <IConstWUQuery> query = cw->getQuery();
         if(!query)
         {
             ERRLOG("Cannot get Query for this workunit.");
             info.setHelpersDesc("Cannot get Query for this workunit.");
         }
-
-        SCMStringBuffer qname;
-        query->getQueryShortText(qname);
-        if(qname.length())
+        else
         {
-            if((flags & WUINFO_TruncateEclTo64k) && (qname.length() > 64000))
-                qname.setLen(qname.str(), 64000);
-
-            IEspECLQuery* q=&info.updateQuery();
-            q->setText(qname.str());
-        }
-
-        if (version > 1.34)
-        {
-            SCMStringBuffer mainDefinition;
-            query->getQueryMainDefinition(mainDefinition);
-            if(mainDefinition.length())
+            SCMStringBuffer qname;
+            query->getQueryShortText(qname);
+            if(qname.length())
             {
+                if((flags & WUINFO_TruncateEclTo64k) && (qname.length() > 64000))
+                    qname.setLen(qname.str(), 64000);
+
                 IEspECLQuery* q=&info.updateQuery();
-                q->setQueryMainDefinition(mainDefinition.str());
+                q->setText(qname.str());
             }
-        }
 
-        if (version > 1.30)
-        {
-            SCMStringBuffer qText;
-            query->getQueryText(qText);
-            if ((qText.length() > 0) && isArchiveQuery(qText.str()))
-                info.setHasArchiveQuery(true);
-        }
+            if (version > 1.34)
+            {
+                SCMStringBuffer mainDefinition;
+                query->getQueryMainDefinition(mainDefinition);
+                if(mainDefinition.length())
+                {
+                    IEspECLQuery* q=&info.updateQuery();
+                    q->setQueryMainDefinition(mainDefinition.str());
+                }
+            }
 
-        IArrayOf<IEspECLHelpFile> helpers;
-        getHelpFiles(query, FileTypeCpp, helpers);
-        getHelpFiles(query, FileTypeDll, helpers);
-        getHelpFiles(query, FileTypeResText, helpers);
+            if (version > 1.30)
+            {
+                SCMStringBuffer qText;
+                query->getQueryText(qText);
+                if ((qText.length() > 0) && isArchiveQuery(qText.str()))
+                    info.setHasArchiveQuery(true);
+            }
+
+            for (unsigned i = 0; i < FileTypeSize; i++)
+                getHelpFiles(query, (WUFileType) i, helpers);
+        }
 
         getWorkunitThorLogInfo(helpers, info);
 
         if (cw->getWuidVersion() > 0)
         {
-            Owned<IStringIterator> eclAgentInstances = cw->getProcesses("EclAgent");
-            ForEach (*eclAgentInstances)
+            Owned<IStringIterator> eclAgentLogs = cw->getLogs("EclAgent");
+            ForEach (*eclAgentLogs)
             {
-                SCMStringBuffer processName;
-                eclAgentInstances->str(processName);
-                if (processName.length() < 1)
+                SCMStringBuffer logName;
+                eclAgentLogs->str(logName);
+                if (logName.length() < 1)
                     continue;
 
-                Owned<IStringIterator> eclAgentLogs = cw->getLogs("EclAgent", processName.str());
-                ForEach (*eclAgentLogs)
-                {
-                    SCMStringBuffer logName;
-                    eclAgentLogs->str(logName);
-                    if (logName.length() < 1)
-                        continue;
-
-                    Owned<IEspECLHelpFile> h= createECLHelpFile("","");
-                    h->setName(logName.str());
-                    h->setDescription(processName.str());
-                    h->setType(File_EclAgentLog);
-                    helpers.append(*h.getLink());
-                }
+                Owned<IEspECLHelpFile> h= createECLHelpFile("","");
+                h->setName(logName.str());
+                h->setType(File_EclAgentLog);
+                helpers.append(*h.getLink());
             }
         }
         else // legacy wuid
@@ -915,13 +931,16 @@ unsigned WsWuInfo::getWorkunitThorLogInfo(IArrayOf<IEspECLHelpFile>& helpers, IE
 
         unsigned numberOfSlaves = clusterInfo->getSize();
 
+        BoolHash uniqueProcesses;
         Owned<IStringIterator> thorInstances = cw->getProcesses("Thor");
         ForEach (*thorInstances)
         {
             SCMStringBuffer processName;
             thorInstances->str(processName);
-            if (processName.length() < 1)
+            if ((processName.length() < 1) || uniqueProcesses.getValue(processName.str()))
                 continue;
+
+            uniqueProcesses.setValue(processName.str(), true);
 
             StringBuffer groupName;
             getClusterThorGroupName(groupName, processName.str());
@@ -999,7 +1018,9 @@ unsigned WsWuInfo::getWorkunitThorLogInfo(IArrayOf<IEspECLHelpFile>& helpers, IE
         StringBuffer logDir;
         Owned<IEnvironmentFactory> envFactory = getEnvironmentFactory();
         Owned<IConstEnvironment> constEnv = envFactory->openEnvironmentByFile();
-        constEnv->getPTree().getProp("EnvSettings/log", logDir);
+        Owned<IPropertyTree> logTree = &constEnv->getPTree();
+        if (logTree)
+             logTree->getProp("EnvSettings/log", logDir);
         if (logDir.length() > 0)
         {
             Owned<IStringIterator> debugs = cw->getLogs("Thor");
@@ -1462,19 +1483,7 @@ void WsWuInfo::getHelpFiles(IConstWUQuery* query, WUFileType type, IArrayOf<IEsp
         cur.getName(name);
         Owned<IEspECLHelpFile> h= createECLHelpFile("","");
         h->setName(name.str());
-
-        switch (type)
-        {
-            case FileTypeCpp:
-                h->setType("cpp");
-                break;
-            case FileTypeDll:
-                h->setType("dll");
-                break;
-            default:
-                h->setType("res");
-                break;
-        }
+        h->setType(getEnumText(type, queryFileTypes));
 
         if (version > 1.31)
         {
@@ -1608,32 +1617,23 @@ void appendIOStreamContent(MemoryBuffer &mb, IFileIOStream *ios, bool forDownloa
     }
 }
 
-void WsWuInfo::getWorkunitEclAgentLog(const char* eclAgentInstance, MemoryBuffer& buf)
+void WsWuInfo::getWorkunitEclAgentLog(const char* fileName, MemoryBuffer& buf)
 {
-    SCMStringBuffer logname;
-    Owned<IStringIterator> eclAgentLogs = cw->getLogs("EclAgent", eclAgentInstance);
-    ForEach (*eclAgentLogs)
-    {
-        eclAgentLogs->str(logname);
-        if (logname.length() > 0)
-            break;
-    }
-
-    unsigned pid = cw->getAgentPID();
-    if(logname.length() == 0)
-        throw MakeStringException(ECLWATCH_ECLAGENT_LOG_NOT_FOUND,"EclAgent log file not available for workunit %s.", wuid.str());
-    Owned<IFile> rFile = createIFile(logname.str());
+    if(!fileName || !*fileName)
+        throw MakeStringException(ECLWATCH_ECLAGENT_LOG_NOT_FOUND,"Log file not specified");
+    Owned<IFile> rFile = createIFile(fileName);
     if(!rFile)
-        throw MakeStringException(ECLWATCH_CANNOT_OPEN_FILE, "Cannot open file %s.", logname.str());
+        throw MakeStringException(ECLWATCH_CANNOT_OPEN_FILE, "Cannot open file %s.", fileName);
     OwnedIFileIO rIO = rFile->openShared(IFOread,IFSHfull);
     if(!rIO)
-        throw MakeStringException(ECLWATCH_CANNOT_READ_FILE, "Cannot read file %s.", logname.str());
+        throw MakeStringException(ECLWATCH_CANNOT_READ_FILE, "Cannot read file %s.", fileName);
     OwnedIFileIOStream ios = createBufferedIOStream(rIO);
 
     StringBuffer line;
     bool eof = false;
     bool wuidFound = false;
 
+    unsigned pid = cw->getAgentPID();
     VStringBuffer pidstr(" %5d ", pid);
     char const * pidchars = pidstr.str();
     while(!eof)
@@ -1673,25 +1673,21 @@ void WsWuInfo::getWorkunitEclAgentLog(const char* eclAgentInstance, MemoryBuffer
             buf.append(line.length(), line.str());
         }
     }
+
+    if (buf.length() < 1)
+        buf.append(47, "(Not found a log line related to this workunit)");
 }
 
-void WsWuInfo::getWorkunitThorLog(const char* processName, MemoryBuffer& buf)
+void WsWuInfo::getWorkunitThorLog(const char* fileName, MemoryBuffer& buf)
 {
-    SCMStringBuffer logname;
-    Owned<IStringIterator> thorLogs = cw->getLogs("Thor", processName);
-    ForEach (*thorLogs)
-    {
-        thorLogs->str(logname);
-        if (logname.length() > 0)
-            break;
-    }
-
-    Owned<IFile> rFile = createIFile(logname.str());
+    if(!fileName || !*fileName)
+        throw MakeStringException(ECLWATCH_ECLAGENT_LOG_NOT_FOUND,"Log file not specified");
+    Owned<IFile> rFile = createIFile(fileName);
     if (!rFile)
-        throw MakeStringException(ECLWATCH_CANNOT_OPEN_FILE,"Cannot open file %s.",logname.str());
+        throw MakeStringException(ECLWATCH_CANNOT_OPEN_FILE,"Cannot open file %s.",fileName);
     OwnedIFileIO rIO = rFile->openShared(IFOread,IFSHfull);
     if (!rIO)
-        throw MakeStringException(ECLWATCH_CANNOT_READ_FILE,"Cannot read file %s.",logname.str());
+        throw MakeStringException(ECLWATCH_CANNOT_READ_FILE,"Cannot read file %s.",fileName);
     OwnedIFileIOStream ios = createBufferedIOStream(rIO);
 
     StringBuffer line;
@@ -1878,7 +1874,7 @@ void WsWuInfo::getWorkunitXml(const char* plainText, MemoryBuffer& buf)
         header = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><?xml-stylesheet href=\"../esp/xslt/xmlformatter.xsl\" type=\"text/xsl\"?>";
 
     SCMStringBuffer xml;
-    exportWorkUnitToXML(cw, xml);
+    exportWorkUnitToXML(cw, xml, true);
 
     buf.append(strlen(header), header);
     buf.append(xml.length(), xml.str());
@@ -1907,6 +1903,41 @@ void WsWuInfo::getWorkunitCpp(const char *cppname, const char* description, cons
     OwnedIFileIOStream ios = createBufferedIOStream(rIO);
     if (!ios)
         throw MakeStringException(ECLWATCH_CANNOT_READ_FILE,"Cannot read %s.", description);
+    appendIOStreamContent(buf, ios.get(), forDownload);
+}
+
+void WsWuInfo::getWorkunitAssociatedXml(const char* name, const char* ipAddress, const char* plainText,
+                                        const char* description, bool forDownload, MemoryBuffer& buf)
+{
+    if (isEmpty(description)) //'File Name' as shown in WU Details page
+        throw MakeStringException(ECLWATCH_INVALID_INPUT, "File not specified.");
+    if (isEmpty(ipAddress))
+        throw MakeStringException(ECLWATCH_INVALID_INPUT, "File location not specified.");
+    if (isEmpty(name)) //file name with full path
+        throw MakeStringException(ECLWATCH_INVALID_FILE_NAME, "File path not specified.");
+
+    RemoteFilename rfn;
+    rfn.setRemotePath(name);
+    SocketEndpoint ep(ipAddress);
+    rfn.setIp(ep);
+
+    Owned<IFile> rFile = createIFile(rfn);
+    if (!rFile)
+        throw MakeStringException(ECLWATCH_CANNOT_OPEN_FILE, "Cannot open %s.", description);
+    OwnedIFileIO rIO = rFile->openShared(IFOread,IFSHfull);
+    if (!rIO)
+        throw MakeStringException(ECLWATCH_CANNOT_READ_FILE,"Cannot read %s.", description);
+    OwnedIFileIOStream ios = createBufferedIOStream(rIO);
+    if (!ios)
+        throw MakeStringException(ECLWATCH_CANNOT_READ_FILE,"Cannot read %s.", description);
+
+    const char* header;
+    if (plainText && (!stricmp(plainText, "yes")))
+        header = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+    else
+        header = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><?xml-stylesheet href=\"../esp/xslt/xmlformatter.xsl\" type=\"text/xsl\"?>";
+
+    buf.append(strlen(header), header);
     appendIOStreamContent(buf, ios.get(), forDownload);
 }
 

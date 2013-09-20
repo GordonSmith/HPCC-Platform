@@ -33,7 +33,7 @@
 #include <math.h>
 #include <algorithm>
 
-#include "bcd.hpp"
+#include "rtlbcd.hpp"
 #include "eclrtl.hpp"
 #include "eclrtl_imp.hpp"
 
@@ -237,6 +237,11 @@ static IValue * castViaString(ITypeInfo * type, bool isSignedValue, __int64 valu
     Owned<IValue> temp = createIntValue(value, 8, isSignedValue);
     Owned<IValue> temp2 = temp->castTo(stype);
     return temp2->castTo(type);
+}
+
+bool isAscii(ITypeInfo * type)
+{
+    return type->queryCharset()->queryName() == asciiAtom;
 }
 
 //===========================================================================
@@ -2623,8 +2628,8 @@ static ITypeInfo * getPromotedType(ITypeInfo * lType, ITypeInfo * rType, bool is
 
     type_t lcode = l->getTypeCode();
     type_t rcode = r->getTypeCode();
-    if ((lcode == type_any)) return LINK(r);
-    if ((rcode == type_any)) return LINK(l);
+    if (lcode == type_any) return LINK(r);
+    if (rcode == type_any) return LINK(l);
     if ((lcode == type_set) || (rcode == type_set))
         return getPromotedSet(l, r, isCompare);
     if ((lcode == type_unicode) || (rcode == type_unicode))
@@ -3159,6 +3164,28 @@ ITypeInfo * getStretchedType(unsigned newLen, ITypeInfo * type)
     return NULL;
 }
 
+ITypeInfo * getMaxLengthType(ITypeInfo * type)
+{
+    switch (type->getTypeCode())
+    {
+    case type_boolean:
+        return LINK(type);
+    case type_int:
+        return makeIntType(8, type->isSigned());
+    case type_string:
+    case type_varstring:
+    case type_unicode:
+    case type_varunicode:
+    case type_utf8:
+    case type_qstring:
+    case type_data:
+        return getStretchedType(UNKNOWN_LENGTH, type);
+    default:
+        return LINK(type);
+    }
+    return NULL;
+}
+
 ITypeInfo * getAsciiType(ITypeInfo * type)
 {
     ICharsetInfo * charset = type->queryCharset();
@@ -3654,13 +3681,16 @@ void XmlSchemaBuilder::addSchemaPrefix()
                     "<xs:element name=\"Row\">"
                         "<xs:complexType>"
                             "<xs:sequence>\n");
+    attributes.append(*new StringBufferItem);
 }
 
 
 void XmlSchemaBuilder::addSchemaSuffix()
 {
-    xml.append(             "</xs:sequence>"
-                        "</xs:complexType>"
+    xml.append(             "</xs:sequence>");
+    xml.append(attributes.tos());
+    attributes.pop();
+    xml.append(         "</xs:complexType>"
                     "</xs:element>\n"
                 "</xs:sequence>"
             "</xs:complexType>"
@@ -3818,6 +3848,12 @@ void XmlSchemaBuilder::addSetField(const char * name, const char * itemname, ITy
     StringBuffer elementType;
     getXmlTypeName(elementType, *type.queryChildType());
 
+    if ((!itemname || !*itemname) && name) // xpaths 'Name', '/Name', and 'Name/' seem to be equivalent
+    {
+        itemname = name;
+        name = NULL;
+    }
+
     if (name && *name)
     {
         xml.append("<xs:element name=\"").append(name).append("\"");
@@ -3869,16 +3905,28 @@ bool XmlSchemaBuilder::beginDataset(const char * name, const char * row)
     if (xml.length() == 0)
         addSchemaPrefix();
 
+    if ((!name || !*name) && row) // xpath("Name") and xpath("/Name") seem to be equivalent
+    {
+        name = row;
+        row = NULL;
+    }
+
     if (name && *name)
     {
         xml.append("<xs:element name=\"").append(name).append("\"");
-        if (optionalNesting)
+        if (!row || !*row)
+            xml.append(" minOccurs=\"0\" maxOccurs=\"unbounded\"");
+        else if (optionalNesting)
             xml.append(" minOccurs=\"0\"");
         xml.append(">").newline();
         xml.append("<xs:complexType>").newline();
     }
 
-    xml.append("<xs:sequence minOccurs=\"0\" maxOccurs=\"unbounded\">").newline();
+    xml.append("<xs:sequence");
+    if (!name || !*name || (row && *row))
+        xml.append(" minOccurs=\"0\" maxOccurs=\"unbounded\"");
+    xml.append('>').newline();
+
     if (row && *row)
     {
         attributes.append(*new StringBufferItem);
@@ -3891,6 +3939,12 @@ bool XmlSchemaBuilder::beginDataset(const char * name, const char * row)
 
 void XmlSchemaBuilder::endDataset(const char * name, const char * row)
 {
+    if ((!name || !*name) && row) // xpath("Name") and xpath("/Name") seem to be equivalent
+    {
+        name = row;
+        row = NULL;
+    }
+
     if (row && *row)
     {
         xml.append("</xs:sequence>").newline();

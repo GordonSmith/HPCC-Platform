@@ -40,7 +40,7 @@
 #include "thorplugin.hpp"
 #include "roxiecontrol.hpp"
 
-#include "package.hpp"
+#include "package.h"
 
 #ifdef _USE_ZLIB
 #include "zcrypt.hpp"
@@ -103,7 +103,7 @@ void setWsWuXmlParameters(IWorkUnit *wu, const char *xml, bool setJobname=false)
 {
     if (!xml || !*xml)
         return;
-    Owned<IPropertyTree> tree = createPTreeFromXMLString(xml, ipt_none, (XmlReaderOptions)(xr_ignoreWhiteSpace | xr_ignoreNameSpaces));
+    Owned<IPropertyTree> tree = createPTreeFromXMLString(xml, ipt_none, (PTreeReaderOptions)(ptr_ignoreWhiteSpace | ptr_ignoreNameSpaces));
     IPropertyTree *root = tree.get();
     if (strieq(root->queryName(), "Envelope"))
         root = root->queryPropTree("Body/*[1]");
@@ -214,11 +214,9 @@ void submitWsWorkunit(IEspContext& context, IConstWorkUnit* cw, const char* clus
     }
 
     if (resetWorkflow)
-    {
         wu->resetWorkflow();
-        if (!compile)
-            wu->schedule();
-    }
+    if (!compile)
+        wu->schedule();
 
     if (resetVariables)
     {
@@ -267,7 +265,7 @@ void copyWsWorkunit(IEspContext &context, IWorkUnit &wu, const char *srcWuid)
     SCMStringBuffer wuid;
     wu.getWuid(wuid);
 
-    queryExtendedWU(&wu)->copyWorkUnit(src);
+    queryExtendedWU(&wu)->copyWorkUnit(src, false);
 
     SCMStringBuffer token;
     wu.setSecurityToken(createToken(wuid.str(), context.queryUserId(), context.queryPassword(), token).str());
@@ -840,7 +838,7 @@ bool CWsWorkunitsEx::onWUUpdate(IEspContext &context, IEspWUUpdateRequest &req, 
         if (origValueChanged(req.getJobname(), req.getJobnameOrig(), s))
             wu->setJobName(s.trim().str());
         if (origValueChanged(req.getDescription(), req.getDescriptionOrig(), s.clear()))
-            wu->setDebugValue("description", (req.getDescription()) ? s.trim().str() : NULL, true);
+            wu->setDebugValue("description", (req.getDescription() && *req.getDescription()) ? s.trim().str() : NULL, true);
 
         double version = context.getClientVersion();
         if (version > 1.04)
@@ -1086,14 +1084,16 @@ bool CWsWorkunitsEx::onWUResubmit(IEspContext &context, IEspWUResubmitRequest &r
         SCMStringBuffer wuid;
         StringArray wuids;
 
+        double version = context.getClientVersion();
+        IArrayOf<IEspResubmittedWU> resubmittedWUs;
         for(aindex_t i=0; i<req.getWuids().length();i++)
         {
-            StringBuffer wuidStr = req.getWuids().item(i);
-            checkAndTrimWorkunit("WUResubmit", wuidStr);
+            StringBuffer requestWuid = req.getWuids().item(i);
+            checkAndTrimWorkunit("WUResubmit", requestWuid);
 
-            ensureWsWorkunitAccess(context, wuidStr.str(), SecAccess_Write);
+            ensureWsWorkunitAccess(context, requestWuid.str(), SecAccess_Write);
 
-            wuid.set(wuidStr.str());
+            wuid.set(requestWuid.str());
 
             try
             {
@@ -1103,7 +1103,7 @@ bool CWsWorkunitsEx::onWUResubmit(IEspContext &context, IEspWUResubmitRequest &r
                     Owned<IConstWorkUnit> src(factory->openWorkUnit(wuid.str(), false));
                     NewWsWorkunit wu(factory, context);
                     wu->getWuid(wuid);
-                    queryExtendedWU(wu)->copyWorkUnit(src);
+                    queryExtendedWU(wu)->copyWorkUnit(src, false);
 
                     SCMStringBuffer token;
                     wu->setSecurityToken(createToken(wuid.str(), context.queryUserId(), context.queryPassword(), token).str());
@@ -1116,6 +1116,15 @@ bool CWsWorkunitsEx::onWUResubmit(IEspContext &context, IEspWUResubmitRequest &r
                     throw MakeStringException(ECLWATCH_CANNOT_OPEN_WORKUNIT,"Cannot open workunit %s.",wuid.str());
 
                 submitWsWorkunit(context, cw, NULL, NULL, 0, req.getRecompile(), req.getResetWorkflow(), false);
+
+                if (version < 1.40)
+                    continue;
+
+                Owned<IEspResubmittedWU> resubmittedWU = createResubmittedWU();
+                resubmittedWU->setWUID(wuid.str());
+                if (!streq(requestWuid.str(), wuid.str()))
+                    resubmittedWU->setParentWUID(requestWuid.str());
+                resubmittedWUs.append(*resubmittedWU.getClear());
             }
             catch (IException *E)
             {
@@ -1136,6 +1145,9 @@ bool CWsWorkunitsEx::onWUResubmit(IEspContext &context, IEspWUResubmitRequest &r
             for(aindex_t i=0; i<wuids.length(); i++)
                 waitForWorkUnitToComplete(wuids.item(i), timeToWait);
         }
+
+        if (version >= 1.40)
+            resp.setWUs(resubmittedWUs);
 
         if(wuids.length()==1)
         {
@@ -1586,7 +1598,7 @@ bool CWsWorkunitsEx::onWUGetDependancyTrees(IEspContext& context, IEspWUGetDepen
 
         MemoryBuffer temp;
         MemoryBuffer2IDataVal xmlresult(temp);
-        Owned<IConstWUResult> result = wu->getResultBySequence(0);
+        Owned<IConstWUResult> result = cw->getResultBySequence(0);
         if (result)
         {
             result->getResultRaw(xmlresult, NULL, NULL);
@@ -1713,36 +1725,37 @@ bool CWsWorkunitsEx::onWUInfo(IEspContext &context, IEspWUInfoRequest &req, IEsp
             getArchivedWUInfo(context, wuid.str(), resp);
         else
         {
-            //The access is checked here because getArchivedWUInfo() has its own access check.
-            ensureWsWorkunitAccess(context, wuid.str(), SecAccess_Read);
-
-            unsigned flags=0;
-            if (req.getTruncateEclTo64k())
-                flags|=WUINFO_TruncateEclTo64k;
-            if (req.getIncludeExceptions())
-                flags|=WUINFO_IncludeExceptions;
-            if (req.getIncludeGraphs())
-                flags|=WUINFO_IncludeGraphs;
-            if (req.getIncludeSourceFiles())
-                flags|=WUINFO_IncludeSourceFiles;
-            if (req.getIncludeResults())
-                flags|=WUINFO_IncludeResults;
-            if (req.getIncludeVariables())
-                flags|=WUINFO_IncludeVariables;
-            if (req.getIncludeTimers())
-                flags|=WUINFO_IncludeTimers;
-            if (req.getIncludeDebugValues())
-                flags|=WUINFO_IncludeDebugValues;
-            if (req.getIncludeApplicationValues())
-                flags|=WUINFO_IncludeApplicationValues;
-            if (req.getIncludeWorkflows())
-                flags|=WUINFO_IncludeWorkflows;
-            if (!req.getSuppressResultSchemas())
-                flags|=WUINFO_IncludeEclSchemas;
-            if (req.getIncludeXmlSchemas())
-                flags|=WUINFO_IncludeXmlSchema;
             try
             {
+                //The access is checked here because getArchivedWUInfo() has its own access check.
+                ensureWsWorkunitAccess(context, wuid.str(), SecAccess_Read);
+
+                unsigned flags=0;
+                if (req.getTruncateEclTo64k())
+                    flags|=WUINFO_TruncateEclTo64k;
+                if (req.getIncludeExceptions())
+                    flags|=WUINFO_IncludeExceptions;
+                if (req.getIncludeGraphs())
+                    flags|=WUINFO_IncludeGraphs;
+                if (req.getIncludeSourceFiles())
+                    flags|=WUINFO_IncludeSourceFiles;
+                if (req.getIncludeResults())
+                    flags|=WUINFO_IncludeResults;
+                if (req.getIncludeVariables())
+                    flags|=WUINFO_IncludeVariables;
+                if (req.getIncludeTimers())
+                    flags|=WUINFO_IncludeTimers;
+                if (req.getIncludeDebugValues())
+                    flags|=WUINFO_IncludeDebugValues;
+                if (req.getIncludeApplicationValues())
+                    flags|=WUINFO_IncludeApplicationValues;
+                if (req.getIncludeWorkflows())
+                    flags|=WUINFO_IncludeWorkflows;
+                if (!req.getSuppressResultSchemas())
+                    flags|=WUINFO_IncludeEclSchemas;
+                if (req.getIncludeXmlSchemas())
+                    flags|=WUINFO_IncludeXmlSchema;
+
                 WsWuInfo winfo(context, wuid.str());
                 winfo.getInfo(resp.updateWorkunit(), flags);
 
@@ -1994,6 +2007,7 @@ void doWUQueryWithSort(IEspContext &context, IEspWUQueryRequest & req, IEspWUQue
         else
             sortorder[0] = WUSFwuid;
 
+        sortorder[0] = (WUSortField) (sortorder[0] | WUSFnocase);
         bool descending = req.getDescending();
         if (descending)
             sortorder[0] = (WUSortField) (sortorder[0] | WUSFreverse);
@@ -2023,26 +2037,42 @@ void doWUQueryWithSort(IEspContext &context, IEspWUQueryRequest & req, IEspWUQue
 
     filters[filterCount] = WUSFterm;
 
+    __int64 cacheHint = 0;
+    if (!req.getCacheHint_isNull())
+        cacheHint = req.getCacheHint();
+
     Owned<IWorkUnitFactory> factory = getWorkUnitFactory(context.querySecManager(), context.queryUser());
-    unsigned numWUs = factory->numWorkUnitsFiltered(filters, filterbuf.bufferBase());
-    Owned<IConstWorkUnitIterator> it = factory->getWorkUnitsSorted(sortorder, filters, filterbuf.bufferBase(), begin, pagesize+1, "", NULL);
+    unsigned numWUs;
+    Owned<IConstWorkUnitIterator> it = factory->getWorkUnitsSorted(sortorder, filters, filterbuf.bufferBase(), begin, pagesize+1, "", &cacheHint, &numWUs);
+    if (version >= 1.41)
+        resp.setCacheHint(cacheHint);
 
     unsigned actualCount = 0;
     ForEach(*it)
     {
-        actualCount++;
         IConstWorkUnit& cw = it->query();
         if (chooseWuAccessFlagsByOwnership(context.queryUserId(), cw, accessOwn, accessOthers) < SecAccess_Read)
+        {
+            numWUs--;
             continue;
+        }
+
         if (bDoubleCheckState && (cw.getState() != WUStateSubmitted))
+        {
+            numWUs--;
             continue;
+        }
 
         SCMStringBuffer parent;
         if (!cw.getParentWuid(parent).length())
         {
             const char* wuid = cw.getWuid(parent).str();
             if (!looksLikeAWuid(wuid))
+            {
+                numWUs--;
                 continue;
+            }
+            actualCount++;
             Owned<IEspECLWorkunit> info = createECLWorkunit("","");
             WsWuInfo winfo(context, wuid);
             winfo.getCommon(*info, 0);
@@ -2057,7 +2087,7 @@ void doWUQueryWithSort(IEspContext &context, IEspWUQueryRequest & req, IEspWUQue
         if (results.length() > (aindex_t)pagesize)
             results.pop();
 
-        if(begin + pagesize < numWUs)
+        if(unsigned (begin + pagesize) < numWUs)
         {
             resp.setNextPage(begin + pagesize);
             resp.setPageEndAt(begin + pagesize);
@@ -2633,7 +2663,7 @@ bool CWsWorkunitsEx::onWUFile(IEspContext &context,IEspWULogFileRequest &req, IE
             }
             else if (strncmp(req.getType(), File_ThorLog, 7) == 0)
             {
-                winfo.getWorkunitThorLog(req.getProcess(), mb);
+                winfo.getWorkunitThorLog(req.getName(), mb);
                 openSaveFile(context, opt, "thormaster.log", HTTP_TYPE_TEXT_PLAIN, mb, resp);
             }
             else if (strieq(File_ThorSlaveLog,req.getType()))
@@ -2646,8 +2676,20 @@ bool CWsWorkunitsEx::onWUFile(IEspContext &context,IEspWULogFileRequest &req, IE
             }
             else if (strieq(File_EclAgentLog,req.getType()))
             {
-                winfo.getWorkunitEclAgentLog(req.getProcess(), mb);
+                winfo.getWorkunitEclAgentLog(req.getName(), mb);
                 openSaveFile(context, opt, "eclagent.log", HTTP_TYPE_TEXT_PLAIN, mb, resp);
+            }
+            else if (strieq(File_XML,req.getType()) && notEmpty(req.getName()))
+            {
+                const char* name  = req.getName();
+                const char* ptr = strrchr(name, '/');
+                if (ptr)
+                    ptr++;
+                else
+                    ptr = name;
+
+                winfo.getWorkunitAssociatedXml(name, req.getIPAddress(), req.getPlainText(), req.getDescription(), opt > 0, mb);
+                openSaveFile(context, opt, ptr, HTTP_TYPE_APPLICATION_XML, mb, resp);
             }
             else if (strieq(File_XML,req.getType()))
             {
@@ -3104,7 +3146,7 @@ bool CWsWorkunitsEx::onWUExport(IEspContext &context, IEspWUExportRequest &req, 
         {
             Owned<IConstWorkUnit> cw = factory->openWorkUnit(it->c_str(), false);
             if (cw)
-                exportWorkUnitToXML(cw, xml);
+                exportWorkUnitToXML(cw, xml, true);
         }
         xml.append("</Workunits>");
 
@@ -3684,13 +3726,15 @@ void deployEclOrArchive(IEspContext &context, IEspWUDeployWorkunitRequest & req,
     }
     if (req.getQueryMainDefinition())
         wu.setQueryMain(req.getQueryMainDefinition());
+    if (req.getSnapshot())
+        wu->setSnapshot(req.getSnapshot());
     if (!req.getResultLimit_isNull())
         wu->setResultLimit(req.getResultLimit());
 
     wu->commit();
     wu.clear();
 
-    submitWsWorkunit(context, wuid.str(), req.getCluster(), NULL, 0, true, false, NULL, NULL, &req.getDebugValues());
+    submitWsWorkunit(context, wuid.str(), req.getCluster(), NULL, 0, true, false, false, NULL, NULL, &req.getDebugValues());
     waitForWorkUnitToCompile(wuid.str(), req.getWait());
 
     WsWuInfo winfo(context, wuid.str());
@@ -3764,7 +3808,7 @@ void CWsWorkunitsEx::deploySharedObject(IEspContext &context, StringBuffer &wuid
     {
         Owned<ILocalWorkUnit> embeddedWU = createLocalWorkUnit();
         embeddedWU->loadXML(dllXML.str());
-        queryExtendedWU(wu)->copyWorkUnit(embeddedWU);
+        queryExtendedWU(wu)->copyWorkUnit(embeddedWU, true);
     }
 
     wu.associateDll(dllpath.str(), dllname.str());

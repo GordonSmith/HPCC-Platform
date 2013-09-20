@@ -108,7 +108,18 @@ bool canCreateTemporary(IHqlExpression * expr)
     case no_loopbody:
         return false;
     }
-    return !expr->isAction() && !expr->isTransform();
+    ITypeInfo * type = expr->queryType();
+    if (!type)
+        return false;
+    switch (type->getTypeCode())
+    {
+    case type_transform:
+    case type_null:
+    case type_void:
+        return false;
+    default:
+        return true;
+    }
 }
 
 
@@ -560,6 +571,7 @@ bool CseSpotter::checkPotentialCSE(IHqlExpression * expr, CseSpotterInfo * extra
     case no_inlinetable:
     case no_xmlproject:
     case no_datasetfromrow:
+    case no_datasetfromdictionary:
     case no_preservemeta:
     case no_dataset_alias:
     case no_workunit_dataset:
@@ -575,7 +587,7 @@ bool CseSpotter::checkPotentialCSE(IHqlExpression * expr, CseSpotterInfo * extra
     case no_soapcall:
     case no_newsoapcall:
     case no_id2blob:
-    case no_cppbody:
+    case no_embedbody:
     case no_rows:
         return false;
 
@@ -1217,6 +1229,7 @@ static bool canHoistInvariant(IHqlExpression * expr)
     {
     case no_list:
     case no_datasetlist:
+    case no_createdictionary:
         return false;       // probably don't want to hoist these
     }
     return true;

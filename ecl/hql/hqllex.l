@@ -142,11 +142,17 @@ int HqlLex::lookupIdentifierToken(YYSTYPE & returnToken, HqlLex * lexer, bool lo
         token = isFunction ? TRANSFORM_FUNCTION : TRANSFORM_ID;
         break;
     case type_dictionary:
-        token = isFunction ? DICTIONARY_FUNCTION : DICTIONARY_ID;
+        if (op == no_typedef)
+            token = DICTIONARY_TYPE_ID;
+        else
+            token = isFunction ? DICTIONARY_FUNCTION : DICTIONARY_ID;
         break;
     case type_groupedtable:
     case type_table:
-        token = isFunction ? DATASET_FUNCTION : DATASET_ID;
+        if (op == no_typedef)
+            token = DATASET_TYPE_ID;
+        else
+            token = isFunction ? DATASET_FUNCTION : DATASET_ID;
         break;
     case type_record:
         token = isFunction ? RECORD_FUNCTION : RECORD_ID;
@@ -157,7 +163,7 @@ int HqlLex::lookupIdentifierToken(YYSTYPE & returnToken, HqlLex * lexer, bool lo
     case type_pattern:
     case type_rule:
     case type_token:
-        if (expr->getOperator() == no_typedef)
+        if (op == no_typedef)
             token = PATTERN_TYPE_ID;
         else
             token = isFunction ? PATTERN_FUNCTION : PATTERN_ID;
@@ -172,7 +178,7 @@ int HqlLex::lookupIdentifierToken(YYSTYPE & returnToken, HqlLex * lexer, bool lo
         token = isFunction ? SCOPE_FUNCTION : SCOPE_ID;
         break;
     case type_set:
-        if (expr->getOperator() == no_typedef)
+        if (op == no_typedef)
             token = SET_TYPE_ID;
         else
         {
@@ -189,11 +195,11 @@ int HqlLex::lookupIdentifierToken(YYSTYPE & returnToken, HqlLex * lexer, bool lo
             {
                 token = ALIEN_ID;
             }
-            else if (expr->getOperator() == no_typedef)
+            else if (op == no_typedef)
             {
                 token = TYPE_ID;
             }                           
-            else if (expr->getOperator() == no_enum)
+            else if (op == no_enum)
             {
                 token = ENUM_ID;
             }                           
@@ -656,6 +662,7 @@ CRON                { RETURNSYM(CRON); }
 CSV                 { RETURNSYM(CSV); }
 DATASET             { RETURNSYM(DATASET); }
 DEDUP               { RETURNSYM(DEDUP); }
+DEFAULT             { RETURNSYM(DEFAULT); }
 DEFINE              { RETURNSYM(DEFINE); }
 DENORMALIZE         { RETURNSYM(DENORMALIZE); }
 DEPRECATED          { RETURNSYM(DEPRECATED); }
@@ -672,6 +679,7 @@ ECLCRC              { RETURNSYM(ECLCRC); }
 ELSE                { RETURNSYM(ELSE); }
 ELSIF               { RETURNSYM(ELSEIF); }
 ELSEIF              { RETURNSYM(ELSEIF); }
+EMBED               { RETURNSYM(EMBED); }
 EMBEDDED            { RETURNSYM(EMBEDDED); }
 _EMPTY_             { RETURNSYM(_EMPTY_); }
 ENCODING            { RETURNSYM(ENCODING); }
@@ -753,7 +761,8 @@ LEFT                { RETURNSYM(LEFT); }
 LENGTH              { RETURNSYM(LENGTH); }
 LIBRARY             { RETURNSYM(LIBRARY); }
 LIMIT               { RETURNSYM(LIMIT); }
-_LINKCOUNTED_       { RETURNSYM(_LINKCOUNTED_); }
+LINKCOUNTED         { RETURNSYM(LINKCOUNTED); }
+_LINKCOUNTED_       { RETURNSYM(LINKCOUNTED); }
 LITERAL             { RETURNSYM(LITERAL); }
 LITTLE_ENDIAN       { RETURNSYM(LITTLE); }
 LN                  { RETURNSYM(LN); }
@@ -802,6 +811,7 @@ __NOSTREAMING__     { RETURNSYM(__NOSTREAMING__); }
 NOTHOR              { RETURNSYM(NOTHOR); }
 NOTIFY              { RETURNSYM(NOTIFY); }
 NOTRIM              { RETURNSYM(NOTRIM); }
+NOXPATH             { RETURNSYM(NOXPATH); }
 OF                  { RETURNSYM(OF); }
 OMITTED             { RETURNSYM(OMITTED); }
 ONCE                { RETURNSYM(ONCE); }
@@ -880,7 +890,6 @@ SERVICE             { RETURNHARD(SERVICE); }
 SET                 { RETURNSYM(SET); }
 __SET_DEBUG_OPTION__ { RETURNSYM(HASH_OPTION); }
 SHARED              { RETURNHARD(SHARED); }
-SHUFFLE             { RETURNSYM(SHUFFLE); }
 SIN                 { RETURNSYM(SIN); }
 SINGLE              { RETURNSYM(SINGLE); }
 SINH                { RETURNSYM(SINH); }
@@ -897,6 +906,7 @@ STABLE              { RETURNSYM(STABLE); }
 STEPPED             { RETURNSYM(STEPPED); }
 STORED              { RETURNSYM(STORED); }
 STREAMED            { RETURNSYM(STREAMED); }
+SUBSORT             { RETURNSYM(SUBSORT); }
 SUCCESS             { RETURNSYM(SUCCESS); }
 SUM                 { RETURNSYM(SUM); }
 TABLE               { RETURNSYM(TABLE); }
@@ -1373,6 +1383,7 @@ OUT                 { RETURNSYM(TOK_OUT); }
 CONST               { RETURNSYM(TOK_CONST); }
 ENDMACRO            { setupdatepos; return(ENDMACRO); }
 ENDC\+\+            { setupdatepos; return(ENDCPP); }
+ENDEMBED            { setupdatepos; return(ENDEMBED); }
 ENCRYPTED           {
                         setupdatepos; 
                         if (!lookup || !LOOKUPSYM(ENCRYPTED) || lexer->macroGathering)
@@ -1456,18 +1467,21 @@ FUNCTIONMACRO|MACRO {
                         BEGIN(CPP);
                         lexer->inCpp = true;
                     }
-<CPP>[^\n]*"ENDC++"[^\n]*  { 
+<CPP>[^\n]*("ENDC++"|"ENDEMBED")[^\n]*  {
                         lexer->inCpp = false;
                         int endpos = lexer->yyPosition;
                         //skip to the position of ENDC++ on the line (case insensitive)
-                        while (memicmp(lexer->yyBuffer+endpos, "ENDC++", 6) != 0)
+                        while (memicmp(lexer->yyBuffer+endpos, "ENDC++", 6) != 0 && memicmp(lexer->yyBuffer+endpos, "ENDEMBED", 8) != 0)
                             endpos++;
-                        const int lastpos = endpos+6;
+                        const int lastpos = endpos + (tolower(lexer->yyBuffer[endpos+3])=='c' ? 6 : 8);
                             
                         updatepos1; 
                         BEGIN(0);
-                        int beginpos = returnToken.pos.position;
-                        int startpos = beginpos + 8;
+                        int startpos = returnToken.pos.position;
+                        if (endpos-startpos >= 8 && memicmp(lexer->yyBuffer+startpos, "BEGINC++", 8)==0)
+                            startpos += 8;
+                        else
+                            startpos += 1;  // Skip the ) of EMBED(xxx)
 
                         // keep the orginal format info (like blanks, newlines)
                         while (endpos != startpos && (lexer->yyBuffer[endpos-1] == 13 || lexer->yyBuffer[endpos-1] == 10))
@@ -1481,7 +1495,7 @@ FUNCTIONMACRO|MACRO {
                         yyless(CUR_TOKEN_LENGTH - delta);
                         lexer->yyPosition -= delta;
                         lexer->yyColumn -= delta;
-                        OwnedHqlExpr cppText = createConstant(createStringValue(lexer->yyBuffer+startpos, len));
+                        OwnedHqlExpr cppText = createConstant(createUnicodeValue(lexer->yyBuffer+startpos, len, "", true, false));
                         OwnedHqlExpr annotated = createLocationAnnotation(cppText.getClear(), returnToken.pos);
                         OwnedHqlExpr options = extractCppBodyAttrs(len, lexer->yyBuffer+startpos);
                         returnToken.setExpr(createComma(annotated.getClear(), options.getClear()));
@@ -1939,3 +1953,8 @@ FUNCTIONMACRO|MACRO {
 
 .                   { setupdatepos; return (CUR_TOKEN_TEXT[0]); }
 %%
+void HqlLex::doEnterEmbeddedMode(yyscan_t yyscanner)
+{
+   struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+   BEGIN(CPP);
+}

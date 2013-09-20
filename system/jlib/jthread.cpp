@@ -32,6 +32,7 @@
 #include <sys/wait.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/resource.h>
 #endif
 
 #if defined(_DEBUG) && defined(_WIN32) && !defined(USING_MPATROL)
@@ -43,9 +44,20 @@
 
 //#define NO_CATCHALL
 
+static __thread ThreadTermFunc threadTerminationHook;
+
+ThreadTermFunc addThreadTermFunc(ThreadTermFunc onTerm)
+{
+    ThreadTermFunc old = threadTerminationHook;
+    threadTerminationHook = onTerm;
+    return old;
+}
+
 PointerArray *exceptionHandlers = NULL;
 MODULE_INIT(INIT_PRIORITY_JTHREAD)
 {
+    if (threadTerminationHook)
+        (*threadTerminationHook)();  // May be too late :(
     exceptionHandlers = new PointerArray();
     return true;
 }
@@ -255,6 +267,11 @@ int Thread::begin()
         handleException(MakeStringException(0, "Unknown exception in Thread %s", getName()));
     }
 #endif
+    if (threadTerminationHook)
+    {
+        (*threadTerminationHook)();
+        threadTerminationHook = NULL;
+    }
 #ifdef _WIN32
 #ifndef _DEBUG
     CloseHandle(hThread);   // leak handle when debugging, 
@@ -543,9 +560,12 @@ void CThreadedPersistent::main()
         try
         {
             owner->main();
+            // Note we do NOT call the thread reset hook here - these threads are expected to be able to preserve state, I think
         }
         catch (IException *e)
         {
+            VStringBuffer errMsg("CThreadedPersistent (%s)", athread.getName());
+            EXCLOG(e, errMsg.str());
             exception.setown(e);
             joinSem.signal(); // leave in running state, signal to join to handle
             continue;
@@ -794,6 +814,11 @@ public:
                 handleException(MakeStringException(0, "Unknown exception in Thread from pool %s", parent.poolname.get()));
             }
 #endif
+            if (threadTerminationHook)
+            {
+                (*threadTerminationHook)();    // Reset any pre-thread state.
+                threadTerminationHook = NULL;
+            }
         } while (parent.notifyStopped(this));
         return 0;
     }
