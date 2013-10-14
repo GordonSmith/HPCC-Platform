@@ -151,6 +151,7 @@ private:
 
 interface IThorAllocator : extends IInterface
 {
+    virtual IEngineRowAllocator *getRowAllocator(IOutputMetaData * meta, unsigned activityId, roxiemem::RoxieHeapFlags flags) const = 0;
     virtual IEngineRowAllocator *getRowAllocator(IOutputMetaData * meta, unsigned activityId) const = 0;
     virtual roxiemem::IRowManager *queryRowManager() const = 0;
     virtual roxiemem::RoxieHeapFlags queryFlags() const = 0;
@@ -211,6 +212,7 @@ graph_decl StringBuffer &getRecordString(const void *key, IOutputRowSerializer *
 #define SPILL_PRIORITY_OVERFLOWABLE_BUFFER SPILL_PRIORITY_DEFAULT
 #define SPILL_PRIORITY_SPILLABLE_STREAM SPILL_PRIORITY_DEFAULT
 #define SPILL_PRIORITY_RESULT SPILL_PRIORITY_DEFAULT
+#define SPILL_PRIORITY_LOOKUPJOIN 10
 
 enum StableSortFlag { stableSort_none, stableSort_earlyAlloc, stableSort_lateAlloc };
 class CThorSpillableRowArray;
@@ -239,8 +241,20 @@ public:
     inline ~CThorArrayLockUnblock() { alock.lock(); }
 };
 
-class graph_decl CThorExpandingRowArray : public CSimpleInterface, implements IThorArrayLock
+class graph_decl CThorExpandingRowArray : public CSimpleInterface
 {
+    class CDummyLock : implements IThorArrayLock
+    {
+    public:
+        // IThorArrayLock
+        virtual void lock() const { }
+        virtual void unlock() const {  }
+    } dummyLock;
+
+
+// for direct access by another CThorExpandingRowArray only
+    inline void transferRowsCopy(const void **outRows, bool takeOwnership);
+
 protected:
     CActivityBase &activity;
     IRowInterfaces *rowIf;
@@ -318,8 +332,6 @@ public:
             return NULL;
         const void *row = rows[i];
         rows[i] = NULL;
-        if (i == (numRows-1)) // keeping high water mark
-            --numRows;
         return row;
     }
     inline rowidx_t ordinality() const { return numRows; }
@@ -336,6 +348,7 @@ public:
     void transferFrom(CThorExpandingRowArray &src);
     void transferFrom(CThorSpillableRowArray &src);
     void removeRows(rowidx_t start, rowidx_t n);
+    bool appendRows(CThorExpandingRowArray &inRows, bool takeOwnership);
     void clearUnused();
     void sort(ICompare &compare, unsigned maxCores);
     void reorder(rowidx_t start, rowidx_t num, rowidx_t *neworder);
@@ -356,9 +369,10 @@ public:
     void deserialize(size32_t sz, const void *buf);
     void deserializeExpand(size32_t sz, const void *data);
     bool ensure(rowidx_t requiredRows);
-// IThorArrayLock
-    virtual void lock() const { }
-    virtual void unlock() const { }
+    void compact();
+    virtual IThorArrayLock &queryLock() { return dummyLock; }
+
+friend class CThorSpillableRowArray;
 };
 
 interface IWritePosCallback : extends IInterface
@@ -367,7 +381,7 @@ interface IWritePosCallback : extends IInterface
     virtual void filePosition(offset_t pos) = 0;
 };
 
-class graph_decl CThorSpillableRowArray : public CThorExpandingRowArray
+class graph_decl CThorSpillableRowArray : private CThorExpandingRowArray, implements IThorArrayLock
 {
     const size32_t commitDelta;  // How many rows need to be written before they are added to the committed region?
     rowidx_t firstRow; // Only rows firstRow..numRows are considered initialized.  Only read/write within cs.
@@ -378,16 +392,17 @@ public:
 
     CThorSpillableRowArray(CActivityBase &activity, IRowInterfaces *rowIf, bool allowNulls=false, StableSortFlag stableSort=stableSort_none, rowidx_t initialSize=InitialSortElements, size32_t commitDelta=CommitStep);
     ~CThorSpillableRowArray();
-    // NB: throwOnOom false
-    void setup(IRowInterfaces *rowIf, bool allowNulls=false, StableSortFlag stableSort=stableSort_none)
+    // NB: default throwOnOom to false
+    void setup(IRowInterfaces *rowIf, bool allowNulls=false, StableSortFlag stableSort=stableSort_none, bool throwOnOom=false)
     {
-        CThorExpandingRowArray::setup(rowIf, allowNulls, stableSort, false);
+        CThorExpandingRowArray::setup(rowIf, allowNulls, stableSort, throwOnOom);
     }
     void registerWriteCallback(IWritePosCallback &cb);
     void unregisterWriteCallback(IWritePosCallback &cb);
     inline void setAllowNulls(bool b) { CThorExpandingRowArray::setAllowNulls(b); }
     void kill();
     void clearRows();
+    void compact();
     void flush();
     inline bool append(const void *row)
     {
@@ -406,6 +421,7 @@ public:
             flush();
         return true;
     }
+    bool appendRows(CThorExpandingRowArray &inRows, bool takeOwnership);
 
     //The following can be accessed from the reader without any need to lock
     inline const void *query(rowidx_t i) const
@@ -445,7 +461,7 @@ public:
         kill();
         swap(from);
     }
-    void transferFrom(CThorExpandingRowArray &src); 
+    void transferFrom(CThorExpandingRowArray &src);
 
     IRowStream *createRowStream();
 
@@ -465,13 +481,16 @@ public:
     void deserialize(size32_t sz, const void *buf, bool hasNulls){ CThorExpandingRowArray::deserialize(sz, buf); }
     void deserializeRow(IRowDeserializerSource &in) { CThorExpandingRowArray::deserializeRow(in); }
     bool ensure(rowidx_t requiredRows) { return CThorExpandingRowArray::ensure(requiredRows); }
+
+    virtual IThorArrayLock &queryLock() { return *this; }
 // IThorArrayLock
     virtual void lock() const { cs.enter(); }
     virtual void unlock() const { cs.leave(); }
 };
 
 
-enum RowCollectorFlags { rc_mixed, rc_allMem, rc_allDisk, rc_allDiskOrAllMem };
+enum RowCollectorSpillFlags { rc_mixed, rc_allMem, rc_allDisk, rc_allDiskOrAllMem };
+enum RowCollectorOptionFlags { rcflag_noAllInMemSort=0x01 };
 interface IThorRowCollectorCommon : extends IInterface
 {
     virtual rowcount_t numRows() const = 0;
@@ -479,8 +498,9 @@ interface IThorRowCollectorCommon : extends IInterface
     virtual unsigned overflowScale() const = 0;
     virtual void transferRowsOut(CThorExpandingRowArray &dst, bool sort=true) = 0;
     virtual void transferRowsIn(CThorExpandingRowArray &src) = 0;
-    virtual void setup(ICompare *iCompare, bool isStable=false, RowCollectorFlags diskMemMix=rc_mixed, unsigned spillPriority=50) = 0;
+    virtual void setup(ICompare *iCompare, bool isStable=false, RowCollectorSpillFlags diskMemMix=rc_mixed, unsigned spillPriority=50) = 0;
     virtual void ensure(rowidx_t max) = 0;
+    virtual void setOptions(unsigned options) = 0;
 };
 
 interface IThorRowLoader : extends IThorRowCollectorCommon
@@ -494,13 +514,13 @@ interface IThorRowCollector : extends IThorRowCollectorCommon
     virtual void setPreserveGrouping(bool tf) = 0;
     virtual IRowWriter *getWriter() = 0;
     virtual void reset() = 0;
-    virtual IRowStream *getStream(bool shared=false) = 0;
+    virtual IRowStream *getStream(bool shared=false, CThorExpandingRowArray *allMemRows=NULL) = 0;
 };
 
-extern graph_decl IThorRowLoader *createThorRowLoader(CActivityBase &activity, IRowInterfaces *rowIf, ICompare *iCompare=NULL, bool isStable=false, RowCollectorFlags diskMemMix=rc_mixed, unsigned spillPriority=SPILL_PRIORITY_DEFAULT);
-extern graph_decl IThorRowLoader *createThorRowLoader(CActivityBase &activity, ICompare *iCompare=NULL, bool isStable=false, RowCollectorFlags diskMemMix=rc_mixed, unsigned spillPriority=SPILL_PRIORITY_DEFAULT);
-extern graph_decl IThorRowCollector *createThorRowCollector(CActivityBase &activity, IRowInterfaces *rowIf, ICompare *iCompare=NULL, bool isStable=false, RowCollectorFlags diskMemMix=rc_mixed, unsigned spillPriority=SPILL_PRIORITY_DEFAULT, bool preserveGrouping=false);
-extern graph_decl IThorRowCollector *createThorRowCollector(CActivityBase &activity, ICompare *iCompare=NULL, bool isStable=false, RowCollectorFlags diskMemMix=rc_mixed, unsigned spillPriority=SPILL_PRIORITY_DEFAULT, bool preserveGrouping=false);
+extern graph_decl IThorRowLoader *createThorRowLoader(CActivityBase &activity, IRowInterfaces *rowIf, ICompare *iCompare=NULL, bool isStable=false, RowCollectorSpillFlags diskMemMix=rc_mixed, unsigned spillPriority=SPILL_PRIORITY_DEFAULT);
+extern graph_decl IThorRowLoader *createThorRowLoader(CActivityBase &activity, ICompare *iCompare=NULL, bool isStable=false, RowCollectorSpillFlags diskMemMix=rc_mixed, unsigned spillPriority=SPILL_PRIORITY_DEFAULT);
+extern graph_decl IThorRowCollector *createThorRowCollector(CActivityBase &activity, IRowInterfaces *rowIf, ICompare *iCompare=NULL, bool isStable=false, RowCollectorSpillFlags diskMemMix=rc_mixed, unsigned spillPriority=SPILL_PRIORITY_DEFAULT, bool preserveGrouping=false);
+extern graph_decl IThorRowCollector *createThorRowCollector(CActivityBase &activity, ICompare *iCompare=NULL, bool isStable=false, RowCollectorSpillFlags diskMemMix=rc_mixed, unsigned spillPriority=SPILL_PRIORITY_DEFAULT, bool preserveGrouping=false);
 
 
 

@@ -203,7 +203,7 @@ void getSashaNode(SocketEndpoint &ep)
     IPropertyTree *root = econn->queryRoot();
     if (!root)
         throw MakeStringException(ECLWATCH_CANNOT_GET_ENV_INFO,"Cannot get environment information.");
-    IPropertyTree *pt = root->queryPropTree("Software/SashaServerProcess/Instance[1]");
+    IPropertyTree *pt = root->queryPropTree("Software/SashaServerProcess[1]/Instance[1]");
     if (!pt)
         throw MakeStringException(ECLWATCH_ARCHIVE_SERVER_NOT_FOUND, "Archive Server not found.");
     ep.set(pt->queryProp("@netAddress"), pt->getPropInt("@port",DEFAULT_SASHA_PORT));
@@ -366,7 +366,7 @@ void WsWuInfo::getTimers(IEspECLWorkunit &info, unsigned flags)
     try
     {
         StringBuffer totalThorTimeValue;
-        unsigned totalThorTimerCount; //Do we need this?
+        unsigned totalThorTimerCount = 0; //Do we need this?
 
         IArrayOf<IEspECLTimer> timers;
         Owned<IStringIterator> it = &cw->getTimers();
@@ -1286,11 +1286,11 @@ void WsWuInfo::getEclSchemaFields(IArrayOf<IEspECLSchemaItem>& schemas, IHqlExpr
         }
     case no_field:
         {
-            if (expr->hasProperty(__ifblockAtom))
+            if (expr->hasAttribute(__ifblockAtom))
                 break;
             ITypeInfo * type = expr->queryType();
             IAtom * name = expr->queryName();
-            IHqlExpression * nameAttr = expr->queryProperty(namedAtom);
+            IHqlExpression * nameAttr = expr->queryAttribute(namedAtom);
             StringBuffer outname;
             if (nameAttr && nameAttr->queryChild(0) && nameAttr->queryChild(0)->queryValue())
                 nameAttr->queryChild(0)->queryValue()->getStringValue(outname);

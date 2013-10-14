@@ -24,7 +24,7 @@ by using ,FORWARD on the main module's definition).
 Metadata
 ========
 The Bundle.ECL should inherit from the standard library module Std.BundleBase, as in the following
-example:
+example::
 
   EXPORT Bundle := MODULE(Std.BundleBase)
     EXPORT Name := 'Bloom';
@@ -34,6 +34,7 @@ example:
     EXPORT Copyright := 'Copyright (C) 2013 HPCC Systems';
     EXPORT DependsOn := [];
     EXPORT Version := '1.0.0';
+    EXPORT PlatformVersion := '4.0.0';
   END;
 
 The meanings of the various fields in the metadata are described in Std.BundleBase.

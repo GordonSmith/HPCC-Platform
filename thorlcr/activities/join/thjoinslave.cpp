@@ -69,7 +69,6 @@ class JoinSlaveActivity : public CSlaveActivity, public CThorDataLink, implement
     bool islocal;
     Owned<IBarrier> barrier;
     SocketEndpoint server;
-    StringBuffer activityName;
 
 #ifdef _TESTING
     bool started;
@@ -230,14 +229,15 @@ public:
 
     void doDataLinkStart(bool denorm)
     {
-        dataLinkStart(activityName, container.queryId());
+        dataLinkStart();
         CriticalBlock b(joinHelperCrit);
         if (denorm)
-            joinhelper.setown(createDenormalizeHelper(*this, helperdn, queryRowAllocator()));
-        else {
-            bool hintparallelmatch = container.queryXGMML().getPropInt("hint[@name=\"parallel_match\"]/@value")!=0;
-            bool hintunsortedoutput = container.queryXGMML().getPropInt("hint[@name=\"unsorted_output\"]/@value")!=0;
-            joinhelper.setown(createJoinHelper(*this, helperjn, queryRowAllocator(), hintparallelmatch, hintunsortedoutput));
+            joinhelper.setown(createDenormalizeHelper(*this, helperdn, this));
+        else
+        {
+            bool hintunsortedoutput = getOptBool(THOROPT_UNSORTED_OUTPUT, JFreorderable & helper->getJoinFlags());
+            bool hintparallelmatch = getOptBool(THOROPT_PARALLEL_MATCH, hintunsortedoutput); // i.e. unsorted, implies use parallel by default, otherwise no point
+            joinhelper.setown(createJoinHelper(*this, helperjn, this, hintparallelmatch, hintunsortedoutput));
         }
     }
 
@@ -434,7 +434,7 @@ public:
             stopInput1();
         }
         if (isemptylhs&&((helper->getJoinFlags()&JFrightouter)==0)) {
-            ActPrintLog("%s: ignoring RHS as LHS empty", activityName.str());
+            ActPrintLog("ignoring RHS as LHS empty");
             strm2.setown(createNullRowStream());
             stopInput2();
         }

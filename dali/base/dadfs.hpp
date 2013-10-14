@@ -144,8 +144,8 @@ interface IDistributedFilePart: implements IInterface
 
     virtual bool isHost(unsigned copy=0) = 0;                                   // file is located on this machine
 
-    virtual offset_t getFileSize(bool allowphysical,bool forcephysical)=0;                  // gets the part filesize (NB this will be the *expanded* size)
-    virtual offset_t getDiskSize()=0;                                                       // gets the part size on disk (NB this will be the compressed size)
+    virtual offset_t getFileSize(bool allowphysical,bool forcephysical)=0; // gets the part filesize (NB this will be the *expanded* size)
+    virtual offset_t getDiskSize(bool allowphysical,bool forcephysical)=0; // gets the part size on disk (NB this will be the compressed size)
     virtual bool    getModifiedTime(bool allowphysical,bool forcephysical,CDateTime &dt)=0; // gets the part date time
 
     virtual bool getCrc(unsigned &crc) = 0;             // block compressed returns false (not ~0)
@@ -178,21 +178,11 @@ interface IDistributedFileTransaction: extends IInterface
 {
     virtual void start()=0;
     virtual void commit()=0;
-    virtual void autoCommit()=0; // if transaction not active, commit straight away
     virtual void rollback()=0;
     virtual bool active()=0;
+// TBD: shouldn't really be necessary, lookups should auto-add to transaction
     virtual IDistributedFile *lookupFile(const char *lfn,unsigned timeout=INFINITE)=0;
     virtual IDistributedSuperFile *lookupSuperFile(const char *slfn,unsigned timeout=INFINITE)=0;
-    virtual IDistributedSuperFile *lookupSuperFileCached(const char *slfn,unsigned timeout=INFINITE)=0;
-    virtual IUserDescriptor *queryUser()=0;
-    virtual bool addDelayedDelete(CDfsLogicalFileName &lfn,unsigned timeoutms=INFINITE)=0; // used internally to delay deletes until commit
-    virtual void descend()=0;  // descend into a recursive call (can't autoCommit if depth is not zero)
-    virtual void ascend()=0;   // ascend back from the deep, one step at a time
-
-    // MORE: These need refactoring
-    virtual void addAction(CDFAction *action)=0; // internal (so why is this on a public interface?)
-    virtual void addFile(IDistributedFile *file)=0; // TODO: avoid this being necessary
-    virtual void clearFiles()=0; // internal (so why is this on a public interface?)
 };
 
 interface IDistributedSuperFileIterator: extends IIteratorOf<IDistributedSuperFile>
@@ -248,6 +238,7 @@ interface IDistributedFile: extends IInterface
 
 
     virtual __int64 getFileSize(bool allowphysical,bool forcephysical)=0;       // gets the total file size (forcephysical doesn't use cached value)
+    virtual __int64 getDiskSize(bool allowphysical,bool forcephysical)=0;       // gets the part size on disk (NB this will be the compressed size)
     virtual bool getFileCheckSum(unsigned &checksum)=0;                         // gets a single checksum for the logical file, based on the part crc's
     virtual unsigned getPositionPart(offset_t pos,offset_t &base)=0;            // get the part for a given position and the base offset of that part
 
@@ -441,7 +432,7 @@ interface IDistributedFileDirectory: extends IInterface
                                         unsigned timeout=INFINITE
                                     ) = 0;  // links, returns NULL if not found
 
-    virtual IDistributedFile *lookup(   const CDfsLogicalFileName &logicalname,
+    virtual IDistributedFile *lookup(   CDfsLogicalFileName &logicalname,
                                         IUserDescriptor *user,
                                         bool writeaccess=false,
                                         bool hold = false,
@@ -459,7 +450,7 @@ interface IDistributedFileDirectory: extends IInterface
     virtual IDFScopeIterator *getScopeIterator(IUserDescriptor *user, const char *subscope=NULL,bool recursive=true,bool includeempty=false)=0;
 
     // Removes files and super-files with format: context/file@cluster
-    virtual bool removeEntry(const char *name, IUserDescriptor *user, IDistributedFileTransaction *transaction=NULL, unsigned timeoutms=INFINITE) = 0;
+    virtual bool removeEntry(const char *name, IUserDescriptor *user, IDistributedFileTransaction *transaction=NULL, unsigned timeoutms=INFINITE, bool throwException=false) = 0;
     virtual void renamePhysical(const char *oldname,const char *newname,IUserDescriptor *user,IDistributedFileTransaction *transaction) = 0;                         // renames the physical parts as well as entry
     virtual void removeEmptyScope(const char *scope) = 0;   // does nothing if called on non-empty scope
     
@@ -495,7 +486,7 @@ interface IDistributedFileDirectory: extends IInterface
     // Local 'lightweight' routines
     virtual void promoteSuperFiles(unsigned numsf,const char **sfnames,const char *addsubnames,bool delsub,bool createonlyonesuperfile,IUserDescriptor *user,unsigned timeout, StringArray &outunlinked)=0;
     virtual bool getFileSuperOwners(const char *logicalname, StringArray &owners)=0; // local only
-    virtual ISimpleSuperFileEnquiry * getSimpleSuperFileEnquiry(const char *logicalname,const char *dbgtitle,unsigned timeout=INFINITE)=0; // NB must be local!
+    virtual ISimpleSuperFileEnquiry * getSimpleSuperFileEnquiry(const char *logicalname,const char *dbgtitle,IUserDescriptor *udesc,unsigned timeout=INFINITE)=0; // NB must be local!
 
     virtual IDFSredirection & queryRedirection()=0;
 
@@ -569,8 +560,6 @@ extern da_decl IDistributedFileDirectory &queryDistributedFileDirectory();
 
 
 // ==GROUP STORE=================================================================================================
-
-enum GroupType { grp_thor, grp_thorspares, grp_roxie, grp_hthor, grp_unknown };
 
 interface INamedGroupIterator: extends IInterface
 {

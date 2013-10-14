@@ -17,6 +17,7 @@ define([
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/_base/array",
+    "dojo/_base/Deferred",
     "dojo/dom",
     "dojo/dom-construct",
     "dojo/on",
@@ -24,9 +25,6 @@ define([
     "dojo/store/Memory",
     "dojo/store/Observable",
 
-    "dijit/layout/_LayoutWidget",
-    "dijit/_TemplatedMixin",
-    "dijit/_WidgetsInTemplateMixin",
     "dijit/layout/BorderContainer",
     "dijit/layout/TabContainer",
     "dijit/layout/ContentPane",
@@ -42,11 +40,13 @@ define([
     "dgrid/extensions/ColumnResizer",
     "dgrid/extensions/DijitRegistry",
 
+    "hpcc/_Widget",
     "hpcc/GraphWidget",
     "hpcc/ESPUtil",
     "hpcc/ESPWorkunit",
     "hpcc/TimingGridWidget",
     "hpcc/TimingTreeMapWidget",
+    "hpcc/WsWorkunits",
 
     "dojo/text!../templates/GraphPageWidget.html",
 
@@ -59,13 +59,13 @@ define([
     "dijit/form/SimpleTextarea",
     "dijit/form/NumberSpinner",
     "dijit/form/DropDownButton"
-], function (declare, lang, arrayUtil, dom, domConstruct, on, html, Memory, Observable,
-            _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, BorderContainer, TabContainer, ContentPane, registry, Dialog,
+], function (declare, lang, arrayUtil, Deferred, dom, domConstruct, on, html, Memory, Observable,
+            BorderContainer, TabContainer, ContentPane, registry, Dialog,
             entities,
             OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry,
-            GraphWidget, ESPUtil, ESPWorkunit, TimingGridWidget, TimingTreeMapWidget,
+            _Widget, GraphWidget, ESPUtil, ESPWorkunit, TimingGridWidget, TimingTreeMapWidget, WsWorkunits,
             template) {
-    return declare("GraphPageWidget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
+    return declare("GraphPageWidget", [_Widget], {
         templateString: template,
         baseClass: "GraphPageWidget",
         borderContainer: null,
@@ -91,7 +91,6 @@ define([
         overviewDepth: null,
         localDepth: null,
         localDistance: null,
-        initalized: false,
 
         buildRendering: function (args) {
             this.inherited(arguments);
@@ -160,6 +159,10 @@ define([
                 //  TODO:  Could be too expensive  ---
                 //context.wu.setGraphSvg(context.graphName, context.main.svg);
             };
+            this.main.onDoubleClick = function (globalID) {
+                var mainItem = context.main.getItem(globalID);
+                context.main.centerOnItem(mainItem, true);
+            };
 
             this.overview = registry.byId(this.id + "MiniGraphWidget");
             this.overview.onSelectionChanged = function (items) {
@@ -176,7 +179,9 @@ define([
             };
             this.local.onDoubleClick = function (globalID) {
                 var mainItem = context.main.getItem(globalID);
+                context._onLocalRefresh();
                 context.main.centerOnItem(mainItem, true);
+                context.syncSelectionFrom(context.local);
             };
         },
 
@@ -390,11 +395,10 @@ define([
         },
 
         init: function (params) {
-            if (this.initalized) {
+            if (this.inherited(arguments))
                 return;
-            }
-            this.initalized = true;
-            if (params.SafeMode) {
+
+            if (params.SafeMode && params.SafeMode != "false") {
                 this.overviewDepth.set("value", 0)
                 this.mainDepth.set("value", 1)
                 this.localDepth.set("value", 2)
@@ -402,7 +406,7 @@ define([
                 dotAttrs += "\r\ngraph[splines=\"line\"];";
                 this.global.setDotMetaAttributes(dotAttrs);
             }
-            if (params.Wuid) {
+            if (params.Wuid) { 
                 this.graphName = params.GraphName;
                 this.wu = ESPWorkunit.Get(params.Wuid);
 
@@ -415,13 +419,22 @@ define([
                         onGetGraphs: function (graphs) {
                             if (firstLoad == true) {
                                 firstLoad = false;
-                                context.loadGraph(context.wu, context.graphName);
+                                context.loadGraphFromWu(context.wu, context.graphName).then(function (response) {
+                                    context.refresh(params);
+                                });
                             } else {
                                 context.refreshGraph(context.wu, context.graphName);
                             }
                         }
                     });
                 });
+            }else if (params.QueryId) {
+                this.targetQuery = params.Target;
+                this.queryId = params.QueryId;
+                this.graphName = params.GraphName;
+                
+                this.loadGraphFromQuery(this.targetQuery, this.queryId, this.graphName);
+
             }
 
             this.timingGrid.init(lang.mixin({
@@ -429,9 +442,17 @@ define([
             }, params));
 
             this.timingTreeMap.init(lang.mixin({
-                query: this.graphName
+                query: this.graphName,
+                hideHelp: true
             }, params));
 
+        },
+
+        refresh: function (params) {
+            if (params && params.SubGraphId) {
+                this.global.setSelectedAsGlobalID([params.SubGraphId]);
+                this.syncSelectionFrom(this.global);
+            }
         },
 
         loadGraphFromXGMML: function (xgmml) {
@@ -452,7 +473,8 @@ define([
             this.loadEdges();
         },
 
-        loadGraph: function (wu, graphName) {
+        loadGraphFromWu: function (wu, graphName) {
+            var deferred = new Deferred();
             this.overview.setMessage("Fetching Data...");
             this.main.setMessage("Fetching Data...");
             this.local.setMessage("Fetching Data...");
@@ -462,6 +484,31 @@ define([
                 context.main.setMessage("");
                 context.local.setMessage("");
                 context.loadGraphFromXGMML(xgmml, svg);
+                deferred.resolve();
+            });
+            return deferred.promise;
+        },
+
+        loadGraphFromQuery: function (targetQuery, queryId, graphName) {
+            this.overview.setMessage("Fetching Data...");
+            this.main.setMessage("Fetching Data...");
+            this.local.setMessage("Fetching Data...");
+            var context = this;
+            WsWorkunits.WUQueryGetGraph({
+                request: {
+                    Target: targetQuery,
+                    QueryId: queryId,
+                    GraphName: graphName
+                }
+            }).then(function(response){
+                context.overview.setMessage("");
+                context.main.setMessage("");
+                context.local.setMessage("");
+                if(lang.exists("WUQueryGetGraphResponse.Graphs.ECLGraphEx", response)){
+                    if(response.WUQueryGetGraphResponse.Graphs.ECLGraphEx.length > 0){
+                        context.loadGraphFromXGMML(response.WUQueryGetGraphResponse.Graphs.ECLGraphEx[0].Graph, "");
+                    }
+                }
             });
         },
 
