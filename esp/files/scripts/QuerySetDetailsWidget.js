@@ -38,7 +38,7 @@ define([
     "hpcc/WsWorkunits",
     "hpcc/_TabContainerWidget",
     "hpcc/QuerySetLogicalFilesWidget",
-    "hpcc/QuerySetSuperFilesWidget",
+    "hpcc/QuerySetErrorsWidget",
 
     "dojo/text!../templates/QuerySetDetailsWidget.html",
 
@@ -58,7 +58,7 @@ define([
 ], function (declare, lang, dom, domAttr, domClass, query, Memory, Observable, all,
                 registry,
                 OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry,
-                ESPWorkunit, ESPQuery, WsWorkunits, _TabContainerWidget, QuerySetLogicalFilesWidget, QuerySetSuperFilesWidget,
+                ESPWorkunit, ESPQuery, WsWorkunits, _TabContainerWidget, QuerySetLogicalFilesWidget, QuerySetErrorsWidget,
                 template) {
     return declare("QuerySetDetailsWidget", [_TabContainerWidget], {
         templateString: template,
@@ -142,7 +142,7 @@ define([
             } else if (currSel.id == this.errorsTab.id && !this.errorsTabLoaded) {
                 this.errorsTabLoaded = true;
                 this.errorsTab.init({
-                    Query: this.query.Clusters
+                    Query: this.query
                 });
             } else if (currSel.id == this.graphsTab.id && !this.graphsTabLoaded) {
                 this.graphsTabLoaded = true;
@@ -153,15 +153,10 @@ define([
                 this.logicalFilesTabLoaded = true;
                 this.logicalFilesTab.init({
                     QueryId: this.query.Id,
-                    QuerySet: this.query.QuerySet
-                });
-            } else if (currSel.id == this.superFilesTab.id && !this.superFilesTabLoaded) {
-               this.superFilesTabLoaded = true;
-                this.superFilesTab.init({
+                    QuerySet: this.query.QuerySet,
                     Query: this.query
                 });
             }
-
         },
 
         updateInput: function (name, oldValue, newValue) {
@@ -211,7 +206,7 @@ define([
                 this.graphsTab.set("tooltip", tooltip);
             }
             else if (name === "LogicalFiles") {
-                this.logicalFilesTab.set("title", "Logical Files " + "(" + newValue.length + ")");
+                this.logicalFilesTab.set("title", "Logical Files " + "(" + newValue.Item.length + ")");
                 var tooltip = "";
                 for (var i = 0; i < newValue.length; ++i) {
                     if (tooltip != "")
@@ -222,8 +217,8 @@ define([
                 }
                 this.logicalFilesTab.set("tooltip", tooltip);
             }
-            else if (name === "SuperFiles") {
-                this.superFilesTab.set("title", "Super Files " + "(" + newValue.length + ")");
+            else if (name === "Clusters") {
+                this.errorsTab.set("title", "Errors / Status " + "(" + newValue.ClusterQueryState.length + ")");
                 var tooltip = "";
                 for (var i = 0; i < newValue.length; ++i) {
                     if (tooltip != "")
@@ -232,7 +227,7 @@ define([
                     if (newValue[i].Time)
                         tooltip += " " + newValue[i].Time;
                 }
-                this.superFilesTab.set("tooltip", tooltip);
+                this.errorsTab.set("tooltip", tooltip);
             }
         }
     });

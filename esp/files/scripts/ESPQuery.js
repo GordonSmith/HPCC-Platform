@@ -32,13 +32,6 @@ define([
 
     var _logicalFiles = {};
 
-    var CreateLFStore = declare([ESPRequest.Store], {
-                service: "WsWorkunits",
-                action: "WUQueryDetails",
-                responseQualifier: "WUQueryDetailsResponse.LogicalFiles.Item",
-                idProperty: "Id"
-    });
-
     var Store = declare([ESPRequest.Store], {
         service: "WsWorkunits",
         action: "WUListQueries",

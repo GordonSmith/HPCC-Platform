@@ -57,6 +57,8 @@ define([
             this.timingTreeMap.placeAt(this.gridTab, "last");
         },
 
+        
+
         init: function (params) {
             if (this.inherited(arguments))
                 return;

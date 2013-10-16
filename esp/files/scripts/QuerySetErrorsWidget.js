@@ -32,9 +32,9 @@ define([
 ], function (declare, arrayUtil, lang, on,
                 OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry,
                 GridDetailsWidget, WsWorkunits, ESPUtil) {
-    return declare("QuerySetLogicalFilesWidget", [GridDetailsWidget], {
+    return declare("QuerySetErrorsWidget", [GridDetailsWidget], {
 
-        gridTitle: "Logical Files",
+        gridTitle: "Errors",
         idProperty: "Name",
 
         queryId: null,
@@ -43,25 +43,26 @@ define([
         init: function (params) {
             if (this.inherited(arguments))
                 return;
-
-            if (params.Query){
+        
+            if (params.Query){   
                 this.query = params.Query
-                var logicalFiles = [];
-                var loc = params.Query.LogicalFiles.Item;
+                var errors = [];
+                var loc = params.Query.Clusters.ClusterQueryState;
                 var context = this;
 
-
                 arrayUtil.forEach(loc, function (item, idx) {
-                    var file = {
-                        Name: item
+                    var error = {
+                        Cluster: item.Cluster,
+                        Errors: item.Error,
+                        State: item.State
                     }
-                    logicalFiles.push(file);
+                    errors.push(error);
                 });
-                context.store.setData(logicalFiles);
+                context.store.setData(errors);
                 context.grid.refresh();
             }
-
-            //disabled buttons for now since we cannot open a logical atm eventually will link to LFDetailsWidget
+            //disabled buttons for now since we cannot open an error atm 
+            
         },
 
         createGrid: function (domID) {
@@ -72,7 +73,10 @@ define([
                 store: this.store,
                 columns: {
                     col1: selector({ width: 27, selectorType: 'checkbox' }),
-                    Name: { label: "Logical Files", width: 108, sortable: false },
+                    Cluster: { label: "Cluster", width: 108, sortable: false },
+                    Errors: { label: "Error", width: 108, sortable: false },
+                    State: { label: "State", width: 108, sortable: false },
+
                 }
             }, domID);
 
