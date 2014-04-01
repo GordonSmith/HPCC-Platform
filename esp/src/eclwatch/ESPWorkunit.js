@@ -298,7 +298,7 @@ define([
         },
         refresh: function (full) {
             if (full || this.changedCount === 0) {
-                this.getInfo({
+                return this.getInfo({
                     onGetText: function () {
                     },
                     onGetWUExceptions: function () {
@@ -311,13 +311,13 @@ define([
                     }
                 });
             } else {
-                this.getQuery();
+                return this.getQuery();
             }
         },
         getQuery: function () {
             this._assertHasWuid();
             var context = this;
-            WsWorkunits.WUQuery({
+            return WsWorkunits.WUQuery({
                 request: {
                     Wuid: this.Wuid
                 }
@@ -327,12 +327,13 @@ define([
                         context.updateData(item);
                     });
                 }
+                return response;
             });
         },
         getInfo: function (args) {
             this._assertHasWuid();
             var context = this;
-            WsWorkunits.WUInfo({
+            return WsWorkunits.WUInfo({
                 request: {
                     Wuid: this.Wuid,
                     TruncateEclTo64k: args.onGetText ? false : true,
@@ -412,6 +413,7 @@ define([
                         args.onAfterSend(context);
                     }
                 }
+                return response;
             });
         },
         getGraphIndex: function (name) {

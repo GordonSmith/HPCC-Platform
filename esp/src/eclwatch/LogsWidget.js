@@ -94,7 +94,7 @@ define([
                         },
                         Description: {
                             label: this.i18n.Description
-            }
+                        }
                     },
                     store: this.logsStore
                 }, this.id + "LogsGrid");

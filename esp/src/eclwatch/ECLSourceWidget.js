@@ -98,8 +98,14 @@ define([
                 if (params.Wuid) {
                     this.wu = ESPWorkunit.Get(params.Wuid);
                     if (this.WUXml) {
-                        this.wu.fetchXML(function (xml) {
-                            context.editor.setValue(xml);
+                        this.wu.refresh().then(function(response) {
+                            if (context.wu.WUXMLSize && context.wu.WUXMLSize > (5 * (1.024 ^ 2))) {
+                                alert("Large XML");
+                            }                    
+                            context.wu.fetchXML(function (xml) {
+                                context.editor.setValue(xml);
+                            });
+                            return response;
                         });
                     }
                     else {
