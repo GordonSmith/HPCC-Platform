@@ -26,6 +26,9 @@ define([
     "dojo/dom-construct",
     "dojo/dom-class",
     "dojo/dom-style",
+    "dojo/store/Memory",
+    "dojo/store/Observable",
+    "dojo/store/util/QueryResults",
 
     "dijit/registry",
     "dijit/layout/BorderContainer",
@@ -40,10 +43,52 @@ define([
     "dijit/form/Button",
     "dijit/form/NumberSpinner"
     
-], function (declare, lang, i18n, nlsHPCC, arrayUtil, Deferred, aspect, has, dom, domConstruct, domClass, domStyle,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, Deferred, aspect, has, dom, domConstruct, domClass, domStyle, Memory, Observable, QueryResults,
             registry, BorderContainer, ContentPane,
             _Widget,
             template) {
+
+    var GraphTreeStore = declare("GraphTreeStore", [Memory], {
+        idProperty: "id",
+        data: [],
+        constructor: function (options) {
+            this.cache = {};
+        },
+        get: function (id) {
+            return this.cache[id];
+        },
+        query: function (query, options) {
+            return this.inherited(arguments);
+        },
+        mayHaveChildren: function (object) {
+            return object._children;
+        },
+        getChildren: function (parent, options) {
+            return QueryResults(this.queryEngine({}, options)(parent._children));
+        },
+        walkData: function (data) {
+            arrayUtil.forEach(data, function (item, idx) {
+                this.cache[item.id] = item;
+                if (item._children)
+                    this.walkData(item._children);
+
+                for (var key in item) {
+                    this.cacheColumns[key] = true;
+                }
+            }, this);
+        },
+        setData: function (data) {
+            this.inherited(arguments);
+            this.cache = {};
+            this.cacheColumns = {};
+            this.walkData(data);
+        }
+    });
+
+    var GraphStore = declare("GraphStore", [Memory], {
+        idProperty: "id",
+        data: []
+    });
 
     var GraphView = declare("GraphView", null, {
         sourceGraphWidget: null,
@@ -80,8 +125,8 @@ define([
             this.distance = distance;
         },
 
-        changeRootItems: function (globalIDs) {
-            return this.sourceGraphWidget.getGraphView(globalIDs, this.depth, this.distance);
+        changeRootItems: function (globalIDs, depth, distance) {
+            return this.sourceGraphWidget.getGraphView(globalIDs, depth, distance);
         },
 
         changeScope: function (depth, distance) {
@@ -311,9 +356,13 @@ define([
 
             _onSyncSelection: function () {
                 var graphView = this.getCurrentGraphView();
-                var rootItems = this.getSelectionAsGlobalID();
-                graphView = graphView.changeRootItems(rootItems);
-                graphView.navigateTo(this);
+                if (graphView) {
+                    var rootItems = this.getSelectionAsGlobalID();
+                    var depth = this.depth.get("value");
+                    var distance = this.distance.get("value");
+                    graphView = graphView.changeRootItems(rootItems, depth, distance);
+                    graphView.navigateTo(this);
+                }
             },
 
             onSelectionChanged: function (items) {
@@ -356,6 +405,16 @@ define([
             },
 
             //  Plugin wrapper  ---
+            createTreeStore: function () {
+                var store = new GraphTreeStore();
+                return Observable(store);
+            },
+
+            createStore: function () {
+                var store = new GraphStore();
+                return Observable(store);
+            },
+
             showToolbar: function (show) {
                 if (show) {
                     domClass.remove(this.id + "Toolbar", "hidden");
@@ -915,6 +974,13 @@ define([
             getProperties: function (item) {
                 if (this.hasPlugin()) {
                     return this._plugin.getProperties(item);
+                }
+                return [];
+            },
+
+            getTreeWithProperties: function () {
+                if (this.hasPlugin()) {
+                    return this._plugin.getTreeWithProperties();
                 }
                 return [];
             },

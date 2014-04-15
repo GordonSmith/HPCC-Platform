@@ -24,23 +24,26 @@ define([
     "dojo/dom-construct",
     "dojo/on",
     "dojo/html",
-    "dojo/store/Memory",
-    "dojo/store/Observable",
 
     "dijit/layout/BorderContainer",
     "dijit/layout/TabContainer",
     "dijit/layout/ContentPane",
     "dijit/registry",
     "dijit/Dialog",
+    "dijit/Tooltip",
 
     "dojox/html/entities",
 
+    "dgrid/Grid",
     "dgrid/OnDemandGrid",
     "dgrid/Keyboard",
     "dgrid/Selection",
     "dgrid/selector",
+    "dgrid/tree",
     "dgrid/extensions/ColumnResizer",
+    "dgrid/extensions/ColumnHider",
     "dgrid/extensions/DijitRegistry",
+    "dgrid/extensions/Pagination",
 
     "hpcc/_Widget",
     "hpcc/GraphWidget",
@@ -50,7 +53,7 @@ define([
     "hpcc/TimingTreeMapWidget",
     "hpcc/WsWorkunits",
 
-    "dojo/text!../templates/GraphPageWidget.html",
+    "dojo/text!../templates/GraphTreeWidget.html",
 
     "dijit/PopupMenuItem",
     "dijit/Menu",
@@ -61,33 +64,16 @@ define([
     "dijit/form/SimpleTextarea",
     "dijit/form/NumberSpinner",
     "dijit/form/DropDownButton"
-], function (declare, lang, i18n, nlsHPCC, arrayUtil, Deferred, dom, domConstruct, on, html, Memory, Observable,
-            BorderContainer, TabContainer, ContentPane, registry, Dialog,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, Deferred, dom, domConstruct, on, html,
+            BorderContainer, TabContainer, ContentPane, registry, Dialog, Tooltip,
             entities,
-            OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry,
+            Grid, OnDemandGrid, Keyboard, Selection, selector, tree, ColumnResizer, ColumnHider, DijitRegistry, Pagination,
             _Widget, GraphWidget, ESPUtil, ESPWorkunit, TimingGridWidget, TimingTreeMapWidget, WsWorkunits,
             template) {
 
-    var debounce = function (func, threshold, execAsap) {
-        var timeout;
-        return function debounced() {
-            var obj = this, args = arguments;
-            function delayed() {
-                if (!execAsap)
-                    func.apply(obj, args);
-                timeout = null;
-            };
-            if (timeout)
-                clearTimeout(timeout);
-            else if (execAsap)
-                func.apply(obj, args);
-            timeout = setTimeout(delayed, threshold || 100);
-        }
-    };
-
-    return declare("GraphPageWidget", [_Widget], {
+    return declare("GraphTreeWidget", [_Widget], {
         templateString: template,
-        baseClass: "GraphPageWidget",
+        baseClass: "GraphTreeWidget",
         i18n: nlsHPCC,
 
         borderContainer: null,
@@ -97,8 +83,6 @@ define([
         editorControl: null,
         global: null,
         main: null,
-        overview: null,
-        local: null,
         timingGrid: null,
         timingTreeMap: null,
         subgraphsGrid: null,
@@ -119,9 +103,7 @@ define([
             this.inherited(arguments);
             this.borderContainer = registry.byId(this.id + "BorderContainer");
             this.rightBorderContainer = registry.byId(this.id + "RightBorderContainer");
-            this.overviewTabContainer = registry.byId(this.id + "OverviewTabContainer");
             this.timingsGrid = registry.byId(this.id + "TimingsGrid");
-            this.localTabContainer = registry.byId(this.id + "LocalTabContainer");
             this.properties = registry.byId(this.id + "Properties");
             this.findField = registry.byId(this.id + "FindField");
             this._initGraphControls();
@@ -132,25 +114,18 @@ define([
         startup: function (args) {
             this.inherited(arguments);
 
+            this._initTree();
             this._initSubgraphs();
             this._initVertices();
             this._initEdges();
 
-            var splitter = this.borderContainer.getSplitter("right");
+            var splitter = this.borderContainer.getSplitter("left");
             this.main.watchSplitter(splitter);
-            this.overview.watchSplitter(splitter);
-            this.local.watchSplitter(splitter);
 
             splitter = this.rightBorderContainer.getSplitter("bottom");
             this.main.watchSplitter(splitter);
-            this.overview.watchSplitter(splitter);
-            this.local.watchSplitter(splitter);
 
             this.main.watchSelect(registry.byId(this.id + "AdvancedMenu"));
-
-            this.overview.showNextPrevious(false);
-            this.overview.showDistance(false);
-            this.overview.showSyncSelection(false);
 
             this.refreshActionState();
         },
@@ -175,15 +150,6 @@ define([
             var context = this;
             this.global = registry.byId(this.id + "GlobalGraphWidget");
 
-            this.overview = registry.byId(this.id + "MiniGraphWidget");
-            this.overview.onSelectionChanged = function (items) {
-                context.syncSelectionFrom(context.overview);
-            };
-            this.overview.onDoubleClick = function (globalID) {
-                var mainItem = context.main.getItem(globalID);
-                context.main.centerOnItem(mainItem, true);
-            };
-
             this.main = registry.byId(this.id + "MainGraphWidget");
             this.main.onSelectionChanged = function (items) {
                 context.syncSelectionFrom(context.main);
@@ -191,15 +157,6 @@ define([
             this.main.onDoubleClick = function (globalID) {
                 context.main._onSyncSelection();
                 context.syncSelectionFrom(context.main);
-            };
-
-            this.local = registry.byId(this.id + "LocalGraphWidget");
-            this.local.onSelectionChanged = function (items) {
-                context.syncSelectionFrom(context.local);
-            };
-            this.local.onDoubleClick = function (globalID) {
-                context.local._onSyncSelection();
-                context.syncSelectionFrom(context.local);
             };
         },
 
@@ -249,8 +206,6 @@ define([
                     var dotAttrs = context.xgmmlTextArea.get("value");
                     context.global.setDotMetaAttributes(dotAttrs);
                     context.main.setDotMetaAttributes(dotAttrs);
-                    context.overview.setDotMetaAttributes(dotAttrs);
-                    context.local.setDotMetaAttributes(dotAttrs);
                     context._onMainSync();
                 }
             });
@@ -276,12 +231,30 @@ define([
             });
         },
 
-        _initSubgraphs: function () {
-            var store = new Memory({
-                idProperty: "id",
-                data: []
+        _initTree: function () {
+            this.treeStore = this.global.createTreeStore();
+            this.treeGrid = new declare([Grid, Pagination, Keyboard, Selection, ColumnResizer, ColumnHider, DijitRegistry, ESPUtil.GridHelper])({
+                store: this.treeStore
+            }, this.id + "TreeGrid");
+            this.treeTooltip = new Tooltip({
+                connectId: [this.treeGrid.id],
+                selector: "td",
+                getContent: function (node) {
+                    return node.innerHTML;
+                }
             });
-            this.subgraphsStore = Observable(store);
+            /*
+            var context = this;
+            this.treeGrid.on(".dgrid-cell:mouseover", function (evt) {
+                var cell = context.treeGrid.cell(evt);
+                context.treeTooltip.set("label", cell.element.innerHTML);
+            })
+            */
+            this._initItemGrid(this.treeGrid);
+        },
+
+        _initSubgraphs: function () {
+            this.subgraphsStore = this.global.createStore();
             this.subgraphsGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
                 store: this.subgraphsStore
             }, this.id + "SubgraphsGrid");
@@ -290,11 +263,7 @@ define([
         },
 
         _initVertices: function () {
-            var store = new Memory({
-                idProperty: "id",
-                data: []
-            });
-            this.verticesStore = Observable(store);
+            this.verticesStore =  this.global.createStore();
             this.verticesGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
                 store: this.verticesStore
             }, this.id + "VerticesGrid");
@@ -303,11 +272,7 @@ define([
         },
 
         _initEdges: function () {
-            var store = new Memory({
-                idProperty: "id",
-                data: []
-            });
-            this.edgesStore = Observable(store);
+            this.edgesStore =  this.global.createStore();
             this.edgesGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
                 store: this.edgesStore
             }, this.id + "EdgesGrid");
@@ -317,6 +282,10 @@ define([
 
         _onRefresh: function () {
             this.refreshData();
+        },
+
+        _onTreeRefresh: function () {
+            this.loadTree();
         },
 
         _doFind: function (prev) {
@@ -335,7 +304,6 @@ define([
             }
             if (this.found.length) {
                 this.main.centerOnGlobalID(this.found[this.foundIndex], true);
-                this.setLocalRootItems([this.found[this.foundIndex]]);
             }
             this.refreshActionState();
         },
@@ -400,17 +368,11 @@ define([
                 return;
 
             if (params.SafeMode && params.SafeMode != "false") {
-                this.overviewTabContainer.selectChild(this.timingsGrid);
-                this.localTabContainer.selectChild(this.properties);
-                this.overview.depth.set("value", 0);
                 this.main.depth.set("value", 1);
-                this.local.depth.set("value", 0);
-                this.local.distance.set("value", 0);
                 var dotAttrs = this.global.getDotMetaAttributes();
                 dotAttrs = dotAttrs.replace("\n//graph[splines=\"line\"];", "\ngraph[splines=\"line\"];");
                 this.global.setDotMetaAttributes(dotAttrs);
             } else {
-                this.overview.depth.set("value", -1);
                 var dotAttrs = this.global.getDotMetaAttributes();
                 dotAttrs = dotAttrs.replace("\ngraph[splines=\"line\"];", "\n//graph[splines=\"line\"];");
                 this.global.setDotMetaAttributes(dotAttrs);
@@ -475,21 +437,8 @@ define([
             if (this.global.loadXGMML(xgmml, false)) {
                 this.global.setMessage("...");  //  Just in case it decides to render  ---
                 var initialSelection = [];
-                if (this.overview.depth.get("value") === -1) {
-                    var newDepth = 0;
-                    for (; newDepth < 5; ++newDepth) {
-                        if (this.global.getLocalisedXGMML([0], newDepth, this.overview.distance.get("value")) !== "") {
-                            break;
-                        }
-                    }
-                    this.overview.depth.set("value", newDepth);
-                    if (this.params.SubGraphId) {
-                        initialSelection = [this.params.SubGraphId];
-                    }
-                }
-                this.setOverviewRootItems([0], initialSelection);
                 this.setMainRootItems(initialSelection);
-                this.setLocalRootItems([]);
+                this.loadTree();
                 this.loadSubgraphs();
                 this.loadVertices();
                 this.loadEdges();
@@ -499,9 +448,7 @@ define([
         mergeGraphFromXGMML: function (xgmml) {
             if (this.global.loadXGMML(xgmml, true)) {
                 this.global.setMessage("...");  //  Just in case it decides to render  ---
-                this.refreshOverviewXGMML();
                 this.refreshMainXGMML();
-                this.refreshLocalXGMML();
                 this.loadSubgraphs();
                 this.loadVertices();
                 this.loadEdges();
@@ -511,9 +458,7 @@ define([
         loadGraphFromDOT: function (dot) {
             this.global.loadDOT(dot);
             this.global.setMessage("...");  //  Just in case it decides to render  ---
-            this.setOverviewRootItems([0]);
             this.setMainRootItems([]);
-            this.setLocalRootItems([]);
             this.loadSubgraphs();
             this.loadVertices();
             this.loadEdges();
@@ -521,14 +466,10 @@ define([
 
         loadGraphFromWu: function (wu, graphName) {
             var deferred = new Deferred();
-            this.overview.setMessage(this.i18n.FetchingData);
             this.main.setMessage(this.i18n.FetchingData);
-            this.local.setMessage(this.i18n.FetchingData);
             var context = this;
             wu.fetchGraphXgmmlByName(graphName, function (xgmml, svg) {
-                context.overview.setMessage("");
                 context.main.setMessage("");
-                context.local.setMessage("");
                 context.loadGraphFromXGMML(xgmml, svg);
                 deferred.resolve();
             });
@@ -543,9 +484,7 @@ define([
         },
 
         loadGraphFromQuery: function (targetQuery, queryId, graphName) {
-            this.overview.setMessage(this.i18n.FetchingData);
             this.main.setMessage(this.i18n.FetchingData);
-            this.local.setMessage(this.i18n.FetchingData);
             var context = this;
             WsWorkunits.WUQueryGetGraph({
                 request: {
@@ -554,9 +493,7 @@ define([
                     GraphName: graphName
                 }
             }).then(function(response){
-                context.overview.setMessage("");
                 context.main.setMessage("");
-                context.local.setMessage("");
                 if(lang.exists("WUQueryGetGraphResponse.Graphs.ECLGraphEx", response)){
                     if(response.WUQueryGetGraphResponse.Graphs.ECLGraphEx.length > 0){
                         context.loadGraphFromXGMML(response.WUQueryGetGraphResponse.Graphs.ECLGraphEx[0].Graph, "");
@@ -584,6 +521,54 @@ define([
 
         isNumber: function(n) {
             return !isNaN(parseFloat(n)) && isFinite(n);
+        },
+
+        loadTree: function () {
+            var treeData = this.global.getTreeWithProperties();
+            this.treeStore.setData(treeData);
+            var context = this;
+            var columns = [
+                tree({
+                    field: "id",
+                    label: this.i18n.ID, width: 150,
+                    shouldExpand: function (row, level, previouslyExpanded) {
+                        if (level < context.main.depth.get("value")) {
+                            return true;
+                        }
+                        return false;
+                    },
+                    formatter: function (_id, row) {
+                        var img = dojoConfig.getImageURL("file.png");
+                        var label = _id
+                        switch (row._globalType) {
+                            case "Graph":
+                                img = dojoConfig.getImageURL("server.png");
+                                label = context.params.GraphName + " (" + row._children.length + ")";
+                                break;
+                            case "Cluster":
+                                img = dojoConfig.getImageURL("folder.png");
+                                label = "Subgraph (" + row._children.length + ")";
+                                break;
+                            case "Vertex":
+                                img = dojoConfig.getImageURL("file.png");
+                                var labelParts = row.label.split("\n");
+                                label = labelParts[0];
+                                label = row.label;
+                                break;
+                        }
+                        return "<img src='" + img + "'/>&nbsp;" + label;
+                    }
+                })
+            ];
+            for (var key in this.treeStore.cacheColumns) {
+                if (key != "id" && key != "label" && key.substring(0, 1) != "_") {
+                    columns.push({
+                        field: key, label: key, width: 250
+                    });
+                }
+            }
+            this.treeGrid.set("columns", columns);
+            this.treeGrid.refresh();
         },
 
         loadSubgraphs: function () {
@@ -679,7 +664,7 @@ define([
             }
         },
 
-        _syncSelectionFrom: debounce(function (sourceControl) {
+        _syncSelectionFrom: dojoConfig.debounce(function (sourceControl) {
             this.inSyncSelectionFrom = true;
             var selectedGlobalIDs = [];
 
@@ -691,10 +676,10 @@ define([
                         selectedGlobalIDs.push(items[i].SubGraphId);
                     }
                 }
-            } else if (sourceControl == this.verticesGrid || sourceControl == this.edgesGrid || sourceControl == this.subgraphsGrid) {
+            } else if (sourceControl == this.verticesGrid || sourceControl == this.edgesGrid || sourceControl == this.subgraphsGrid || sourceControl == this.treeGrid) {
                 var items = sourceControl.getSelected();
                 for (var i = 0; i < items.length; ++i) {
-                    if (items[i]._globalID) {
+                    if (lang.exists("_globalID", items[i])) {
                         selectedGlobalIDs.push(items[i]._globalID);
                     }
                 }
@@ -703,6 +688,9 @@ define([
             }
 
             //  Set Selected Items  ---
+            if (sourceControl != this.treeGrid) {
+                this.treeGrid.setSelection(selectedGlobalIDs);
+            }
             if (sourceControl != this.timingGrid) {
                 this.timingGrid.setSelectedAsGlobalID(selectedGlobalIDs);
             }
@@ -720,33 +708,13 @@ define([
             }
 
             //  Refresh Graph Controls  ---
-            if (sourceControl != this.overview) {
-                this.overview.setSelectedAsGlobalID(selectedGlobalIDs);
-            }
             if (sourceControl != this.main) {
                 switch (sourceControl) {
                     //case this.verticesGrid:
                     //case this.edgesGrid:
-                    case this.local:
-                        this.main.setSelectedAsGlobalID(selectedGlobalIDs);
-                        break;
                     default:
                         this.setMainRootItems(selectedGlobalIDs);
                 }
-            }
-            if (sourceControl != this.local) {
-                this.setLocalRootItems(selectedGlobalIDs);
-                /*
-                switch (sourceControl) {
-                    case this.verticesGrid:
-                    case this.edgesGrid:
-                    case this.main:
-                        this.setLocalRootItems(selectedGlobalIDs);
-                        break;
-                    default:
-                        this.local.setSelectedAsGlobalID(selectedGlobalIDs);
-                }
-                */
             }
 
             var propertiesDom = dom.byId(this.id + "Properties");
@@ -761,16 +729,6 @@ define([
             this.main.clear();
         },
 
-        setOverviewRootItems: function (globalIDs, selection) {
-            var graphView = this.global.getGraphView(globalIDs, this.overview.depth.get("value"), 3, selection);
-            graphView.navigateTo(this.overview);
-        },
-
-        refreshOverviewXGMML: function () {
-            var graphView = this.overview.getCurrentGraphView();
-            graphView.refreshXGMML(this.overview);
-        },
-
         setMainRootItems: function (globalIDs) {
             var graphView = this.global.getGraphView(globalIDs, this.main.depth.get("value"), this.main.distance.get("value"));
             graphView.navigateTo(this.main);
@@ -779,16 +737,6 @@ define([
         refreshMainXGMML: function () {
             var graphView = this.main.getCurrentGraphView();
             graphView.refreshXGMML(this.main);
-        },
-
-        setLocalRootItems: function (globalIDs) {
-            var graphView = this.global.getGraphView(globalIDs, this.local.depth.get("value"), this.local.distance.get("value"));
-            graphView.navigateTo(this.local);
-        },
-
-        refreshLocalXGMML: function () {
-            var graphView = this.local.getCurrentGraphView();
-            graphView.refreshXGMML(this.local);
         },
 
         displayGraphs: function (graphs) {
