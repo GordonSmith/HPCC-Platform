@@ -67,24 +67,6 @@ define([
             OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry,
             _Widget, GraphWidget, ESPUtil, ESPWorkunit, TimingGridWidget, TimingTreeMapWidget, WsWorkunits,
             template) {
-
-    var debounce = function (func, threshold, execAsap) {
-        var timeout;
-        return function debounced() {
-            var obj = this, args = arguments;
-            function delayed() {
-                if (!execAsap)
-                    func.apply(obj, args);
-                timeout = null;
-            };
-            if (timeout)
-                clearTimeout(timeout);
-            else if (execAsap)
-                func.apply(obj, args);
-            timeout = setTimeout(delayed, threshold || 100);
-        }
-    };
-
     return declare("GraphPageWidget", [_Widget], {
         templateString: template,
         baseClass: "GraphPageWidget",
@@ -679,7 +661,7 @@ define([
             }
         },
 
-        _syncSelectionFrom: debounce(function (sourceControl) {
+        _syncSelectionFrom: dojoConfig.debounce(function (sourceControl) {
             this.inSyncSelectionFrom = true;
             var selectedGlobalIDs = [];
 
