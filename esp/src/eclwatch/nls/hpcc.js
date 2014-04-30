@@ -334,6 +334,7 @@ define({root:
     Restart: "Restart",
     Restore: "Restore",
     Resubmit: "Resubmit",
+    Result: "Result",
     Results: "Result(s)",
     Resume: "Resume",
     RetainSuperfileStructure: "Retain Superfile Structure",
