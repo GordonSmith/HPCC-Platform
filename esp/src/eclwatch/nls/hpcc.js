@@ -356,6 +356,7 @@ define({root:
     Restore: "Restore",
     Resubmit: "Resubmit",
     Resubmitted: "Resubmitted",
+    Result: "Result",
     Results: "Result(s)",
     Resume: "Resume",
     RetainSuperfileStructure: "Retain Superfile Structure",

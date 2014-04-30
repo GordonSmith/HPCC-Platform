@@ -42,6 +42,9 @@ var dojoConfig = (function () {
             location: urlInfo.basePath + "/d3",
             main:"d3"
         }, {
+            name: "dc",
+            location: urlInfo.basePath + "/dc"
+        }, {
             name: "topojson",
             location: urlInfo.basePath + "/topojson"
         }, {

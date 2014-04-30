@@ -44,9 +44,16 @@ define([
 
     "dijit/layout/BorderContainer",
     "dijit/layout/ContentPane",
-    "dijit/Toolbar",
+    "dijit/layout/StackController",
+    "dijit/layout/StackContainer",
     "dijit/form/Button",
-    "dijit/ToolbarSeparator"
+    "dijit/form/NumberSpinner",
+    "dijit/form/Select",
+    "dijit/Toolbar",
+    "dijit/ToolbarSeparator",
+
+    "hpcc/DelayLoadWidget"
+
 ], function (declare, lang, arrayUtil, i18n, nlsHPCC, dom,
                 registry, TextBox,
                 Grid, Keyboard, Selection, selector, ColumnResizer, ColumnHider, DijitRegistry, Pagination,
@@ -70,6 +77,15 @@ define([
             this.inherited(arguments);
             this.borderContainer = registry.byId(this.id + "BorderContainer");
             this.grid = registry.byId(this.id + "Grid");
+
+            var context = this;
+            this.widget.TabContainer.watch("selectedChildWidget", function (name, oval, nval) {
+                if (nval && !nval.initalized) {
+                    if (nval.init) {
+                        nval.init(context.params);
+                    }
+                }
+            });
         },
 
         startup: function (args) {
