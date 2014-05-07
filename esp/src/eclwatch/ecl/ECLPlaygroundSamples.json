@@ -44,6 +44,7 @@
 		{ "name": "SORT", "filename": "SORT_Example.ecl" },
 		{ "name": "VARIANCE", "filename": "VARIANCE_Example.ecl" },
 		{ "name": "Viz - Bar Chart", "filename": "Viz_BarChart_Example.ecl" },
-		{ "name": "Viz - Choropleth", "filename": "Viz_Choropleth_Example.ecl" }
+		{ "name": "Viz - Choropleth", "filename": "Viz_Choropleth_Example.ecl" },
+		{ "name": "Viz - Co-Occ/Force-Dir Graph", "filename": "Viz_CoOccForceDirGraph_Example.ecl" }
 	]
 }
