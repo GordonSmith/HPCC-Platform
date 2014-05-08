@@ -219,8 +219,10 @@ define([
 
         //  Implementation  ---
         init: function (params) {
-            if (this.inherited(arguments))
+            if (this.inherited(arguments)) {
+                var d = 0;
                 return;
+            }
 
             this.clusterTargetSelect.init({
                 Targets: true,
@@ -254,14 +256,18 @@ define([
             });
         },
 
+        firstRefresh: true,
         initTab: function () {
             var currSel = this.getSelectedChild();
-            if (currSel && !currSel.initalized) {
+            if (currSel) {
                 if (currSel.id == this.workunitsTab.id) {
-                } else {
-                    if (!currSel.initalized) {
-                        currSel.init(currSel.params);
+                    if (this.firstRefresh) {
+                        this.firstRefresh = false;
+                    } else {
+                        this.refreshGrid();
                     }
+                } else {
+                    currSel.init(currSel.params);
                 }
             }
         },
