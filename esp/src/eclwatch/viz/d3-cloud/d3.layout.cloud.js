@@ -383,19 +383,21 @@
     ratio = Math.sqrt(canvas.getContext("2d").getImageData(0, 0, 1, 1).data.length >> 2);
     canvas.width = (cw << 5) / ratio;
     canvas.height = ch / ratio;
-  } else {
-    // Attempt to use node-canvas.
-    canvas = new Canvas(cw << 5, ch);
+
+    var c = canvas.getContext("2d"),
+        spirals = {
+          archimedean: archimedeanSpiral,
+          rectangular: rectangularSpiral
+        };
+    c.fillStyle = c.strokeStyle = "red";
+    c.textAlign = "center";
   }
 
-  var c = canvas.getContext("2d"),
-      spirals = {
-        archimedean: archimedeanSpiral,
-        rectangular: rectangularSpiral
-      };
-  c.fillStyle = c.strokeStyle = "red";
-  c.textAlign = "center";
-
-  if (typeof module === "object" && module.exports) module.exports = cloud;
+    
+  if(typeof define === "function" && define.amd) {
+    define(["d3"], function(d3) {
+      (d3.layout || (d3.layout = {})).cloud = cloud;
+    });
+  } else if (typeof module === "object" && module.exports) module.exports = cloud;
   else (d3.layout || (d3.layout = {})).cloud = cloud;
 })();

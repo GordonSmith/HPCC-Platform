@@ -23,17 +23,17 @@ define([
   "./Mapping",
 
   "d3/d3",
-
-  "dojo/text!./d3-cloud/d3.layout.cloud.js",
+  "./d3-cloud/d3.layout.cloud",
+  
   "dojo/text!./templates/DojoD3WordCloud.css"
 
 ], function (declare, lang, arrayUtil, domConstruct,
     DojoD3, Mapping,
     d3,
-    cloudSrc,
+    cloud,
     css) {
-
-    eval(cloudSrc);
+      
+    //d3.layout.cloud = cloud;
     return declare([Mapping, DojoD3], {
         mapping: {
             wordCloud: {
@@ -51,6 +51,7 @@ define([
 
             if (target)
                 this.renderTo(target);
+                
         },
 
         renderTo: function (_target) {
@@ -103,7 +104,7 @@ define([
         },
 
         update: function (data) {
-            d3.layout.cloud().size([this.target.width, this.target.height])
+            cloud.size([this.target.width, this.target.height])
                 .words(data)
                 .padding(5)
                 .rotate(function () { return Math.random() * 180 - 90; })

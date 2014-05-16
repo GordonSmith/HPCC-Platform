@@ -26,9 +26,13 @@ require({
         'dgrid',
         'put-selector',
         'xstyle',
-        'd3',
         'topojson',
 
+        {
+            name: "d3",
+            location: "d3",
+            main: "d3"
+        },
         {
             name: "hpcc",
             location: "eclwatch"
