@@ -217,6 +217,7 @@ define({root:
     LogicalFilesOnly: "Logical Files Only",
     LogicalFileType: "Logical File Type",
     LogicalName: "Logical Name",
+    Logout: "Logout",
     log_analysis_1: "log_analysis_1*",
     Low: "Low",
     ManualCopy: "Press Ctrl+C",

@@ -271,6 +271,61 @@ define([
             }
         },
 
+        _onLogout: function (evt) {
+            require(["dojox/encoding/base64", "dojo/Deferred", "dojo/request"], function (base64, Deferred, request) {
+                _getBytes = function (str) {
+                    var bytes = [];
+                    for (var i = 0; i < str.length; ++i) {
+                        bytes.push(str.charCodeAt(i));
+                    }
+                    return bytes;
+                };
+
+                _authorize = function(url, username, password) {
+                    var namepw = new String(username + ":" + password);
+                    var authstr = "Basic " + base64.encode(_getBytes(namepw));
+
+                    var def = new Deferred();
+                    request.get(url, {
+                        handleAs: "json",
+                        headers: {
+                            Authorization: authstr,
+                            Auth2: authstr
+                }
+                    }).then(function (data) {
+                        def.resolve(data);
+                    },
+                    function (err) {
+                        if (err.response.status == 400 || err.response.status == 200) {
+                            def.progress();
+                        }
+                        else {
+                            def.reject(err);
+                        }
+                    });
+                    return def;
+                };
+
+                login = function(url, user, passwd) {
+                    return this._authorize(url, user, passwd);
+                };
+
+                logout = function(url) {
+                    return this._authorize(url, "#fakeuser#", "#fakepw#");
+                };
+
+                if (document.execCommand("ClearAuthenticationCache")) {
+                    location.reload();
+                } else {
+                    try {
+                        logout("/ws_account/VerifyUser");
+                    } catch (exception) {
+                        document.location = "http://#fakeuser#:#fakepw#@" + document.location.hostname + document.location.pathname;
+                    }
+                }
+            });
+        },
+
         _onOpenConfiguration: function (evt) {
             var context = this;
             if (!this.configText) {
