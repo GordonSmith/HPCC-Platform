@@ -31,7 +31,7 @@ if [ ! -d "$TOOLSDIR" ]; then
 fi
 
 mkdir -p "$DISTDIR"
-cp -r "$SRCDIR/CodeMirror2" "$DISTDIR/CodeMirror2"
+# cp -r "$SRCDIR/CodeMirror2" "$DISTDIR/CodeMirror2"
 
 # Copy & minify stub.htm to dist
 cat "$SRCDIR/stub.htm" | tr '\n' ' ' | \

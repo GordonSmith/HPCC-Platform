@@ -48,6 +48,9 @@ var dojoConfig = (function () {
             name: "hpcc",
             location: urlInfo.scriptsPath
         }, {
+            name: "playground",
+            location: urlInfo.basePath + "/playground"
+        }, {
             name: "templates",
             location: urlInfo.resourcePath + "/templates"
         }, {
