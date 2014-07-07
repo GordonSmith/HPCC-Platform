@@ -66,6 +66,10 @@ var profile = {
             ]
         },
         {
+            name: "CodeMirror2",
+            location: "./CodeMirror2"
+        },
+        {
             name: "topojson",
             location: "./topojson",
             trees: [
@@ -77,10 +81,18 @@ var profile = {
             location: "./eclwatch"
         },
         {
+            name: "playground",
+            location: "./playground"
+        },
+        {
             name: "templates",
             location: "eclwatch/templates"
         }
     ],
+
+    plugins: {
+        "xstyle/css": "xstyle/build/amd-css"
+    },
         
     layers: {
         "hpcc/hpcc": {
@@ -93,6 +105,16 @@ var profile = {
             ],
             customBase: true,
             boot: true
+        },
+        'playground/dojo': {
+            include: ['dojo/dojo', 'dojo/domReady', 'dojo/_base/declare', "hpcc/stub"],
+            boot: true,
+            customBase: true
+        },
+        "playground/ECLPlayground": {
+            include: [
+                "hpcc/ECLPlaygroundWidget"
+            ]
         }
     }
 };
