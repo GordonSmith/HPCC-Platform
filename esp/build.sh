@@ -13,6 +13,7 @@ TOOLSDIR="$SRCDIR/util/buildscripts"
 
 # Destination directory for built code
 DISTDIR=$1
+PDISTDIR="$DISTDIR/../buildPortal"
 
 # Main application package build configuration
 PROFILE="$BASEDIR/profiles/eclwatch.profile.js"
@@ -23,6 +24,7 @@ echo "Building application with $PROFILE to $DISTDIR."
 
 echo -n "Cleaning old files..."
 rm -rf "$DISTDIR"
+rm -rf "$PDISTDIR"
 echo " Done"
 
 if [ ! -d "$TOOLSDIR" ]; then
@@ -31,7 +33,8 @@ if [ ! -d "$TOOLSDIR" ]; then
 fi
 
 mkdir -p "$DISTDIR"
-# cp -r "$SRCDIR/CodeMirror2" "$DISTDIR/CodeMirror2"
+mkdir -p "$PDISTDIR"
+cp -r "$SRCDIR/CodeMirror2" "$DISTDIR/CodeMirror2"
 
 # Copy & minify stub.htm to dist
 cat "$SRCDIR/stub.htm" | tr '\n' ' ' | \
@@ -62,5 +65,14 @@ do
      chmod -x $f
   done
 done
+
+mv $DISTDIR/playground $PDISTDIR/playground
+
+cp "$SRCDIR/portalStub.htm" "$PDISTDIR/portalStub.htm"
+cp -r $DISTDIR/dgrid $PDISTDIR/dgrid
+cp -r $DISTDIR/CodeMirror2 $PDISTDIR/CodeMirror2
+cp -r $DISTDIR/eclwatch/css $PDISTDIR/playground/css
+cp -r $DISTDIR/eclwatch/img $PDISTDIR/playground/img
+cp -r $DISTDIR/eclwatch/ecl $PDISTDIR/playground/ecl
 
 echo "Post process complete"

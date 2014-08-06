@@ -24,7 +24,7 @@ define([
     "dijit/layout/BorderContainer",
     "dijit/layout/ContentPane",
     "dijit/registry",
-
+    
     "hpcc/_Widget",
     "hpcc/ESPWorkunit",
 

@@ -66,10 +66,6 @@ var profile = {
             ]
         },
         {
-            name: "CodeMirror2",
-            location: "./CodeMirror2"
-        },
-        {
             name: "topojson",
             location: "./topojson",
             trees: [
@@ -106,13 +102,9 @@ var profile = {
             customBase: true,
             boot: true
         },
-        'playground/dojo': {
-            include: ['dojo/dojo', 'dojo/domReady', 'dojo/_base/declare', "hpcc/stub"],
-            boot: true,
-            customBase: true
-        },
         "playground/ECLPlayground": {
             include: [
+                "hpcc/stub", 
                 "hpcc/ECLPlaygroundWidget"
             ]
         }
