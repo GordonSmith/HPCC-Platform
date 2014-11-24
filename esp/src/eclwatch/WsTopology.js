@@ -29,6 +29,14 @@ define([
             });
             return ESPRequest.send("WsTopology", "TpServiceQuery", params);
         },
+
+        TpClusterQuery: function (params) {
+            lang.mixin(params.request, {
+                Type: "ROOT"
+            });
+            return ESPRequest.send("WsTopology", "TpClusterQuery", params);
+        },
+
         GetESPServiceBaseURL: function (type) {
             var deferred = new Deferred();
             var context = this;

@@ -106,7 +106,7 @@ define([
 
         _fetchFiles: function (scope) {
             var context = this;
-            results = WsDfu.DFUFileView({
+            var results = WsDfu.DFUFileView({
                 request: {
                     Scope: scope
                 }
