@@ -23,6 +23,7 @@
 
 #include "platform.h"
 #include <string.h>
+#include <boost/atomic.hpp>
 #include "jscm.hpp"
 #include "jatomic.hpp"
 
@@ -70,24 +71,24 @@ class jlib_decl CSimpleInterface
 public:
     inline virtual ~CSimpleInterface() {}
 
-    inline CSimpleInterface()           { atomic_set(&xxcount, 1); }
-    inline bool IsShared(void) const    { return atomic_read(&xxcount) > 1; }
-    inline int getLinkCount(void) const { return atomic_read(&xxcount); }
+    inline CSimpleInterface() : xxcount(1) { }
+    inline bool IsShared(void) const    { return xxcount.load(boost::memory_order_relaxed) > 1; }
+    inline int getLinkCount(void) const { return xxcount.load(boost::memory_order_relaxed); }
 
-    inline void Link() const            { atomic_inc(&xxcount); }
+    inline void Link() const            { xxcount.fetch_add(1, boost::memory_order_relaxed); }
 
     inline bool Release(void) const
     {
-        if (atomic_dec_and_test(&xxcount))
-        {
+        if (xxcount.fetch_sub(1, boost::memory_order_release) == 0) {
+            boost::atomic_thread_fence(boost::memory_order_acquire);
             delete this;
             return true;
-        }
+        }    
         return false;
     }
 
 private:
-    mutable atomic_t xxcount;
+    mutable boost::atomic<int> xxcount;    
 };
 
 // A more general implementation of IInterface that includes a virtual function beforeDispose().
@@ -100,15 +101,16 @@ class jlib_decl CInterface : public CSimpleInterface
 public:
     virtual void beforeDispose();
 
-    inline bool isAlive() const         { return atomic_read(&xxcount) < DEAD_PSEUDO_COUNT; }       //only safe if Link() is called first
+    inline bool isAlive() const         { return xxcount.load(boost::memory_order_relaxed) < DEAD_PSEUDO_COUNT; }       //only safe if Link() is called first
 
     inline bool Release(void) const
     {
-        if (atomic_dec_and_test(&xxcount))
+        if (xxcount.fetch_sub(1, boost::memory_order_release) == 0) 
         {
+            boost::atomic_thread_fence(boost::memory_order_acquire);
             //Because beforeDispose could cause this object to be linked/released or call isAlive(), xxcount is set
             //to a a high mid-point positive number to avoid poss. of releasing again.
-            if (atomic_cas(&xxcount, DEAD_PSEUDO_COUNT, 0))
+            xxcount.exchange(DEAD_PSEUDO_COUNT, boost::memory_order_relaxed);
             {
                 const_cast<CInterface *>(this)->beforeDispose();
                 delete this;

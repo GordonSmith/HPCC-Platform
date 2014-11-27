@@ -4250,10 +4250,14 @@ bool CWsDeployFileInfo::handleHardwareCopy(IPropertyTree *pComponents, IProperty
       dupTree = createPTreeFromXMLString((xpath3.replace('\'','\"')).str());
 
       String strTagName(xpath3);
-      strTagName = *strTagName.substring(1,strTagName.indexOf(' '));
+      String * tmpTagName = strTagName.substring(1,strTagName.indexOf(' '));
 
-      if (CWsDeployFileInfo::addCopyToPropTree(pEnvRoot2, dupTree, strTagName.toCharArray()) == false)
+      if (CWsDeployFileInfo::addCopyToPropTree(pEnvRoot2, dupTree, tmpTagName->toCharArray()) == false)
+      {
+        delete tmpTagName;
         return false;
+      }
+      delete tmpTagName;
 
       bWrite = true;
       break;

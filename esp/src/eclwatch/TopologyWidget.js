@@ -75,7 +75,7 @@ define([
                         label: this.i18n.Topology,
                         //width: 270,
                         sortable: true
-                    }),
+                    })
                 }
             }, domID);
             return retVal;

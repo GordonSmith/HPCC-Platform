@@ -111,25 +111,25 @@ define([
     var TpEclAgent = declare([TpCommon], {
         constructor: function (args) {
             args.__hpcc_type = "EclAgent";  //  args get set to "this" in base class Stateful ---
-        },
+        }
     });
 
     var TpEclServer = declare([TpCommon], {
         constructor: function (args) {
             args.__hpcc_type = "EclServer";  //  args get set to "this" in base class Stateful ---
-        },
+        }
     });
 
     var TpEclScheduler = declare([TpCommon], {
         constructor: function (args) {
             args.__hpcc_type = "EclScheduler";  //  args get set to "this" in base class Stateful ---
-        },
+        }
     });
 
     var TpCluster = declare([TpCommon], {
         constructor: function (args) {
             args.__hpcc_type = "Cluster";  //  args get set to "this" in base class Stateful ---
-        },
+        }
     });
 
     var Cluster = declare([TpCommon], {
