@@ -77,7 +77,7 @@ define([
             var selections = this.grid.getSelected();
             var firstTab = null;
             for (var i = 0; i < selections.length; ++i) {
-                var tab = this.ensurePane(selections[i], params);
+                var tab = this.ensurePane(selections[i], params, event);
                 if (!firstTab && tab) {
                     firstTab = tab;
                 }
@@ -87,8 +87,8 @@ define([
             }
         },
 
-        _onRowDblClick: function (row, params) {
-            var tab = this.ensurePane(row, params);
+        _onRowDblClick: function (row, params, event) {
+            var tab = this.ensurePane(row, params, event);
             if (tab) {
                 this.selectChild(tab);
             }
@@ -195,11 +195,11 @@ define([
             return "Detail" + row[this.idProperty];
         },
 
-        ensurePane: function (row, params) {
-            var id = this.createChildTabID(this.getDetailID(row, params));
+        ensurePane: function (row, params, event) {
+            var id = this.createChildTabID(this.getDetailID(row, params, event));
             var retVal = registry.byId(id);
             if (!retVal) {
-                retVal = this.createDetail(id, row, params);
+                retVal = this.createDetail(id, row, params, event);
                 if (retVal) {
                     this.addChild(retVal);
                 }

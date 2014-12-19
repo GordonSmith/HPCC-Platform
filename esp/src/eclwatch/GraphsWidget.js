@@ -149,13 +149,13 @@ define([
             retVal.on(".dgrid-row-url:click", function (evt) {
                 if (context._onRowDblClick) {
                     var row = retVal.row(evt).data;
-                    context._onRowDblClick(row);
+                    context._onRowDblClick(row, null, evt);
                 }
             });
             return retVal;
         },
 
-        getDetailID: function (row, params) {
+        getDetailID: function (row, params, event) {
             var retVal = "Detail" + row[this.idProperty];
             if (params && params.treeMode) {
                 retVal += "Tree";
@@ -165,7 +165,7 @@ define([
             return retVal;
         },
 
-        createDetail: function (id, row, params) {
+        createDetail: function (id, row, params, event) {
             var localParams = {}
             if (this.wu) {
                 localParams = {

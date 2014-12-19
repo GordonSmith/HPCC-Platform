@@ -38,6 +38,7 @@ define([
 
     "hpcc/_Widget",
     "hpcc/GraphWidget",
+    "hpcc/JSGraphWidget",
     "hpcc/ESPUtil",
     "hpcc/ESPWorkunit",
     "hpcc/TimingTreeMapWidget",
@@ -59,7 +60,7 @@ define([
             registry, Dialog, Menu, MenuItem, MenuSeparator, CheckedMenuItem,
             entities,
             tree,
-            _Widget, GraphWidget, ESPUtil, ESPWorkunit, TimingTreeMapWidget, WsWorkunits,
+            _Widget, GraphWidget, JSGraphWidget, ESPUtil, ESPWorkunit, TimingTreeMapWidget, WsWorkunits,
             template) {
 
     return declare("GraphTreeWidget", [_Widget], {
@@ -67,6 +68,7 @@ define([
         baseClass: "GraphTreeWidget",
         i18n: nlsHPCC,
 
+        graphType: dojoConfig.isPluginInstalled() ? "GraphWidget" : "JSGraphWidget",
         graphName: "",
         wu: null,
         global: null,

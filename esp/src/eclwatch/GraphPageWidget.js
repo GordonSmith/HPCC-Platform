@@ -31,7 +31,7 @@ define([
     "dojox/html/entities",
 
     "hpcc/_Widget",
-    "hpcc/GraphWidget",
+    "hpcc/JSGraphWidget",
     "hpcc/ESPUtil",
     "hpcc/ESPWorkunit",
     "hpcc/TimingTreeMapWidget",
@@ -54,13 +54,14 @@ define([
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, Deferred, dom, domConstruct, on, html,
             registry, Dialog,
             entities,
-            _Widget, GraphWidget, ESPUtil, ESPWorkunit, TimingTreeMapWidget, WsWorkunits,
+            _Widget, JSGraphWidget, ESPUtil, ESPWorkunit, TimingTreeMapWidget, WsWorkunits,
             template) {
     return declare("GraphPageWidget", [_Widget], {
         templateString: template,
         baseClass: "GraphPageWidget",
         i18n: nlsHPCC,
 
+        graphType: dojoConfig.isPluginInstalled() ? "GraphWidget" : "JSGraphWidget",
         borderContainer: null,
         rightBorderContainer: null,
         graphName: "",
@@ -437,7 +438,8 @@ define([
                 if (this.overview.depth.get("value") === -1) {
                     var newDepth = 0;
                     for (; newDepth < 5; ++newDepth) {
-                        if (this.global.getLocalisedXGMML([0], newDepth, this.overview.distance.get("value")) !== "") {
+                        var xgmml = this.global.getLocalisedXGMML([this.global.getItem(0)], newDepth, this.overview.distance.get("value"));
+                        if (xgmml !== "" && xgmml !== "<graph></graph>") {
                             break;
                         }
                     }

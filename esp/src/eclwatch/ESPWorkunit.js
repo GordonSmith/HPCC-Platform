@@ -839,7 +839,8 @@ define([
                     GraphName: this.graphs[idx].Name
                 },
                 load: function (response) {
-                    context.graphs[idx].xgmml = response.WUGetGraphResponse.Graphs.ECLGraphEx[0].Graph;
+                    var xgmml = response.WUGetGraphResponse.Graphs.ECLGraphEx[0].Graph;
+                    context.graphs[idx].xgmml = xgmml;
                     onFetchGraphXgmml(context.graphs[idx].xgmml, context.graphs[idx].svg);
                 }
             });
