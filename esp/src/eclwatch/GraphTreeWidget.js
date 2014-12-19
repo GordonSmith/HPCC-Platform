@@ -38,6 +38,7 @@ define([
 
     "hpcc/_Widget",
     "hpcc/GraphWidget",
+    "hpcc/JSGraphWidget",
     "hpcc/ESPUtil",
     "hpcc/ESPWorkunit",
     "hpcc/TimingTreeMapWidget",
@@ -59,7 +60,7 @@ define([
             registry, Dialog, Menu, MenuItem, MenuSeparator, CheckedMenuItem,
             entities,
             tree,
-            _Widget, GraphWidget, ESPUtil, ESPWorkunit, TimingTreeMapWidget, WsWorkunits,
+            _Widget, GraphWidget, JSGraphWidget, ESPUtil, ESPWorkunit, TimingTreeMapWidget, WsWorkunits,
             template) {
 
     return declare("GraphTreeWidget", [_Widget], {
@@ -67,6 +68,7 @@ define([
         baseClass: "GraphTreeWidget",
         i18n: nlsHPCC,
 
+        graphType: dojoConfig.isPluginInstalled() ? "GraphWidget" : "JSGraphWidget",
         graphName: "",
         wu: null,
         global: null,
@@ -370,60 +372,60 @@ define([
             if (this.inherited(arguments))
                 return;
 
-            if (params.SafeMode && params.SafeMode != "false") {
-                this.main.depth.set("value", 1);
-                var dotAttrs = this.global.getDotMetaAttributes();
-                dotAttrs = dotAttrs.replace("\n//graph[splines=\"line\"];", "\ngraph[splines=\"line\"];");
-                this.global.setDotMetaAttributes(dotAttrs);
-            } else {
-                var dotAttrs = this.global.getDotMetaAttributes();
-                dotAttrs = dotAttrs.replace("\ngraph[splines=\"line\"];", "\n//graph[splines=\"line\"];");
-                this.global.setDotMetaAttributes(dotAttrs);
-            }
-            if (this.isWorkunit()) {
-                this.graphName = params.GraphName;
-                this.wu = ESPWorkunit.Get(params.Wuid);
-
-                var firstLoad = true;
-                var context = this;
-                this.wu.monitor(function () {
-                    context.wu.getInfo({
-                        onGetApplicationValues: function (applicationValues) {
-                        },
-                        onGetGraphs: function (graphs) {
-                            if (firstLoad == true) {
-                                firstLoad = false;
-                                context.loadGraphFromWu(context.wu, context.graphName);
-                            } else {
-                                context.refreshGraphFromWU(context.wu, context.graphName);
-                            }
-                        },
-                        onGetTimers: function (timers) {
-                            context.graphTimers = context.wu.getGraphTimers(context.GraphName);
-                        }
-                    });
-                });
-            } else if (this.isQuery()) {
-                this.targetQuery = params.Target;
-                this.queryId = params.QueryId;
-                this.graphName = params.GraphName;
-
-                this.loadGraphFromQuery(this.targetQuery, this.queryId, this.graphName);
-            }
-
-            this.widget.TimingsTreeMap.init(lang.mixin({
-                query: {
-                    graphsOnly: true,
-                    graphName: this.graphName,
-                    subGraphId: "*"
-                },
-                hideHelp: true
-            }, params));
-
-            this.global.on("ready", lang.hitch(this, function(evt) {
+            this.global.on("ready", lang.hitch(this, function (evt) {
                 if (this.global.version.major < 5) {
                     dom.byId(this.id + "Warning").innerHTML = this.i18n.WarnOldGraphControl + " (" + this.global.version.version + ")";
                 }
+
+                if (params.SafeMode && params.SafeMode != "false") {
+                    this.main.depth.set("value", 1);
+                    var dotAttrs = this.global.getDotMetaAttributes();
+                    dotAttrs = dotAttrs.replace("\n//graph[splines=\"line\"];", "\ngraph[splines=\"line\"];");
+                    this.global.setDotMetaAttributes(dotAttrs);
+                } else {
+                    var dotAttrs = this.global.getDotMetaAttributes();
+                    dotAttrs = dotAttrs.replace("\ngraph[splines=\"line\"];", "\n//graph[splines=\"line\"];");
+                    this.global.setDotMetaAttributes(dotAttrs);
+                }
+                if (this.isWorkunit()) {
+                    this.graphName = params.GraphName;
+                    this.wu = ESPWorkunit.Get(params.Wuid);
+
+                    var firstLoad = true;
+                    var context = this;
+                    this.wu.monitor(function () {
+                        context.wu.getInfo({
+                            onGetApplicationValues: function (applicationValues) {
+                            },
+                            onGetGraphs: function (graphs) {
+                                if (firstLoad == true) {
+                                    firstLoad = false;
+                                    context.loadGraphFromWu(context.wu, context.graphName);
+                                } else {
+                                    context.refreshGraphFromWU(context.wu, context.graphName);
+                                }
+                            },
+                            onGetTimers: function (timers) {
+                                context.graphTimers = context.wu.getGraphTimers(context.GraphName);
+                            }
+                        });
+                    });
+                } else if (this.isQuery()) {
+                    this.targetQuery = params.Target;
+                    this.queryId = params.QueryId;
+                    this.graphName = params.GraphName;
+
+                    this.loadGraphFromQuery(this.targetQuery, this.queryId, this.graphName);
+                }
+
+                this.widget.TimingsTreeMap.init(lang.mixin({
+                    query: {
+                        graphsOnly: true,
+                        graphName: this.graphName,
+                        subGraphId: "*"
+                    },
+                    hideHelp: true
+                }, params));
             }));
         },
 
