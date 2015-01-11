@@ -361,67 +361,75 @@ define([
             if (this.inherited(arguments))
                 return;
 
-            this.global.on("ready", lang.hitch(this, function (evt) {
-                if (this.global.version.major < 5) {
-                    dom.byId(this.id + "Warning").innerHTML = this.i18n.WarnOldGraphControl + " (" + this.global.version.version + ")";
-                }
+            if (this.global._plugin) {
+                this.doInit();
+            } else {
+                this.global.on("ready", lang.hitch(this, function (evt) {
+                    this.doInit(params);
+                }));
+            }
+        },
 
-                if (params.SafeMode && params.SafeMode != "false") {
-                    this.overviewTabContainer.selectChild(this.widget.SubgraphsGridCP);
-                    this.localTabContainer.selectChild(this.properties);
-                    this.overview.depth.set("value", 0);
-                    this.main.depth.set("value", 1);
-                    this.local.depth.set("value", 0);
-                    this.local.distance.set("value", 0);
-                    var dotAttrs = this.global.getDotMetaAttributes();
-                    dotAttrs = dotAttrs.replace("\n//graph[splines=\"line\"];", "\ngraph[splines=\"line\"];");
-                    this.global.setDotMetaAttributes(dotAttrs);
-                } else {
-                    this.overview.depth.set("value", -1);
-                    var dotAttrs = this.global.getDotMetaAttributes();
-                    dotAttrs = dotAttrs.replace("\ngraph[splines=\"line\"];", "\n//graph[splines=\"line\"];");
-                    this.global.setDotMetaAttributes(dotAttrs);
-                }
-                if (this.isWorkunit()) {
-                    this.graphName = params.GraphName;
-                    this.wu = ESPWorkunit.Get(params.Wuid);
+        doInit: function(params) {
+            if (this.global.version.major < 5) {
+                dom.byId(this.id + "Warning").innerHTML = this.i18n.WarnOldGraphControl + " (" + this.global.version.version + ")";
+            }
 
-                    var firstLoad = true;
-                    var context = this;
-                    this.wu.monitor(function () {
-                        context.wu.getInfo({
-                            onGetApplicationValues: function (applicationValues) {
-                            },
-                            onGetGraphs: function (graphs) {
-                                if (firstLoad == true) {
-                                    firstLoad = false;
-                                    context.loadGraphFromWu(context.wu, context.graphName);
-                                } else {
-                                    context.refreshGraphFromWU(context.wu, context.graphName);
-                                }
-                            },
-                            onGetTimers: function (timers) {
-                                context.graphTimers = context.wu.getGraphTimers(context.GraphName);
+            if (params.SafeMode && params.SafeMode != "false") {
+                this.overviewTabContainer.selectChild(this.widget.SubgraphsGridCP);
+                this.localTabContainer.selectChild(this.properties);
+                this.overview.depth.set("value", 0);
+                this.main.depth.set("value", 1);
+                this.local.depth.set("value", 0);
+                this.local.distance.set("value", 0);
+                var dotAttrs = this.global.getDotMetaAttributes();
+                dotAttrs = dotAttrs.replace("\n//graph[splines=\"line\"];", "\ngraph[splines=\"line\"];");
+                this.global.setDotMetaAttributes(dotAttrs);
+            } else {
+                this.overview.depth.set("value", -1);
+                var dotAttrs = this.global.getDotMetaAttributes();
+                dotAttrs = dotAttrs.replace("\ngraph[splines=\"line\"];", "\n//graph[splines=\"line\"];");
+                this.global.setDotMetaAttributes(dotAttrs);
+            }
+            if (this.isWorkunit()) {
+                this.graphName = params.GraphName;
+                this.wu = ESPWorkunit.Get(params.Wuid);
+
+                var firstLoad = true;
+                var context = this;
+                this.wu.monitor(function () {
+                    context.wu.getInfo({
+                        onGetApplicationValues: function (applicationValues) {
+                        },
+                        onGetGraphs: function (graphs) {
+                            if (firstLoad == true) {
+                                firstLoad = false;
+                                context.loadGraphFromWu(context.wu, context.graphName);
+                            } else {
+                                context.refreshGraphFromWU(context.wu, context.graphName);
                             }
-                        });
+                        },
+                        onGetTimers: function (timers) {
+                            context.graphTimers = context.wu.getGraphTimers(context.GraphName);
+                        }
                     });
-                } else if (this.isQuery()) {
-                    this.targetQuery = params.Target;
-                    this.queryId = params.QueryId;
-                    this.graphName = params.GraphName;
+                });
+            } else if (this.isQuery()) {
+                this.targetQuery = params.Target;
+                this.queryId = params.QueryId;
+                this.graphName = params.GraphName;
 
-                    this.loadGraphFromQuery(this.targetQuery, this.queryId, this.graphName);
-                }
+                this.loadGraphFromQuery(this.targetQuery, this.queryId, this.graphName);
+            }
 
-                this.timingTreeMap.init(lang.mixin({
-                    query: {
-                        graphsOnly: true,
-                        graphName: this.graphName,
-                        subGraphId: "*"
-                    },
-                    hideHelp: true
-                }, params));
-            }));
+            this.timingTreeMap.init(lang.mixin({
+                query: {
+                    graphsOnly: true,
+                    graphName: this.graphName,
+                    subGraphId: "*"
+                },
+                hideHelp: true
+            }, params));
         },
 
         refreshData: function () {
