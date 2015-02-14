@@ -750,13 +750,6 @@ int CEspHttpServer::onGetFile(CHttpRequest* request, CHttpResponse* response, co
 
         StringBuffer fullpath;
         makeAbsolutePath(urlpath, basedir.str(), fullpath);
-        if (*urlpath && strncmp(basedir, fullpath, basedir.length()))
-        {
-            DBGLOG("Get File %s: attempted access outside of %s", urlpath, basedir.str());
-            response->setStatus(HTTP_STATUS_NOT_FOUND);
-            response->send();
-            return 0;
-        }
 
         if (!checkFileExists(fullpath) && !checkFileExists(fullpath.toUpperCase()) && !checkFileExists(fullpath.toLowerCase()))
         {
