@@ -15,7 +15,7 @@ before_script:
   - cmake ../HPCC-Platform
 
 script:
-  - cmake --build . --target package
+  - cmake --build . --target package -- -j3
   
 os:
   - linux
