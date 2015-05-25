@@ -41,8 +41,11 @@ perl -pe "
   s/\s+/ /g;                                 # Collapse white-space" > "$DISTDIR/stub.htm"
 
 echo "Building: $SRCDIR/Visualization"
-cd "$SRCDIR/Visualization/"
-./build.sh "$DISTDIR/Visualization/widgets"
+cd "$SRCDIR"
+npm install bower
+bower install
+mkdir -p "$DISTDIR/bower_components/hpcc-viz"
+cp -r "$SRCDIR/bower_components/hpcc-viz/dist-amd" "$DISTDIR/bower_components/hpcc-viz/dist-amd"
 
 cd "$TOOLSDIR"
 
