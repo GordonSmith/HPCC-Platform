@@ -6,10 +6,12 @@
   "dojo/dom-geometry",
   "dojo/Evented",
 
-  "d3/d3"
+  "src/hpcc-viz-common",
+
+  "d3"
 
 ], function (declare, lang, dom, domConstruct, domGeom, Evented,
-    d3) {
+    hpccVizCommon, d3) {
     return declare([Evented], {
         constructor: function () {
         },

@@ -6,15 +6,17 @@ define([
   "./DojoD3",
   "./Mapping",
 
-  "src/chart/MultiChartSurface",
+  "src/hpcc-viz-chart",
+  "src/hpcc-viz-c3chart",
+  "src/chart/MultiChart",
 
-  "d3/d3",
+  "d3",
 
   "dojo/text!./templates/DojoD3BarChart.css"
 
 ], function (declare, lang, arrayUtil,
     DojoD3, Mapping,
-    MultiChartSurface,
+    hpccVizChart, hpccVizC3chart, MultiChartSurface,
     d3,
     css) {
     return declare([Mapping, DojoD3], {
@@ -38,7 +40,7 @@ define([
 
         renderTo: function (_target) {
             this.chart = new MultiChartSurface()
-                .chart_type(this._chartType)
+                .chartType(this._chartType)
                 .target(_target.domNodeID)
             ;
             if (this.chart.show_title) {

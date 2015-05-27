@@ -84,7 +84,12 @@ define([
                 return;
 
             var context = this;
-            require(["src/other/Comms", "src/chart/MultiChartSurface", "src/common/Surface", "src/tree/SunburstPartition", "src/other/Table", "crossfilter/crossfilter"], function (Comms, MultiChartSurface, Surface, SunburstPartition, Table, crossfilterXXX) {
+            require(["src/hpcc-viz-common", "src/hpcc-viz-other", 
+//"src/hpcc-viz-c3chart", "src/hpcc-viz-chart", "src/hpcc-viz-tree", 
+		"src/other/Comms", "src/chart/MultiChartSurface", "src/common/Surface", "src/tree/SunburstPartition", "src/other/Table", "crossfilter"], function (
+hpccVizCommon, hpccVizOther, 
+//hpccVizC3Chart, hpccVizChart, hpccVizTree, 
+		Comms, MultiChartSurface, Surface, SunburstPartition, Table, crossfilterXXX) {
                 function CFGroup(crossfilter, dimensionID, targetID) {
                     this.targetID = targetID;
                     this.dimensionID = dimensionID;
@@ -95,9 +100,9 @@ define([
                         .target(targetID)
                         .title(dimensionID)
                         .columns([dimensionID, "Total"])
-                        .show_icon(false)
+                        .showIcon(false)
                         .menu(["Pie (Google)", "Pie (C3)", "Table"])
-                        .chart_type("GOOGLE_PIE")
+                        .chartType("GOOGLE_PIE")
                     ;
 
                     this.filter = null;
@@ -163,7 +168,7 @@ define([
                 context.scopes = new SunburstPartition();
                 context.scopesSurface = new Surface()
                     .target(context.id + "Scope")
-                    .show_icon(false)
+                    .showIcon(false)
                     .title("Scope")
                     .content(context.scopes)
                 ;
@@ -187,9 +192,9 @@ define([
 
                 context.bar = new MultiChartSurface()
                     .target(context.id + "Stats")
-                    .show_icon(false)
+                    .showIcon(false)
                     .menu(["Bar (Google)", "Bar (C3)", "Column (Google)", "Column (C3)", "Table"])
-                    .chart_type("GOOGLE_COLUMN")
+                    .chartType("GOOGLE_COLUMN")
                 ;
 
                 context.doRefreshData();

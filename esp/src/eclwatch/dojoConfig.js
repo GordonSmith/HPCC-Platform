@@ -56,10 +56,10 @@ var dojoConfig = (function () {
         },
         paths: {
             //  Visualization Paths  ---
-            "async": urlInfo.basePath + "/Visualization/widgets/lib/requirejs/plugins/async",
-            "css": urlInfo.basePath + "/Visualization/widgets/lib/requirejs/plugins/css",
-            "goog": urlInfo.basePath + "/Visualization/widgets/lib/requirejs/plugins/goog",
-            "propertyParser": urlInfo.basePath + "/Visualization/widgets/lib/requirejs/plugins/propertyParser"
+            "async": urlInfo.basePath + "/bower_components/hpcc-requirejs-plugins/src/async",
+            "css": urlInfo.basePath + "/bower_components/require-css/css",
+            "goog": urlInfo.basePath + "/bower_components/hpcc-requirejs-plugins/src/goog",
+            "propertyParser": urlInfo.basePath + "/bower_components/hpcc-requirejs-plugins/src/propertyParser"
         },
         packages: [{
             name: "hpcc",
@@ -75,25 +75,23 @@ var dojoConfig = (function () {
             location: urlInfo.pluginsPath
         }, {
             name: "src",
-            location: urlInfo.basePath + "/Visualization/widgets/src"
-        }, {
-            name: "lib",
-            location: urlInfo.basePath + "/Visualization/widgets/lib"
+            location: urlInfo.basePath + "/bower_components/hpcc-viz/dist-amd"
         }, {
             name: "d3",
-            location: urlInfo.basePath + "/Visualization/widgets/lib/d3",
+            location: urlInfo.basePath + "/bower_components/d3",
             main: "d3"
         }, {
-            name: "c3",
-            location: urlInfo.basePath + "/Visualization/widgets/lib/c3",
-            main: "c3"
+            name: "font-awesome",
+            location: urlInfo.basePath + "/bower_components/hpcc-viz/dist-amd/font-awesome/css",
+            main: "font-awesome.min"
         }, {
             name: "crossfilter",
-            location: urlInfo.basePath + "/Visualization/widgets/lib/crossfilter",
-            main: "crossfilter"
+            location: urlInfo.basePath + "/bower_components/crossfilter",
+            main: "crossfilter.min"
         }, {
             name: "topojson",
-            location: urlInfo.basePath + "/Visualization/widgets/lib/topojson"
+            location: urlInfo.basePath + "/bower_components/topojson",
+	    main: "topojson.min"
         }, {
             name: "this",
             location: urlInfo.thisPath

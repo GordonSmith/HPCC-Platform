@@ -26,7 +26,7 @@ define([
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, Evented,
             GraphWidget, ESPGraph) {
     var loadJSPlugin = function (callback) {
-        require(["src/common/Shape", "src/common/TextBox", "src/graph/Graph", "src/graph/Vertex", "src/graph/Edge"], function (Shape, TextBox, Graph, Vertex, Edge) {
+        require(["src/hpcc-viz-graph", "src/common/Shape", "src/common/TextBox", "src/graph/Graph", "src/graph/Vertex", "src/graph/Edge"], function (hpccVizGraph, Shape, TextBox, Graph, Vertex, Edge) {
             callback(declare([Evented], {
                 KeyState_None: 0,
                 KeyState_Shift: 1,

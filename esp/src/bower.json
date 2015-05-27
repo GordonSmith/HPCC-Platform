@@ -1,0 +1,22 @@
+{
+    "name": "src",
+    "version": "0.0.0",
+    "moduleType": [
+        "amd"
+    ],
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "test",
+        "tests"
+    ],
+    "dependencies": {
+        "hpcc-viz": "^1.0.0",
+	"crossfilter": "^1.3.11",
+	"hpcc-requirejs-plugins": "git@github.com:GordonSmith/requirejs-plugins.git#DOJO_AMD"
+    },
+    "resolutions": {
+        "d3": "^3.5.5"
+    }
+}
