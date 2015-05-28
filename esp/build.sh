@@ -42,7 +42,8 @@ perl -pe "
 
 echo "Building: $SRCDIR/Visualization"
 cd "$SRCDIR/Visualization/"
-./build.sh "$DISTDIR/Visualization/widgets"
+mkdir -p "$DISTDIR/Visualization"
+cp -r "$SRCDIR/Visualization/dist-amd" "$DISTDIR/Visualization/dist-amd"
 
 cd "$TOOLSDIR"
 
