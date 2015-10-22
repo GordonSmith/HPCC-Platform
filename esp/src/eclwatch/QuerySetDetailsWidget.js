@@ -260,12 +260,13 @@ define([
                 });
                 this.logicalFilesTab.set("title", this.i18n.LogicalFiles + " (" + count + ")");
             } else if (name === "LibrariesUsed") {
-                this.librariesUsedTab.set("title", this.i18n.LibrariesUsed + " (" + newValue.Item.length + ")");
+                var items = newValue instanceof Array ? newValue : newValue.Item;
+                this.librariesUsedTab.set("title", this.i18n.LibrariesUsed + " (" + items.length + ")");
                 var tooltip = "";
-                for (var i = 0; i < newValue.Item.length; ++i) {
+                for (var i = 0; i < items.length; ++i) {
                     if (tooltip != "")
                         tooltip += "\n";
-                    tooltip += newValue.Item[i];
+                    tooltip += items[i];
                 }
                 this.librariesUsedTab.set("tooltip", tooltip);
             } else if (name === "Clusters") {

@@ -120,7 +120,8 @@ define([
                     QueryId: this.Id,
                     QuerySet: this.QuerySetId,
                     IncludeSuperFiles: 1,
-                    IncludeStateOnClusters: 1
+                    IncludeStateOnClusters: 1,
+                    IncludeWsEclAddresses: 1
                 }
             }).then(function (response) {
                 if (lang.exists("WUQueryDetailsResponse", response)) {
