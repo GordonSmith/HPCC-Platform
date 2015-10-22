@@ -83,13 +83,24 @@ define([
 
         setContent: function (target, type, postfix) {
             var context = this;
-            WsTopology.GetWsEclIFrameURL(type).then(function (response) {
-                var src = response + encodeURIComponent(context.params.QuerySetId + "/" + context.params.Id + (postfix ? postfix : ""));
-                target.set("content", dojo.create("iframe", {
-                    src: src,
-                    style: "border: 0; width: 100%; height: 100%"
-                }));
-            });
+            this.query.getDetails().then(function (response) {
+                if (lang.exists("WUQueryDetailsResponse.WsEclAddresses.Address", response) && response.WUQueryDetailsResponse.WsEclAddresses.Address.length) {
+                    var addressParts = response.WUQueryDetailsResponse.WsEclAddresses.Address[0].split(":");
+                    var src = location.protocol + "//" + location.hostname + ":" + addressParts[1] + "/esp/files/stub.htm?Widget=IFrameWidget&src=" + encodeURIComponent("/WsEcl/" + type + "/query/" + context.params.QuerySetId + "/" + context.params.Id + (postfix ? postfix : ""));
+                    target.set("content", dojo.create("iframe", {
+                        src: src,
+                        style: "border: 0; width: 100%; height: 100%"
+                    }));
+                } else {
+                    WsTopology.GetWsEclIFrameURL(type).then(function (response) {
+                        var src = response + encodeURIComponent(context.params.QuerySetId + "/" + context.params.Id + (postfix ? postfix : ""));
+                        target.set("content", dojo.create("iframe", {
+                            src: src,
+                            style: "border: 0; width: 100%; height: 100%"
+                        }));
+                    });
+                }
+            })
         },
 
         initTab: function () {
