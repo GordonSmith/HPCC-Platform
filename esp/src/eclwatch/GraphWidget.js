@@ -41,14 +41,55 @@ define([
 
     "dijit/Toolbar", 
     "dijit/ToolbarSeparator", 
+
+    "dijit/TooltipDialog",
+    "dijit/form/Form",
+    "dijit/form/CheckBox",
+    "dijit/form/TextBox",
+    "dijit/form/DropDownButton",
     "dijit/form/Button",
     "dijit/form/ComboBox",
-    "dijit/form/NumberSpinner"
-    
+    "dijit/form/NumberSpinner",
+    "dijit/Fieldset",
+
+    "hpcc/TableContainer"
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, Deferred, has, dom, domConstruct, domClass, domStyle, Memory, Observable, QueryResults, Evented,
             registry, BorderContainer, ContentPane,
             _Widget, ESPUtil,
             template) {
+
+    var persist = {
+        remove: function (key) {
+            if (typeof (Storage) !== "undefined") {
+                localStorage.removeItem("JSGraphWidget_" + key);
+            }
+        },
+        set: function (key, val) {
+            if (typeof (Storage) !== "undefined") {
+                localStorage.setItem("JSGraphWidget_" + key, val);
+            }
+        },
+        setObj: function (key, val) {
+            this.set(key, JSON.stringify(val));
+        },
+        get: function (key, defValue) {
+            if (typeof (Storage) !== "undefined") {
+                var retVal = localStorage.getItem("JSGraphWidget_" + key);
+                return retVal === null ? defValue : retVal;
+            }
+            return "";
+        },
+        getObj: function (key, defVal) {
+            return JSON.parse(this.get(key, defVal));
+        },
+        exists: function (key) {
+            if (typeof (Storage) !== "undefined") {
+                var retVal = localStorage.getItem("JSGraphWidget_" + key);
+                return retVal === null;
+            }
+            return false;
+        }
+    };
 
     var GraphStore = declare("GraphStore", [Memory], {
         idProperty: "id",
@@ -413,6 +454,7 @@ define([
             _onClickRefresh: function () {
                 var graphView = this.getCurrentGraphView();
                 graphView.refreshLayout(this);
+                this.refreshRootState(graphView.rootGlobalIDs);
             },
 
             _onClickPrevious: function () {
@@ -470,6 +512,12 @@ define([
                 }
             },
 
+            _onOptionsApply: function () {
+            },
+
+            _onOptionsReset: function () {
+            },
+
             onSelectionChanged: function (items) {
             },
 
@@ -489,10 +537,13 @@ define([
                 this.next = registry.byId(this.id + "Next");
                 this.previous = registry.byId(this.id + "Previous");
                 this.zoomDropCombo = registry.byId(this.id + "ZoomDropCombo");
+                this.depthLabel = registry.byId(this.id + "DepthLabel");
                 this.depth = registry.byId(this.id + "Depth");
                 this.distance = registry.byId(this.id + "Distance");
                 this.syncSelectionSplitter = registry.byId(this.id + "SyncSelectionSplitter");
                 this.syncSelection = registry.byId(this.id + "SyncSelection");
+                this.optionsDropDown = registry.byId(this.id + "OptionsDropDown");
+                this.optionsForm = registry.byId(this.id + "OptionsForm");
             },
 
             startup: function (args) {
@@ -513,6 +564,10 @@ define([
             },
 
             //  Plugin wrapper  ---
+            hasOptions: function () {
+                return false;
+            },
+
             createTreeStore: function () {
                 var store = new GraphTreeStore();
                 return Observable(store);
@@ -578,9 +633,10 @@ define([
                 }
             },
 
-            loadXGMML: function (xgmml, merge, timers) {
+            loadXGMML: function (xgmml, merge, timers, skipRender) {
                 if (this.hasPlugin() && this.xgmml !== xgmml) {
                     this.xgmml = xgmml;
+                    this._plugin._skipRender = skipRender;
                     if (merge) {
                         this._plugin.mergeXGMML(xgmml);
                     } else {
@@ -889,9 +945,9 @@ define([
             },
 
             _onLayoutFinished: function() {
+                this.setMessage('');
                 this.centerOnItem(0, true);
                 this.dot = this._plugin.getDOT();
-                this.setMessage('');
                 if (this.onLayoutFinished) {
                     this.onLayoutFinished();
                 }
@@ -1172,8 +1228,11 @@ define([
                     depthDisabled = !selectedGlobalIDs.length || !(typeSummary.Graph || typeSummary.Cluster);
                     distanceDisabled = !(typeSummary.Vertex || typeSummary.Edge);
                 }
+                depthDisabled = depthDisabled || (this.hasOptions() && !this.option("subgraph"))
+
                 this.setDisabled(this.id + "Depth", depthDisabled);
                 this.setDisabled(this.id + "Distance", distanceDisabled);
+                this.setDisabled(this.id + "OptionsDropDown", !this.hasOptions());
             }
         });
     });
