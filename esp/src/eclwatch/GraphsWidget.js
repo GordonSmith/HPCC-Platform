@@ -127,7 +127,7 @@ define([
                     label: this.i18n.OpenNativeMode,
                     onClick: function (event) {
                         context._onOpen(event, {
-                            nativeMode: true,
+                            nativeMode: true
                         });
                     }
                 }).placeAt(this.widget.Open.domNode, "after");
