@@ -60,16 +60,18 @@ var dojoConfig = (function () {
             "font-awesome.css": urlInfo.basePath + "/Visualization/dist-amd/font-awesome/css/font-awesome.min.css"
 
 /*  HPCC Visualization Debug  
+*/
             ,
             "css": urlInfo.basePath + "/Visualization/node_modules/require-css/css",
             "d3": urlInfo.basePath + "/Visualization/bower_components/d3/d3",
+            "c3": urlInfo.basePath + "/Visualization/bower_components/c3/c3",
             "c3": urlInfo.basePath + "/Visualization/bower_components/c3/c3",
             "dagre": urlInfo.basePath + "/Visualization/bower_components/dagre/index",
             "topojson": urlInfo.basePath + "/Visualization/bower_components/topojson/topojson",
             "colorbrewer": urlInfo.basePath + "/Visualization/bower_components/colorbrewer/colorbrewer",
             "d3-cloud": urlInfo.basePath + "/Visualization/bower_components/d3-cloud/build/d3.layout.cloud",
-            "font-awesome": urlInfo.basePath + "/Visualization/bower_components/font-awesome/css/font-awesome"
-*/
+            "font-awesome": urlInfo.basePath + "/Visualization/bower_components/font-awesome/css/font-awesome",
+            "es6-promise": urlInfo.basePath + "/Visualization/bower_components/es6-promise/promise"
         },
         packages: [{
             name: "hpcc",
@@ -85,16 +87,7 @@ var dojoConfig = (function () {
             location: urlInfo.pluginsPath
         }, {
             name: "src",
-            location: urlInfo.basePath + "/Visualization/dist-amd"
-        }, {
-            name: "d3",
-            location: urlInfo.basePath + "/Visualization/dist-amd",
-            main: "hpcc-viz-common"
-/*  HPCC Visualization Debug  
-        }, {
-            name: "src",
             location: urlInfo.basePath + "/Visualization/src"
-*/
         }, {
             name: "this",
             location: urlInfo.thisPath

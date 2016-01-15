@@ -107,7 +107,7 @@ define([
     };
 
     var loadJSPlugin = function (callback) {
-        require(["src/hpcc-viz", "src/hpcc-viz-common", "src/hpcc-viz-graph", "src/hpcc-viz-layout"], function () {
+        //require(["src/hpcc-viz", "src/hpcc-viz-common", "src/hpcc-viz-graph", "src/hpcc-viz-layout"], function () {
             require(["src/common/Shape", "src/common/Icon", "src/common/TextBox", "src/graph/Graph", "src/graph/Vertex", "src/graph/Edge", "src/layout/Layered"], function (Shape, Icon, TextBox, Graph, Vertex, Edge, Layered) {
                 callback(declare([Evented], {
                     KeyState_None: 0,
@@ -286,7 +286,15 @@ define([
                     },
 
                     getVerticesWithProperties: function () {
-                        return this.graphData.vertices;
+                        return this.graphData.vertices.map(function (vertex) {
+                            var retVal = {};
+                            for (var key in vertex) {
+                                if (vertex.hasOwnProperty(key) && typeof vertex[key] !== "function") {
+                                    retVal[key] = vertex[key];
+                                }
+                            }
+                            return retVal;
+                        });
                     },
 
                     getEdgesWithProperties: function () {
@@ -362,6 +370,7 @@ define([
                                 if (!merge || !subgraph.__widget) {
                                     subgraph.__widget = new Shape()
                                         .shape("rect")
+                                        .classed({ subgraph: true })
                                         .width(0)
                                         .height(0)
                                     ;
@@ -374,41 +383,40 @@ define([
                         var tooltipTpl = this.option("vtooltip");
                         arrayUtil.forEach(this.graphData.vertices, function (item, idx) {
                             if (!merge || !item.__widget) {
-                                var label = this.format(labelTpl, item);
-                                var tooltip = this.format(tooltipTpl, item);
                                 switch (item._kind) {
                                     case "point":
                                         item.__widget = new Shape()
                                             .radius(7)
-                                            .tooltip(label)
                                         ;
                                         break;
                                     default:
                                         if (this.option("vicon") && this.option("vlabel")) {
                                             item.__widget = new Vertex()
                                                 .faChar(faCharFactory(item._kind))
-                                                .text(label)
-                                                .tooltip(tooltip)
                                             ;
                                         } else if (this.option("vicon")) {
                                             item.__widget = new Icon()
                                                 .faChar(faCharFactory(item._kind))
-                                                .tooltip(tooltip)
                                             ;
                                         } else if (this.option("vlabel")) {
                                             item.__widget = new TextBox()
-                                                .text(label)
-                                                .tooltip(tooltip)
                                             ;
                                         } else {
                                             item.__widget = new Shape()
                                                 .radius(7)
-                                                .tooltip(tooltip)
                                             ;
                                         }
                                         break;
                                 }
                                 item.__widget.__hpcc_globalID = item.__hpcc_id;
+                            }
+                            if (item.__widget.text) {
+                                var label = this.format(labelTpl, item);
+                                item.__widget.text(label);
+                            }
+                            if (item.__widget.tooltip) {
+                                var tooltip = this.format(tooltipTpl, item);
+                                item.__widget.tooltip(tooltip);
                             }
                             vertices.push(item.__widget);
                         }, this);
@@ -428,19 +436,23 @@ define([
                                     strokeDasharray = "5,5,10,5";
                                 }
 
-                                var label = this.format(labelTpl, item);
-                                var tooltip = this.format(tooltipTpl, item);
                                 item.__widget = new Edge()
                                     .sourceVertex(item.getSource().__widget)
                                     .targetVertex(item.getTarget().__widget)
                                     .targetMarker("arrowHead")
                                     .weight(weight)
                                     .strokeDasharray(strokeDasharray)
-                                    .text(label)
-                                    .tooltip(tooltip)
                                 ;
                                 item.__widget.__hpcc_globalID = item.__hpcc_id;
                             }
+                            var label = this.format(labelTpl, item);
+                            var tooltip = this.format(tooltipTpl, item);
+                            item.__widget.text(label);
+                            item.__widget.tooltip(tooltip);
+                            item.__widget.classed({
+                                started: parseInt(item.NumStarted) && item.NumStarted !== item.NumStopped,
+                                finished: parseInt(item.NumStarted) && item.NumStarted === item.NumStopped
+                            });
                             edges.push(item.__widget);
                         }, this);
                         if (this.option("subgraph")) {
@@ -463,7 +475,7 @@ define([
                     }
                 }));
             });
-        });
+        //});
     };
 
     return declare("JSGraphWidget", [GraphWidget], {

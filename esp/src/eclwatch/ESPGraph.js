@@ -498,8 +498,8 @@ define([
                                 break;
                             case "edge":
                                 var edge = this.walkDocument(childNode, childNode.getAttribute("id"));
-                                if (edge.count) {
-                                    edge._eclwatchCount = edge.count.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                                if (edge.NumRowsProcessed) {
+                                    edge._eclwatchCount = edge.NumRowsProcessed.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                                 }
                                 if (edge.inputProgress) {
                                     edge._eclwatchInputProgress = "[" + edge.inputProgress.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "]";
