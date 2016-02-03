@@ -1097,12 +1097,12 @@ margin-left:-20px;
     fill:lightgray;
 }
 
-.claro .graph_Graph .graphEdge .graph_Edge.started {
-    stroke:lightgreen;
+.claro .graph_Graph .graphEdge .graph_Edge.active {
+    stroke:green;
 }
 
-.claro .graph_Graph .graphEdge .graph_Edge.started .common_Text {
-    fill:lightgray;
+.claro .graph_Graph .graphEdge .graph_Edge.active .common_Text {
+    fill:green;
 }
 
 .claro .graph_Graph .graphEdge .graph_Edge.finished {

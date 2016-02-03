@@ -274,6 +274,17 @@ define([
             return ESPRequest.send("WsWorkunits", "WUGetStats", params);
         },
 
+        WUCDebug: function (wuid, command) {
+            return ESPRequest.send("WsWorkunits", "WUCDebug", {
+                request: {
+                    Wuid: wuid,
+                    Command: command
+                }
+            }).then(function (response) {
+                console.log(JSON.stringify(response));
+            });
+        },
+
         //  Stub waiting for HPCC-10308
         visualisations: [
             { value: "DojoD3ScatterChart", label: "Scatter Chart" },
@@ -291,7 +302,8 @@ define([
             { value: "DojoD3Histogram", label: "Histogram" },
             { value: "DojoD3WordCloud", label: "Word Cloud" }
         ],
-        GetVisualisations:  function() {
+
+        GetVisualisations: function () {
             var deferred = new Deferred();
             if (this.visualisations) {
                 deferred.resolve(this.visualisations);

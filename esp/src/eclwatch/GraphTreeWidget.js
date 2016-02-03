@@ -724,6 +724,12 @@ define([
             for (var i = 0; i < selectedGlobalIDs.length; ++i) {
                 this.global.displayProperties(selectedGlobalIDs[i], propertiesDom);
             }
+            var context = this;
+            if (selectedGlobalIDs.length) {
+                WsWorkunits.WUCDebug(context.params.Wuid, "<debug:print edgeId='" + selectedGlobalIDs[0] + "'/>").then(function (response) {
+                    console.log(JSON.stringify(response));
+                });
+            }
             this.inSyncSelectionFrom = false;
         }, 500, false),
 

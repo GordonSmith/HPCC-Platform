@@ -21,10 +21,11 @@ define([
     "dojo/_base/array",
     "dojo/Evented",
 
+    "hpcc/WsWorkunits",
     "hpcc/GraphWidget",
     "hpcc/ESPGraph"
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, Evented,
-            GraphWidget, ESPGraph) {
+            WsWorkunits, GraphWidget, ESPGraph) {
 
     var persist = {
         remove: function (key) {
@@ -260,6 +261,22 @@ define([
                         });
                     },
 
+                    cleanObject: function (object) {
+                        var retVal = {};
+                        for (var key in object) {
+                            if (object.hasOwnProperty(key) && typeof object[key] !== "function") {
+                                retVal[key] = object[key];
+                            }
+                        }
+                        return retVal;
+                    },
+
+                    cleanObjects: function (objects) {
+                        return objects.map(function (object) {
+                            return this.cleanObject(object);
+                        }, this);
+                    },
+
                     gatherTreeWithProperties: function (subgraph) {
                         subgraph = subgraph || this.graphData.subgraphs[0];
                         var retVal = subgraph.getProperties();
@@ -282,23 +299,15 @@ define([
                     },
 
                     getSubgraphsWithProperties: function () {
-                        return this.graphData.subgraphs;
+                        return this.cleanObjects(this.graphData.subgraphs);
                     },
 
                     getVerticesWithProperties: function () {
-                        return this.graphData.vertices.map(function (vertex) {
-                            var retVal = {};
-                            for (var key in vertex) {
-                                if (vertex.hasOwnProperty(key) && typeof vertex[key] !== "function") {
-                                    retVal[key] = vertex[key];
-                                }
-                            }
-                            return retVal;
-                        });
+                        return this.cleanObjects(this.graphData.vertices);
                     },
 
                     getEdgesWithProperties: function () {
-                        return this.graphData.edges;
+                        return this.cleanObjects(this.graphData.edges);
                     },
 
                     getLocalisedXGMML: function (selectedItems, depth, distance) {
@@ -447,11 +456,16 @@ define([
                             }
                             var label = this.format(labelTpl, item);
                             var tooltip = this.format(tooltipTpl, item);
+                            var slavesTotal = parseInt(item.NumSlaves);
+                            var started = parseInt(item.NumStarted) > 0;
+                            var finished = parseInt(item.NumStopped) === parseInt(item.NumSlaves);
+                            var active = started && !finished;
                             item.__widget.text(label);
                             item.__widget.tooltip(tooltip);
                             item.__widget.classed({
-                                started: parseInt(item.NumStarted) && item.NumStarted !== item.NumStopped,
-                                finished: parseInt(item.NumStarted) && item.NumStarted === item.NumStopped
+                                started: started && !finished && !active,
+                                finished: finished && !active,
+                                active: active
                             });
                             edges.push(item.__widget);
                         }, this);
