@@ -515,6 +515,17 @@ define([
             return this.store;
         },
 
+        fetchFirstNRows: function (numRows) {
+            var deferred = new Deferred()
+            this.store.query({
+                Start: 0,
+                Count: numRows
+            }).then(function (results) {
+                deferred.resolve(results);
+            });
+            return deferred.promise;
+        },
+
         fetchContent: function () {
             var deferred = new Deferred()
             var context = this;
@@ -522,10 +533,7 @@ define([
                 Start: 0,
                 Count: 1
             }).total.then(function(total) {
-                context.store.query({
-                    Start: 0,
-                    Count: total
-                }).then(function(results) {
+                context.fetchFirstNRows(total).then(function(results) {
                     deferred.resolve(results);
                 });
             });

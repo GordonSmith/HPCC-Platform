@@ -288,15 +288,14 @@ define([
 
         //  Stub waiting for HPCC-10308
         visualisations: [
-            { value: "DojoD3ScatterChart", label: "Scatter Chart" },
-            { value: "DojoD32DChart C3_SCATTER", label: "Scatter C3 Chart" },
-            { value: "DojoD32DChart C3_PIE", label: "Pie Chart" },
-            { value: "DojoD32DChart C3_DONUT", label: "Donut Chart" },
-            { value: "DojoD32DChart C3_COLUMN", label: "Column Chart" },
-            { value: "DojoD32DChart C3_BAR", label: "Bar Chart" },
-            { value: "DojoD32DChart C3_LINE", label: "Line Chart" },
-            { value: "DojoD32DChart C3_STEP", label: "Step Chart" },
-            { value: "DojoD32DChart C3_AREA", label: "Area Chart" },
+            { value: "DojoD32DChart COLUMN", label: "Column Chart" },
+            { value: "DojoD32DChart BAR", label: "Bar Chart" },
+            { value: "DojoD32DChart LINE", label: "Line Chart" },
+            { value: "DojoD32DChart AREA", label: "Area Chart" },
+            { value: "DojoD32DChart STEP", label: "Step Chart" },
+            { value: "DojoD32DChart SCATTER", label: "Scatter Chart" },
+            { value: "DojoD32DChart BUBBLE", label: "Bubble Chart" },
+            { value: "DojoD32DChart PIE", label: "Pie Chart" },
             { value: "DojoD3Choropleth", label: "Choropleth" },
             { value: "DojoD3CooccurrenceGraph", label: "Co-Occurrence Graph" },
             { value: "DojoD3ForceDirectedGraph", label: "Force Directed Graph" },

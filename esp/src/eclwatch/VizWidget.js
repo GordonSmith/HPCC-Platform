@@ -44,6 +44,7 @@ define([
     "dijit/TooltipDialog",
     "dijit/form/Form",
     "dijit/form/Button",
+    "dijit/form/NumberSpinner",
     "dijit/form/DropDownButton"
 
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, Deferred, domConstruct, domForm, ioQuery, all,
@@ -70,6 +71,10 @@ define([
         postCreate: function (args) {
             this.inherited(arguments);
             this.borderContainer = registry.byId(this.id + "BorderContainer");
+            this.limit = registry.byId(this.id + "Limit");
+            this.aggregateMode = registry.byId(this.id + "AggregateMode");
+            this.vizSelect = registry.byId(this.id + "VizSelect");
+
             this.vizSelect = registry.byId(this.id + "VizSelect");
             this.mappingDropDown = registry.byId(this.id + "Mappings");
             this.mappingItems = registry.byId(this.id + "MappingItems");
@@ -104,7 +109,7 @@ define([
         },
 
         _onVizSelect: function (value) {
-            this.vizOnChange(value);
+            this.vizOnChange(value, true);
         },
 
         _onMappingsApply: function (evt) {
@@ -162,7 +167,7 @@ define([
                         }
                         context.doFetchAllStructures().then(function (response) {
                             context.loading = false;
-                            context.vizOnChange(context.vizSelect.get("value"), params.mapping);
+                            context.vizOnChange(context.vizSelect.get("value"), true);
                         });
                     });
                 }
@@ -362,8 +367,22 @@ define([
             if (this.vizType !== value) {
                 this.vizType = value;
                 var context = this;
-                require(["src/hpcc-viz", "src/hpcc-viz-common", "src/hpcc-viz-api", "src/hpcc-viz-chart", "src/hpcc-viz-c3chart", "src/hpcc-viz-map", "src/hpcc-viz-graph"], function () {
-                    require(["hpcc/viz/" + context.vizType], function (D3Viz) {
+                if (dojoConfig.vizDebug) {
+                    requireWidget();
+                } else {
+                    require(["dist-amd/hpcc-viz"], function () {
+                        require(["dist-amd/hpcc-viz-common"], function () {
+                            require(["dist-amd/hpcc-viz-api"], function () {
+                                require(["dist-amd/hpcc-viz-chart", "dist-amd/hpcc-viz-layout"], function () {
+                                    requireWidget();
+                                });
+                            });
+                        });
+                    });
+                }
+
+                function requireWidget() {
+                    require(["src/layout/Grid", "hpcc/viz/" + context.vizType], function (Grid, D3Viz) {
                         context.d3Viz = new D3Viz();
                         context.d3Viz._chartType = chartType;
                         domConstruct.empty(context.id + "VizCP");
@@ -372,9 +391,9 @@ define([
                         });
                         deferred.resolve(context.vizType);
                     });
-                });
+                }
             } else {
-                if (chartType && this.d3Viz.chart) {
+                if (chartType && lang.exists("d3Viz.chart", this)) {
                     this.d3Viz.chart.chartType(chartType);
                 }
                 deferred.resolve(this.vizType);
@@ -398,7 +417,13 @@ define([
                 var context = this;
                 var allArray = [];
                 arrayUtil.forEach(this.datasetMappings, function (datasetMapping, idx) {
-                    allArray.push(datasetMapping.result.fetchContent().then(function (response) {
+                    allArray.push(datasetMapping.result.fetchFirstNRows(context.limit.get("value")).then(function (response) {
+                        switch (context.aggregateMode.get("value")) {
+                            case "AVG":
+                                break;
+                            default:
+                                break;
+                        }
                         context.d3Viz.setData(response, datasetMapping.getID());
                         return response;
                     }));
