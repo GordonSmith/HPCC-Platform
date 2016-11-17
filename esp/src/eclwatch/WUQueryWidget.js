@@ -25,6 +25,7 @@ define([
     "dojo/on",
     "dojo/topic",
     "dojo/aspect",
+    "dojo/promise/all",
 
     "dijit/registry",
     "dijit/Menu",
@@ -60,7 +61,7 @@ define([
     "dijit/ToolbarSeparator",
     "dijit/TooltipDialog"
 
-], function (declare, lang, i18n, nlsHPCC, arrayUtil, dom, domForm, date, on, topic, aspect,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, dom, domForm, date, on, topic, aspect, all,
                 registry, Menu, MenuItem, MenuSeparator, PopupMenuItem,
                 selector,
                 _TabContainerWidget, WsWorkunits, ESPUtil, ESPWorkunit, DelayLoadWidget, TargetSelectWidget, FilterDropDownWidget, Utility,
@@ -87,6 +88,7 @@ define([
             this.downloadToListDialog = registry.byId(this.id + "DownloadToListDialog");
             this.downListForm = registry.byId(this.id + "DownListForm");
             this.fileName = registry.byId(this.id + "FileName");
+            this.dashContainer = registry.byId(this.id + "WorkunitsDash");
         },
 
         startup: function (args) {
@@ -100,6 +102,7 @@ define([
                     context._onRefresh();
                 }
             });
+            this.initViz();
         },
 
         _onDownloadToListCancelDialog: function (event){
@@ -505,6 +508,7 @@ define([
             if (clearSelection) {
                 this.workunitsGrid.clearSelection();
             }
+            this.refreshViz();
         },
 
         refreshActionState: function () {
@@ -574,7 +578,80 @@ define([
                 this.addChild(retVal, 1);
             }
             return retVal;
-        }
+        },
 
+        initViz: function () {
+            var context = this;
+            function requireWidget() {
+                require(["src/other/Comms", "src/chart/Column"], function (Comms, Column) {
+                    context.dashColumn = new Column()
+                        .target(context.id + "WorkunitsDash")
+                        .columns(["Workunit", "Stat Row Count"])
+                        .render()
+                    ;
+                });
+            }
+
+            if (dojoConfig.vizDebug) {
+                requireWidget();
+            } else {
+                require(["dist-amd/hpcc-viz"], function () {
+                    require(["dist-amd/hpcc-viz-common"], function () {
+                        require(["dist-amd/hpcc-viz-api"], function () {
+                            require(["dist-amd/hpcc-viz-layout"], function () {
+                                require(["dist-amd/hpcc-viz-chart", "dist-amd/hpcc-viz-google", "dist-amd/hpcc-viz-c3chart", "dist-amd/hpcc-viz-amchart", "dist-amd/hpcc-viz-other", "dist-amd/hpcc-viz-tree", "dist-amd/hpcc-viz-composite"], function () {
+                                    requireWidget();
+                                });
+                            });
+                        });
+                    });
+                });
+            }
+        },
+
+        refreshViz: function () {
+            if (this.dashColumn) {
+                var wuidNameMap = {};
+                var context = this;
+                WsWorkunits.WUQuery({
+                    request: this.filter.toObject()
+                    /*{
+                            Jobname: "04*",
+                            Cluster: "thor"
+                        }*/
+                }).then(function (response) {
+                    if (lang.exists("WUQueryResponse.Workunits.ECLWorkunit", response)) {
+                        return response.WUQueryResponse.Workunits.ECLWorkunit.map(function (wu) {
+                            wuidNameMap[wu.Wuid] = wu.Jobname
+                            return wu.Wuid;
+                        });
+                    }
+                }).then(function (wuids) {
+                    //wuids.length = 2;
+                    return wuids.map(function (wuid) {
+                        return WsWorkunits.WUGetStats({
+                            request: {
+                                WUID: wuid,
+                                ScopeType: "global",
+                                Kind: "TimeElapsed"
+                            }
+                        });
+                    });
+                }).then(function (statPromises) {
+                    return all(statPromises).then(function (stats) {
+                        return stats.map(function (statResponse) {
+                            if (lang.exists("WUGetStatsResponse.Statistics.WUStatisticItem", statResponse)) {
+                                return [wuidNameMap[statResponse.WUGetStatsResponse.WUID], statResponse.WUGetStatsResponse.Statistics.WUStatisticItem[0].RawValue];
+                            }
+                        });
+                    });
+                }).then(function (data) {
+                    context.dashColumn
+                        .data(data)
+                        .render()
+                    ;
+                });
+            }
+        }
     });
 });
