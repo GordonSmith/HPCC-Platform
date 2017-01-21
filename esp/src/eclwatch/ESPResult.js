@@ -550,22 +550,19 @@ define([
                 }
                 request['Start'] = 0;
                 request['Count'] = 1;
-                WsWorkunits.WUResult({
-                    request: request,
-                    load: function (response) {
-                        if (lang.exists("WUResultResponse.Result.XmlSchema.xml", response)) {
-                            context.XmlSchema = "<Result>" + response.WUResultResponse.Result.XmlSchema.xml + "</Result>";
-                            callback(context.getStructure());
-                        }
-                        /*
-                        if (rows.length) {
-                            var innerStruct = context.getRowStructureFromData(rows);
-                            for (var i = 0; i < innerStruct.length; ++i) {
-                                structure[0].cells[structure[0].cells.length - 1].push(innerStruct[i]);
-                            }
-                        }
-                        */
+                WsWorkunits.WUResult(request).then(function (response) {
+                    if (lang.exists("Result.XmlSchema.xml", response)) {
+                        context.XmlSchema = "<Result>" + response.Result.XmlSchema.xml + "</Result>";
+                        callback(context.getStructure());
                     }
+                    /*
+                    if (rows.length) {
+                        var innerStruct = context.getRowStructureFromData(rows);
+                        for (var i = 0; i < innerStruct.length; ++i) {
+                            structure[0].cells[structure[0].cells.length - 1].push(innerStruct[i]);
+                        }
+                    }
+                    */
                 });
             }
         },

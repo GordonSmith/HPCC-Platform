@@ -529,18 +529,16 @@ define([
             this.local.setMessage(this.i18n.FetchingData);
             var context = this;
             WsWorkunits.WUQueryGetGraph({
-                request: {
-                    Target: targetQuery,
-                    QueryId: queryId,
-                    GraphName: graphName
-                }
+                Target: targetQuery,
+                QueryId: queryId,
+                GraphName: graphName
             }).then(function(response){
                 context.overview.setMessage("");
                 context.main.setMessage("");
                 context.local.setMessage("");
-                if(lang.exists("WUQueryGetGraphResponse.Graphs.ECLGraphEx", response)){
-                    if(response.WUQueryGetGraphResponse.Graphs.ECLGraphEx.length > 0){
-                        context.loadGraphFromXGMML(response.WUQueryGetGraphResponse.Graphs.ECLGraphEx[0].Graph, "");
+                if(lang.exists("Graphs.ECLGraphEx", response)){
+                    if(response.Graphs.ECLGraphEx.length > 0){
+                        context.loadGraphFromXGMML(response.Graphs.ECLGraphEx[0].Graph, "");
                     }
                 }
             });
@@ -549,15 +547,13 @@ define([
         refreshGraphFromQuery: function (targetQuery, queryId, graphName) {
             var context = this;
             WsWorkunits.WUQueryGetGraph({
-                request: {
-                    Target: targetQuery,
-                    QueryId: queryId,
-                    GraphName: graphName
-                }
+                Target: targetQuery,
+                QueryId: queryId,
+                GraphName: graphName
             }).then(function (response) {
-                if (lang.exists("WUQueryGetGraphResponse.Graphs.ECLGraphEx", response)) {
-                    if (response.WUQueryGetGraphResponse.Graphs.ECLGraphEx.length > 0) {
-                        context.mergeGraphFromXGMML(response.WUQueryGetGraphResponse.Graphs.ECLGraphEx[0].Graph);
+                if (lang.exists("Graphs.ECLGraphEx", response)) {
+                    if (response.Graphs.ECLGraphEx.length > 0) {
+                        context.mergeGraphFromXGMML(response.Graphs.ECLGraphEx[0].Graph);
                     }
                 }
             });

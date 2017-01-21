@@ -287,7 +287,7 @@ define([
         },
 
         loadWUQueryResponse: function(prefix, response) {
-            var workunits = lang.getObject("WUQueryResponse.Workunits.ECLWorkunit", false, response)
+            var workunits = lang.getObject("Workunits.ECLWorkunit", false, response)
             if (workunits) {
                 var idPrefix = prefix.split(" ").join("_");
                 var context = this;
@@ -389,7 +389,7 @@ define([
         },
         
         loadWUListQueriesResponse: function (prefix, response) {
-            var items = lang.getObject("WUListQueriesResponse.QuerysetQueries.QuerySetQuery", false, response)
+            var items = lang.getObject("QuerysetQueries.QuerySetQuery", false, response)
             if (items) {
                 var idPrefix = prefix.split(" ").join("_");
                 var context = this;
@@ -468,16 +468,16 @@ define([
 
             var searchArray = [];
             if (searchECL) {
-                searchArray.push(WsWorkunits.WUQuery({ request: { Wuid: "*" + searchText + "*" }, suppressExceptionToaster: true }).then(function (response) {
+                searchArray.push(WsWorkunits.WUQuery({ Wuid: "*" + searchText + "*", __suppressExceptionToaster: true }).then(function (response) {
                     context.loadWUQueryResponse(context.i18n.WUID, response);
                 }));
-                searchArray.push(WsWorkunits.WUQuery({ request: { Jobname: "*" + searchText + "*" } }).then(function (response) {
+                searchArray.push(WsWorkunits.WUQuery({ Jobname: "*" + searchText + "*" }).then(function (response) {
                     context.loadWUQueryResponse(context.i18n.JobName, response);
                 }));
-                searchArray.push(WsWorkunits.WUQuery({ request: { Owner: searchText } }).then(function (response) {
+                searchArray.push(WsWorkunits.WUQuery({ Owner: searchText }).then(function (response) {
                     context.loadWUQueryResponse(context.i18n.Owner, response);
                 }));
-                searchArray.push(WsWorkunits.WUQuery({ request: { ECL: searchText } }).then(function (response) {
+                searchArray.push(WsWorkunits.WUQuery({ ECL: searchText }).then(function (response) {
                     context.loadWUQueryResponse(context.i18n.ECL, response);
                 }));
             }
@@ -504,10 +504,10 @@ define([
                 }));
             }
             if (searchQuery) {
-                searchArray.push(WsWorkunits.WUListQueries({ request: { QueryID: "*" + searchText + "*" } }).then(function (response) {
+                searchArray.push(WsWorkunits.WUListQueries({ QueryID: "*" + searchText + "*" }).then(function (response) {
                     context.loadWUListQueriesResponse(context.i18n.ID, response);
                 }));
-                searchArray.push(WsWorkunits.WUListQueries({ request: { QueryName: "*" + searchText + "*" } }).then(function (response) {
+                searchArray.push(WsWorkunits.WUListQueries({ QueryName: "*" + searchText + "*" }).then(function (response) {
                     context.loadWUListQueriesResponse(context.i18n.Name, response);
                 }));
             }

@@ -35,12 +35,14 @@ var dojoConfig = (function () {
         "colorbrewer": urlInfo.basePath + "/Visualization/bower_components/colorbrewer/colorbrewer",
         "d3-cloud": urlInfo.basePath + "/Visualization/bower_components/d3-cloud/build/d3.layout.cloud",
         "font-awesome": urlInfo.basePath + "/Visualization/bower_components/font-awesome/css/font-awesome",
-        "es6-promise": urlInfo.basePath + "/Visualization/bower_components/es6-promise/promise"
-    } : {
+        "es6-promise": urlInfo.basePath + "/Visualization/bower_components/es6-promise/promise",
+        "hpcc-platform-comms": urlInfo.basePath + "/hpcc-platform-comms/dist-dev/bundle"
+} : {
         "crossfilter": urlInfo.basePath + "/crossfilter/crossfilter.min",
         "font-awesome.css": urlInfo.basePath + "/Visualization/dist-amd/font-awesome/css/font-awesome.min.css",
         "dist-amd": urlInfo.basePath + "/Visualization/dist-amd",
-        "src": urlInfo.basePath + "/Visualization/dist-amd"
+        "src": urlInfo.basePath + "/Visualization/dist-amd",
+        "hpcc-platform-comms": urlInfo.basePath + "/hpcc-platform-comms/dist-dev/bundle"
     };
 
     return {

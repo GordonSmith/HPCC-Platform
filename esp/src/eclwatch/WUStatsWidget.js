@@ -339,12 +339,10 @@ define([
             this.stats.remove();
 
             WsWorkunits.WUGetStats({
-                request: {
-                    WUID: this.params.Wuid
-                }
+                WUID: this.params.Wuid
             }).then(function (response) {
-                if (lang.exists("WUGetStatsResponse.Statistics.WUStatisticItem", response)) {
-                    context.stats.add(response.WUGetStatsResponse.Statistics.WUStatisticItem.filter(function (row) {
+                if (lang.exists("Statistics.WUStatisticItem", response)) {
+                    context.stats.add(response.Statistics.WUStatisticItem.filter(function (row) {
                         return row.ScopeType !== "global" && row.Scope !== "Process";
                     }));
  

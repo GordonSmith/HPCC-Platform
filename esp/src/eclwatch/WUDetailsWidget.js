@@ -227,20 +227,18 @@ define([
         onZapReport: function (event) {
             var context = this;
             WsWorkunits.WUGetZAPInfo({
-                request: {
-                    WUID: this.wu.Wuid
-                }
+                WUID: this.wu.Wuid
             }).then(function (response) {
                 context.zapDialog.show();
-                if (lang.exists("WUGetZAPInfoResponse", response)) {
-                    context.updateInput("ZapWUID", null, response.WUGetZAPInfoResponse.WUID);
-                    context.updateInput("BuildVersion", null, response.WUGetZAPInfoResponse.BuildVersion);
-                    context.updateInput("ESPIPAddress", null, response.WUGetZAPInfoResponse.ESPIPAddress);
-                    context.updateInput("ThorIPAddress", null, response.WUGetZAPInfoResponse.ThorIPAddress);
+                if (response) {
+                    context.updateInput("ZapWUID", null, response.WUID);
+                    context.updateInput("BuildVersion", null, response.BuildVersion);
+                    context.updateInput("ESPIPAddress", null, response.ESPIPAddress);
+                    context.updateInput("ThorIPAddress", null, response.ThorIPAddress);
 
-                    context.buildVersion = response.WUGetZAPInfoResponse.BuildVersion;
-                    context.espIPAddress = response.WUGetZAPInfoResponse.ESPIPAddress;
-                    context.thorIPAddress = response.WUGetZAPInfoResponse.ThorIPAddress;
+                    context.buildVersion = response.BuildVersion;
+                    context.espIPAddress = response.ESPIPAddress;
+                    context.thorIPAddress = response.ThorIPAddress;
                 }
             });
         },
@@ -355,12 +353,10 @@ define([
         checkIfClustersAllowed: function () {
             var context = this;
             WsWorkunits.WUInfo({
-                request: {
-                    Wuid: this.wu.Wuid
-                }
+                Wuid: this.wu.Wuid
             }).then(function (response) {
-                if (lang.exists("WUInfoResponse.Workunit.AllowedClusters.AllowedCluster", response)) {
-                    var targetData = response.WUInfoResponse.Workunit.AllowedClusters.AllowedCluster;
+                if (lang.exists("Workunit.AllowedClusters.AllowedCluster", response)) {
+                    var targetData = response.Workunit.AllowedClusters.AllowedCluster;
                     if (targetData.length > 1) {
                         context.allowedClusters.options.push({
                             label: "&nbsp;",
@@ -384,19 +380,17 @@ define([
         checkThorLogStatus: function () {
             var context = this;
             WsWorkunits.WUInfo({
-                request: {
-                    Wuid: this.wu.Wuid
-                }
+                Wuid: this.wu.Wuid
             }).then(function (response) {
-                if (lang.exists("WUInfoResponse.Workunit.ThorLogList.ThorLogInfo", response)) {
-                    context.maxSlaves = response.WUInfoResponse.Workunit.ThorLogList.ThorLogInfo[0].NumberSlaves;
+                if (lang.exists("Workunit.ThorLogList.ThorLogInfo", response)) {
+                    context.maxSlaves = response.Workunit.ThorLogList.ThorLogInfo[0].NumberSlaves;
                     context.slaveNumber.set("maxLength", context.maxSlaves);
-                    dom.byId("SlavesMaxNumber").innerHTML = context.i18n.NumberofSlaves + " " + response.WUInfoResponse.Workunit.ThorLogList.ThorLogInfo[0].NumberSlaves;
-                    context.logDate = response.WUInfoResponse.Workunit.ThorLogList.ThorLogInfo[0].LogDate;
-                    context.clusterGroup = response.WUInfoResponse.Workunit.ThorLogList.ThorLogInfo[0].ProcessName;
+                    dom.byId("SlavesMaxNumber").innerHTML = context.i18n.NumberofSlaves + " " + response.Workunit.ThorLogList.ThorLogInfo[0].NumberSlaves;
+                    context.logDate = response.Workunit.ThorLogList.ThorLogInfo[0].LogDate;
+                    context.clusterGroup = response.Workunit.ThorLogList.ThorLogInfo[0].ProcessName;
                     context.slaveLogs.set("disabled", false);
                     context.includeSlaveLogsCheckbox.set("disabled", false);
-                    var targetData = response.WUInfoResponse.Workunit.ThorLogList.ThorLogInfo;
+                    var targetData = response.Workunit.ThorLogList.ThorLogInfo;
                         for (var i = 0; i < targetData.length; ++i) {
                             context.thorProcess.options.push({
                                 label: targetData[i].ProcessName,

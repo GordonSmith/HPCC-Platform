@@ -49,3 +49,6 @@
 [submodule "plugins/redis/hiredis"]
 	path = plugins/redis/hiredis
 	url = https://github.com/hpcc-systems/hiredis.git
+[submodule "esp/src/hpcc-platform-comms"]
+	path = esp/src/hpcc-platform-comms
+	url = https://github.com/GordonSmith/hpcc-platform-comms.git

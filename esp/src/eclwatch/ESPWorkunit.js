@@ -268,14 +268,12 @@ define([
         },
         create: function (ecl) {
             var context = this;
-            WsWorkunits.WUCreate({
-                load: function (response) {
-                    _workunits[response.WUCreateResponse.Workunit.Wuid] = context;
-                    context.Wuid = response.WUCreateResponse.Workunit.Wuid;
-                    context.startMonitor(true);
-                    context.updateData(response.WUCreateResponse.Workunit);
-                    context.onCreate();
-                }
+            WsWorkunits.WUCreate().then(function(response) {
+                _workunits[response.Workunit.Wuid] = context;
+                context.Wuid = response.Workunit.Wuid;
+                context.startMonitor(true);
+                context.updateData(response.Workunit);
+                context.onCreate();
             });
         },
         update: function (request, appData) {
@@ -294,20 +292,15 @@ define([
             });
 
             var context = this;
-            WsWorkunits.WUUpdate({
-                request: request,
-                load: function (response) {
-                    if (lang.exists("Exceptions.Exception", response)) {
-                        dojo.publish("hpcc/brToaster", {
-                            message: "<h4>" + response.Exceptions.Source + "</h4>" + "<p>" + response.Exceptions.Exception[0].Message + "</p>",
-                            type: "error",
-                            duration: -1
-                        });
-                    } else {
-                        context.updateData(response.WUUpdateResponse.Workunit);
-                    }
-                    context.onUpdate();
-                }
+            WsWorkunits.WUUpdate(request).then(function (response) {
+                context.updateData(response.Workunit);
+                context.onUpdate();
+            }).catch(function (e) {
+                dojo.publish("hpcc/brToaster", {
+                    message: "<h4>" + e.Source + "</h4>" + "<p>" + e.Exception[0].Message + "</p>",
+                    type: "error",
+                    duration: -1
+                });
             });
         },
         submit: function (target) {
@@ -316,13 +309,10 @@ define([
             var deferred = new Deferred()
             deferred.promise.then(function (target) {
                 WsWorkunits.WUSubmit({
-                    request: {
-                        Wuid: context.Wuid,
-                        Cluster: target
-                    },
-                    load: function (response) {
-                        context.onSubmit();
-                    }
+                    Wuid: context.Wuid,
+                    Cluster: target
+                }).then(function(response) {
+                    context.onSubmit();
                 });
             });
 
@@ -340,11 +330,9 @@ define([
             this._assertHasWuid();
             var context = this;
             return WsWorkunits.WUResubmit({
-                request: {
-                    Wuids: this.Wuid,
-                    CloneWorkunit: clone,
-                    ResetWorkflow: resetWorkflow
-                }
+                Wuids: [this.Wuid],
+                CloneWorkunit: clone,
+                ResetWorkflow: resetWorkflow
             }).then(function (response) {
                 context.refresh();
                 return response;
@@ -355,10 +343,10 @@ define([
             this._resubmit(true, false).then(function (response) {
                 if (!lang.exists("Exceptions.Source", response)) {
                     var msg = "";
-                    if (lang.exists("WUResubmitResponse.WUs.WU", response) && response.WUResubmitResponse.WUs.WU.length) {
-                        msg = context.i18n.ClonedWUID + ":  " + response.WUResubmitResponse.WUs.WU[0].WUID;
+                    if (lang.exists("WUs.WU", response) && response.WUs.WU.length) {
+                        msg = context.i18n.ClonedWUID + ":  " + response.WUs.WU[0].WUID;
                         topic.publish("hpcc/ecl_wu_created", {
-                            wuid: response.WUResubmitResponse.WUs.WU[0].WUID
+                            wuid: response.WUs.WU[0].WUID
                         });
                     }
                     dojo.publish("hpcc/brToaster", {
@@ -437,22 +425,19 @@ define([
             this._assertHasWuid();
             var context = this;
             WsWorkunits.WUPublishWorkunit({
-                request: {
-                    Wuid: this.Wuid,
-                    JobName: jobName,
-                    RemoteDali: remoteDali,
-                    SourceProcess: sourceProcess,
-                    Priority: priority,
-                    Comment: comment,
-                    AllowForeignFiles: allowForeign,
-                    UpdateSuperFiles: updateSupers,
-                    Activate: 1,
-                    UpdateWorkUnitName: 1,
-                    Wait: 5000
-                },
-                load: function (response) {
-                    context.updateData(response.WUPublishWorkunitResponse);
-                }
+                Wuid: this.Wuid,
+                JobName: jobName,
+                RemoteDali: remoteDali,
+                SourceProcess: sourceProcess,
+                Priority: priority,
+                Comment: comment,
+                AllowForeignFiles: allowForeign,
+                UpdateSuperFiles: updateSupers,
+                Activate: 1,
+                UpdateWorkUnitName: 1,
+                Wait: 5000
+            }).then(function (response) {
+                context.updateData(response);
             });
         },
         refresh: function (full) {
@@ -471,12 +456,10 @@ define([
             this._assertHasWuid();
             var context = this;
             return WsWorkunits.WUQuery({
-                request: {
-                    Wuid: this.Wuid
-                }
+                Wuid: this.Wuid
             }).then(function (response) {
-                if (lang.exists("WUQueryResponse.Workunits.ECLWorkunit", response)) {
-                    arrayUtil.forEach(response.WUQueryResponse.Workunits.ECLWorkunit, function (item, index) {
+                if (lang.exists("Workunits.ECLWorkunit", response)) {
+                    arrayUtil.forEach(response.Workunits.ECLWorkunit, function (item, index) {
                         context.updateData(item);
                     });
                 }
@@ -487,42 +470,40 @@ define([
             this._assertHasWuid();
             var context = this;
             return WsWorkunits.WUInfo({
-                request: {
-                    Wuid: this.Wuid,
-                    TruncateEclTo64k: args.onGetText ? false : true,
-                    IncludeExceptions: args.onGetWUExceptions ? true : false,
-                    IncludeGraphs: args.onGetGraphs ? true : false,
-                    IncludeSourceFiles: args.onGetSourceFiles ? true : false,
-                    IncludeResults: (args.onGetResults || args.onGetSequenceResults) ? true : false,
-                    IncludeResultsViewNames: (args.onGetResults || args.onGetSequenceResults) ? true : false,
-                    IncludeVariables: args.onGetVariables ? true : false,
-                    IncludeTimers: args.onGetTimers ? true : false,
-                    IncludeResourceURLs: args.onGetResourceURLs ? true : false,
-                    IncludeDebugValues: args.onGetDebugValues ? true : false,
-                    IncludeApplicationValues: args.onGetApplicationValues ? true : false,
-                    IncludeWorkflows: args.onGetWorkflows ? true : false,
-                    IncludeXmlSchemas: false,
-                    SuppressResultSchemas: true
-                }
+                Wuid: this.Wuid,
+                TruncateEclTo64k: args.onGetText ? false : true,
+                IncludeExceptions: args.onGetWUExceptions ? true : false,
+                IncludeGraphs: args.onGetGraphs ? true : false,
+                IncludeSourceFiles: args.onGetSourceFiles ? true : false,
+                IncludeResults: (args.onGetResults || args.onGetSequenceResults) ? true : false,
+                IncludeResultsViewNames: (args.onGetResults || args.onGetSequenceResults) ? true : false,
+                IncludeVariables: args.onGetVariables ? true : false,
+                IncludeTimers: args.onGetTimers ? true : false,
+                IncludeResourceURLs: args.onGetResourceURLs ? true : false,
+                IncludeDebugValues: args.onGetDebugValues ? true : false,
+                IncludeApplicationValues: args.onGetApplicationValues ? true : false,
+                IncludeWorkflows: args.onGetWorkflows ? true : false,
+                IncludeXmlSchemas: false,
+                SuppressResultSchemas: true
             }).then(function(response) {
-                if (lang.exists("WUInfoResponse.Workunit", response)) {
-                    if (!args.onGetText && lang.exists("WUInfoResponse.Workunit.Query", response)) {
+                if (lang.exists("Workunit", response)) {
+                    if (!args.onGetText && lang.exists("Workunit.Query", response)) {
                         //  A truncated version of ECL just causes issues  ---
-                        delete response.WUInfoResponse.Workunit.Query;
+                        delete response.Workunit.Query;
                     }
-                    if (lang.exists("WUInfoResponse.ResultViews", response) && lang.exists("WUInfoResponse.Workunit.Results", response)) {
-                        lang.mixin(response.WUInfoResponse.Workunit.Results, {
-                            ResultViews: response.WUInfoResponse.ResultViews
+                    if (lang.exists("ResultViews", response) && lang.exists("Workunit.Results", response)) {
+                        lang.mixin(response.Workunit.Results, {
+                            ResultViews: response.ResultViews
                         });
                     }
-                    if (args.onGetWUExceptions && !lang.exists("WUInfoResponse.Workunit.Exceptions.ECLException", response)) {
-                        lang.mixin(response.WUInfoResponse.Workunit, {
+                    if (args.onGetWUExceptions && !lang.exists("Workunit.Exceptions.ECLException", response)) {
+                        lang.mixin(response.Workunit, {
                             Exceptions: {
                                 ECLException: []
                             }
                         })
                     }
-                    context.updateData(response.WUInfoResponse.Workunit);
+                    context.updateData(response.Workunit);
 
                     if (args.onGetText) {
                         args.onGetText(lang.exists("Query.Text", context) ? context.Query.Text : "");
@@ -734,14 +715,11 @@ define([
             this._assertHasWuid();
             var context = this;
             WsWorkunits.WUFile({
-                request: {
-                    Wuid: this.Wuid,
-                    Type: "XML"
-                },
-                load: function (response) {
-                    context.xml = response;
-                    onFetchXML(response);
-                }
+                Wuid: this.Wuid,
+                Type: "XML"
+            }).then(function (response) {
+                context.xml = response;
+                onFetchXML(response);
             });
         },
         fetchResults: function (onFetchResults) {
@@ -841,13 +819,11 @@ define([
             this._assertHasWuid();
             var context = this;
             WsWorkunits.WUGetGraph({
-                request: {
-                    Wuid: this.Wuid,
-                    GraphName: this.graphs[idx].Name
-                }
+                Wuid: this.Wuid,
+                GraphName: this.graphs[idx].Name
             }).then(function (response) {
-                if (lang.exists("WUGetGraphResponse.Graphs.ECLGraphEx", response) && response.WUGetGraphResponse.Graphs.ECLGraphEx.length) {
-                    context.graphs[idx].xgmml = response.WUGetGraphResponse.Graphs.ECLGraphEx[0].Graph;
+                if (lang.exists("Graphs.ECLGraphEx", response) && response.Graphs.ECLGraphEx.length) {
+                    context.graphs[idx].xgmml = response.Graphs.ECLGraphEx[0].Graph;
                     onFetchGraphXgmml(context.graphs[idx].xgmml, context.graphs[idx].svg);
                 }
             });

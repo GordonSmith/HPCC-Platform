@@ -546,16 +546,14 @@ define([
             this.main.setMessage(this.i18n.FetchingData);
             var context = this;
             WsWorkunits.WUQueryGetGraph({
-                request: {
-                    Target: targetQuery,
-                    QueryId: queryId,
-                    GraphName: graphName
-                }
+                Target: targetQuery,
+                QueryId: queryId,
+                GraphName: graphName
             }).then(function(response){
                 context.main.setMessage("");
-                if(lang.exists("WUQueryGetGraphResponse.Graphs.ECLGraphEx", response)){
-                    if(response.WUQueryGetGraphResponse.Graphs.ECLGraphEx.length > 0){
-                        context.loadGraphFromXGMML(response.WUQueryGetGraphResponse.Graphs.ECLGraphEx[0].Graph, "");
+                if(lang.exists("Graphs.ECLGraphEx", response)){
+                    if(response.Graphs.ECLGraphEx.length > 0){
+                        context.loadGraphFromXGMML(response.Graphs.ECLGraphEx[0].Graph, "");
                     }
                 }
             });
@@ -564,15 +562,13 @@ define([
         refreshGraphFromQuery: function (targetQuery, queryId, graphName) {
             var context = this;
             WsWorkunits.WUQueryGetGraph({
-                request: {
-                    Target: targetQuery,
-                    QueryId: queryId,
-                    GraphName: graphName
-                }
+                Target: targetQuery,
+                QueryId: queryId,
+                GraphName: graphName
             }).then(function (response) {
-                if (lang.exists("WUQueryGetGraphResponse.Graphs.ECLGraphEx", response)) {
-                    if (response.WUQueryGetGraphResponse.Graphs.ECLGraphEx.length > 0) {
-                        context.mergeGraphFromXGMML(response.WUQueryGetGraphResponse.Graphs.ECLGraphEx[0].Graph);
+                if (lang.exists("Graphs.ECLGraphEx", response)) {
+                    if (response.Graphs.ECLGraphEx.length > 0) {
+                        context.mergeGraphFromXGMML(response.Graphs.ECLGraphEx[0].Graph);
                     }
                 }
             });
@@ -773,8 +769,8 @@ define([
                 });
                 if (edges.length === 1) {
                     WsWorkunits.WUCDebug(context.params.Wuid, "<debug:print edgeId='" + edges[0] + "'/>").then(function (response) {
-                        if (lang.exists("WUDebugResponse.Result", response)) {
-                            context.global.displayTrace(response.WUDebugResponse.Result, propertiesDom);
+                        if (lang.exists("Result", response)) {
+                            context.global.displayTrace(response.Result, propertiesDom);
                         }
                     });
                 }

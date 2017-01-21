@@ -200,10 +200,8 @@ define([
         _onEventApply: function (event){
             var filterInfo = domForm.toObject(this.id + "FilterForm");
             WsWorkunits.WUPushEvent({
-                request:{
-                    EventName: filterInfo.EventName,
-                    EventText: filterInfo.EventText
-                }
+                EventName: filterInfo.EventName,
+                EventText: filterInfo.EventText
             });
             registry.byId(this.id + "FilterDropDown").closeDropDown();
         },

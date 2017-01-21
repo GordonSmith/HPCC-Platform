@@ -116,15 +116,13 @@ define([
         getDetails: function (args) {
             var context = this;
             return WsWorkunits.WUQueryDetails({
-                request:{
-                    QueryId: this.Id,
-                    QuerySet: this.QuerySetId,
-                    IncludeSuperFiles: 1,
-                    IncludeStateOnClusters: 1
-                }
+                QueryId: this.Id,
+                QuerySet: this.QuerySetId,
+                IncludeSuperFiles: 1,
+                IncludeStateOnClusters: 1
             }).then(function (response) {
-                if (lang.exists("WUQueryDetailsResponse", response)) {
-                    context.updateData(response.WUQueryDetailsResponse);
+                if (response) {
+                    context.updateData(response);
                 }
                 return response;
             });
@@ -156,8 +154,8 @@ define([
         showResetQueryStatsResponse: function (responses) {
             var sv = "Error";
             var msg = "Invalid response";
-            if (lang.exists("WUQuerySetQueryActionResponse.Results", responses[0])) {
-                var result = responses[0].WUQuerySetQueryActionResponse.Results.Result[0];
+            if (lang.exists("Results", responses[0])) {
+                var result = responses[0].Results.Result[0];
                 if (result.Success === 0) {
                     msg = this.i18n.Exception + ": code=" + result.Code + " message=" + result.Message;
                 }

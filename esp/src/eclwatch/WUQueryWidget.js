@@ -160,10 +160,8 @@ define([
             var list = this.arrayToList(selection, "Wuid");
             if (confirm(this.i18n.DeleteSelectedWorkunits + "\n" + list)) {
                 var context = this;
-                WsWorkunits.WUAction(selection, "Delete", {
-                    load: function (response) {
-                        context.refreshGrid(true);
-                    }
+                WsWorkunits.WUAction(selection, "Delete").then(function (response) {
+                    context.refreshGrid(true);
                 });
             }
         },
