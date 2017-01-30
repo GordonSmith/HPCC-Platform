@@ -42,6 +42,7 @@ var dojoConfig = (function () {
         "font-awesome.css": urlInfo.basePath + "/Visualization/dist-amd/font-awesome/css/font-awesome.min.css",
         "dist-amd": urlInfo.basePath + "/Visualization/dist-amd",
         "src": urlInfo.basePath + "/Visualization/dist-amd",
+        "es6-promise": urlInfo.basePath + "/Visualization/bower_components/es6-promise/promise",
         "hpcc-platform-comms": urlInfo.basePath + "/hpcc-platform-comms/dist-dev/bundle"
     };
 

@@ -29,9 +29,10 @@ define([
     "hpcc/WsTopology",
     "hpcc/ESPUtil",
     "hpcc/ESPRequest",
-    "hpcc/ESPResult"
+    "hpcc/ESPResult",
+    "hpcc-platform-comms"
 ], function (declare, arrayUtil, lang, i18n, nlsHPCC, Deferred, all, Observable, topic,
-    Utility, WsWorkunits, WsTopology, ESPUtil, ESPRequest, ESPResult) {
+    Utility, WsWorkunits, WsTopology, ESPUtil, ESPRequest, ESPResult, HPCCComms) {
 
     var _workunits = {};
 
@@ -57,10 +58,8 @@ define([
             this.busy = false;
             this._toUnwatch = lang.mixin({}, this._watched);
         },
-        create: function (id) {
-            return new Workunit({
-                Wuid: id
-            });
+        create: function (wuid) {
+            return new Workunit(WsWorkunits, wuid);
         },
         update: function (id, item) {
             var storeItem = this.get(id);
@@ -85,7 +84,7 @@ define([
         }
     });
 
-    var Workunit = declare([ESPUtil.Singleton, ESPUtil.Monitor], {
+    var Workunit = declare([HPCCComms.Workunit, ESPUtil.Singleton, ESPUtil.Monitor], {
         i18n: nlsHPCC,
 
         //  Asserts  ---
@@ -218,17 +217,9 @@ define([
         },
 
         //  ---  ---  ---
-        onCreate: function () {
-        },
-        onUpdate: function () {
-        },
-        onSubmit: function () {
-        },
-        constructor: function (args) {
-            this.inherited(arguments);
-            if (args) {
-                declare.safeMixin(this, args);
-            }
+        constructor: function (connection, wuid) {
+            //this.inherited(arguments, [WsWorkunits, args.Wuid]);
+            this.Wuid = wuid;
             this.wu = this;
         },
         isComplete: function () {
@@ -268,12 +259,12 @@ define([
         },
         create: function (ecl) {
             var context = this;
-            WsWorkunits.WUCreate().then(function(response) {
+            return WsWorkunits.WUCreate().then(function(response) {
                 _workunits[response.Workunit.Wuid] = context;
                 context.Wuid = response.Workunit.Wuid;
                 context.startMonitor(true);
                 context.updateData(response.Workunit);
-                context.onCreate();
+                return context;
             });
         },
         update: function (request, appData) {
@@ -292,9 +283,9 @@ define([
             });
 
             var context = this;
-            WsWorkunits.WUUpdate(request).then(function (response) {
+            return WsWorkunits.WUUpdate(request).then(function (response) {
                 context.updateData(response.Workunit);
-                context.onUpdate();
+                return context;
             }).catch(function (e) {
                 dojo.publish("hpcc/brToaster", {
                     message: "<h4>" + e.Source + "</h4>" + "<p>" + e.Exception[0].Message + "</p>",
@@ -305,26 +296,25 @@ define([
         },
         submit: function (target) {
             this._assertHasWuid();
-            var context = this;
-            var deferred = new Deferred()
-            deferred.promise.then(function (target) {
-                WsWorkunits.WUSubmit({
-                    Wuid: context.Wuid,
-                    Cluster: target
-                }).then(function(response) {
-                    context.onSubmit();
-                });
-            });
-
+            var promise;
             if (target) {
-                deferred.resolve(target);
+                promise = Promise.resolve(target);
             } else {
-                WsTopology.TpLogicalClusterQuery().then(function (response) {
+                promise = WsTopology.TpLogicalClusterQuery().then(function (response) {
                     if (lang.exists("TpLogicalClusterQueryResponse.default", response)) {
-                        deferred.resolve(response.TpLogicalClusterQueryResponse["default"].Name);
+                        return response.TpLogicalClusterQueryResponse["default"].Name;
                     }
                 });
             }
+            var context = this;
+            return promise.then(function (target) {
+                return WsWorkunits.WUSubmit({
+                    Wuid: context.Wuid,
+                    Cluster: target
+                }).then(function (response) {
+                    return context;
+                });
+            });
         },
         _resubmit: function (clone, resetWorkflow) {
             this._assertHasWuid();
@@ -845,9 +835,8 @@ define([
         },
 
         Create: function (params) {
-            retVal = new Workunit(params);
-            retVal.create();
-            return retVal;
+            retVal = new Workunit(WsWorkunits, "");
+            return retVal.create();
         },
 
         Get: function (wuid, data) {

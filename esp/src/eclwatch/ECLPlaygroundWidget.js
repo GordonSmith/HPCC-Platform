@@ -320,19 +320,15 @@ define([
                 });
             } else {
                 var context = this;
-                this.wu = ESPWorkunit.Create({
-                    onCreate: function () {
-                        context.wu.update({
-                            QueryText: text
-                        });
-                        context.watchWU();
-                    },
-                    onUpdate: function () {
-                        context.wu.submit(context.targetSelectWidget.getValue());
-                    },
-                    onSubmit: function () {
-                    }
-                });
+                ESPWorkunit.Create().then(function(wu){
+                    context.wu = wu;
+                    return context.wu.update({
+                        QueryText: text
+                    });
+                }).then(function(wu) {
+                    context.watchWU();
+                    return context.wu.submit(context.targetSelectWidget.getValue());
+                })
             }
         }
     });
