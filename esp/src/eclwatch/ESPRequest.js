@@ -23,9 +23,11 @@ define([
     "dojo/request/script",
     "dojo/store/util/QueryResults",
     "dojo/store/Observable",
-    "dojo/topic"
+    "dojo/topic",
 
-], function (declare, arrayUtil, lang, config, Deferred, request, script, QueryResults, Observable, topic) {
+    "hpcc-platform-comms"
+], function (declare, arrayUtil, lang, config, Deferred, request, script, QueryResults, Observable, topic,
+    HPCCComms) {
     var RequestHelper = declare(null, {
 
         serverIP: null,

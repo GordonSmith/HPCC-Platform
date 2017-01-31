@@ -136,7 +136,7 @@ define([
                                             context.watchHandle.unwatch();
                                             context.cachedResponse = response;
                                             context.displayHex();
-                                            context.wu.doDelete();
+                                            context.wu.delete();
                                         });
                                     });
                                 });

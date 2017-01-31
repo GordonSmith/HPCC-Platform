@@ -24,6 +24,7 @@ var dojoConfig = (function () {
     var urlInfo = initUrl();
     var vizDebug = false;
     var paths = vizDebug ? {
+        "es6-promise": urlInfo.basePath + "/hpcc-platform-comms/node_modules/es6-promise/dist/es6-promise",
         "crossfilter": urlInfo.basePath + "/crossfilter/crossfilter.min",
         "font-awesome.css": urlInfo.basePath + "/Visualization/dist-amd/font-awesome/css/font-awesome.min.css",
         "src": urlInfo.basePath + "/Visualization/src",
@@ -35,14 +36,13 @@ var dojoConfig = (function () {
         "colorbrewer": urlInfo.basePath + "/Visualization/bower_components/colorbrewer/colorbrewer",
         "d3-cloud": urlInfo.basePath + "/Visualization/bower_components/d3-cloud/build/d3.layout.cloud",
         "font-awesome": urlInfo.basePath + "/Visualization/bower_components/font-awesome/css/font-awesome",
-        "es6-promise": urlInfo.basePath + "/Visualization/bower_components/es6-promise/promise",
         "hpcc-platform-comms": urlInfo.basePath + "/hpcc-platform-comms/dist-dev/bundle"
-} : {
+    } : {
+        "es6-promise": urlInfo.basePath + "/hpcc-platform-comms/node_modules/es6-promise/dist/es6-promise",
         "crossfilter": urlInfo.basePath + "/crossfilter/crossfilter.min",
         "font-awesome.css": urlInfo.basePath + "/Visualization/dist-amd/font-awesome/css/font-awesome.min.css",
         "dist-amd": urlInfo.basePath + "/Visualization/dist-amd",
         "src": urlInfo.basePath + "/Visualization/dist-amd",
-        "es6-promise": urlInfo.basePath + "/Visualization/bower_components/es6-promise/promise",
         "hpcc-platform-comms": urlInfo.basePath + "/hpcc-platform-comms/dist-dev/bundle"
     };
 

@@ -322,12 +322,14 @@ define([
                 var context = this;
                 ESPWorkunit.Create().then(function(wu){
                     context.wu = wu;
-                    return context.wu.update({
+                    return wu;
+                }).then(function (wu) {
+                    return wu.update({
                         QueryText: text
                     });
-                }).then(function(wu) {
+                }).then(function (wu) {
                     context.watchWU();
-                    return context.wu.submit(context.targetSelectWidget.getValue());
+                    return context.wu.submit(context.targetSelectWidget.get("value"));
                 })
             }
         }

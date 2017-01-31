@@ -177,7 +177,7 @@ define([
             this.wu.clone();
         },
         _onDelete: function (event) {
-            this.wu.doDelete();
+            this.wu.delete();
         },
         _onResubmit: function (event) {
             this.wu.resubmit();
@@ -192,10 +192,10 @@ define([
             this.wu.recover();
         },
         _onDeschedule: function (event) {
-            this.wu.doDeschedule();
+            this.wu.deschedule();
         },
         _onReschedule: function (event) {
-            this.wu.doReschedule();
+            this.wu.reschedule();
         },
         _onPublish: function (event) {
             var allowForeign = registry.byId(this.id + "AllowForeignFiles");

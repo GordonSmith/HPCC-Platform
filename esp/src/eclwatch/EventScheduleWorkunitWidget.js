@@ -224,7 +224,7 @@ define([
             if (confirm(this.i18n.DescheduleSelectedWorkunits)) {
                 var context = this;
                 var selection = this.eventGrid.getSelected();
-                WsWorkunits.WUAction(selection, "Deschedule").then(function (response) {
+                WsWorkunits.WUActionEx(selection, "Deschedule").then(function (response) {
                     context.refreshGrid(response);
                 });
             }

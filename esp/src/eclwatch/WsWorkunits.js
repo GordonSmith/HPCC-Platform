@@ -225,29 +225,43 @@ define([
         });
     };
 
-    WsWorkunits.prototype.WUAction = function (workunits, actionType, callback) {
+    WsWorkunits.prototype.WUAction = function (request) {
+        return __super.WUAction.call(this, request).then(function (response) {
+            if (lang.exists("ActionResults.WUActionResult", response)) {
+                arrayUtil.forEach(response.ActionResults.WUActionResult, function (item, index) {
+                    if (item.Result.indexOf("Failed:") === 0) {
+                        topic.publish("hpcc/brToaster", {
+                            Severity: "Error",
+                            Source: "WsWorkunits.WUAction",
+                            Exceptions: [{ Source: item.Action + " " + item.Wuid, Message: item.Result }]
+                        });
+                    }
+                });
+            }
+            return response;
+        });
+    };
+
+    WsWorkunits.prototype.WUActionEx = function (workunits, actionType, callback) {
         var request = {
             Wuids: arrayUtil.map(workunits, function (item) {
                 return item.Wuid;
             }),
             WUActionType: actionType
         };
-        return __super.WUAction.call(this, request).then(function (response) {
+        return this.WUAction.call(this, request).then(function (response) {
             if (lang.exists("ActionResults.WUActionResult", response)) {
                 var wuMap = {};
                 arrayUtil.forEach(workunits, function (item, index) {
                     wuMap[item.Wuid] = item;
                 });
                 arrayUtil.forEach(response.ActionResults.WUActionResult, function (item, index) {
-                    if (item.Result.indexOf("Failed:") === 0) {
-                        topic.publish("hpcc/brToaster", {
-                            Severity: "Error",
-                            Source: "WsWorkunits.WUAction",
-                            Exceptions: [{Source: item.Action + " " + item.Wuid, Message: item.Result}]
-                        });
-                    } else {
+                    if (item.Result.indexOf("Failed:") !== 0) {
                         var wu = wuMap[item.Wuid];
                         if (actionType === "delete" && item.Result === "Success") {
+                            wu._updateState({
+                                StateID: 999
+                            });
                             wu.set("StateID", 999);
                             wu.set("State", "not found");
                         } else if (wu.refresh) {

@@ -160,34 +160,34 @@ define([
             var list = this.arrayToList(selection, "Wuid");
             if (confirm(this.i18n.DeleteSelectedWorkunits + "\n" + list)) {
                 var context = this;
-                WsWorkunits.WUAction(selection, "Delete").then(function (response) {
+                WsWorkunits.WUActionEx(selection, "Delete").then(function (response) {
                     context.refreshGrid(true);
                 });
             }
         },
 
         _onSetToFailed: function (event) {
-            WsWorkunits.WUAction(this.workunitsGrid.getSelected(), "SetToFailed");
+            WsWorkunits.WUActionEx(this.workunitsGrid.getSelected(), "SetToFailed");
         },
 
         _onAbort: function (event) {
-            WsWorkunits.WUAction(this.workunitsGrid.getSelected(), "Abort");
+            WsWorkunits.WUActionEx(this.workunitsGrid.getSelected(), "Abort");
         },
 
         _onProtect: function (event) {
-            WsWorkunits.WUAction(this.workunitsGrid.getSelected(), "Protect");
+            WsWorkunits.WUActionEx(this.workunitsGrid.getSelected(), "Protect");
         },
 
         _onUnprotect: function (event) {
-            WsWorkunits.WUAction(this.workunitsGrid.getSelected(), "Unprotect");
+            WsWorkunits.WUActionEx(this.workunitsGrid.getSelected(), "Unprotect");
         },
 
         _onReschedule: function (event) {
-            WsWorkunits.WUAction(this.workunitsGrid.getSelected(), "Reschedule");
+            WsWorkunits.WUActionEx(this.workunitsGrid.getSelected(), "Reschedule");
         },
 
         _onDeschedule: function (event) {
-            WsWorkunits.WUAction(this.workunitsGrid.getSelected(), "Deschedule");
+            WsWorkunits.WUActionEx(this.workunitsGrid.getSelected(), "Deschedule");
         },
 
         _onRowDblClick: function (wuid) {

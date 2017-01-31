@@ -34,8 +34,6 @@ define([
 ], function (declare, arrayUtil, lang, i18n, nlsHPCC, Deferred, all, Observable, topic,
     Utility, WsWorkunits, WsTopology, ESPUtil, ESPRequest, ESPResult, HPCCComms) {
 
-    var _workunits = {};
-
     var Store = declare([ESPRequest.Store], {
         service: "WsWorkunits",
         action: "WUQuery",
@@ -59,17 +57,16 @@ define([
             this._toUnwatch = lang.mixin({}, this._watched);
         },
         create: function (wuid) {
-            return new Workunit(WsWorkunits, wuid);
+            return new Workunit("", wuid);
         },
         update: function (id, item) {
             var storeItem = this.get(id);
             storeItem.updateData(item);
             if (!this._watched[id]) {
                 var context = this;
-                this._watched[id] = storeItem.watch("__hpcc_changedCount", function (name, oldValue, newValue) {
-                    if (oldValue !== newValue) {
-                        context.notify(storeItem, id);
-                    }
+                this._watched[id] = storeItem.on("changed", function (changedInfo) {
+                    storeItem.updateData(storeItem._espWorkunit);
+                    context.notify(storeItem, id);
                 });
             } else {
                 delete this._toUnwatch[id];
@@ -79,7 +76,7 @@ define([
             for (var key in this._toUnwatch) {
                 this._toUnwatch[key].unwatch();
                 delete this._watched[key];
-            }
+        }
             delete this._toUnwatch;
         }
     });
@@ -218,73 +215,44 @@ define([
 
         //  ---  ---  ---
         constructor: function (connection, wuid) {
-            //this.inherited(arguments, [WsWorkunits, args.Wuid]);
-            this.Wuid = wuid;
+            //  Auto called by dojo:   __super(connection, wuid)  ---
             this.wu = this;
-        },
-        isComplete: function () {
-            return this.hasCompleted;
-        },
-        isFailed: function () {
-            return this.StateID === 4;
-        },
-        isDeleted: function () {
-            return this.StateID === 999;
         },
         monitor: function (callback) {
             if (callback) {
                 callback(this);
             }
-            if (!this.hasCompleted) {
+            if (!this.isComplete()) {
                 var context = this;
                 if (this._watchHandle) {
                     this._watchHandle.unwatch();
                 }
-                this._watchHandle = this.watch("__hpcc_changedCount", function (name, oldValue, newValue) {
-                    if (oldValue !== newValue && newValue) {
+                this._watchHandle = this.watch("changed", function (changes) {
+                    changes.forEach(function (changedInfo) {
                         if (callback) {
                             callback(context);
                         }
-                    }
+                    });
+                });
+                });
+                this.on("completed", function () {
+                    topic.publish("hpcc/ecl_wu_completed", context);
                 });
             }
         },
-        doDeschedule: function () {
-            return this._action("Deschedule").then(function(response) {
-            });
-        },
-        doReschedule: function () {
-            return this._action("Reschedule").then(function(response) {
-            });
-        },
-        create: function (ecl) {
+        create: function () {
             var context = this;
-            return WsWorkunits.WUCreate().then(function(response) {
-                _workunits[response.Workunit.Wuid] = context;
-                context.Wuid = response.Workunit.Wuid;
+            return this.inherited(arguments).then(function (wu) {
                 context.startMonitor(true);
-                context.updateData(response.Workunit);
+                context.updateData(wu._espWorkunit);
                 return context;
             });
         },
         update: function (request, appData) {
             this._assertHasWuid();
-            lang.mixin(request, {
-                Wuid: this.Wuid
-            });
-            lang.mixin(request, {
-                StateOrig: this.State,
-                JobnameOrig: this.Jobname,
-                DescriptionOrig: this.Description,
-                ProtectedOrig: this.Protected,
-                ScopeOrig: this.Scope,
-                ClusterOrig: this.Cluster,
-                ApplicationValues: appData
-            });
-
             var context = this;
-            return WsWorkunits.WUUpdate(request).then(function (response) {
-                context.updateData(response.Workunit);
+            return this.inherited(arguments).then(function (wu) {
+                context.updateData(wu._espWorkunit);
                 return context;
             }).catch(function (e) {
                 dojo.publish("hpcc/brToaster", {
@@ -294,63 +262,27 @@ define([
                 });
             });
         },
-        submit: function (target) {
-            this._assertHasWuid();
-            var promise;
-            if (target) {
-                promise = Promise.resolve(target);
-            } else {
-                promise = WsTopology.TpLogicalClusterQuery().then(function (response) {
-                    if (lang.exists("TpLogicalClusterQueryResponse.default", response)) {
-                        return response.TpLogicalClusterQueryResponse["default"].Name;
-                    }
-                });
-            }
-            var context = this;
-            return promise.then(function (target) {
-                return WsWorkunits.WUSubmit({
-                    Wuid: context.Wuid,
-                    Cluster: target
-                }).then(function (response) {
-                    return context;
-                });
-            });
-        },
-        _resubmit: function (clone, resetWorkflow) {
-            this._assertHasWuid();
-            var context = this;
-            return WsWorkunits.WUResubmit({
-                Wuids: [this.Wuid],
-                CloneWorkunit: clone,
-                ResetWorkflow: resetWorkflow
-            }).then(function (response) {
-                context.refresh();
-                return response;
-            });
-        },
         clone: function () {
             var context = this;
-            this._resubmit(true, false).then(function (response) {
-                if (!lang.exists("Exceptions.Source", response)) {
-                    var msg = "";
-                    if (lang.exists("WUs.WU", response) && response.WUs.WU.length) {
-                        msg = context.i18n.ClonedWUID + ":  " + response.WUs.WU[0].WUID;
-                        topic.publish("hpcc/ecl_wu_created", {
-                            wuid: response.WUs.WU[0].WUID
-                        });
-                    }
-                    dojo.publish("hpcc/brToaster", {
-                        Severity: "Message",
-                        Source: "ESPWorkunit.clone",
-                        Exceptions: [{ Source: context.Wuid, Message: msg }]
+            this.WUResubmit(true, false).then(function (response) {
+                var msg = "";
+                if (lang.exists("WUs.WU", response) && response.WUs.WU.length) {
+                    msg = context.i18n.ClonedWUID + ":  " + response.WUs.WU[0].WUID;
+                    topic.publish("hpcc/ecl_wu_created", {
+                        wuid: response.WUs.WU[0].WUID
                     });
                 }
+                dojo.publish("hpcc/brToaster", {
+                    Severity: "Message",
+                    Source: "ESPWorkunit.clone",
+                    Exceptions: [{ Source: context.Wuid, Message: msg }]
+                });
                 return response;
             });
         },
         resubmit: function () {
             var context = this;
-            this._resubmit(false, true).then(function (response) {
+            this.WUResubmit(false, true).then(function (response) {
                 if (!lang.exists("Exceptions.Source", response)) {
                     dojo.publish("hpcc/brToaster", {
                         Severity: "Message",
@@ -365,7 +297,7 @@ define([
         },
         recover: function () {
             var context = this;
-            this._resubmit(false, false).then(function (response) {
+            this.WUResubmit(false, false).then(function (response) {
                 if (!lang.exists("Exceptions.Source", response)) {
                     dojo.publish("hpcc/brToaster", {
                         Severity: "Message",
@@ -377,38 +309,6 @@ define([
                 }
                 return response;
             });
-        },
-        _action: function (action) {
-            this._assertHasWuid();
-            var context = this;
-            return WsWorkunits.WUAction([{ Wuid: this.Wuid }], action, {
-                load: function (response) {
-                    context.refresh();
-                }
-            });
-        },
-        setToFailed: function () {
-            return this._action("setToFailed");
-        },
-        pause: function () {
-            return this._action("Pause");
-        },
-        pauseNow: function () {
-            return this._action("PauseNow");
-        },
-        resume: function () {
-            return this._action("Resume");
-        },
-        abort: function () {
-            return this._action("Abort");
-        },
-        doDelete: function () {
-            return this._action("Delete").then(function(response) {
-            });
-        },
-
-        restore: function () {
-            return this._action("Restore");
         },
 
         publish: function (jobName, remoteDali, sourceProcess, priority, comment, allowForeign, updateSupers) {
@@ -430,7 +330,7 @@ define([
                 context.updateData(response);
             });
         },
-        refresh: function (full) {
+        refreshXXX: function (full) {
             if (full || this.Archived || this.__hpcc_changedCount === 0) {
                 return this.getInfo({
                     onGetText: function () {
@@ -826,6 +726,9 @@ define([
                 appData[graphName + "_SVG"] = svg;
                 this.update({}, appData);
             }
+        },
+        updateData: function (data) {
+            console.log("updateData - depricated");
         }
     });
 
@@ -835,7 +738,7 @@ define([
         },
 
         Create: function (params) {
-            retVal = new Workunit(WsWorkunits, "");
+            retVal = new Workunit();
             return retVal.create();
         },
 
