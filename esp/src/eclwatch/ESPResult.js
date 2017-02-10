@@ -33,14 +33,18 @@ define([
             ESPBase, ESPRequest, WsWorkunits) {
 
     var safeEncode = function (item) {
-        switch (Object.prototype.toString.call(item)) {
+        var cellType = Object.prototype.toString.call(item);
+        switch (cellType) {
             case "[object Boolean]":
             case "[object Number]":
                 return item;
             case "[object String]":
                 return entities.encode(item);
+            case "[object Object]":
+            case "[object Undefined]":
+                return item;
             default:
-                console.log("Unknown cell type.")
+                console.log("Unknown cell type:  " + cellType);
         }
         return item;
     }
@@ -193,15 +197,12 @@ define([
         }
     });
 
-    var Result = declare(null, {
+    var Result = declare([HPCCPlatformComms.Result], {
         i18n: nlsHPCC,
         store: null,
         Total: "-1",
 
-        constructor: function (args) {
-            if (args) {
-                declare.safeMixin(this, args);
-            }
+        constructor: function (href, params) {
             if (lang.exists("Sequence", this)) {
                 this.store = new Store({
                     wuid: this.Wuid,
@@ -236,10 +237,6 @@ define([
             return this.Name;
         },
 
-        isComplete: function () {
-            return this.Total != "-1";
-        },
-
         canShowResults: function () {
             if (lang.exists("Sequence", this)) { //  Regular WU result
                 return true;
@@ -247,31 +244,6 @@ define([
                 return true;
             }
             return false;
-        },
-
-        getFirstSchemaNode: function (node, name) {
-            if (node && node.attributes) {
-                if ((node.baseName && node.baseName == name) || (node.localName && node.localName == name) || (typeof (node.getAttribute) != "undefined" && node.getAttribute("name") == name)) {
-                    return node;
-                }
-            }
-            for (var i = 0; i < node.childNodes.length; ++i) {
-                var retVal = this.getFirstSchemaNode(node.childNodes[i], name);
-                if (retVal) {
-                    return retVal;
-                }
-            }
-            return null;
-        },
-
-        getFirstSequenceNode: function (schemaNode) {
-            var row = this.getFirstSchemaNode(schemaNode, "Row");
-            if (!row)
-                row = schemaNode;
-            var complexType = this.getFirstSchemaNode(row, "complexType");
-            if (!complexType)
-                return null;
-            return this.getFirstSchemaNode(complexType, "sequence");
         },
 
         isChildDataset: function (cell) {
@@ -386,23 +358,15 @@ define([
             titleParts = titleParts.slice(0, titleParts.length - 1);
             nameObj.displayName = titleParts.join("__");
         },
-        getRowStructureFromSchema: function (parentNode, prefix) {
-            var sequence = this.getFirstSequenceNode(parentNode, "sequence");
-            if (!sequence)
-                return null;
-
+        getRowStructureFromSchema: function (xsdSchema, parentNode, prefix) {
             var retVal = [];
-            for (var i = 0; i < sequence.childNodes.length; ++i) {
-                var node = sequence.childNodes[i];
-                if (typeof (node.getAttribute) != "undefined") {
-                    var name = node.getAttribute("name");
-                    var type = node.getAttribute("type");
-                    var children = this.getRowStructureFromSchema(node, prefix + name + "_");
-                    var keyed = null;
-                    var appInfo = this.getFirstSchemaNode(node, "appinfo");
-                    if (appInfo) {
-                        keyed = appInfo.getAttribute("hpcc:keyed");
-                    }
+            for (var i = 0; i < parentNode.children.length; ++i) {
+                var node = parentNode.children[i];
+                    var name = node.name;
+                    var type = node.type;
+                    var keyed = node.keyed;
+                    var children = this.getRowStructureFromSchema(xsdSchema, node, prefix + name + "_");
+
                     var column = null;
                     var context = this;
                     if (name && name.indexOf("__hidden", name.length - "__hidden".length) !== -1) {
@@ -433,7 +397,7 @@ define([
                                 leafID: name,
                                 field: prefix + name,
                                 width: nameObj.width,
-                                renderCell: function(row, cell, node, options) {
+                                renderCell: function (row, cell, node, options) {
                                     context.injectJavascript(cell, row, node, this.width)
                                 }
                             };
@@ -442,7 +406,7 @@ define([
                                 label: name,
                                 leafID: name,
                                 field: prefix + name,
-                                width: this.extractWidth(type, name) * 9,
+                                width: xsdSchema.calcWidth(type, name) * 9,
                                 formatter: function (cell, row) {
                                     switch (typeof cell) {
                                         case "string":
@@ -454,14 +418,14 @@ define([
                         }
                     } else if (children) {
                         var childWidth = 10;  //  Allow for html table
-                        arrayUtil.forEach(children, function(item, idx) {
+                        arrayUtil.forEach(children, function (item, idx) {
                             childWidth += item.width;
                         });
                         column = {
                             label: name,
                             field: prefix + name,
                             leafID: name,
-                            renderCell: function(row, cell, node, options) {
+                            renderCell: function (row, cell, node, options) {
                                 context.rowToTable(cell, row, node);
                             },
                             width: childWidth
@@ -480,36 +444,11 @@ define([
                         }
                         retVal.push(column);
                     }
-                }
             }
             return retVal.length ? retVal : null;
         },
 
-        getRowStructureFromData: function (rows) {
-            var retVal = [];
-            for (var key in rows[0]) {
-                if (key != "myInjectedRowNum") {
-                    var context = this;
-                    retVal.push({
-                        label: key,
-                        field: key,
-                        formatter: function (cell, row, grid) {
-                            if (Object.prototype.toString.call(cell) === '[object Object]' || Object.prototype.toString.call(cell) === '[object Array]') {
-                                var div = document.createElement("div");
-                                context.rowToTable(cell, row, div);
-                                return div.innerHTML;
-                            }
-                            return cell;
-                        },
-                        width: context.extractWidth("string12", key) * 9,
-                        className: "resultGridCell"
-                    });
-                }
-            }
-            return retVal;
-        },
-
-        getStructure: function () {
+        getStructure: function (xsdSchema) {
             var structure = [
                 {
                     cells: [
@@ -522,9 +461,7 @@ define([
                 }
             ];
 
-            var dom = parser.parse(this.XmlSchema);
-            var dataset = this.getFirstSchemaNode(dom, "Dataset");
-            var innerStruct = this.getRowStructureFromSchema(dataset, "");
+            var innerStruct = this.getRowStructureFromSchema(xsdSchema, xsdSchema.root, "");
             for (var i = 0; i < innerStruct.length; ++i) {
                 structure[0].cells[structure[0].cells.length - 1].push(innerStruct[i]);
             }
@@ -532,102 +469,11 @@ define([
             return this.store._structure;
         },
 
-        fetchStructure: function (callback) {
-            if (this.XmlSchema) {
-                callback(this.getStructure());
-            } else {
-                var context = this;
-
-                var request = {};
-                if (this.Wuid && lang.exists("Sequence", this)) {
-                    request['Wuid'] = this.Wuid;
-                    request['Sequence'] = this.Sequence;
-                } else if (this.Name && this.NodeGroup) {
-                    request['LogicalName'] = this.Name;
-                    request['Cluster'] = this.NodeGroup;
-                } else if (this.Name) {
-                    request['LogicalName'] = this.Name;
-                }
-                request['Start'] = 0;
-                request['Count'] = 1;
-                WsWorkunits.WUResult(request).then(function (response) {
-                    if (lang.exists("Result.XmlSchema.xml", response)) {
-                        context.XmlSchema = "<Result>" + response.Result.XmlSchema.xml + "</Result>";
-                        callback(context.getStructure());
-                    }
-                    /*
-                    if (rows.length) {
-                        var innerStruct = context.getRowStructureFromData(rows);
-                        for (var i = 0; i < innerStruct.length; ++i) {
-                            structure[0].cells[structure[0].cells.length - 1].push(innerStruct[i]);
-                        }
-                    }
-                    */
-                });
-            }
-        },
-
-        getRowWidth: function (parentNode) {
-            var retVal = 0;
-            var sequence = this.getFirstSequenceNode(parentNode, "sequence");
-            if (!sequence)
-                return retVal;
-
-            for (var i = 0; i < sequence.childNodes.length; ++i) {
-                var node = sequence.childNodes[i];
-                if (typeof (node.getAttribute) != "undefined") {
-                    var name = node.getAttribute("name");
-                    var type = node.getAttribute("type");
-                    if (name && type) {
-                        retVal += this.extractWidth(type, name);
-                    } else if (node.hasChildNodes()) {
-                        retVal += this.getRowWidth(node);
-                    }
-                }
-            }
-            return retVal;
-        },
-
-        extractWidth: function (type, name) {
-            var retVal = -1;
-
-            switch (type) {
-                case "xs:boolean":
-                    retVal = 5;
-                    break;
-                case "xs:integer":
-                    retVal = 8;
-                    break;
-                case "xs:nonNegativeInteger":
-                    retVal = 8;
-                    break;
-                case "xs:double":
-                    retVal = 8;
-                    break;
-                case "xs:string":
-                    retVal = 32;
-                    break;
-                default:
-                    var numStr = "0123456789";
-                    var underbarPos = type.lastIndexOf("_");
-                    var length = underbarPos > 0 ? underbarPos : type.length;
-                    var i = length - 1;
-                    for (; i >= 0; --i) {
-                        if (numStr.indexOf(type.charAt(i)) == -1)
-                            break;
-                    }
-                    if (i + 1 < length) {
-                        retVal = parseInt(type.substring(i + 1, length));
-                    }
-                    if (type.indexOf("data") === 0) {
-                        retVal *= 2;
-                    }
-                    break;
-            }
-            if (retVal < name.length)
-                retVal = name.length;
-
-            return retVal;
+        fetchStructure: function () {
+            var context = this;
+            return this.fetchXMLSchema().then(function (xsdSchema) {
+                return context.getStructure(xsdSchema);
+            });
         },
 
         getStore: function () {
@@ -678,7 +524,7 @@ define([
 
     return {
         Get: function (params) {
-            return new Result(params);
+            return new Result("", params.Wuid, params);
         }
     }
 });

@@ -238,7 +238,7 @@ define([
                     hpcc: {
                         type: "ResultWidget",
                         params: {
-                            Wuid: row.Wuid,
+                            Wuid: this.wu.Wuid,
                             Sequence: row.Sequence
                         }
                     }

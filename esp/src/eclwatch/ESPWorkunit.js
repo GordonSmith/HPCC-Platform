@@ -29,10 +29,9 @@ define([
     "hpcc/WsTopology",
     "hpcc/ESPUtil",
     "hpcc/ESPRequest",
-    "hpcc/ESPResult",
-    "hpcc-platform-comms"
+    "hpcc/ESPResult"
 ], function (declare, arrayUtil, lang, i18n, nlsHPCC, Deferred, all, Observable, topic,
-    Utility, WsWorkunits, WsTopology, ESPUtil, ESPRequest, ESPResult, HPCCComms) {
+    Utility, WsWorkunits, WsTopology, ESPUtil, ESPRequest, ESPResult) {
 
     var Store = declare([ESPRequest.Store], {
         service: "WsWorkunits",
@@ -61,11 +60,10 @@ define([
         },
         update: function (id, item) {
             var storeItem = this.get(id);
-            storeItem.updateData(item);
+            storeItem.set(item);
             if (!this._watched[id]) {
                 var context = this;
-                this._watched[id] = storeItem.on("changed", function (changedInfo) {
-                    storeItem.updateData(storeItem._espWorkunit);
+                this._watched[id] = storeItem.watch(function (id, oldVal, newVal) {
                     context.notify(storeItem, id);
                 });
             } else {
@@ -81,7 +79,7 @@ define([
         }
     });
 
-    var Workunit = declare([HPCCComms.Workunit, ESPUtil.Singleton, ESPUtil.Monitor], {
+    var Workunit = declare([HPCCPlatformComms.Workunit], {
         i18n: nlsHPCC,
 
         //  Asserts  ---
@@ -242,7 +240,7 @@ define([
         },
         create: function () {
             var context = this;
-            return this.inherited(arguments).then(function (wu) {
+            return this.WUCreate().then(function (wu) {
                 context.startMonitor(true);
                 context.updateData(wu._espWorkunit);
                 return context;
@@ -359,8 +357,7 @@ define([
         getInfo: function (args) {
             this._assertHasWuid();
             var context = this;
-            return WsWorkunits.WUInfo({
-                Wuid: this.Wuid,
+            return this.WUInfo({
                 TruncateEclTo64k: args.onGetText ? false : true,
                 IncludeExceptions: args.onGetWUExceptions ? true : false,
                 IncludeGraphs: args.onGetGraphs ? true : false,
@@ -393,38 +390,40 @@ define([
                             }
                         })
                     }
-                    context.updateData(response.Workunit);
-
                     if (args.onGetText) {
                         args.onGetText(lang.exists("Query.Text", context) ? context.Query.Text : "");
                     }
                     if (args.onGetWUExceptions) {
-                        args.onGetWUExceptions(lang.exists("Exceptions.ECLException", context) ? context.Exceptions.ECLException : []);
+                        args.onGetWUExceptions(context.Exceptions.ECLException);
                     }
                     if (args.onGetApplicationValues) {
-                        args.onGetApplicationValues(lang.exists("ApplicationValues.ApplicationValue", context) ? context.ApplicationValues.ApplicationValue : []);
+                        args.onGetApplicationValues(context.ApplicationValues.ApplicationValue);
                     }
                     if (args.onGetDebugValues) {
-                        args.onGetDebugValues(lang.exists("DebugValues.DebugValue", context) ? context.DebugValues.DebugValue : []);
+                        args.onGetDebugValues(context.DebugValues.DebugValue);
                     }
                     if (args.onGetVariables) {
-                        args.onGetVariables(lang.exists("variables", context) ? context.variables: []);
+                        args.onGetVariables(context.Variables.ECLVariable);
                     }
                     if (args.onGetResults) {
-                        args.onGetResults(lang.exists("results", context) ? context.results : []);
+                        args.onGetResults(context.CResults);
                     }
                     if (args.onGetSequenceResults) {
-                        args.onGetSequenceResults(lang.exists("sequenceResults", context) ? context.sequenceResults : []);
+                        args.onGetSequenceResults(context.SequenceResults);
                     }
                     if (args.onGetSourceFiles) {
-                        args.onGetSourceFiles(lang.exists("sourceFiles", context) ? context.sourceFiles : []);
+                        args.onGetSourceFiles(context.CSourceFiles);
                     }
                     if (args.onGetTimers) {
-                        args.onGetTimers(lang.exists("timers", context) ? context.timers : []);
+                        args.onGetTimers(arrayUtil.map(context.CTimers, function(timer, idx) {
+                            timer.__hpcc_id = idx + 1;
+                            return timer;
+                        }));
                     }
-                    if (args.onGetResourceURLs && lang.exists("resourceURLs", context)) {
-                        args.onGetResourceURLs(context.resourceURLs);
+                    if (args.onGetResourceURLs) {
+                        args.onGetResourceURLs(context.CResourceURLs);
                     }
+                    /*
                     if (args.onGetGraphs && lang.exists("graphs", context)) {
                         if (context.timers || lang.exists("ApplicationValues.ApplicationValue", context)) {
                             for (var i = 0; i < context.graphs.length; ++i) {
@@ -447,10 +446,11 @@ define([
                             }
                         }
                         args.onGetGraphs(context.graphs);
-                    } else if (args.onGetGraphs) {
-                        args.onGetGraphs([]);
+                        */
+                    if (args.onGetGraphs) {
+                        args.onGetGraphs(context.CGraphs);
                     }
-                    if (args.onGetWorkflows && lang.exists("Workflows.ECLWorkflow", context)) {
+                    if (args.onGetWorkflows) {
                         args.onGetWorkflows(context.Workflows.ECLWorkflow);
                     }
                     if (args.onAfterSend) {
@@ -728,7 +728,7 @@ define([
             }
         },
         updateData: function (data) {
-            console.log("updateData - depricated");
+            console.log("updateData - deprecated");
         }
     });
 
@@ -738,8 +738,10 @@ define([
         },
 
         Create: function (params) {
-            retVal = new Workunit();
-            return retVal.create();
+            retVal = new Workunit("");
+            return retVal.WUCreate().then(function () {
+                return retVal;
+            });
         },
 
         Get: function (wuid, data) {

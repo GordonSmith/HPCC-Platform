@@ -253,15 +253,18 @@ define([
 
                 dom.byId(this.id + "Wuid").textContent = params.Wuid;
                 this.wu = ESPWorkunit.Get(params.Wuid);
-                var data = this.wu.getData();
-                for (var key in data) {
-                    this.updateInput(key, null, data[key]);
+                var props = this.wu.properties;
+                for (var key in props) {
+                    this.updateInput(key, null, props[key]);
                 }
+
                 var context = this;
-                this.wu.watch(function (name, oldValue, newValue) {
-                    context.updateInput(name, oldValue, newValue);
+                this.wu.on("changed", function (changes) {
+                    changes.forEach(function (changeInfo) {
+                        context.updateInput(changeInfo.id, changeInfo.oldValue, changeInfo.newValue);
+                    });
                 });
-                this.wu.refresh();
+                this.wu.refresh(true);
             }
             this.infoGridWidget.init(params);
             this.checkIfClustersAllowed();
@@ -449,6 +452,10 @@ define([
             } else if (name === "WorkflowCount" && newValue) {
                 this.widget._Workflows.set("title", this.i18n.Workflows + " (" + newValue + ")");
                 this.setDisabled(this.widget._Workflows.id, false);
+            } else if ((name === "VariableCount" || name === "DebugValueCount" || name === "ApplicationValueCount") && newValue) {
+                var totalCount = this.wu.VariableCount + this.wu.DebugValueCount + this.wu.ApplicationValueCount;
+                this.widget._Variables.set("title", this.i18n.Variables + " (" + totalCount + ")");
+                this.setDisabled(this.widget._Variables.id, totalCount === 0);
             } else if (name === "variables") {
                 var tooltip = "";
                 for (var key in newValue) {
@@ -519,10 +526,10 @@ define([
                 }
                 this.graphsWidget.set("tooltip", tooltip);
                 this.setDisabled(this.graphsWidget.id, false);
-            } else if (name === "resourceURLCount" && newValue) {
+            } else if (name === "ResourceURLCount" && newValue) {
                 this.widget._Resources.set("title", this.i18n.Resources + " (" + newValue + ")");
                 this.setDisabled(this.widget._Resources.id, false);
-            } else if (name === "helpersCount" && newValue) {
+            } else if (name === "HelpersCount" && newValue) {
                 this.logsWidget.set("title", this.i18n.Helpers + " (" + newValue + ")");
                 this.setDisabled(this.logsWidget.id, false);
             } else if (name === "Archived") {
@@ -549,7 +556,7 @@ define([
         },
 
         refreshActionState: function () {
-            var isArchived = this.wu.get("Archived");
+            var isArchived = this.wu.Archived;
             this.setDisabled(this.id + "AutoRefresh", isArchived || this.wu.isComplete(), "iconAutoRefresh", "iconAutoRefreshDisabled");
             registry.byId(this.id + "Save").set("disabled", isArchived || !this.wu.isComplete() || this.wu.isDeleted());
             registry.byId(this.id + "Delete").set("disabled", isArchived || !this.wu.isComplete() || this.wu.isDeleted());

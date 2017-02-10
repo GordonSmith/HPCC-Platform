@@ -152,6 +152,7 @@ define([
                 this.wu.getInfo({
                     onGetResourceURLs: function (resourceURLs) {
                         arrayUtil.some(resourceURLs, function (item, idx) {
+                            item.__hpcc_id = idx;
                             if (!context.firstLoad && (item.DisplayName === "index.htm" || item.DisplayName === "index.html")) {
                                 context.firstLoad = true;
                                 context._onRowDblClick(item);

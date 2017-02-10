@@ -38,6 +38,7 @@ define([
     "hpcc/_Widget",
     "hpcc/ESPBase",
     "hpcc/ESPWorkunit",
+    "hpcc/ESPResult",
     "hpcc/ESPLogicalFile",
     "hpcc/FilterDropDownWidget",
     "hpcc/TableContainer",
@@ -52,7 +53,7 @@ define([
 ], function (declare, lang, arrayUtil, i18n, nlsHPCC, ioQuery, dom,
                 registry, TextBox,
                 Grid, Keyboard, Selection, selector, ColumnResizer, ColumnHider, CompoundColumns, DijitRegistry, Pagination,
-                _Widget, ESPBase, ESPWorkunit, ESPLogicalFile, FilterDropDownWidget, TableContainer,
+                _Widget, ESPBase, ESPWorkunit, ESPResult, ESPLogicalFile, FilterDropDownWidget, TableContainer,
                 template) {
     return declare("ResultWidget", [_Widget], {
         templateString: template,
@@ -167,10 +168,11 @@ define([
             }
         },
 
-        initResult: function (result) {
-            if (result) {
+        initResult: function (hpccCommsResult) {
+            if (hpccCommsResult) {
+                var result = ESPResult.Get(hpccCommsResult.get());
                 var context = this;
-                result.fetchStructure(function (structure) {
+                result.fetchStructure().then(function (structure) {
                     var filterForm = registry.byId(context.filter.id + "FilterForm");
                     var origTableContainer = registry.byId(context.filter.id + "TableContainer");
                     var tableContainer = new TableContainer({
@@ -208,11 +210,11 @@ define([
                         pagingTextBox: true,
                         firstLastArrows: true,
                         pageSizeOptions: [25, 50, 100],
-                        store: result.getStore()
+                        store: result.getStore(),
+                        query: {
+                            FilterBy: context.getFilter()
+                        }
                     }, context.id + "Grid");
-                    context.grid.set("query", {
-                        FilterBy: context.getFilter()
-                    });
                     context.grid.startup();
                 });
             } else {

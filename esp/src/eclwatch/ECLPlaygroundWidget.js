@@ -203,19 +203,19 @@ define([
 
         watchWU: function () {
             if (this.watching) {
-                this.watching.unwatch();
+                this.watching.release();
             }
             var context = this;
             this.watching = this.wu.watch(function (name, oldValue, newValue) {
                 context.updateInput(name, oldValue, newValue);
-                if (name === "Exceptions" && newValue) {
+                if (name === "ErrorCount" && newValue > 0) {
                     context.stackContainer.selectChild(context.errWarnWidget);
                     context.errWarnWidget.set("disabled", false);
                     context.errWarnWidget.reset();
                     context.errWarnWidget.init({
                         Wuid: context.wu.Wuid
                     });
-                } else if (name === "Results" && newValue) {
+                } else if (name === "ResultCount" && newValue > 0) {
                     context.stackContainer.selectChild(context.resultsWidget);
                     context.resultsWidget.set("disabled", false);
                     context.visualizeWidget.set("disabled", false);

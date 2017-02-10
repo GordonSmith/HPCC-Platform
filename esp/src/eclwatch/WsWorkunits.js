@@ -24,10 +24,9 @@ define([
     "dojo/store/Observable",
     "dojo/topic",
 
-    "hpcc/ESPRequest",
-    "hpcc-platform-comms"
+    "hpcc/ESPRequest"
 ], function (declare, lang, arrayUtil, i18n, nlsHPCC, Deferred, all, Observable, topic,
-    ESPRequest, HPCCComms) {
+    ESPRequest) {
 
     var EventScheduleStore = declare([ESPRequest.Store], {
         service: "WsWorkunits",
@@ -42,9 +41,9 @@ define([
         }
     });
 
-    var __super = HPCCComms.WsWorkunits.prototype;
+    var __super = HPCCPlatformComms.WsWorkunits.prototype;
     function WsWorkunits(target) {
-        HPCCComms.WsWorkunits.call(this);
+        HPCCPlatformComms.WsWorkunits.call(this);
     }
     WsWorkunits.prototype = Object.create(__super);
     WsWorkunits.prototype.constructor = WsWorkunits;

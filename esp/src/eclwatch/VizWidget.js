@@ -288,7 +288,7 @@ define([
                 return;
 
             if (sequence != null) {
-                var result = this.wu.results[sequence];
+                var result = this.wu.Results[sequence];
                 var data = null;
 
                 this.foundMatchingFields = false;

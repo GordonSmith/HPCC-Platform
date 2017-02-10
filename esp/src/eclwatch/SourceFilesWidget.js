@@ -132,6 +132,7 @@ define([
             this.wu.getInfo({
                 onGetSourceFiles: function (sourceFiles) {
                     arrayUtil.forEach(sourceFiles, function (row, idx) {
+                        row.__hpcc_parentName = "";
                         row.sequence = idx;
                     });
                     context.store.setData(sourceFiles);

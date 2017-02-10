@@ -24,14 +24,9 @@ define([
     "dojo/topic",
 
     "dojox/html/entities",
-    "dojox/widget/Toaster",
-
-    "es6-promise"
+    "dojox/widget/Toaster"
 ], function (fx, dom, domStyle, ioQuery, ready, lang, arrayUtil, topic,
-            entities, Toaster,
-            Promise) {
-
-    Promise.polyfill();
+            entities, Toaster) {
 
     var initUi = function () {
         var params = ioQuery.queryToObject(dojo.doc.location.search.substr((dojo.doc.location.search.substr(0, 1) == "?" ? 1 : 0)));

@@ -240,7 +240,7 @@ define([
                             Type: "Workunit XML",
                             FileSize: response.WUXMLSize
                         });
-                        if (response.hasArchiveQuery) {
+                        if (response.HasArchiveQuery) {
                             context.logData.push({
                                 id: "A:0",
                                 Type: "Archive Query"

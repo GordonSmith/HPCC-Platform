@@ -230,6 +230,7 @@ define([
                     this.stdDev = Math.sqrt(variance);
                     for (var i = 0; i < timers.length; ++i) {
                         var prefix = "other";
+                        timers[i].__hpcc_id = i + 1;
                         timers[i].__hpcc_name = timers[i].Name;
                         if (timers[i].Name.indexOf("Graph graph") === 0) {
                             timers[i].__hpcc_name = timers[i].SubGraphId;
