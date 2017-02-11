@@ -461,8 +461,8 @@ define([
             });
         },
         getGraphIndex: function (name) {
-            for (var i = 0; i < this.graphs.length; ++i) {
-                if (this.graphs[i].Name == name) {
+            for (var i = 0; i < this.CGraphs.length; ++i) {
+                if (this.CGraphs[i].Name == name) {
                     return i;
                 }
             }
@@ -685,8 +685,8 @@ define([
             });
         },
         fetchGraphs: function (onFetchGraphs) {
-            if (this.graphs && this.graphs.length) {
-                onFetchGraphs(this.graphs);
+            if (this.CGraphs && this.CGraphs.length) {
+                onFetchGraphs(this.CGraphs);
                 return;
             }
 
@@ -701,8 +701,8 @@ define([
             }
         },
         fetchGraphXgmml: function (idx, onFetchGraphXgmml, force) {
-            if (!force && this.graphs && this.graphs[idx] && this.graphs[idx].xgmml) {
-                onFetchGraphXgmml(this.graphs[idx].xgmml, this.graphs[idx].svg);
+            if (!force && this.CGraphs && this.CGraphs[idx] && this.CGraphs[idx].xgmml) {
+                onFetchGraphXgmml(this.CGraphs[idx].xgmml, this.CGraphs[idx].svg);
                 return;
             }
 
@@ -710,24 +710,25 @@ define([
             var context = this;
             WsWorkunits.WUGetGraph({
                 Wuid: this.Wuid,
-                GraphName: this.graphs[idx].Name
+                GraphName: this.CGraphs[idx].Name
             }).then(function (response) {
                 if (lang.exists("Graphs.ECLGraphEx", response) && response.Graphs.ECLGraphEx.length) {
-                    context.graphs[idx].xgmml = response.Graphs.ECLGraphEx[0].Graph;
-                    onFetchGraphXgmml(context.graphs[idx].xgmml, context.graphs[idx].svg);
+                    context.CGraphs[idx].xgmml = response.Graphs.ECLGraphEx[0].Graph;
+                    onFetchGraphXgmml(context.CGraphs[idx].xgmml, context.CGraphs[idx].svg);
                 }
             });
         },
         setGraphSvg: function (graphName, svg) {
             var idx = this.getGraphIndex(graphName);
             if (idx >= 0) {
-                this.graphs[idx].svg = svg;
+                this.CGraphs[idx].svg = svg;
                 var appData = [];
                 appData[graphName + "_SVG"] = svg;
                 this.update({}, appData);
             }
         },
         updateData: function (data) {
+            debugger;
             console.log("updateData - deprecated");
         }
     });
