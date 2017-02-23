@@ -43,7 +43,7 @@ define([
 
     var __super = HPCCPlatformComms.WsWorkunits.prototype;
     function WsWorkunits(target) {
-        HPCCPlatformComms.WsWorkunits.call(this);
+        HPCCPlatformComms.WsWorkunits.call(this, "");
     }
     WsWorkunits.prototype = Object.create(__super);
     WsWorkunits.prototype.constructor = WsWorkunits;

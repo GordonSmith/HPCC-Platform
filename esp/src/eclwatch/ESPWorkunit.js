@@ -56,14 +56,14 @@ define([
             this._toUnwatch = lang.mixin({}, this._watched);
         },
         create: function (wuid) {
-            return new Workunit("", wuid);
+            return new Workunit("", "", wuid);
         },
         update: function (id, item) {
             var storeItem = this.get(id);
             storeItem.set(item);
             if (!this._watched[id]) {
                 var context = this;
-                this._watched[id] = storeItem.watch(function (id, oldVal, newVal) {
+                this._watched[id] = storeItem.watch(function (changes) {
                     context.notify(storeItem, id);
                 });
             } else {
@@ -74,7 +74,7 @@ define([
             for (var key in this._toUnwatch) {
                 this._toUnwatch[key].unwatch();
                 delete this._watched[key];
-        }
+            }
             delete this._toUnwatch;
         }
     });
@@ -90,17 +90,20 @@ define([
         },
         //  Attributes  ---
         _StateIDSetter: function (StateID) {
+            throw new Error("deprecated");
             this.StateID = StateID;
             var actionEx = lang.exists("ActionEx", this) ? this.ActionEx : null;
             this.set("hasCompleted", WsWorkunits.isComplete(this.StateID, actionEx));
         },
         _ActionExSetter: function (ActionEx) {
+            throw new Error("deprecated");
             if (this.StateID) {
                 this.ActionEx = ActionEx;
                 this.set("hasCompleted", WsWorkunits.isComplete(this.StateID, this.ActionEx));
             }
         },
         _hasCompletedSetter: function (completed) {
+            throw new Error("deprecated");
             var justCompleted = !this.hasCompleted && completed;
             this.hasCompleted = completed;
             if (justCompleted) {
@@ -108,6 +111,7 @@ define([
             }
         },
         _VariablesSetter: function (Variables) {
+            throw new Error("deprecated");
             this.set("variables", Variables.ECLResult);
         },
         _ResultsSetter: function (Results) {
@@ -126,11 +130,12 @@ define([
                     namedResults[Results.ECLResult[i].Name] = espResult;
                 }
             }
-            this.set("results", results);
-            this.set("sequenceResults", sequenceResults);
-            this.set("namedResults", namedResults);
+            this.results = results;
+            this.sequenceResults = sequenceResults;
+            this.namedResults = namedResults;
         },
         _SourceFilesSetter: function (SourceFiles) {
+            throw new Error("deprecated");
             var sourceFiles = [];
             for (var i = 0; i < SourceFiles.ECLSourceFile.length; ++i) {
                 sourceFiles.push(ESPResult.Get(lang.mixin({ wu: this.wu, Wuid: this.Wuid, __hpcc_parentName: "" }, SourceFiles.ECLSourceFile[i])));
@@ -143,6 +148,7 @@ define([
             this.set("sourceFiles", sourceFiles);
         },
         _TimersSetter: function (Timers) {
+            throw new Error("deprecated");
             var timers = [];
             for (var i = 0; i < Timers.ECLTimer.length; ++i) {
                 var secs = Utility.espTime2Seconds(Timers.ECLTimer[i].Value);
@@ -155,10 +161,12 @@ define([
             this.set("timers", timers);
         },
         _ResourceURLCountSetter: function (ResourceURLCount) {
+            throw new Error("deprecated");
             //  All WU's have 1 resource URL, which we are not interested in  ---
             this.set("resourceURLCount", ResourceURLCount - 1);
         },
         _ResourceURLsSetter: function (resourceURLs) {
+            throw new Error("deprecated");
             var data = [];
             arrayUtil.forEach(resourceURLs.URL, function (url, idx) {
                 var cleanedURL = url.split("\\").join("/");
@@ -180,20 +188,24 @@ define([
             this.set("resourceURLCount", data.length);
         },
         _GraphsSetter: function (Graphs) {
+            throw new Error("deprecated");
             this.set("graphs", Graphs.ECLGraph);
         },
 
         //  Calculated "Helpers"  ---
         _HelpersSetter: function (Helpers) {
+            throw new Error("deprecated");
             this.set("helpers", Helpers.ECLHelpFile);
             this.refreshHelpersCount();
         },
         _ThorLogListSetter: function (ThorLogList) {
+            throw new Error("deprecated");
             this.set("thorLogInfo", ThorLogList.ThorLogInfo);
             this.getThorLogStatus(ThorLogList);
             this.refreshHelpersCount();
         },
         _HasArchiveQuerySetter: function (HasArchiveQuery) {
+            throw new Error("deprecated");
             this.set("hasArchiveQuery", HasArchiveQuery);
             this.refreshHelpersCount();
         },
@@ -225,13 +237,12 @@ define([
                 if (this._watchHandle) {
                     this._watchHandle.unwatch();
                 }
-                this._watchHandle = this.watch("changed", function (changes) {
+                this._watchHandle = this.watch(function (changes) {
                     changes.forEach(function (changedInfo) {
                         if (callback) {
                             callback(context);
                         }
                     });
-                });
                 });
                 this.on("completed", function () {
                     topic.publish("hpcc/ecl_wu_completed", context);
@@ -248,11 +259,7 @@ define([
         },
         update: function (request, appData) {
             this._assertHasWuid();
-            var context = this;
-            return this.inherited(arguments).then(function (wu) {
-                context.updateData(wu._espWorkunit);
-                return context;
-            }).catch(function (e) {
+            return this.inherited(arguments).catch(function (e) {
                 dojo.publish("hpcc/brToaster", {
                     message: "<h4>" + e.Source + "</h4>" + "<p>" + e.Exception[0].Message + "</p>",
                     type: "error",
@@ -406,7 +413,8 @@ define([
                         args.onGetVariables(context.Variables.ECLVariable);
                     }
                     if (args.onGetResults) {
-                        args.onGetResults(context.CResults);
+                        context._ResultsSetter(context.Results);
+                        args.onGetResults(context.results);
                     }
                     if (args.onGetSequenceResults) {
                         args.onGetSequenceResults(context.SequenceResults);

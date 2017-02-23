@@ -88,10 +88,15 @@ define([
                     jsonp: "jsonp"
                 });
             } else {
+                var test = new HPCCPlatformComms.JSONPTransport();
+                test.baseUrl(this.getBaseURL(service));
+                retVal = test.send(action + postfix, params.request, handleAs);
+                /*
                 retVal = request.post(this.getBaseURL(service) + "/" + action + postfix, {
                     data: params.request,
                     handleAs: handleAs
                 });
+                */
             }
             return retVal.then(function (response) {
                 params.load(response);

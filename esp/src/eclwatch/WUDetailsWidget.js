@@ -536,10 +536,9 @@ define([
                 this.refreshActionState();
             } else if (name === "StateID") {
                 this.refreshActionState();
+                this.checkIfComplete();
             } else if (name === "ActionEx") {
                 this.refreshActionState();
-            } else if (name === "hasCompleted") {
-                this.checkIfComplete();
             } else if (name === "Scope" && newValue) {
                 domClass.remove("scopeOptional", "hidden");
                 domClass.add("scopeOptional", "show");
