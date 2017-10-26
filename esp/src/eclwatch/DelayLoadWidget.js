@@ -59,7 +59,7 @@ define([
             this.deferred = new Deferred();
             this.startLoading();
             var context = this;
-                Utility.resolve(this.delayWidget, function (widget) {
+            Utility.resolve(this.delayWidget, function (widget) {
                 var widgetInstance = new widget(lang.mixin({
                     id: context.childWidgetID,
                     style: {

@@ -110,6 +110,7 @@ define({root:
     CSV: "CSV",
     Dali: "Dali",
     DaliIP: "DaliIP",
+    Dashboard: "Dashboard",
     dataset: ":=dataset*",
     Date: "Date",
     Day: "Day",

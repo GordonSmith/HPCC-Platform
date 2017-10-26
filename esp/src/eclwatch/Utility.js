@@ -354,6 +354,9 @@
             case "CurrentUserDetailsWidget":
                 require(["hpcc/CurrentUserDetailsWidget"], doLoad);
                 break;
+            case "DashboardWidget":
+                require(["hpcc/DashboardWidget"], doLoad);
+                break;
             case "DelayLoadWidget":
                 require(["hpcc/DelayLoadWidget"], doLoad);
                 break;

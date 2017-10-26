@@ -1,0 +1,35 @@
+.eclwatch_Dashboard .hcontainer {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.eclwatch_Dashboard .hitem {
+    flex-basis: 100%;
+    max-width: 175px;
+    border: 1px solid #9e9e9e;
+    margin:4px;
+    border-radius: 0 0 3px 3px;
+  }
+
+.eclwatch_TargetClusterSummary > :first-child {
+    margin: 0 auto;
+}
+
+.eclwatch_TargetClusterSummary .gauge {
+    width:125px;
+    height:125px;
+}
+
+.eclwatch_WorkunitList {
+    margin:4px;
+}
+
+.eclwatch_WorkunitBadge > img {
+    margin-right:4px;
+    vertical-align: middle;
+}
+
+.eclwatch_WorkunitBadge > a {
+    vertical-align: middle;
+}
