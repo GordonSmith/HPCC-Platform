@@ -5,49 +5,10 @@ var path = require("path");
 var webpack = require("webpack");
 var BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
-module.exports = {
-    context: __dirname,
-    entry: {
-        stub: "eclwatch/stub",
-        vendor: ["@hpcc-js/graph"] //  Trick CommonsChunkPlugin to move some extra modules into node_modules for a more balanced initial load.
-    },
-    output: {
-        filename: "[name].eclwatch.js",
-        path: path.join(__dirname, "build/dist"),
-        publicPath: "/esp/files/dist/",
-        pathinfo: false
-    },
-    module: {
-        loaders: [
-            {
-                test: /\.(png|jpg|gif)$/,
-                use: [
-                    {
-                        loader: 'url-loader',
-                        options: {
-                            limit: 8192
-                        }
-                    }
-                ]
-            }, {
-                test: /\.css$/,
-                use: ['style-loader', 'css-loader']
-            }, {
-                test: /.(ttf|otf|eot|svg|woff(2)?)(\?[a-z0-9]+)?$/,
-                use: [{
-                    loader: 'file-loader',
-                    options: {
-                        name: '[name].[ext]'
-                    }
-                }]
-            }]
-    },
-    resolve: {
-        alias: {
-            "clipboard": path.resolve(__dirname, 'node_modules/clipboard/dist/clipboard')
-        }
-    },
-    plugins: [
+module.exports = function (env) {
+    const isProduction = env && env.build === "prod";
+
+    const plugins = [
         new DojoWebpackPlugin({
             loaderConfig: require.resolve("./eclwatch/dojoConfig"),
             environment: { dojoRoot: "node_modules" },
@@ -77,23 +38,69 @@ module.exports = {
         new webpack.optimize.CommonsChunkPlugin({
             children: true,
             minChunks: 4
-        }),
-        new webpack.optimize.UglifyJsPlugin({
+        })
+    ];
+
+    if (isProduction) {
+        plugins.push(new webpack.optimize.UglifyJsPlugin({
             output: { comments: false },
             compress: { warnings: false },
             sourceMap: false
-        })/*,
-        new BundleAnalyzerPlugin()
-        */
-    ],
-    resolveLoader: {
-        modules: [
-            path.join(__dirname, "node_modules")
-        ]
-    },
-    // devtool: "source-map",
-    node: {
-        process: false,
-        global: false
+        }));
+    }
+
+    return {
+        context: __dirname,
+        entry: {
+            stub: "eclwatch/stub",
+            vendor: ["@hpcc-js/graph"] //  Trick CommonsChunkPlugin to move some extra modules into node_modules for a more balanced initial load.
+        },
+        output: {
+            filename: "[name].eclwatch.js",
+            path: path.join(__dirname, "build/dist"),
+            publicPath: "/esp/files/dist/",
+            pathinfo: false
+        },
+        module: {
+            loaders: [
+                {
+                    test: /\.(png|jpg|gif)$/,
+                    use: [
+                        {
+                            loader: 'url-loader',
+                            options: {
+                                limit: 8192
+                            }
+                        }
+                    ]
+                }, {
+                    test: /\.css$/,
+                    use: ['style-loader', 'css-loader']
+                }, {
+                    test: /.(ttf|otf|eot|svg|woff(2)?)(\?[a-z0-9]+)?$/,
+                    use: [{
+                        loader: 'file-loader',
+                        options: {
+                            name: '[name].[ext]'
+                        }
+                    }]
+                }]
+        },
+        resolve: {
+            alias: {
+                "clipboard": path.resolve(__dirname, 'node_modules/clipboard/dist/clipboard')
+            }
+        },
+        plugins: plugins,
+        resolveLoader: {
+            modules: [
+                path.join(__dirname, "node_modules")
+            ]
+        },
+        devtool: false,
+        node: {
+            process: false,
+            global: false
+        }
     }
 };
