@@ -36,7 +36,7 @@ define([
     "dgrid/extensions/ColumnResizer",
     "dgrid/extensions/DijitRegistry",
 
-    "src/Clippy",
+    "hpcc-ts/Clippy",
 
     "hpcc/_TabContainerWidget",
     "hpcc/ESPWorkunit",

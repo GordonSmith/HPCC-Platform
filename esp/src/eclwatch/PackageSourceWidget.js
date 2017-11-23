@@ -28,7 +28,7 @@ define([
     "dijit/layout/ContentPane",
     "dijit/registry",
 
-    "src/CodeMirror",
+    "hpcc-ts/CodeMirror",
 
     "hpcc/WsPackageMaps",
 

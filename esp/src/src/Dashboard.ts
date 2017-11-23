@@ -73,7 +73,7 @@ export class TargetClusterSummary extends HTMLWidget {
             ;
 
         this._activity
-            .workunits(this._targetCluster.CActiveWorkunit)
+            // .workunits(this._targetCluster.CActiveWorkunit)
             .render()
             ;
     }

@@ -87,6 +87,7 @@ module.exports = function (env) {
                 }]
         },
         resolve: {
+            mainFields:["browser", "main"],
             alias: {
                 "clipboard": path.resolve(__dirname, 'node_modules/clipboard/dist/clipboard')
             }

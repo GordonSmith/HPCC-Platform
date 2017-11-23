@@ -26,7 +26,7 @@ define([
     "dijit/layout/ContentPane",
     "dijit/registry",
 
-    "src/CodeMirror",
+    "hpcc-ts/CodeMirror",
 
     "hpcc/_Widget",
     "hpcc/ESPWorkunit",

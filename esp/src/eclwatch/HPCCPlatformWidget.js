@@ -34,7 +34,7 @@ define([
     "dojox/widget/UpgradeBar",
     "dojox/widget/ColorPicker",
 
-    "src/CodeMirror",
+    "hpcc-ts/CodeMirror",
 
     "hpcc/_TabContainerWidget",
     "hpcc/ESPRequest",
