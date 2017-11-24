@@ -33,7 +33,7 @@ module.exports = function (env) {
             minChunks(module, count) {
                 var context = module.context;
                 return context && context.indexOf('node_modules') >= 0;
-            },
+            }
         }),
         new webpack.optimize.CommonsChunkPlugin({
             children: true,
@@ -48,15 +48,24 @@ module.exports = function (env) {
             sourceMap: false
         }));
     }
-
+    plugins.push(new BundleAnalyzerPlugin());
+    
     return {
         context: __dirname,
         entry: {
-            stub: "eclwatch/stub",
-            vendor: ["@hpcc-js/graph"] //  Trick CommonsChunkPlugin to move some extra modules into node_modules for a more balanced initial load.
+            stub: ["eclwatch/stub",
+                "eclwatch/ActivityWidget",
+                "eclwatch/DashboardWidget",
+                "eclwatch/DFUQueryWidget",
+                "eclwatch/QuerySetQueryWidget",
+                "eclwatch/WUDetailsWidget",
+                "eclwatch/WUQueryWidget",
+                "eclwatch/TopologyWidget"
+            ]
         },
         output: {
             filename: "[name].eclwatch.js",
+            chunkFilename: '[name].bundle.js',
             path: path.join(__dirname, "build/dist"),
             publicPath: "/esp/files/dist/",
             pathinfo: false
@@ -87,7 +96,6 @@ module.exports = function (env) {
                 }]
         },
         resolve: {
-            mainFields:["browser", "main"],
             alias: {
                 "clipboard": path.resolve(__dirname, 'node_modules/clipboard/dist/clipboard')
             }

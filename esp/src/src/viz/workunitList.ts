@@ -1,6 +1,6 @@
 import { d3SelectionType, HTMLWidget, publish } from "@hpcc-js/common";
 import { Workunit } from "@hpcc-js/comms";
-import { local as d3Local } from "d3-selection";
+import { event as d3Event, local as d3Local } from "d3-selection";
 import "d3-transition";
 
 function getStateImageName(wu: Workunit): string {
@@ -62,7 +62,7 @@ export class WorkunitBadge extends HTMLWidget {
 
     _iconDiv: any;
     _wuidDiv: any;
-    
+
     constructor() {
         super();
     }
@@ -70,18 +70,31 @@ export class WorkunitBadge extends HTMLWidget {
     enter(domNode: HTMLElement, element: d3SelectionType) {
         super.enter(domNode, element);
         this._iconDiv = element.append("img");
-        this._wuidDiv = element.append("a");
+        this._wuidDiv = element
+            .append("a")
+            .on("click", (e) => {
+                event && event.preventDefault();
+                this.click(this);
+            })
+            ;
     }
 
     update(domNode: HTMLElement, element: d3SelectionType) {
         super.update(domNode, element);
         this._iconDiv.attr("src", getStateImagePath);
-        this._wuidDiv.text(this.workunit().Wuid);
-        element.attr("title", getToolip)
+        this._wuidDiv
+            .attr("href", `/stub.htm?Wuid=${this.workunit().Wuid}&Widget=WUDetailsWidget`)
+            .text(this.workunit().Wuid)
+            ;
+        element.attr("title", d => getToolip(d as this));
     }
 
     exit(domNode: HTMLElement, element: d3SelectionType) {
         super.exit(domNode, element);
+    }
+
+    //  Events  ---
+    click(origin: this) {
     }
 }
 WorkunitBadge.prototype._class += " eclwatch_WorkunitBadge";
@@ -102,11 +115,16 @@ export class WorkunitList extends HTMLWidget {
 
     update(domNode: HTMLElement, element: d3SelectionType) {
         super.update(domNode, element);
+        const context = this;
         const wus = element.selectAll(".wuContainer").data(this.workunits() as any[], (d: Workunit) => d.Wuid);
         wus.enter().append("div")
             .attr("class", "wuContainer")
             .each(function (this: any, d: any) {
-                localWUWidget.set(this, new WorkunitBadge().target(this).workunit(d));
+                localWUWidget.set(this, new WorkunitBadge()
+                    .target(this)
+                    .workunit(d)
+                    .on("click", wub=>context.click(wub))
+                );
             })
             .merge(wus)
             .each(function (this: any, d: any) {
@@ -120,6 +138,10 @@ export class WorkunitList extends HTMLWidget {
             })
             .remove()
             ;
+    }
+
+    //  Events  ---
+    click(origin: WorkunitBadge) {
     }
 }
 WorkunitList.prototype._class += " eclwatch_WorkunitList";

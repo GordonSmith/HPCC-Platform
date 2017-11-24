@@ -1,16 +1,17 @@
 import { d3SelectionType, HTMLWidget } from "@hpcc-js/common";
-import { Machine, TargetCluster, Topology } from "@hpcc-js/comms";
+import { Activity, Machine, TargetCluster, Topology } from "@hpcc-js/comms";
 import { local as d3Local } from "d3-selection";
 import { Guage } from "./viz/guage";
-import { WorkunitList } from "./viz/workunitList";
+import { WorkunitBadge, WorkunitList } from "./viz/workunitList";
 
 import "css!hpcc-css/dashboard.css";
 
 export class TargetClusterSummary extends HTMLWidget {
 
     private _targetCluster: TargetCluster;
+    private _activity = Activity.attach({ baseUrl: location.origin });
     private _guage: Guage;
-    private _activity: WorkunitList;
+    private _wuList: WorkunitList;
 
     constructor(targetCluster: TargetCluster) {
         super();
@@ -56,11 +57,16 @@ export class TargetClusterSummary extends HTMLWidget {
 
         element.append("div")
             .each(async function () {
-                context._activity = new WorkunitList()
+                context._wuList = new WorkunitList()
                     .target(this as any)
+                    .on("click", wub => context.click(wub))
                     ;
             })
             ;
+
+        this._activity.watch((changes) => {
+            this.updateWUList(domNode, element);
+        }, true);
     }
 
     update(domNode: HTMLElement, element: d3SelectionType) {
@@ -72,8 +78,15 @@ export class TargetClusterSummary extends HTMLWidget {
             .render()
             ;
 
-        this._activity
+        this._wuList
             // .workunits(this._targetCluster.CActiveWorkunit)
+            .render()
+            ;
+    }
+
+    updateWUList(domNode: HTMLElement, element: d3SelectionType) {
+        this._wuList
+            .workunits(this._activity.runningWorkunits(this._targetCluster.Name))
             .render()
             ;
     }
@@ -87,6 +100,10 @@ export class TargetClusterSummary extends HTMLWidget {
             return super.render.call(this);
         }
         return this;
+    }
+
+    //  Events  ---
+    click(origin: WorkunitBadge) {
     }
 }
 TargetClusterSummary.prototype._class += " eclwatch_TargetClusterSummary";
@@ -137,12 +154,16 @@ export class Dashboard extends HTMLWidget {
 
     update(domNode: HTMLElement, element: d3SelectionType) {
         super.update(domNode, element);
+        const context = this;
         element.style("height", null);
         const tcs = this._containerDiv.selectAll(".hitem").data(this.data(), (d: TargetCluster) => d.Name);
         tcs.enter().append("div")
             .attr("class", "hitem")
             .each(function (this: HTMLElement, d: TargetCluster) {
-                localTargetClusterSummary.set(this, new TargetClusterSummary(d).target(this));
+                localTargetClusterSummary.set(this, new TargetClusterSummary(d)
+                    .target(this)
+                    .on("click", wub => context.click(wub))
+                );
             })
             .merge(tcs)
             .each(function (this: HTMLElement, d: TargetCluster) {
@@ -174,6 +195,10 @@ export class Dashboard extends HTMLWidget {
                 ;
             this.element().style("height", null);
         }
+    }
+
+    //  Events  ---
+    click(origin: WorkunitBadge) {
     }
 }
 Dashboard.prototype._class += " eclwatch_Dashboard";

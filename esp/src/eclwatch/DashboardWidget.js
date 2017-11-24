@@ -3,7 +3,9 @@ define([
     "dojo/i18n",
     "dojo/i18n!./nls/hpcc",
 
-    "hpcc/_Widget",
+    "dijit/registry",
+
+    "hpcc/_TabContainerWidget",
 
     "hpcc-ts/dashboard",
 
@@ -16,16 +18,18 @@ define([
     "dijit/ToolbarSeparator"
 
 ], function (declare, i18n, nlsHPCC,
-    _Widget,
+    registry,
+    _TabContainerWidget,
     srcDash,
     template) {
-        return declare("DashboardWidget", [_Widget], {
+        return declare("DashboardWidget", [_TabContainerWidget], {
             templateString: template,
             baseClass: "DashboardWidget",
             i18n: nlsHPCC,
 
             postCreate: function (args) {
                 this.inherited(arguments);
+                this.dashboardTab = registry.byId(this.id + "_Dashboard");
             },
 
             resize: function (args) {
@@ -48,12 +52,47 @@ define([
 
                 this._dashboard = new srcDash.Dashboard()
                     .target(this.id + "DashboardCP")
+                    .on("click", wub => {
+                        var wu = wub.workunit();
+                        var tab = this.ensurePane(wu.Wuid, { Wuid: wu.Wuid });
+                        this.selectChild(tab);                        
+                    })
                     ;
                 this.refresh();
             },
 
             refresh: function (params) {
                 this._dashboard.render();
+            },
+
+            initTab: function () {
+                var currSel = this.getSelectedChild();
+                if (currSel && !currSel.initalized) {
+                    if (currSel.id === this.dashboardTab.id) {
+                    } else {
+                        if (!currSel.initalized) {
+                            currSel.init(currSel.params);
+                        }
+                    }
+                }
+            },
+
+            ensurePane: function (id, params) {
+                id = this.createChildTabID(id);
+                var retVal = registry.byId(id);
+                if (!retVal) {
+                    var context = this;
+                    retVal = new DelayLoadWidget({
+                        id: id,
+                        title: params.Wuid,
+                        closable: true,
+                        delayWidget: "WUDetailsWidget",
+                        params: params
+                    });
+                    this.addChild(retVal, 1);
+                }
+                return retVal;
             }
+
         });
     });
