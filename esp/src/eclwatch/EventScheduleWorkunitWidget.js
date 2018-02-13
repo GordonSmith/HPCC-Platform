@@ -32,7 +32,7 @@ define([
     "hpcc/_TabContainerWidget",
     "hpcc/TargetSelectWidget",
     "hpcc/WUDetailsWidget",
-    "hpcc/WsWorkunits",
+    "src/WsWorkunits",
     "hpcc/ESPUtil",
     "hpcc/FilterDropDownWidget",
 

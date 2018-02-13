@@ -22,12 +22,12 @@ define([
     "dojo/store/util/QueryResults",
     "dojo/Stateful",
 
-    "hpcc/WsDfu",
+    "src/WsDfu",
     "hpcc/FileSpray",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/ESPUtil",
     "hpcc/ESPResult",
-    "hpcc/Utility"
+    "src/Utility"
 ], function (declare, arrayUtil, lang, Deferred, Observable, QueryResults, Stateful,
         WsDfu, FileSpray, ESPRequest, ESPUtil, ESPResult, Utility) {
 

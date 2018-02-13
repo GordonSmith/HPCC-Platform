@@ -38,13 +38,13 @@ define([
 
     "hpcc/_TabContainerWidget",
     "hpcc/ESPWorkunit",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/TargetSelectWidget",
     "hpcc/DelayLoadWidget",
     "hpcc/InfoGridWidget",
-    "hpcc/WsWorkunits",
+    "src/WsWorkunits",
     "hpcc/GridDetailsWidget",
-    "hpcc/WsDFUXref",
+    "src/WsDFUXref",
 
     "dojo/text!../templates/XrefDetailsWidget.html",
 

@@ -24,11 +24,11 @@ define([
     "dojo/store/Observable",
     "dojo/topic",
 
-    "hpcc/Utility",
-    "hpcc/WsWorkunits",
-    "hpcc/WsTopology",
+    "src/Utility",
+    "src/WsWorkunits",
+    "src/WsTopology",
     "hpcc/ESPUtil",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/ESPResult"
 ], function (declare, arrayUtil, lang, i18n, nlsHPCC, Deferred, all, Observable, topic,
     Utility, WsWorkunits, WsTopology, ESPUtil, ESPRequest, ESPResult) {

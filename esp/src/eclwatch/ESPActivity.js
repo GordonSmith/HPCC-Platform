@@ -20,13 +20,13 @@ define([
     "dojo/store/Memory",
     "dojo/store/Observable",
 
-    "hpcc/WsSMC",
+    "src/WsSMC",
     "hpcc/ESPUtil",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/ESPQueue",
     "hpcc/ESPWorkunit",
     "hpcc/ESPDFUWorkunit",
-    "hpcc/WsWorkunits"
+    "src/WsWorkunits"
 
 ], function (declare, arrayUtil, lang, Memory, Observable,
     WsSMC, ESPUtil, ESPRequest, ESPQueue, ESPWorkunit, ESPDFUWorkunit, WsWorkunits) {

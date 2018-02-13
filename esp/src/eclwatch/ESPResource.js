@@ -22,8 +22,8 @@ define([
 
     "hpcc/ESPWorkunit",
     "hpcc/ESPQuery",
-    "hpcc/WsEcl",
-    "hpcc/Utility"
+    "src/WsEcl",
+    "src/Utility"
 
 ], function (declare, arrayUtil, Deferred, dom, domConstruct,
     ESPWorkunit, ESPQuery, WsEcl, Utility) {

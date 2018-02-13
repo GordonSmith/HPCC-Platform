@@ -41,7 +41,7 @@ define([
     "hpcc/DelayLoadWidget",
     "hpcc/PackageMapDetailsWidget",
     "hpcc/PackageMapValidateWidget",
-    "hpcc/WsPackageMaps",
+    "src/WsPackageMaps",
     "hpcc/ESPPackageProcess",
     "hpcc/SFDetailsWidget",
 

@@ -30,7 +30,7 @@ define([
     "hpcc/GridDetailsWidget",
     "hpcc/ESPQuery",
     "hpcc/ESPUtil",
-    "hpcc/WsESDLConfig",
+    "src/WsESDLConfig",
 
     "dgrid/selector",
     "dgrid/editor",

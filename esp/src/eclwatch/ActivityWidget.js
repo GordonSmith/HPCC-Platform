@@ -32,11 +32,11 @@ define([
     "dgrid/tree",
 
     "hpcc/GridDetailsWidget",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/ESPActivity",
     "hpcc/DelayLoadWidget",
     "hpcc/ESPUtil",
-    "hpcc/Utility",
+    "src/Utility",
 
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, on,
                 registry, Button, ToggleButton, ToolbarSeparator, ContentPane, Tooltip,

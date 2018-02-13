@@ -42,7 +42,7 @@ define([
     "dgrid/tree",
 
     "hpcc/_TabContainerWidget",
-    "hpcc/WsDfu",
+    "src/WsDfu",
     "hpcc/FileSpray",
     "hpcc/ESPUtil",
     "hpcc/ESPLogicalFile",
@@ -52,8 +52,8 @@ define([
     "hpcc/TargetComboBoxWidget",
     "hpcc/FilterDropDownWidget",
     "hpcc/SelectionGridWidget",
-    "hpcc/WsTopology",
-    "hpcc/Utility",
+    "src/WsTopology",
+    "src/Utility",
 
     "put-selector/put",
 

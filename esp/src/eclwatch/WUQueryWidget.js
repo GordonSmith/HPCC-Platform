@@ -35,13 +35,13 @@ define([
     "dgrid/selector",
 
     "hpcc/_TabContainerWidget",
-    "hpcc/WsWorkunits",
+    "src/WsWorkunits",
     "hpcc/ESPUtil",
     "hpcc/ESPWorkunit",
     "hpcc/DelayLoadWidget",
     "hpcc/TargetSelectWidget",
     "hpcc/FilterDropDownWidget",
-    "hpcc/Utility",
+    "src/Utility",
 
     "dojo/text!../templates/WUQueryWidget.html",
 

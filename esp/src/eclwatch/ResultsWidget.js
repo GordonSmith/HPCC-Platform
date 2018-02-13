@@ -27,7 +27,7 @@ define([
     "dgrid/selector",
 
     "hpcc/GridDetailsWidget",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/ESPWorkunit",
     "hpcc/DelayLoadWidget",
     "hpcc/ESPUtil"

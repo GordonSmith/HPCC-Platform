@@ -44,8 +44,8 @@ define([
     "hpcc/ESPUtil",
     "hpcc/ESPWorkunit",
     "hpcc/TimingTreeMapWidget",
-    "hpcc/WsWorkunits",
-    "hpcc/Utility",
+    "src/WsWorkunits",
+    "src/Utility",
 
     "dojo/text!../templates/GraphTreeWidget.html",
 

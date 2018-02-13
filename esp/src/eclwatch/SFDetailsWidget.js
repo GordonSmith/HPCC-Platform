@@ -49,7 +49,7 @@ define([
     "hpcc/ESPUtil",
     "hpcc/ESPLogicalFile",
     "hpcc/DelayLoadWidget",
-    "hpcc/Utility",
+    "src/Utility",
 
     "dojo/text!../templates/SFDetailsWidget.html",
 

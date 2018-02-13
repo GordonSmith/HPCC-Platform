@@ -32,7 +32,7 @@ define([
     "dgrid/selector",
 
     "hpcc/GridDetailsWidget",
-    "hpcc/WsDFUXref",
+    "src/WsDFUXref",
     "hpcc/DelayLoadWidget",
     "hpcc/ESPUtil"
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, on, dom, domConstruct, domClass,

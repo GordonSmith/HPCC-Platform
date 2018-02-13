@@ -36,7 +36,7 @@ define([
     "dgrid/extensions/Pagination",
 
     "hpcc/_Widget",
-    "hpcc/ESPBase",
+    "src/ESPBase",
     "hpcc/ESPWorkunit",
     "hpcc/ESPLogicalFile",
     "hpcc/FilterDropDownWidget",
@@ -97,7 +97,7 @@ define([
         },
 
         _doDownload: function (type) {
-            var base = new ESPBase();
+            var base = new ESPBase.default();
             if (lang.exists("params.Sequence", this)) {
                 window.open(base.getBaseURL() + "/WUResultBin?Format=" + type + "&Wuid=" + this.params.Wuid + "&Sequence=" + this.params.Sequence, "_blank");
             } else if (lang.exists("params.LogicalName", this)) {

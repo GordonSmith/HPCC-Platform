@@ -24,10 +24,10 @@ define([
     "dijit/registry",
 
     "hpcc/_TabContainerWidget",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/ESPTopology",
     "hpcc/DelayLoadWidget",
-    "hpcc/WsTopology",
+    "src/WsTopology",
 
     "dojo/text!../templates/TpThorStatusWidget.html",
 

@@ -40,14 +40,14 @@ define([
     "hpcc/_TabContainerWidget",
     "hpcc/FileSpray",
     "hpcc/ESPUtil",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/ESPDFUWorkunit",
     "hpcc/DelayLoadWidget",
     "hpcc/TargetSelectWidget",
     "hpcc/TargetComboBoxWidget",
     "hpcc/SelectionGridWidget",
     "hpcc/FilterDropDownWidget",
-    "hpcc/Utility",
+    "src/Utility",
 
     "dojo/text!../templates/LZBrowseWidget.html",
 

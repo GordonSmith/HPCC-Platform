@@ -28,7 +28,7 @@ define([
     "hpcc/ESPWorkunit",
     "hpcc/DelayLoadWidget",
     "hpcc/ESPUtil",
-    "hpcc/Utility",
+    "src/Utility",
 
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, on,
                 tree, selector,

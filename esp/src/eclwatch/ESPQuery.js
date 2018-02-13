@@ -26,9 +26,9 @@ define([
 
     "dojox/xml/parser",
 
-    "hpcc/WsWorkunits",
-    "hpcc/WsEcl",
-    "hpcc/ESPRequest",
+    "src/WsWorkunits",
+    "src/WsEcl",
+    "src/ESPRequest",
     "hpcc/ESPUtil",
     "hpcc/ESPWorkunit"
 ], function (declare, arrayUtil, lang, i18n, nlsHPCC, Deferred, Observable, Stateful, topic,

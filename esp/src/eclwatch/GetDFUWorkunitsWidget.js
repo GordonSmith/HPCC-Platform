@@ -42,7 +42,7 @@ define([
     "hpcc/DelayLoadWidget",
     "hpcc/TargetSelectWidget",
     "hpcc/FilterDropDownWidget",
-    "hpcc/Utility",
+    "src/Utility",
 
     "dojo/text!../templates/GetDFUWorkunitsWidget.html",
 

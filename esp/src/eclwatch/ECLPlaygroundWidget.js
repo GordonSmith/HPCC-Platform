@@ -35,7 +35,7 @@ define([
     "hpcc/ECLPlaygroundResultsWidget",
     "hpcc/ESPWorkunit",
     "hpcc/ESPQuery",
-    "hpcc/Utility",
+    "src/Utility",
     
     "dojo/text!../templates/ECLPlaygroundWidget.html",
 

@@ -47,13 +47,13 @@ define([
 
     "hpcc/_TabContainerWidget",
     "hpcc/ESPWorkunit",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/ESPUtil",
     "hpcc/TargetSelectWidget",
     "hpcc/ECLSourceWidget",
-    "hpcc/WsTopology",
+    "src/WsTopology",
     "hpcc/GridDetailsWidget",
-    "hpcc/WsESDLConfig",
+    "src/WsESDLConfig",
     "hpcc/DynamicESDLMethodWidget",
 
     "dojo/text!../templates/DynamicESDLDetailsWidget.html",

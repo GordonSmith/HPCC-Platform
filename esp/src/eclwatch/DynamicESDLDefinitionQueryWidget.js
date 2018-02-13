@@ -21,7 +21,7 @@ define([
     "dojo/_base/array",
 
     "hpcc/GridDetailsWidget",
-    "hpcc/WsESDLConfig",
+    "src/WsESDLConfig",
     "hpcc/ESPUtil",
     "hpcc/DynamicESDLDefinitionDetailsWidget"
 

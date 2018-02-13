@@ -22,7 +22,7 @@ define([
     "dgrid/selector",
 
     "hpcc/GridDetailsWidget",
-    "hpcc/WsTopology",
+    "src/WsTopology",
     "hpcc/DelayLoadWidget",
     "hpcc/ESPUtil"
 

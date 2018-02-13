@@ -26,8 +26,8 @@ define([
 
     "dojox/xml/parser",
 
-    "hpcc/ESPBase",
-    "hpcc/ESPRequest"
+    "src/ESPBase",
+    "src/ESPRequest"
 ], function (declare, lang, arrayUtil, Deferred, QueryResults, JsonRest, Memory, Cache, Observable,
     parser,
     ESPBase, ESPRequest) {

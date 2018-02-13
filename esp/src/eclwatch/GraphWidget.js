@@ -38,7 +38,7 @@ define([
 
     "hpcc/_Widget",
     "hpcc/ESPUtil",
-    "hpcc/Utility",
+    "src/Utility",
 
     "dojo/text!../templates/GraphWidget.html",
 

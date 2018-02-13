@@ -32,7 +32,7 @@ define([
 
     "hpcc/GridDetailsWidget",
     "hpcc/ESPUtil",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/ESPWorkunit",
     "hpcc/DelayLoadWidget"
 

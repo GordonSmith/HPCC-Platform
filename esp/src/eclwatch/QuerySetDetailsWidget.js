@@ -35,7 +35,7 @@ define([
     "hpcc/ESPQuery",
     "hpcc/_TabContainerWidget",
     "hpcc/DelayLoadWidget",
-    "hpcc/Utility",
+    "src/Utility",
 
     "dojo/text!../templates/QuerySetDetailsWidget.html",
 

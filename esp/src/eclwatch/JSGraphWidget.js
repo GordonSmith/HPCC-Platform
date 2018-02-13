@@ -25,7 +25,7 @@ define([
     "@hpcc-js/graph",
     "@hpcc-js/layout",
     
-    "hpcc/WsWorkunits",
+    "src/WsWorkunits",
     "hpcc/GraphWidget",
     "hpcc/ESPGraph",
 

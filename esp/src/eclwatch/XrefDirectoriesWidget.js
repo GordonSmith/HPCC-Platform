@@ -30,7 +30,7 @@ define([
     "dijit/form/Button",
 
     "hpcc/GridDetailsWidget",
-    "hpcc/WsDFUXref",
+    "src/WsDFUXref",
     "hpcc/DelayLoadWidget",
     "hpcc/ESPUtil",
     "hpcc/XrefDetailsWidget"

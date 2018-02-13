@@ -33,7 +33,7 @@ define([
     "hpcc/DelayLoadWidget",
     "hpcc/TimingTreeMapWidget",
     "hpcc/ESPUtil",
-    "hpcc/Utility",
+    "src/Utility",
 
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, on, has,
                 Button,

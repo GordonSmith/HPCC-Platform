@@ -28,7 +28,7 @@ define([
     "dgrid/editor",
 
     "hpcc/GridDetailsWidget",
-    "hpcc/ws_access",
+    "src/ws_access",
     "hpcc/ESPUtil",
 
     "dijit/layout/BorderContainer",

@@ -29,8 +29,8 @@ define([
     "dgrid/extensions/ColumnHider",
 
     "hpcc/GridDetailsWidget",
-    "hpcc/WsTopology",
-    "hpcc/WsESDLConfig",
+    "src/WsTopology",
+    "src/WsESDLConfig",
     "hpcc/DelayLoadWidget",
     "hpcc/ESPUtil",
     "hpcc/DynamicESDLDetailsWidget",

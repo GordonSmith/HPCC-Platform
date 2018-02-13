@@ -25,7 +25,7 @@ define([
     "dgrid/selector",
 
     "hpcc/_Widget",
-    "hpcc/WsDfu",
+    "src/WsDfu",
     "hpcc/ESPUtil",
     "hpcc/FilterDropDownWidget",
 

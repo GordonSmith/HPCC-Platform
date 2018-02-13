@@ -21,7 +21,7 @@ define([
 
     "dojox/xml/parser",
 
-    "hpcc/Utility"
+    "src/Utility"
 
 ], function (declare, arrayUtil, i18n, nlsHPCC,
     parser,

@@ -26,7 +26,7 @@ define([
     "dijit/ToolbarSeparator",
 
     "hpcc/GridDetailsWidget",
-    "hpcc/WsDfu",
+    "src/WsDfu",
     "hpcc/ESPUtil"
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil,
                 registry, Button, ToolbarSeparator,
@@ -58,9 +58,7 @@ define([
                 onClick: function () { context._onErase(); }
             }).placeAt(this.openButton, "after");
 
-            var tmpSplitter = new ToolbarSeparator().placeAt(this.eraseHistory.domNode, "before");
-
-            dojo.destroy(this.openButton);
+            dojo.destroy(this.id + "Open");
 
             var retVal = new declare([ESPUtil.Grid(true, true)])({
                 store: this.store,

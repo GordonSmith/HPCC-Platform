@@ -23,7 +23,7 @@ define([
     "dijit/registry",
 
     "hpcc/_TabContainerWidget",
-    "hpcc/WsTopology",
+    "src/WsTopology",
     "hpcc/ESPQuery",
 
     "dijit/layout/BorderContainer",

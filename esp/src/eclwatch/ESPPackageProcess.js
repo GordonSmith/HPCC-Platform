@@ -22,7 +22,7 @@ define([
     "dojo/store/util/QueryResults",
     "dojo/store/Observable",
 
-    "hpcc/WsPackageMaps",
+    "src/WsPackageMaps",
     "hpcc/ESPUtil"
 ], function (declare, arrayUtil, lang, Deferred,
     ObjectStore, QueryResults, Observable,

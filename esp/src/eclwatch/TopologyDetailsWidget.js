@@ -39,11 +39,11 @@ define([
 
     "hpcc/_TabContainerWidget",
     "hpcc/ESPWorkunit",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/TargetSelectWidget",
     "hpcc/ECLSourceWidget",
     "hpcc/LogWidget",
-    "hpcc/WsTopology",
+    "src/WsTopology",
     "hpcc/GetNumberOfFilesToCopyWidget",
 
     "dojo/text!../templates/TopologyDetailsWidget.html",

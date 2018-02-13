@@ -25,10 +25,10 @@ define([
     "dojox/xml/parser",
     "dojox/html/entities",
 
-    "hpcc/ESPBase",
-    "hpcc/ESPRequest",
-    "hpcc/WsWorkunits",
-    "hpcc/Utility"
+    "src/ESPBase",
+    "src/ESPRequest",
+    "src/WsWorkunits",
+    "src/Utility"
 ], function (declare, arrayUtil, i18n, nlsHPCC, Deferred, lang, domConstruct,
             parser, entities,
     ESPBase, ESPRequest, WsWorkunits, Utility) {
@@ -146,7 +146,7 @@ define([
         return retVal;
     };
 
-    var Store = declare([ESPRequest.Store, ESPBase], {
+    var Store = declare([ESPRequest.Store, ESPBase.default], {
         service: "WsWorkunits",
         action: "WUResult",
         responseQualifier: "WUResultResponse.Result",

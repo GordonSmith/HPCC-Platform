@@ -32,7 +32,7 @@ define([
     "dgrid/selector",
 
     "hpcc/GridDetailsWidget",
-    "hpcc/WsDFUXref",
+    "src/WsDFUXref",
     "hpcc/DelayLoadWidget",
     "hpcc/ESPUtil"
 

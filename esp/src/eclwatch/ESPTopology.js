@@ -23,8 +23,8 @@ define([
     "dojo/store/Observable",
     "dojo/store/util/QueryResults",
 
-    "hpcc/WsTopology",
-    "hpcc/WsSMC",
+    "src/WsTopology",
+    "src/WsSMC",
     "hpcc/ESPUtil",
     "hpcc/ESPTree"
 ], function (declare, lang, arrayUtil, Deferred, all, Memory, Observable, QueryResults,

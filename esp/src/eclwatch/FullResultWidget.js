@@ -31,7 +31,7 @@ define([
     "dgrid/extensions/DijitRegistry",
 
     "hpcc/_Widget",
-    "hpcc/ESPBase",
+    "src/ESPBase",
     "hpcc/ESPWorkunit",
     "hpcc/ESPLogicalFile",
     "hpcc/ESPUtil",
@@ -87,7 +87,7 @@ define([
 
         _doDownload: function (type) {
             //TODO Fix
-            var base = new ESPBase();
+            var base = new ESPBase.default();
             if (lang.exists("result.Sequence", this)) {
                 var sequence = this.result.Sequence;
                 var downloadPdfIframeName = "downloadIframe_" + sequence;

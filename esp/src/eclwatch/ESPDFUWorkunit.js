@@ -25,9 +25,9 @@ define([
 
     "hpcc/FileSpray",
     "hpcc/ESPUtil",
-    "hpcc/ESPRequest",
+    "src/ESPRequest",
     "hpcc/ESPResult",
-    "hpcc/Utility",
+    "src/Utility",
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, Deferred, Observable, topic,
     FileSpray, ESPUtil, ESPRequest, ESPResult, Utility) {
 
