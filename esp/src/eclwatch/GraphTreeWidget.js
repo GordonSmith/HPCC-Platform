@@ -529,9 +529,9 @@ define([
             var deferred = new Deferred();
             this.main.setMessage(this.i18n.FetchingData);
             var context = this;
-            wu.fetchGraphXgmmlByName(graphName, subGraphId, function (xgmml, svg) {
-                context.main.setMessage("");
-                context.loadGraphFromXGMML(xgmml, svg);
+            wu.fetchGraphDetailsByName(graphName, subGraphId, function (struct, svg) {
+//                context.main.setMessage("");
+//                context.loadGraphFromXGMML(xgmml, svg);
                 deferred.resolve();
             }, refresh);
             return deferred.promise;

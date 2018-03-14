@@ -20,55 +20,60 @@ declare const dojo;
 
 var _workunits = {};
 
-var Store = declare([ESPRequest.Store], {
-    service: "WsWorkunits",
-    action: "WUQuery",
-    responseQualifier: "WUQueryResponse.Workunits.ECLWorkunit",
-    responseTotalQualifier: "WUQueryResponse.NumWUs",
-    idProperty: "Wuid",
-    startProperty: "PageStartFrom",
-    countProperty: "Count",
+class Store extends ESPRequest.Store {
+    service = "WsWorkunits";
+    action = "WUQuery";
+    responseQualifier = "WUQueryResponse.Workunits.ECLWorkunit";
+    responseTotalQualifier = "WUQueryResponse.NumWUs";
+    idProperty = "Wuid";
+    startProperty = "PageStartFrom";
+    countProperty = "Count";
 
-    constructor: function () {
+    protected _watched;
+    protected busy: boolean;
+    protected _toUnwatch = {};
+
+    constructor() {
+        super();
         this._watched = {};
-    },
-    preRequest: function (request) {
+    }
+    preRequest(request) {
         if (request.Sortby && request.Sortby === "TotalClusterTime") {
             request.Sortby = "ClusterTime";
         }
         this.busy = true;
-    },
-    preProcessFullResponse: function (response, request, query, options) {
+    }
+    preProcessFullResponse(response, request, query, options) {
         this.busy = false;
         this._toUnwatch = lang.mixin({}, this._watched);
-    },
-    create: function (id) {
+    }
+    create(id) {
         return new Workunit({
             Wuid: id
         });
-    },
-    update: function (id, item) {
+    }
+    update(id, item) {
         var storeItem = this.get(id);
         storeItem.updateData(item);
         if (!this._watched[id]) {
             var context = this;
             this._watched[id] = storeItem.watch("__hpcc_changedCount", function (name, oldValue, newValue) {
                 if (oldValue !== newValue) {
-                    context.notify(storeItem, id);
+                    (context as any).notify(storeItem, id);
                 }
             });
         } else {
             delete this._toUnwatch[id];
         }
-    },
-    postProcessResults: function () {
+    }
+    postProcessResults() {
         for (var key in this._toUnwatch) {
             this._toUnwatch[key].unwatch();
             delete this._watched[key];
         }
         delete this._toUnwatch;
     }
-});
+}
 
 var Workunit = declare([ESPUtil.Singleton, ESPUtil.Monitor], {  // jshint ignore:line
     i18n: nlsHPCC,
@@ -912,7 +917,7 @@ export function Get(wuid, data?) {
     return retVal;
 }
 
-export function CreateWUQueryStore(options) {
-    var store = new Store(options);
+export function CreateWUQueryStore() {
+    var store = new Store();
     return Observable(store);
 }
