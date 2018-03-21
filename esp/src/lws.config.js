@@ -1,5 +1,5 @@
 const debugServerIP = "192.168.3.22";
-const debugHPCC_JS = true; //  Should never be TRUE in a PR  ---
+const debugHPCC_JS = false; //  Should never be TRUE in a PR  ---
 
 let rewrite = [
     { from: "/esp/files/dist/*", to: "/build/dist/$1" },

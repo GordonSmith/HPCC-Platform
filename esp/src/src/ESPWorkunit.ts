@@ -1,4 +1,6 @@
-﻿import * as declare from "dojo/_base/declare";
+﻿import { Workunit as HPCCWorkunit } from "@hpcc-js/comms";
+
+import * as declare from "dojo/_base/declare";
 import * as arrayUtil from "dojo/_base/array";
 import * as lang from "dojo/_base/lang";
 import "dojo/i18n";
@@ -19,6 +21,19 @@ import * as ESPResult from "./ESPResult";
 declare const dojo;
 
 var _workunits = {};
+
+//  Force TS compiler to include the following (tsc bug?)
+HPCCWorkunit;
+arrayUtil;
+Deferred;
+all;
+topic;
+Utility;
+WsWorkunits;
+WsTopology;
+ESPResult;
+dojo;
+_workunits;
 
 class Store extends ESPRequest.Store {
     service = "WsWorkunits";
@@ -827,6 +842,25 @@ var Workunit = declare([ESPUtil.Singleton, ESPUtil.Monitor], {  // jshint ignore
             onGetGraphs: onFetchGraphs
         });
     },
+    fetchGraphDetailsByName: function (name, subGraphId, onFetchGraphXgmml, force) {
+        const wu = HPCCWorkunit.attach({ baseUrl: "" }, this.wu.Wuid);
+        wu.fetchDetails({
+            ScopeFilter: {
+                MaxDepth: 9999,
+                ScopeTypes: ["graph", "subgraph", "activity", "edge"]
+            },
+            PropertiesToReturn:{
+                AllAttributes: true
+            },
+            PropertyOptions:{
+                IncludeRawValue: true,
+                IncludeFormatted: false
+            }
+        }).then(details => {
+            details;
+        })
+        return this.fetchGraphXgmmlByName(name, subGraphId, onFetchGraphXgmml, force);
+    },
     fetchGraphXgmmlByName: function (name, subGraphId, onFetchGraphXgmml, force) {
         var idx = this.getGraphIndex(name);
         if (idx >= 0) {
@@ -896,7 +930,6 @@ var Workunit = declare([ESPUtil.Singleton, ESPUtil.Monitor], {  // jshint ignore
         }
     }
 });
-
 
 export function isInstanceOfWorkunit(obj) {
     return obj && obj.isInstanceOf && obj.isInstanceOf(Workunit);
