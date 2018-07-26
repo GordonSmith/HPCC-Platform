@@ -91,10 +91,10 @@ export function espTime2SecondsTests() {
     }, this);
 }
 
-export function convertedSize (intsize: number): string {
-    const unitConversion = ["Bytes","KB","MB","GB","TB","PB","EB","ZB","YB"];
-    const x = Math.floor(Math.log(intsize)/ Math.log(1024));
-    return (intsize/ Math.pow(1024,x)).toFixed(2) + " " + unitConversion[x];
+export function convertedSize(intsize: number): string {
+    const unitConversion = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+    const x = Math.floor(Math.log(intsize) / Math.log(1024));
+    return (intsize / Math.pow(1024, x)).toFixed(2) + " " + unitConversion[x];
 }
 
 export function unitTest(size, unit) {
@@ -337,7 +337,7 @@ export function alphanumCase(a, b) {
     return aa.length - bb.length;
 }
 
-export function alphanumSort(arr, col, caseInsensitive, reverse) {
+export function alphanumSort(arr, col, caseInsensitive, reverse:boolean = false) {
     if (arr && arr instanceof Array) {
         arr.sort(function (l, r) {
             if (caseInsensitive) {
@@ -350,6 +350,9 @@ export function alphanumSort(arr, col, caseInsensitive, reverse) {
 
 export function resolve(hpccWidget, callback) {
     function doLoad(widget) {
+        if (widget[hpccWidget]) {
+            widget = widget[hpccWidget];
+        }
         if (widget.fixCircularDependency) {
             widget = widget.fixCircularDependency;
         }
@@ -439,7 +442,7 @@ export function resolve(hpccWidget, callback) {
             require(["hpcc/GraphPageWidget"], doLoad);
             break;
         case "GraphsWidget":
-            require(["hpcc/GraphsWidget"], doLoad);
+            require(["src/GraphsWidget"], doLoad);
             break;
         case "GraphTreeWidget":
             require(["hpcc/GraphTreeWidget"], doLoad);

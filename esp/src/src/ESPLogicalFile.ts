@@ -409,7 +409,7 @@ var LogicalFile = declare([ESPUtil.Singleton], {    // jshint ignore:line
     }
 });
 
-export function Get(Cluster, Name, data) {
+export function Get(Cluster, Name, data?) {
     if (!Name) {
         throw new Error("Invalid Logical File ID");
     }
