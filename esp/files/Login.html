@@ -85,6 +85,8 @@
                 display: none;
             }
         </style>
+        <script>dojoConfig = {async:true, parseOnLoad:false}</script>
+        <script src="/esp/files/dist/dojoLib.eclwatch.js"></script>
     </head>
     <body>
         <div id="container" class="container visible">
@@ -123,6 +125,15 @@
 		        element.style.display = "inline-block";
 		        deleteCookie('ESPAuthenticationMSG','',0);
             }
+        </script>
+        <script type="text/javascript">
+            require(["dojo/ready", "dojo/i18n", "nlsHPCC"],
+                function(ready, i18n, nlsHPCC){
+                    ready(function(){
+                       console.log(nlsHPCC);
+                    });
+                }
+            );
         </script>
     </body>
 </html>
