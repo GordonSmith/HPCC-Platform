@@ -2320,7 +2320,7 @@ void HqlGram::checkAllAssigned(IHqlExpression * originalRecord, IHqlExpression *
     checkAssignedNormalizeTransform(originalRecord, unadornedRecord, errpos);
 }
 
-void HqlGram::checkFoldConstant(attribute & attr)
+void HqlGram::checkFoldConstant(attribute & attr, bool callAllowed)
 {
     if (attr.queryExpr()->isConstant())
     {
@@ -2328,7 +2328,7 @@ void HqlGram::checkFoldConstant(attribute & attr)
         attr.setExpr(foldHqlExpression(expr), attr);
     }
     else
-        checkConstant(attr, false);
+        checkConstant(attr, callAllowed);
 }
 
 IHqlExpression * HqlGram::checkConstant(const attribute & errpos, IHqlExpression * expr, bool callAllowed)
@@ -4383,7 +4383,7 @@ void HqlGram::normalizeExpression(attribute & exprAttr)
     }
 }
 
-void HqlGram::normalizeExpression(attribute & exprAttr, type_t expectedType, bool isConstant)
+void HqlGram::normalizeExpression(attribute & exprAttr, type_t expectedType, bool isConstant, bool callAllowed)
 {
     normalizeExpression(exprAttr);
     switch (expectedType)
@@ -4431,7 +4431,7 @@ void HqlGram::normalizeExpression(attribute & exprAttr, type_t expectedType, boo
         throwUnexpected();
     }
     if (isConstant)
-        checkFoldConstant(exprAttr);
+        checkFoldConstant(exprAttr, callAllowed);
 }
 
 IHqlExpression * HqlGram::normalizeExprList(const attribute & errpos, const HqlExprArray & values)
@@ -8316,7 +8316,8 @@ void HqlGram::checkJoinFlags(const attribute &err, IHqlExpression * join)
     }
 
     IHqlExpression * rhs = join->queryChild(1);
-    if (!isKeyedJoin(join) && (rhs->getOperator() == no_filter) && (rhs != join->queryChild(0)))
+    if (!isKeyedJoin(join) && (rhs->getOperator() == no_filter) && (rhs != join->queryChild(0)) &&
+	    !join->hasAttribute(lookupAtom) && !join->hasAttribute(allAtom) && !join->hasAttribute(smartAtom) && join->hasAttribute(streamedAtom))
     {
         IHqlExpression * cur = rhs;
         while (cur->getOperator() == no_filter)

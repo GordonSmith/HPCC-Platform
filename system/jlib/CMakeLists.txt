@@ -31,15 +31,15 @@ CHECK_LIBRARY_EXISTS(crypt crypt "" HAVE_LIBCRYPT)
 endif ()
 
 if(NOT TARGET lzma)
-  add_subdirectory(../lzma ${CMAKE_BINARY_DIR}/system/lzma)
+  add_subdirectory(${HPCC_SOURCE_DIR}/system/lzma ${CMAKE_BINARY_DIR}/system/lzma)
 endif(NOT TARGET lzma)
 
 if(NOT TARGET lz4)
-  add_subdirectory(../lz4_sm ${CMAKE_BINARY_DIR}/system/lz4_sm)
+  add_subdirectory(${HPCC_SOURCE_DIR}/system/lz4_sm ${CMAKE_BINARY_DIR}/system/lz4_sm)
 endif(NOT TARGET lz4)
 
 if(NOT TARGET libbase58)
-  add_subdirectory(../libbase58 ${CMAKE_BINARY_DIR}/system/libbase58)
+  add_subdirectory(${HPCC_SOURCE_DIR}/system/libbase58 ${CMAKE_BINARY_DIR}/system/libbase58)
 endif(NOT TARGET libbase58)
 
 if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANG)
@@ -166,6 +166,10 @@ set (    INCLUDES
         jtime.ipp
         junicode.hpp
         jutil.hpp
+        ${HPCC_SOURCE_DIR}/system/security/cryptohelper/cryptocommon.cpp
+        ${HPCC_SOURCE_DIR}/system/security/cryptohelper/digisign.cpp
+        ${HPCC_SOURCE_DIR}/system/security/cryptohelper/pke.cpp
+        ${HPCC_SOURCE_DIR}/system/security/cryptohelper/ske.cpp
         )
 
 if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANG)
@@ -179,11 +183,13 @@ if (CMAKE_COMPILER_IS_GNUCC)
 endif ()
 
 include_directories ( 
-         ../../system/win32 
-         ../../system/include 
-         ../../system/lzma
-         ../../system/lz4_sm/lz4/lib
-         ../../system/libbase58
+         ${HPCC_SOURCE_DIR}/system/jlib
+         ${HPCC_SOURCE_DIR}/system/win32
+         ${HPCC_SOURCE_DIR}/system/include
+         ${HPCC_SOURCE_DIR}/system/lzma
+         ${HPCC_SOURCE_DIR}/system/lz4_sm/lz4/lib
+         ${HPCC_SOURCE_DIR}/system/libbase58
+         ${HPCC_SOURCE_DIR}/system/security/cryptohelper
          ${CMAKE_CURRENT_BINARY_DIR}  # for generated jelog.h file 
          ${CMAKE_BINARY_DIR}
          ${CMAKE_BINARY_DIR}/oss
@@ -205,6 +211,10 @@ endif ( ${HAVE_LIBDL} )
 if ( ${HAVE_LIBCRYPT} )
 target_link_libraries ( jlib crypt)
 endif ( ${HAVE_LIBCRYPT} )
+
+IF (USE_OPENSSL)
+target_link_libraries ( jlib ${OPENSSL_LIBRARIES})
+endif (USE_OPENSSL)
 
 if (WIN32)
  target_link_libraries ( jlib ws2_32 mpr.lib Winmm.lib psapi.lib )

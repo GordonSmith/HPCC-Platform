@@ -17,12 +17,51 @@
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/dropzone.xsd.in ${CMAKE_CURRENT_BINARY_DIR}/dropzone.xsd)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/eclagent_config.xsd.in ${CMAKE_CURRENT_BINARY_DIR}/eclagent_config.xsd)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/esp.xsd.in ${CMAKE_CURRENT_BINARY_DIR}/esp.xsd)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/SiteCertificate.xsd.in ${CMAKE_CURRENT_BINARY_DIR}/SiteCertificate.xsd)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/espsmcservice.xsd.in ${CMAKE_CURRENT_BINARY_DIR}/espsmcservice.xsd)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/ftslave_linux.xsd.in ${CMAKE_CURRENT_BINARY_DIR}/ftslave_linux.xsd)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/roxie.xsd.in ${CMAKE_CURRENT_BINARY_DIR}/roxie.xsd)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/RoxieTopology.xsl ${CMAKE_CURRENT_BINARY_DIR}/RoxieTopology.xsl)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/thor.xsd.in ${CMAKE_CURRENT_BINARY_DIR}/thor.xsd)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/thor.xsl ${CMAKE_CURRENT_BINARY_DIR}/thor.xsl)
+
+if(USE_SPARK)
+    set(SPARKTHOR_ENV_ENTRY "|.//SparkThorProcess")
+    set(SPARKTHOR_BUILDSET_ENTRY
+"            <BuildSet installSet=\"deploy_map.xml\"
+                name=\"sparkthor\"
+                path=\"componentfiles/sparkthor\"
+                processName=\"SparkThorProcess\"
+                schema=\"sparkThor.xsd\"/>")
+    set(SPARKTHOR_CGENCOMPLIST_LINUX_ENTRY
+"  <Component name=\"sparkthor\" processName=\"SparkThor\" schema=\"sparkThor.xsd\">
+     <File name=\"sparkThor.xsl\" method=\"xslt\" destName=\"spark-env.sh\"/>
+     <File name=\"spark-defaults.xsl\" method=\"xslt\" destName=\"spark-defaults.conf\"/>
+   </Component>")
+    set(SPARKTHOR_CGENCOMPLIST_WIN_ENTRY
+"  <Component name=\"sparkthor\" processName=\"SparkThor\" schema=\"sparkThor.xsd\">
+    <File name=\"sparkThor.xsl\" method=\"xslt\" destName=\"spark-env.conf\"/>
+    <File name=\"spark-defaults.xsl\" method=\"xslt\" destName=\"spark-defaults.conf\"/>
+  </Component>")
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/sparkThor.xsl.in
+        ${CMAKE_CURRENT_BINARY_DIR}/sparkThor.xsl
+        @ONLY)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/spark-defaults.xsl.in
+        ${CMAKE_CURRENT_BINARY_DIR}/spark-defaults.xsl
+        @ONLY)
+    install(
+        FILES ${CMAKE_CURRENT_SOURCE_DIR}/sparkThor.xsd
+              ${CMAKE_CURRENT_BINARY_DIR}/sparkThor.xsl
+              ${CMAKE_CURRENT_BINARY_DIR}/spark-defaults.xsl
+        DESTINATION componentfiles/configxml
+        COMPONENT Runtime)
+endif()
+
+configure_file(environment.xsd.in environment.xsd @ONLY)
+configure_file(cgencomplist_linux.xml.in cgencomplist_linux.xml @ONLY)
+configure_file(cgencomplist_win.xml.in cgencomplist_win.xml @ONLY)
 
 if("${HPCC_PROJECT_ABBR}" STREQUAL "CC")
     configure_file("buildset${HPCC_PROJECT_ABBR}.xml.in" "buildset.xml")
@@ -51,7 +90,7 @@ FOREACH( iFILES
     ${CMAKE_CURRENT_SOURCE_DIR}/eclcc.xsd
     ${CMAKE_CURRENT_SOURCE_DIR}/eclccserver.xsd
     ${CMAKE_CURRENT_SOURCE_DIR}/eclscheduler.xsd
-    ${CMAKE_CURRENT_SOURCE_DIR}/environment.xsd
+    ${CMAKE_CURRENT_BINARY_DIR}/environment.xsd
     ${CMAKE_CURRENT_SOURCE_DIR}/esp_service_account.xsd
     ${CMAKE_CURRENT_SOURCE_DIR}/esp_service_wsecl.xsd
     ${CMAKE_CURRENT_SOURCE_DIR}/esp_service_wsecl2.xsd
@@ -65,12 +104,12 @@ FOREACH( iFILES
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin.xsd
     ${CMAKE_CURRENT_SOURCE_DIR}/regress.xsd
     ${CMAKE_CURRENT_SOURCE_DIR}/sasha.xsd
-    ${CMAKE_CURRENT_SOURCE_DIR}/SiteCertificate.xsd
+    ${CMAKE_CURRENT_BINARY_DIR}/SiteCertificate.xsd
     ${CMAKE_CURRENT_SOURCE_DIR}/soapplus.xsd
     ${CMAKE_CURRENT_SOURCE_DIR}/topology.xsd
     ${CMAKE_CURRENT_SOURCE_DIR}/WsDeploy.xsd
-    ${CMAKE_CURRENT_SOURCE_DIR}/cgencomplist_linux.xml
-    ${CMAKE_CURRENT_SOURCE_DIR}/cgencomplist_win.xml
+    ${CMAKE_CURRENT_BINARY_DIR}/cgencomplist_linux.xml
+    ${CMAKE_CURRENT_BINARY_DIR}/cgencomplist_win.xml
     ${CMAKE_CURRENT_SOURCE_DIR}/esp.xsl
     ${CMAKE_CURRENT_SOURCE_DIR}/dali.xsl
     ${CMAKE_CURRENT_SOURCE_DIR}/dfuplus.xsl

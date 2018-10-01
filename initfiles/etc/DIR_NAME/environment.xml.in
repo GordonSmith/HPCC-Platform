@@ -61,7 +61,7 @@
                 enableKeyDiff="true"
                 enableSysLog="true"
                 fastLaneQueue="true"
-                fieldTranslationEnabled="false"
+                fieldTranslationEnabled="payload"
                 flushJHtreeCacheOnOOM="true"
                 forceStdLog="false"
                 heapRetainMemory="false"
@@ -275,15 +275,15 @@
              netAddress="."/>
    <HTTPS acceptSelfSigned="true"
           CA_Certificates_Path="ca.pem"
-          certificateFileName="certificate.cer"
+          certificateFileName="@HOME_DIR@/@RUNTIME_USER@/certificate/certificate.pem"
           city=""
           country="US"
           daysValid="365"
           enableVerification="false"
           organization="Customer of HPCCSystems"
           organizationalUnit=""
-          passphrase=""
-          privateKeyFileName="privatekey.cer"
+          passphrase="XC+0Byt45EYD6qV5++8HW+lgsYB/nGud8FtgrubKdLk="
+          privateKeyFileName="@HOME_DIR@/@RUNTIME_USER@/certificate/key.pem"
           regenerateCredentials="false"
           requireAddressMatch="false"
           state=""
@@ -522,6 +522,7 @@
    <Category dir="$ENV{DESTDIR}${EXEC_PREFIX}/lib/[NAME]/queries/[INST]" name="query"/>
    <Category dir="$ENV{DESTDIR}${EXEC_PREFIX}/lock/[NAME]/[INST]" name="lock"/>
    <Category dir="$ENV{DESTDIR}${EXEC_PREFIX}/lib/[NAME]/hpcc-data4/[COMPONENT]" name="data4"/>
+   <Category dir="$ENV{DESTDIR}${EXEC_PREFIX}/lib/[NAME]/keys" name="keys"/>
   </Directories>
   <EclAgentProcess allowedPipePrograms="*"
                    build="_"
@@ -888,6 +889,25 @@
              name="s1"
              netAddress="."/>
   </EclSchedulerProcess>
+  @SPARK_ENV_S@
+  <SparkThorProcess build="_"
+                    buildSet="sparkthor"
+                    name="mysparkthor"
+                    NodeGroup="mythor"
+                    daliServers="mydali"
+                    SPARK_EXECUTOR_CORES="1"
+                    SPARK_EXECUTOR_MEMORY="1G"
+                    SPARK_MASTER_WEBUI_PORT="8080"
+                    SPARK_MASTER_PORT="7077"
+                    SPARK_WORKER_CORES="1"
+                    SPARK_WORKER_MEMORY="1G"
+                    SPARK_WORKER_PORT="7071">
+   <Instance computer="localhost"
+             directory="/var/lib/HPCCSystems/mysparkthor"
+             name="s1"
+             netAddress="."/>
+  </SparkThorProcess>
+  @SPARK_ENV_E@
  </Software>
  <EnvSettings>
   <pid>${PID_PATH}</pid>
@@ -953,8 +973,7 @@
              name="eclminus"
              overide="no"
              path="componentfiles/eclminus"/>
-   <BuildSet installSet="deploy_map.xml"
-             name="eclplus"
+   <BuildSet installSet="deploy_map.xml" name="eclplus"
              overide="no"
              path="componentfiles/eclplus"
              processName="EclPlusProcess"
@@ -1223,6 +1242,13 @@
                    resource="WsLoggingAccess"/>
     </Properties>
    </BuildSet>
+   @SPARK_ENV_S@
+   <BuildSet installSet="deploy_map.xml"
+             name="sparkthor"
+             path="componentfiles/sparkthor"
+             processName="SparkThorProcess"
+             schema="sparkThor.xsd"/>
+   @SPARK_ENV_E@
   </Build>
  </Programs>
 </Environment>

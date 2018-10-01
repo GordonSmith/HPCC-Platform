@@ -17,21 +17,63 @@
 
 #if defined(_USE_OPENSSL) && !defined(_WIN32)
 
+#include <memory>
 #include "jliball.hpp"
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#include <openssl/ssl.h>
 #include "cryptocommon.hpp"
 
 
-static void addAlgorithms()
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static unsigned numCryptoLocks = 0;
+static std::vector<std::unique_ptr<CriticalSection>> cryptoLocks;
+
+static void locking_function(int mode, int n, const char * file, int line)
 {
-    OpenSSL_add_all_algorithms();
+    assertex(n < (int)numCryptoLocks);
+    if (mode & CRYPTO_LOCK)
+        cryptoLocks[n]->enter();
+    else
+        cryptoLocks[n]->leave();
 }
+
+static unsigned long pthreads_thread_id()
+{
+    return (unsigned long)GetCurrentThreadId();
+}
+
+static void installCallbacks()
+{
+    if (!CRYPTO_get_locking_callback())
+    {
+        numCryptoLocks = CRYPTO_num_locks();
+        for (unsigned i=0; i<numCryptoLocks; i++)
+            cryptoLocks.push_back(std::unique_ptr<CriticalSection>(new CriticalSection));
+        CRYPTO_set_locking_callback(locking_function);
+    }
+#ifndef _WIN32
+    if (!CRYPTO_get_id_callback())
+        CRYPTO_set_id_callback((unsigned long (*)())pthreads_thread_id);
+#endif
+}
+#endif
+
+static void initSSLLibrary()
+{
+    SSL_load_error_strings();
+    SSLeay_add_ssl_algorithms();
+    OpenSSL_add_all_algorithms();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    installCallbacks();
+#endif
+}
+
 
 MODULE_INIT(INIT_PRIORITY_STANDARD)
 {
-    addAlgorithms();
+    initSSLLibrary();
     return true;
 }
 MODULE_EXIT()
@@ -42,26 +84,31 @@ MODULE_EXIT()
 namespace cryptohelper
 {
 
-static void populateErrorFormat(StringBuffer &formatMessage, const char *format)
+static void populateError(StringBuffer &msg)
 {
     // openssl doesn't define max error string size, but 1K will do
-    char *evpErr = formatMessage.reserve(1024);
+    char *evpErr = msg.reserve(1024);
     ERR_error_string_n(ERR_get_error(), evpErr, 1024);
-    formatMessage.setLength(strlen(evpErr));
-    formatMessage.append(" - ").append(format);
+    msg.setLength(strlen(evpErr));
+    msg.append(" - ");
 }
+
+static IException *makeEVPExceptionVA(int code, const char *format, va_list args)  __attribute__((format(printf,2,0)));
+
 IException *makeEVPExceptionVA(int code, const char *format, va_list args)
 {
-    StringBuffer formatMessage;
-    populateErrorFormat(formatMessage, format);
-    return makeStringExceptionVA(code, formatMessage, args);
+    StringBuffer message;
+    populateError(message);
+    message.valist_appendf(format, args);
+    return makeStringException(code, message);
 }
 
 IException *makeEVPException(int code, const char *msg)
 {
-    StringBuffer formatMessage;
-    populateErrorFormat(formatMessage, msg);
-    return makeStringException(code, formatMessage);
+    StringBuffer message;
+    populateError(message);
+    message.append(msg);
+    return makeStringException(code, message);
 }
 
 IException *makeEVPExceptionV(int code, const char *format, ...)

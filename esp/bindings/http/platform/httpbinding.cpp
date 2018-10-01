@@ -48,6 +48,7 @@
 #include "jsonhelpers.hpp"
 #include "dasds.hpp"
 #include "daclient.hpp"
+#include "workunit.hpp"
 
 #define FILE_UPLOAD     "FileUploadAccess"
 #define DEFAULT_HTTP_PORT 80
@@ -203,6 +204,7 @@ EspHttpBinding::EspHttpBinding(IPropertyTree* tree, const char *bindname, const 
                     m_secmgr.setown(SecLoader::loadPluggableSecManager(bindname, bnd_cfg, secMgrCfg));
                     m_authmap.setown(m_secmgr->createAuthMap(authcfg));
                     m_feature_authmap.setown(m_secmgr->createFeatureMap(authcfg));
+                    m_setting_authmap.setown(m_secmgr->createSettingMap(authcfg));
                 }
                 else
                 {
@@ -238,6 +240,7 @@ EspHttpBinding::EspHttpBinding(IPropertyTree* tree, const char *bindname, const 
 
                         m_authmap.setown(m_secmgr->createAuthMap(authcfg));
                         m_feature_authmap.setown(m_secmgr->createFeatureMap(authcfg));
+                        m_setting_authmap.setown(m_secmgr->createSettingMap(authcfg));
                     }
                     else if(stricmp(m_authmethod.str(), "Local") == 0)
                     {
@@ -265,6 +268,9 @@ EspHttpBinding::EspHttpBinding(IPropertyTree* tree, const char *bindname, const 
     if(m_challenge_realm.length() == 0)
         m_challenge_realm.append("ESP");
 
+    //Even for non-session based environment, the sessionIDCookieName may be used to
+    //remove session related cookies cached in some browser page.
+    sessionIDCookieName.setf("%s%d", SESSION_ID_COOKIE, m_port);
     if (!m_secmgr.get() || !daliClientActive())
     {
         if (!daliClientActive())
@@ -335,7 +341,6 @@ void EspHttpBinding::setSDSSession()
         newAppSessionTree->setPropInt("@port", m_port);
     }
     sessionSDSPath.setf("%s/%s/", espSessionSDSPath.str(), appStr.str());
-    sessionIDCookieName.setf("%s%d", SESSION_ID_COOKIE, m_port);
 }
 
 static int compareLength(char const * const *l, char const * const *r) { return strlen(*l) - strlen(*r); }
@@ -699,6 +704,27 @@ bool EspHttpBinding::basicAuth(IEspContext* ctx)
         ctx->setAuthError(EspAuthErrorUserNotFoundInContext);
         ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", "Access Denied: No username provided");
         return false;
+    }
+
+    //Check if the password is a "real" password, or a workunit distributed access token
+    const char * pwd = user->credentials().getPassword();
+    if (isWorkunitDAToken(pwd))
+    {
+        wuTokenStates state = verifyWorkunitDAToken(pwd);//throws if cannot open workunit
+        if (state == wuTokenValid)
+        {
+            user->setAuthenticateStatus(AS_AUTHENTICATED);
+        }
+        else
+        {
+            user->setAuthenticateStatus(AS_INVALID_CREDENTIALS);
+            const char * reason = state == wuTokenInvalid ? "WUToken Workunit Token invalid" : "WUToken Workunit Inactive";
+            ctx->AuditMessage(AUDIT_TYPE_ACCESS_FAILURE, "Authentication", reason);
+            ctx->setAuthError(EspAuthErrorNotAuthenticated);
+            ctx->setRespMsg(reason);
+            user->credentials().setPassword(nullptr);
+            return false;
+        }
     }
 
     if(m_secmgr.get() == NULL)

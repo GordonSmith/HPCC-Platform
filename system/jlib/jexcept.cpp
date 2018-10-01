@@ -114,6 +114,42 @@ IException jlib_decl *makeStringException(MessageAudience aud,int code,const cha
     return new StringException(code,why,aud);
 }
 
+class jlib_thrown_decl WrappedException: public StringException
+{
+    typedef StringException PARENT;
+public:
+    WrappedException(IException *_exception, int code, const char *str, MessageAudience aud = MSGAUD_user) : StringException(code, str, aud), exception(_exception) { }
+
+    virtual StringBuffer &  errorMessage(StringBuffer &str) const override
+    {
+        PARENT::errorMessage(str);
+        if (exception)
+        {
+            str.appendf("[ %u, ", exception->errorCode());
+            exception->errorMessage(str).append(" ]");
+        }
+        return str;
+    }
+protected:
+    Linked<IException> exception;
+};
+
+IException *makeWrappedExceptionVA(IException *e, int code, const char *format, va_list args)
+{
+    StringBuffer eStr;
+    eStr.limited_valist_appendf(1024, format, args);
+    return new WrappedException(e, code, eStr.str());
+}
+
+IException *makeWrappedExceptionV(IException *e, int code, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    IException *ret = makeWrappedExceptionVA(e, code, format, args);
+    va_end(args);
+    return ret;
+}
+
 void jlib_decl throwStringExceptionV(int code,const char *format, ...)
 {
     va_list args;
@@ -1520,27 +1556,40 @@ void printStackReport(__int64 startIP)
 
 //---------------------------------------------------------------------------------------------------------------------
 
-bool getAllStacks(StringBuffer &output)
+unsigned getCommandOutput(StringBuffer &output, const char *cmd, const char *cmdTitle, const char *allowedPrograms)
 {
-#ifdef __linux__
+    Owned<IPipeProcess> pipe = createPipeProcess(allowedPrograms);
+    if (pipe->run(cmdTitle, cmd, nullptr, false, true, false))
+    {
+        Owned<ISimpleReadStream> pipeReader = pipe->getOutputStream();
+        readSimpleStream(output, *pipeReader);
+    }
+    return pipe->wait();
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+
+bool getDebuggerGetStacksCmd(StringBuffer &output)
+{
+#ifndef __linux__
+    return false; // unsupported
+#endif
+
     const char *exePath = queryCurrentProcessPath();
     if (!exePath)
     {
         output.append("Unable to capture stacks");
         return false;
     }
-    VStringBuffer cmd("gdb --batch -n -ex 'thread apply all bt' %s %u", exePath, GetCurrentProcessId());
-    Owned<IPipeProcess> pipe = createPipeProcess();
-    if (pipe->run("get stacks", cmd, nullptr, false, true, false))
-    {
-        Owned<ISimpleReadStream> pipeReader = pipe->getOutputStream();
-        readSimpleStream(output, *pipeReader);
-    }
-    int retcode = pipe->wait();
-    return 0 == retcode;
-#else
-    return false; // unsupported
-#endif
+    return output.appendf("gdb --batch -n -ex 'thread apply all bt' %s %u", exePath, GetCurrentProcessId());
+}
+
+bool getAllStacks(StringBuffer &output)
+{
+    StringBuffer cmd;
+    if (!getDebuggerGetStacksCmd(cmd))
+        return false;
+    return 0 == getCommandOutput(output, cmd, "get stacks");
 }
 
 //---------------------------------------------------------------------------------------------------------------------

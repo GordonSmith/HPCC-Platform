@@ -50,6 +50,8 @@ enum ThrottleClass
 #define DEFAULT_SLOWCMD_THROTTLECPULIMIT 75
 #define DEFAULT_SLOWCMD_THROTTLEQUEUELIMIT 1000
 
+#define DEFAULT_AUTHORIZED_ONLY false
+
 interface IRemoteFileServer : extends IInterface
 {
     virtual void run(DAFSConnectCfg connectMethod, SocketEndpoint &listenep, unsigned sslPort=0) = 0;
@@ -59,7 +61,7 @@ interface IRemoteFileServer : extends IInterface
     virtual StringBuffer &getStats(StringBuffer &stats, bool reset) = 0;
 };
 
-#define FILESRV_VERSION 22 // don't forget VERSTRING in sockfile.cpp
+#define FILESRV_VERSION 24 // don't forget VERSTRING in sockfile.cpp
 
 interface IKeyManager;
 interface IDelayedFile;
@@ -68,7 +70,7 @@ extern REMOTE_API IFile * createRemoteFile(SocketEndpoint &ep,const char * _file
 extern REMOTE_API unsigned getRemoteVersion(ISocket * _socket, StringBuffer &ver);
 extern REMOTE_API unsigned stopRemoteServer(ISocket * _socket);
 extern REMOTE_API const char *remoteServerVersionString();
-extern REMOTE_API IRemoteFileServer * createRemoteFileServer(unsigned maxThreads=DEFAULT_THREADLIMIT, unsigned maxThreadsDelayMs=DEFAULT_THREADLIMITDELAYMS, unsigned maxAsyncCopy=DEFAULT_ASYNCCOPYMAX);
+extern REMOTE_API IRemoteFileServer * createRemoteFileServer(unsigned maxThreads=DEFAULT_THREADLIMIT, unsigned maxThreadsDelayMs=DEFAULT_THREADLIMITDELAYMS, unsigned maxAsyncCopy=DEFAULT_ASYNCCOPYMAX, bool authorizedOnly=DEFAULT_AUTHORIZED_ONLY, IPropertyTree *keyPairInfo=nullptr);
 extern REMOTE_API int setDafsTrace(ISocket * socket,byte flags);
 extern REMOTE_API int setDafsThrottleLimit(ISocket * socket, ThrottleClass throttleClass, unsigned throttleLimit, unsigned throttleDelayMs, unsigned throttleCPULimit, unsigned queueLimit, StringBuffer *errMsg=NULL);
 extern REMOTE_API bool enableDafsAuthentication(bool on);
@@ -78,6 +80,11 @@ extern REMOTE_API void setDafsEndpointPort(SocketEndpoint &ep);
 extern REMOTE_API void setDafsLocalMountRedirect(const IpAddress &ip,const char *dir,const char *mountdir);
 extern REMOTE_API ISocket *connectDafs(SocketEndpoint &ep, unsigned timeoutms); // NOTE: might alter ep.port if configured for multiple ports ...
 extern REMOTE_API ISocket *checkSocketSecure(ISocket *socket);
+
+
+extern REMOTE_API void setRemoteOutputCompressionDefault(const char *type);
+extern REMOTE_API const char *queryOutputCompressionDefault();
+
 interface IOutputMetaData;
 class RowFilter;
 interface IRemoteFileIO : extends IFileIO
@@ -110,5 +117,8 @@ extern bool clientAsyncCopyFileSection(const char *uuid,    // from genUUID - mu
 
 extern void clientSetRemoteFileTimeouts(unsigned maxconnecttime,unsigned maxreadtime);
 extern void clientAddSocketToCache(SocketEndpoint &ep,ISocket *socket);
+
+typedef unsigned char RemoteFileCommandType;
+extern REMOTE_API RemoteFileCommandType queryRemoteStreamCmd(); // used by testsocket only
 
 #endif

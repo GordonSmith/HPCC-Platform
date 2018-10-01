@@ -53,6 +53,11 @@
 #include "rtlcommon.hpp"
 #include "rtlformat.hpp"
 
+#include "jflz.hpp"
+#include "digisign.hpp"
+
+using namespace cryptohelper;
+
 
 #define SOCKET_CACHE_MAX 500
 
@@ -181,14 +186,13 @@ struct dummyReadWrite
 // backward compatible modes
 typedef enum { compatIFSHnone, compatIFSHread, compatIFSHwrite, compatIFSHexec, compatIFSHall} compatIFSHmode;
 
-static const char *VERSTRING= "DS V2.2"       // dont forget FILESRV_VERSION in header
+static const char *VERSTRING= "DS V2.4"       // dont forget FILESRV_VERSION in header
 #ifdef _WIN32
 "Windows ";
 #else
 "Linux ";
 #endif
 
-typedef unsigned char RemoteFileCommandType;
 typedef int RemoteFileIOHandle;
 
 static unsigned maxConnectTime = 0;
@@ -344,16 +348,25 @@ enum
     RFCsetthrottle2,
     RFCsetfileperms,
 // 2.0
-    RFCreadfilteredindex,    // No longer used
+    RFCreadfilteredindex,    // No longer used     // 40
     RFCreadfilteredindexcount,
     RFCreadfilteredindexblob,
 // 2.2
-    RFCStreamRead,
-    RFCStreamReadTestSocket = '{',
+    RFCStreamRead,                                 // 43
+// 2.4
+    RFCStreamReadTestSocket,                       // 44
+    RFCStreamReadJSON = '{',
     RFCmaxnormal,
     RFCmax,
     RFCunknown = 255 // 0 would have been more sensible, but can't break backward compatibility
 };
+
+// used by testsocket only
+RemoteFileCommandType queryRemoteStreamCmd()
+{
+    return RFCStreamReadTestSocket;
+}
+
 
 #define RFCText(cmd) #cmd
 
@@ -403,11 +416,12 @@ const char *RFCStrings[] =
     RFCText(RFCreadfilteredcount),
     RFCText(RFCreadfilteredblob),
     RFCText(RFCStreamRead),
+    RFCText(RFCStreamReadTestSocket),
 };
 static const char *getRFCText(RemoteFileCommandType cmd)
 {
-    if (cmd==RFCStreamReadTestSocket)
-        return "RFCStreamReadTestSocket";
+    if (cmd==RFCStreamReadJSON)
+        return "RFCStreamReadJSON";
     else
     {
         unsigned elems = sizeof(RFCStrings) / sizeof(RFCStrings[0]);
@@ -603,9 +617,28 @@ public:
     }
 };
 
-static IDAFS_Exception *createDafsException(int code,const char *msg)
+static IDAFS_Exception *createDafsException(int code, const char *msg)
 {
-    return new CDafsException(code,msg);
+    return new CDafsException(code, msg);
+}
+
+static IDAFS_Exception *createDafsExceptionVA(int code, const char *format, va_list args) __attribute__((format(printf,2,0)));
+
+static IDAFS_Exception *createDafsExceptionVA(int code, const char *format, va_list args)
+{
+    StringBuffer eStr;
+    eStr.limited_valist_appendf(1024, format, args);
+    return new CDafsException(code, eStr);
+}
+
+static IDAFS_Exception *createDafsExceptionV(int code, const char *format, ...) __attribute__((format(printf,2,3)));
+static IDAFS_Exception *createDafsExceptionV(int code, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    IDAFS_Exception *ret = createDafsExceptionVA(code, format, args);
+    va_end(args);
+    return ret;
 }
 
 void setDafsEndpointPort(SocketEndpoint &ep)
@@ -1796,6 +1829,18 @@ public:
         // NB: inputGrouped == outputGrouped for now, but may want output to be ungrouped
 
         openRequest();
+        if (queryOutputCompressionDefault())
+        {
+            expander.setown(getExpander(queryOutputCompressionDefault()));
+            if (expander)
+            {
+                expandMb.setEndian(__BIG_ENDIAN);
+                request.appendf("\"outputCompression\" : \"%s\",\n", queryOutputCompressionDefault());
+            }
+            else
+                WARNLOG("Failed to created compression decompressor for: %s", queryOutputCompressionDefault());
+        }
+
         request.appendf("\"format\" : \"binary\",\n"
             "\"node\" : {\n"
             " \"fileName\" : \"%s\"", filename);
@@ -1819,8 +1864,8 @@ public:
         }
         MemoryBuffer actualTypeInfo;
         if (!dumpTypeInfo(actualTypeInfo, actual->querySerializedDiskMeta()->queryTypeInfo()))
-            throw MakeStringException(0, "Format not supported by remote read");
-        request.append(",\n \"inputBin\": \"");
+            throw createDafsException(DAFSERR_cmdstream_unsupported_recfmt, "Format not supported by remote read");
+        request.append(",\n \"inputBin\" : \"");
         JBASE64_Encode(actualTypeInfo.toByteArray(), actualTypeInfo.length(), request, false);
         request.append("\"");
         if (actual != projected)
@@ -1951,6 +1996,13 @@ protected:
             reply.swapWith(newReply);
             reply.read(bufRemaining);
             eof = (bufRemaining == 0);
+            if (expander)
+            {
+                size32_t expandedSz = expander->init(reply.bytes()+reply.getPos());
+                expandMb.clear().reserve(expandedSz);
+                expander->expand(expandMb.bufferBase());
+                expandMb.swapWith(reply);
+            }
         }
         else
         {
@@ -1979,6 +2031,13 @@ protected:
         reply.read(handle);
         reply.read(bufRemaining);
         eof = (bufRemaining == 0);
+        if (expander)
+        {
+            size32_t expandedSz = expander->init(reply.bytes()+reply.getPos());
+            expandMb.clear().reserve(expandedSz);
+            expander->expand(expandMb.bufferBase());
+            expandMb.swapWith(reply);
+        }
     }
     StringBuffer request;
     MemoryBuffer reply;
@@ -1989,6 +2048,8 @@ protected:
 
     bool firstRequest = true;
     std::unordered_map<std::string, std::string> virtualFields;
+    Owned<IExpander> expander;
+    MemoryBuffer expandMb;
 };
 
 class CRemoteFilteredFileIO : public CRemoteFilteredFileIOBase
@@ -2033,6 +2094,14 @@ public:
 protected:
     const RtlRecord &recInfo;
 };
+
+static StringAttr remoteOutputCompressionDefault;
+void setRemoteOutputCompressionDefault(const char *type)
+{
+    if (!isEmptyString(type))
+        remoteOutputCompressionDefault.set(type);
+}
+const char *queryOutputCompressionDefault() { return remoteOutputCompressionDefault; }
 
 extern IRemoteFileIO *createRemoteFilteredFile(SocketEndpoint &ep, const char * filename, IOutputMetaData *actual, IOutputMetaData *projected, const RowFilter &fieldFilters, bool compressed, bool grouped, unsigned __int64 chooseN)
 {
@@ -2096,7 +2165,7 @@ public:
             fieldFilters.addFilter(OLINK(_fieldFilters.queryFilter(f)));
         iRemoteFileIO.setown(new CRemoteFilteredKeyIO(ep, filename, crc, actual, projected, fieldFilters, rowLimit));
         if (!iRemoteFileIO)
-            throw MakeStringException(0, "Unable to open remote key part: '%s'", filename.get());
+            throwStringExceptionV(DAFSERR_cmdstream_openfailure, "Unable to open remote key part: '%s'", filename.get());
         strm.setown(createFileSerialStream(iRemoteFileIO));
         prefetcher.setown(projected->createDiskPrefetcher());
         assertex(prefetcher);
@@ -3924,14 +3993,16 @@ class CRemoteRequest : public CSimpleInterfaceOf<IInterface>
     OutputFormat format;
     unsigned __int64 replyLimit;
     Linked<IRemoteActivity> activity;
+    Linked<ICompressor> compressor;
 public:
-    CRemoteRequest(OutputFormat _format, unsigned __int64 _replyLimit, IRemoteActivity *_activity)
-        : format(_format), replyLimit(_replyLimit), activity(_activity)
+    CRemoteRequest(OutputFormat _format, ICompressor *_compressor, unsigned __int64 _replyLimit, IRemoteActivity *_activity)
+        : format(_format), compressor(_compressor), replyLimit(_replyLimit), activity(_activity)
     {
     }
     OutputFormat queryFormat() const { return format; }
     unsigned __int64 queryReplyLimit() const { return replyLimit; }
     IRemoteActivity *queryActivity() const { return activity; }
+    ICompressor *queryCompressor() const { return compressor; }
 };
 
 enum OpenFileFlag { of_null=0x0, of_key=0x01 };
@@ -3986,7 +4057,7 @@ protected:
     {
         fileName.set(config.queryProp("fileName"));
         if (isEmptyString(fileName))
-            throw MakeStringException(0, "CRemoteDiskBaseActivity: fileName missing");
+            throw createDafsException(DAFSERR_cmdstream_protocol_failure, "CRemoteDiskBaseActivity: fileName missing");
 
         record = &inMeta->queryRecordAccessor(true);
         translator.setown(createRecordTranslator(outMeta->queryRecordAccessor(true), *record));
@@ -4093,7 +4164,7 @@ class CRemoteDiskReadActivity : public CRemoteDiskBaseActivity
         {
             iFileIO.setown(iFile->open(IFOread));
             if (!iFileIO)
-                throw MakeStringException(1, "Failed to open: '%s'", fileName.get());
+                throw createDafsExceptionV(DAFSERR_cmdstream_protocol_failure, "Failed to open: '%s'", fileName.get());
             if (compressed)
             {
                 WARNLOG("meta info marked file '%s' as compressed, but detected file as uncompressed", fileName.get());
@@ -4421,10 +4492,109 @@ IRemoteActivity *createRemoteIndexCount(IPropertyTree &actNode)
     return new CRemoteIndexCountActivity(actNode);
 }
 
-IRemoteActivity *createRemoteActivity(IPropertyTree &actNode)
+void checkExpiryTime(IPropertyTree &metaInfo)
 {
-    const char *kindStr = actNode.queryProp("kind");
+    const char *expiryTime = metaInfo.queryProp("expiryTime");
+    if (isEmptyString(expiryTime))
+        throw createDafsException(DAFSERR_cmdstream_invalidexpiry, "createRemoteActivity: invalid expiry specification");
 
+    CDateTime expiryTimeDt;
+    try
+    {
+        expiryTimeDt.setString(expiryTime);
+    }
+    catch (IException *e)
+    {
+        throw createDafsException(DAFSERR_cmdstream_invalidexpiry, "createRemoteActivity: invalid expiry specification");
+    }
+    CDateTime nowDt;
+    nowDt.setNow();
+    if (nowDt >= expiryTimeDt)
+        throw createDafsException(DAFSERR_cmdstream_authexpired, "createRemoteActivity: authorization expired");
+}
+
+void verifyMetaInfo(IPropertyTree &actNode, bool authorizedOnly, const IPropertyTree *keyPairInfo)
+{
+    if (!authorizedOnly) // if configured false, allows unencrypted meta info
+    {
+        if (actNode.hasProp("fileName"))
+            return;
+    }
+    StringBuffer metaInfoB64;
+    actNode.getProp("metaInfo", metaInfoB64);
+    if (0 == metaInfoB64.length())
+        throw createDafsException(DAFSERR_cmdstream_protocol_failure, "createRemoteActivity: missing metaInfo");
+
+    MemoryBuffer compressedMetaInfoMb;
+    JBASE64_Decode(metaInfoB64.str(), compressedMetaInfoMb);
+    MemoryBuffer decompressedMetaInfoMb;
+    fastLZDecompressToBuffer(decompressedMetaInfoMb, compressedMetaInfoMb);
+    Owned<IPropertyTree> metaInfoEnvelope = createPTree(decompressedMetaInfoMb);
+
+    Owned<IPropertyTree> metaInfo;
+#if defined(_USE_OPENSSL) && !defined(_WIN32)
+    MemoryBuffer metaInfoBlob;
+    metaInfoEnvelope->getPropBin("metaInfoBlob", metaInfoBlob);
+
+    bool isSigned = metaInfoBlob.length() != 0;
+    if (authorizedOnly && !isSigned)
+        throw createDafsException(DAFSERR_cmdstream_unauthorized, "createRemoteActivity: unathorized");
+
+    if (isSigned)
+    {
+        metaInfo.setown(createPTree(metaInfoBlob));
+
+        // version for future use
+        unsigned securityVersion = metaInfo->getPropInt("version");
+
+        const char *keyPairName = metaInfo->queryProp("keyPairName");
+
+        StringBuffer metaInfoSignature;
+        if (!metaInfoEnvelope->getProp("signature", metaInfoSignature))
+            throw createDafsException(DAFSERR_cmdstream_unauthorized, "createRemoteActivity: missing signature");
+
+        VStringBuffer keyPairPath("KeyPair[@name=\"%s\"]", keyPairName);
+        IPropertyTree *keyPair = keyPairInfo->queryPropTree(keyPairPath);
+        if (!keyPair)
+            throw createDafsException(DAFSERR_cmdstream_unauthorized, "createRemoteActivity: missing key pair definition");
+        const char *publicKeyFName = keyPair->queryProp("@publicKey");
+        if (isEmptyString(publicKeyFName))
+            throw createDafsException(DAFSERR_cmdstream_unauthorized, "createRemoteActivity: missing public key definition");
+        Owned<CLoadedKey> publicKey = loadPublicKeyFromFile(publicKeyFName, nullptr); // NB: if cared could cache loaded keys
+        if (!digiVerify(metaInfoSignature, metaInfoBlob.length(), metaInfoBlob.bytes(), *publicKey))
+            throw createDafsException(DAFSERR_cmdstream_unauthorized, "createRemoteActivity: signature verification failed");
+
+        checkExpiryTime(*metaInfo);
+    }
+    else
+#endif
+        metaInfo.set(metaInfoEnvelope);
+
+    IPropertyTree *fileInfo = metaInfo->queryPropTree("FileInfo");
+    assertex(fileInfo);
+
+    // extra filename based on part/copy.
+    assertex(actNode.hasProp("filePart"));
+    unsigned partNum = actNode.getPropInt("filePart");
+    assertex(partNum);
+    unsigned partCopy = actNode.getPropInt("filePartCopy", 1);
+
+    VStringBuffer xpath("Part[%u]/Copy[%u]/@filePath", partNum, partCopy);
+    StringBuffer partFileName;
+    fileInfo->getProp(xpath, partFileName);
+    if (!partFileName.length())
+        throw createDafsException(DAFSERR_cmdstream_protocol_failure, "createRemoteActivity: invalid file info");
+
+    actNode.setProp("fileName", partFileName.str());
+    verifyex(actNode.removeProp("metaInfo")); // no longer needed
+}
+
+IRemoteActivity *createRemoteActivity(IPropertyTree &actNode, bool authorizedOnly, const IPropertyTree *keyPairInfo)
+{
+    verifyMetaInfo(actNode, authorizedOnly, keyPairInfo);
+
+    const char *partFileName = actNode.queryProp("fileName");
+    const char *kindStr = actNode.queryProp("kind");
     ThorActivityKind kind = TAKnone;
     if (kindStr)
     {
@@ -4436,10 +4606,6 @@ IRemoteActivity *createRemoteActivity(IPropertyTree &actNode)
             kind = TAKindexcount;
         // else - auto-detect
     }
-
-    const char *fileName = actNode.queryProp("fileName");
-    if (isEmptyString(fileName))
-        throw MakeStringException(0, "createRemoteActivity: fileName missing");
 
     Owned<IRemoteActivity> activity;
     switch (kind)
@@ -4462,14 +4628,14 @@ IRemoteActivity *createRemoteActivity(IPropertyTree &actNode)
         default: // auto-detect file format
         {
             const char *action = actNode.queryProp("action");
-            if (isIndexFile(fileName))
+            if (isIndexFile(partFileName))
             {
                 if (!isEmptyString(action))
                 {
                     if (streq("count", action))
                         activity.setown(createRemoteIndexCount(actNode));
                     else
-                        throwStringExceptionV(0, "Unknown action '%s' on index '%s'", action, fileName);
+                        throw createDafsExceptionV(DAFSERR_cmdstream_protocol_failure, "Unknown action '%s' on index '%s'", action, partFileName);
                 }
                 else
                     activity.setown(createRemoteIndexRead(actNode));
@@ -4479,9 +4645,9 @@ IRemoteActivity *createRemoteActivity(IPropertyTree &actNode)
                 if (!isEmptyString(action))
                 {
                     if (streq("count", action))
-                        throwStringExceptionV(0, "Remote Disk Counts currently unsupported");
+                        throw createDafsException(DAFSERR_cmdstream_protocol_failure, "Remote Disk Counts currently unsupported");
                     else
-                        throwStringExceptionV(0, "Unknown action '%s' on flat file '%s'", action, fileName);
+                        throw createDafsExceptionV(DAFSERR_cmdstream_protocol_failure, "Unknown action '%s' on flat file '%s'", action, partFileName);
                 }
                 else
                     activity.setown(createRemoteDiskRead(actNode));
@@ -4493,11 +4659,11 @@ IRemoteActivity *createRemoteActivity(IPropertyTree &actNode)
     return activity.getClear();
 }
 
-IRemoteActivity *createOutputActivity(IPropertyTree &requestTree)
+IRemoteActivity *createOutputActivity(IPropertyTree &requestTree, bool authorizedOnly, const IPropertyTree *keyPairInfo)
 {
     IPropertyTree *actNode = requestTree.queryPropTree("node");
     assertex(actNode);
-    return createRemoteActivity(*actNode);
+    return createRemoteActivity(*actNode, authorizedOnly, keyPairInfo);
 }
 
 #define MAX_KEYDATA_SZ 0x10000
@@ -5139,6 +5305,8 @@ class CRemoteFileServer : implements IRemoteFileServer, public CInterface
     CClientStatsTable clientStatsTable;
     atomic_t globallasttick;
     unsigned targetActiveThreads;
+    bool authorizedOnly;
+    Owned<IPropertyTree> keyPairInfo;
 
     int getNextHandle()
     {
@@ -5286,12 +5454,28 @@ class CRemoteFileServer : implements IRemoteFileServer, public CInterface
 
 #define IMPERSONATE_USER(client) cImpersonateBlock ublock(client)
 
+    bool handleFull(MemoryBuffer &inMb, size32_t inPos, MemoryBuffer &compressMb, ICompressor *compressor, size32_t replyLimit, size32_t &totalSz)
+    {
+        size32_t sz = inMb.length()-inPos;
+        if (sz < replyLimit)
+            return false;
+
+        if (!compressor)
+            return true;
+
+        // consumes data from inMb into compressor
+        totalSz += sz;
+        const void *data = inMb.bytes()+inPos;
+        assertex(compressor->write(data, sz) == sz);
+        inMb.setLength(inPos);
+        return compressMb.capacity() > replyLimit;
+    }
 public:
 
     IMPLEMENT_IINTERFACE
 
-    CRemoteFileServer(unsigned maxThreads, unsigned maxThreadsDelayMs, unsigned maxAsyncCopy)
-        : asyncCommandManager(maxAsyncCopy), stdCmdThrottler("stdCmdThrotlter"), slowCmdThrottler("slowCmdThrotlter")
+    CRemoteFileServer(unsigned maxThreads, unsigned maxThreadsDelayMs, unsigned maxAsyncCopy, bool _authorizedOnly, IPropertyTree *_keyPairInfo)
+        : asyncCommandManager(maxAsyncCopy), stdCmdThrottler("stdCmdThrotlter"), slowCmdThrottler("slowCmdThrotlter"), authorizedOnly(_authorizedOnly), keyPairInfo(_keyPairInfo)
     {
         lasthandle = 0;
         selecthandler.setown(createSocketSelectHandler(NULL));
@@ -6185,6 +6369,27 @@ public:
 
         /* Example JSON request:
          * {
+         *  "format" : "binary",
+         *  "handle" : "1234",
+         *  "replyLimit" : "64",
+         *  "outputCompression" : "LZ4",
+         *  "node" : {
+         *   "kind" : "diskread",
+         *   "fileName": "examplefilename",
+         *   "keyFilter" : "f1='1    '",
+         *   "chooseN" : 5,
+         *   "compressed" : "false"
+         *   "input" : {
+         *    "f1" : "string5",
+         *    "f2" : "string5"
+         *   },
+         *   "output" : {
+         *    "f2" : "string",
+         *    "f1" : "real"
+         *   }
+         *  }
+         * }
+         * {
          *  "format" : "xml",
          *  "handle" : "1234",
          *  "replyLimit" : "64",
@@ -6243,6 +6448,8 @@ public:
         int cursorHandle = requestTree->getPropInt("handle");
         OutputFormat outputFormat = outFmt_Xml;
         unsigned __int64 replyLimit = 0;
+        Owned<ICompressor> compressor;
+        MemoryBuffer compressMb;
 
         Owned<IRemoteActivity> outputActivity;
         OpenFileInfo fileInfo;
@@ -6262,10 +6469,26 @@ public:
 
             replyLimit = requestTree->getPropInt64("replyLimit", defaultDaFSReplyLimitKB) * 1024;
 
-            // In future this may be passed the request and build a chain of activities and return sink.
-            outputActivity.setown(createOutputActivity(*requestTree));
+            if (requestTree->hasProp("outputCompression"))
+            {
+                const char *outputCompressionType = requestTree->queryProp("outputCompression");
+                if (isEmptyString(outputCompressionType))
+                    compressor.setown(queryDefaultCompressHandler()->getCompressor());
+                else if (outFmt_Binary == outputFormat)
+                {
+                    compressor.setown(getCompressor(outputCompressionType));
+                    if (!compressor)
+                        WARNLOG("Unknown compressor type specified: %s", outputCompressionType);
+                }
+                else
+                    WARNLOG("Output compression not supported for format: %s", outputFmtStr);
+            }
 
-            Owned<CRemoteRequest> remoteRequest = new CRemoteRequest(outputFormat, replyLimit, outputActivity);
+
+            // In future this may be passed the request and build a chain of activities and return sink.
+            outputActivity.setown(createOutputActivity(*requestTree, authorizedOnly, keyPairInfo));
+
+            Owned<CRemoteRequest> remoteRequest = new CRemoteRequest(outputFormat, compressor, replyLimit, outputActivity);
 
             StringBuffer requestStr("jsonrequest:");
             outputActivity->getInfoStr(requestStr);
@@ -6281,6 +6504,7 @@ public:
         else // known handle, continuation
         {
             outputActivity.set(fileInfo.remoteRequest->queryActivity());
+            compressor.set(fileInfo.remoteRequest->queryCompressor());
             outputFormat = fileInfo.remoteRequest->queryFormat();
             replyLimit = fileInfo.remoteRequest->queryReplyLimit();
         }
@@ -6314,12 +6538,28 @@ public:
             MemoryBufferBuilder outBuilder(resultBuffer, out->getMinRecordSize());
             if (outFmt_Binary == outputFormat)
             {
-                DelayedSizeMarker dataLenMarker(reply); // data length
+                if (compressor)
+                {
+                    compressMb.setEndian(__BIG_ENDIAN);
+                    compressMb.append(reply);
+                }
+
+                DelayedMarker<size32_t> dataLenMarker(compressor ? compressMb : reply); // data length
+
+                if (compressor)
+                {
+                    size32_t initialSz = replyLimit >= 0x10000 ? 0x10000 : replyLimit;
+                    compressor->open(compressMb, initialSz);
+                }
+
                 outBuilder.setBuffer(reply); // write direct to reply buffer for efficiency
+                unsigned __int64 numProcessedStart = outputActivity->queryProcessed();
+                size32_t totalDataSz = 0;
+                size32_t dataStartPos = reply.length();
 
                 if (grouped)
                 {
-                    bool pastFirstRow = outputActivity->queryProcessed()>0;
+                    bool pastFirstRow = numProcessedStart>0;
                     do
                     {
                         size32_t eogPos = 0;
@@ -6354,7 +6594,7 @@ public:
                         }
                         pastFirstRow = true;
                     }
-                    while (reply.length() < replyLimit);
+                    while (!handleFull(reply, dataStartPos, compressMb, compressor, replyLimit, totalDataSz));
                 }
                 else
                 {
@@ -6368,13 +6608,39 @@ public:
                             break;
                         }
                     }
-                    while (reply.length() < replyLimit);
+                    while (!handleFull(reply, dataStartPos, compressMb, compressor, replyLimit, totalDataSz));
                 }
-                dataLenMarker.write();
+
+                // Consume any trailing data remaining
+                if (compressor)
+                {
+                    size32_t sz = reply.length()-dataStartPos;
+                    if (sz)
+                    {
+                        // consumes data built up in reply buffer into compressor
+                        totalDataSz += sz;
+                        const void *data = reply.bytes()+dataStartPos;
+                        assertex(compressor->write(data, sz) == sz);
+                        reply.setLength(dataStartPos);
+                    }
+                }
+
+                // finalize reply
+                dataLenMarker.write(compressor ? totalDataSz : reply.length()-dataStartPos);
                 DelayedSizeMarker cursorLenMarker(reply); // cursor length
                 if (!eoi)
                     outputActivity->serializeCursor(reply);
                 cursorLenMarker.write();
+                if (compressor)
+                {
+                    // consume cursor into compressor
+                    size32_t sz = reply.length()-dataStartPos;
+                    const void *data = reply.bytes()+dataStartPos;
+                    assertex(compressor->write(data, sz) == sz);
+                    compressor->close();
+                    // now ready to swap compressed output into reply
+                    reply.swapWith(compressMb);
+                }
             }
             else
             {
@@ -6459,19 +6725,26 @@ public:
         }
     }
 
-    void cmdStreamReadTestSocket(MemoryBuffer & msg, MemoryBuffer & reply, CRemoteClientHandler &client)
-    {
-        reply.append('J');
-        /* testsocket is not actually passing in a command, and is interpreting '{' as the cmd to get here.
-         * so rewind so it can be read/parsed as JSON by cmdStreamRead
-         */
-        msg.reset(msg.getPos()-sizeof(RemoteFileCommandType));
-        cmdStreamReadCommon(msg, reply, client);
-    }
-
     void cmdStreamReadStd(MemoryBuffer & msg, MemoryBuffer & reply, CRemoteClientHandler &client)
     {
         reply.append(RFEnoerror);
+        cmdStreamReadCommon(msg, reply, client);
+    }
+
+    void cmdStreamReadJSON(MemoryBuffer & msg, MemoryBuffer & reply, CRemoteClientHandler &client)
+    {
+        /* NB: exactly the same handling as cmdStreamReadStd(RFCStreamRead) for now,
+         * may want to differentiate later
+         * i.e. return format is { len[unsigned4-bigendian], errorcode[unsigned4-bigendian], result } - where result format depends on request output type.
+         * errorcode = 0 means no error
+         */
+        reply.append(RFEnoerror);
+        cmdStreamReadCommon(msg, reply, client);
+    }
+
+    void cmdStreamReadTestSocket(MemoryBuffer & msg, MemoryBuffer & reply, CRemoteClientHandler &client)
+    {
+        reply.append('J');
         cmdStreamReadCommon(msg, reply, client);
     }
 
@@ -6581,6 +6854,7 @@ public:
             case RFCunlock:
             case RFCStreamRead:
             case RFCStreamReadTestSocket:
+            case RFCStreamReadJSON:
                 stdCmdThrottler.addCommand(cmd, msg, client);
                 return;
             // NB: The following commands are still bound by the the thread pool
@@ -6635,8 +6909,9 @@ public:
                 MAPCOMMAND(RFCgetinfo, cmdGetInfo);
                 MAPCOMMAND(RFCfirewall, cmdFirewall);
                 MAPCOMMANDCLIENT(RFCunlock, cmdUnlock, *client);
-                MAPCOMMANDCLIENTTESTSOCKET(RFCStreamReadTestSocket, cmdStreamReadTestSocket, *client);
                 MAPCOMMANDCLIENT(RFCStreamRead, cmdStreamReadStd, *client);
+                MAPCOMMANDCLIENT(RFCStreamReadJSON, cmdStreamReadJSON, *client);
+                MAPCOMMANDCLIENTTESTSOCKET(RFCStreamReadTestSocket, cmdStreamReadTestSocket, *client);
                 MAPCOMMANDCLIENT(RFCcopysection, cmdCopySection, *client);
                 MAPCOMMANDCLIENTTHROTTLE(RFCtreecopy, cmdTreeCopy, *client, &slowCmdThrottler);
                 MAPCOMMANDCLIENTTHROTTLE(RFCtreecopytmp, cmdTreeCopyTmp, *client, &slowCmdThrottler);
@@ -7164,12 +7439,17 @@ public:
 };
 
 
-IRemoteFileServer * createRemoteFileServer(unsigned maxThreads, unsigned maxThreadsDelayMs, unsigned maxAsyncCopy)
+IRemoteFileServer * createRemoteFileServer(unsigned maxThreads, unsigned maxThreadsDelayMs, unsigned maxAsyncCopy, bool authorizedOnly, IPropertyTree *keyPairInfo)
 {
 #if SIMULATE_PACKETLOSS
     errorSimulationOn = false;
 #endif
-    return new CRemoteFileServer(maxThreads, maxThreadsDelayMs, maxAsyncCopy);
+
+// NB: if no OOPENSSL, no authorization checks
+#ifndef _USE_OPENSSL
+    authorizedOnly = false;
+#endif
+    return new CRemoteFileServer(maxThreads, maxThreadsDelayMs, maxAsyncCopy, authorizedOnly, keyPairInfo);
 }
 
 

@@ -1,4 +1,4 @@
-const debugServerIP = "192.168.99.103";
+const debugServerIP = "10.176.152.166";
 const debugHPCC_JS = false; //  Should never be TRUE in a PR  ---
 
 let rewrite = [

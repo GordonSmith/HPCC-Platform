@@ -74,6 +74,8 @@ IException jlib_decl *makeStringExceptionV(MessageAudience aud, int code, const 
 IException jlib_decl *makeStringExceptionVA(MessageAudience aud, int code, const char *why, va_list args) __attribute__((format(printf, 3, 0)));
 IException jlib_decl *makeStringException(MessageAudience aud, int code, const char *why);
 __declspec(noreturn) void jlib_decl throwStringExceptionV(int code, const char *format, ...) __attribute__((format(printf, 2, 3), noreturn));
+IException jlib_decl *makeWrappedExceptionVA(IException *e, int code, const char *why, va_list args) __attribute__((format(printf, 3, 0)));
+IException jlib_decl *makeWrappedExceptionV(IException *e, int code, const char *why, ...) __attribute__((format(printf, 3, 4)));
 
 // Macros for legacy names of above functions
 
@@ -150,6 +152,8 @@ void  jlib_decl printStackReport(__int64 startIP = 0);
 #define PrintStackReport printStackReport
 
 bool jlib_decl getAllStacks(StringBuffer &output);
+unsigned jlib_decl getCommandOutput(StringBuffer &output, const char *cmd, const char *cmdTitle=nullptr, const char *allowedPrograms=nullptr);
+bool jlib_decl getDebuggerGetStacksCmd(StringBuffer &output);
 
 #ifdef _DEBUG
 #define RELEASE_CATCH_ALL       int*********

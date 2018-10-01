@@ -16,6 +16,7 @@
 ############################################################################## */
 
 #include <exception>
+#include <algorithm>
 #include "XSDSchemaParser.hpp"
 #include "Exceptions.hpp"
 #include "SchemaValue.hpp"
@@ -26,10 +27,11 @@
 #include "SchemaTypeIntegerLimits.hpp"
 #include "EnvironmentEventHandlers.hpp"
 #include "Utils.hpp"
+#include "jfile.hpp"
 
 namespace pt = boost::property_tree;
 
-bool XSDSchemaParser::doParse(const std::string &configPath, const std::string &masterConfigFile,  const std::vector<std::string> &cfgParms)
+bool XSDSchemaParser::doParse(const std::string &configPath, const std::string &masterConfigFile,  const std::map<std::string, std::string> &cfgParms)
 {
     bool rc = true;
 
@@ -86,29 +88,38 @@ bool XSDSchemaParser::doParse(const std::string &configPath, const std::string &
     m_pSchemaItem->addSchemaValueType(pType);
 
     //
-    // Get our specific XSD parameters from the input
+    // Parse the master XSD
     m_basePath = configPath;
     m_masterXSDFilename = masterConfigFile;
-    //m_buildsetFilename = cfgParms[2];
-    parseXSD(m_masterXSDFilename);
+    parseXSD(m_basePath + m_masterXSDFilename);
+
+    //
+    // Parse the rest of the XSDs in the config path skipping the master
+    processXSDFiles(m_basePath, m_masterXSDFilename);
+
+    //
+    // Now plugins
+    for (auto &pluginPath: m_pluginPaths)
+    {
+        processXSDFiles(pluginPath, "");
+    }
 
     return rc;
 }
 
 
-void XSDSchemaParser::parseXSD(const std::string &filename)
+void XSDSchemaParser::parseXSD(const std::string &fullyQualifiedPath)
 {
     pt::ptree xsdTree;
-    std::string fpath = m_basePath + filename;
     try
     {
-        pt::read_xml(fpath, xsdTree, pt::xml_parser::trim_whitespace | pt::xml_parser::no_comments);
+        pt::read_xml(fullyQualifiedPath, xsdTree, pt::xml_parser::trim_whitespace | pt::xml_parser::no_comments);
     }
     catch (const std::exception &e)
     {
         std::string xmlError = e.what();
         ParseException pe("Unable to read/parse file. Check that file is formatted correctly. Error = " + xmlError);
-        pe.addFilename(filename);
+        pe.addFilename(fullyQualifiedPath);
         throw(pe);
     }
 
@@ -121,7 +132,7 @@ void XSDSchemaParser::parseXSD(const std::string &filename)
     }
     catch (ParseException &pe)
     {
-        pe.addFilename(filename);
+        pe.addFilename(fullyQualifiedPath);
         throw(pe);
     }
 }
@@ -139,7 +150,7 @@ void XSDSchemaParser::parseXSD(const pt::ptree &keys)
             std::string schemaFile = getXSDAttributeValue(it->second, "<xmlattr>.schemaLocation");
             if (m_pSchemaItem->addUniqueName(schemaFile))
             {
-                parseXSD(schemaFile);
+                parseXSD(m_basePath + schemaFile);
             }
         }
         else if (elemType == "xs:simpleType")
@@ -169,6 +180,10 @@ void XSDSchemaParser::parseXSD(const pt::ptree &keys)
         else if (elemType == "xs:annotation")
         {
             parseAnnotation(it->second);
+        }
+        else if (elemType == "hpcc:insert")
+        {
+            processSchemaInsert(it->second);
         }
     }
 }
@@ -216,10 +231,11 @@ void XSDSchemaParser::parseAttributeGroup(const pt::ptree &attributeTree)
     {
         std::shared_ptr<SchemaItem> pValueSet = std::make_shared<SchemaItem>(groupName, "valueset", m_pSchemaItem);
         std::shared_ptr<XSDValueSetParser> pXSDValueSetParaser = std::make_shared<XSDValueSetParser>(pValueSet);
-        std::string groupByName = getXSDAttributeValue(attributeTree, "<xmlattr>.groupByName", false, "");
+        std::string groupByName = getXSDAttributeValue(attributeTree, "<xmlattr>.hpcc:groupByName", false, "");
         pXSDValueSetParaser->setGroupByName(groupByName);
         pXSDValueSetParaser->parseXSD(attributeTree.get_child("", pt::ptree()));
         m_pSchemaItem->addSchemaType(pValueSet, groupName);
+        m_pSchemaItem->setProperty("attribute_group_default_overrides", getXSDAttributeValue(attributeTree, "<xmlattr>.hpcc:defaultInCodeOverrides", false, ""));
     }
 
     //
@@ -246,7 +262,29 @@ void XSDSchemaParser::parseAttributeGroup(const pt::ptree &attributeTree)
 
                 //
                 // Add any unique valueset references
-                m_pSchemaItem->addReferenceToUniqueAttributeValueSet(pValueSet);
+                m_pSchemaItem->addUniqueAttrValueSetDefsAndRefs(pValueSet);
+
+                //
+                // See if there are any overrides for default in code values
+                std::string dfltOverrides = pValueSet->getProperty("attribute_group_default_overrides");
+                if (!dfltOverrides.empty())
+                {
+                    std::vector<std::string> overrides = splitString(dfltOverrides, ",");
+                    for (auto &info: overrides)
+                    {
+                        std::vector<std::string> vals = splitString(info, "=");
+                        if (vals.size() != 2)
+                        {
+                            throw (ParseException("Invalid default value override in attribute group (" + refName + ")"));
+                        }
+
+                        std::shared_ptr<SchemaValue> pAttr = m_pSchemaItem->getAttribute(vals[0], false);
+                        if (pAttr)
+                        {
+                            pAttr->setPresetValue(vals[1]);
+                        }
+                    }
+                }
             }
         }
     }
@@ -287,12 +325,41 @@ void XSDSchemaParser::parseComplexType(const pt::ptree &typeTree)
 void XSDSchemaParser::parseElement(const pt::ptree &elemTree)
 {
     //
-    // Get a couple attributes to help figure out how to handle the element
+    // Get schema attribute necessary to figure out what to do
     std::string elementName = elemTree.get("<xmlattr>.name", "");
-    std::string category = elemTree.get("<xmlattr>.hpcc:category", "");
+    std::string itemType = elemTree.get("<xmlattr>.hpcc:itemType", "");
 
+    //
+    // Get child tree for use below
     pt::ptree emptyTree;
     pt::ptree childTree = elemTree.get_child("", emptyTree);
+
+    //
+    // Get existing element(s)
+    std::shared_ptr<SchemaItem> pNewSchemaItem;
+    std::vector<std::shared_ptr<SchemaItem>> children;
+    m_pSchemaItem->getChildren(children, elementName, itemType);
+
+    //
+    // There should be no children since we are expecting to create a new element
+    if (!children.empty())
+    {
+        std::string msg = "Attempt to insert duplicate element, element = '" + elementName + "' itemType='" + itemType + "'";
+        throw(ParseException(msg));
+    }
+
+    //
+    // Get the rest of the possible attributes for the new element
+    std::string category = elemTree.get("<xmlattr>.hpcc:category", "");
+    std::string typeName = elemTree.get("<xmlattr>.type", "");
+    std::string className = elemTree.get("<xmlattr>.hpcc:class", "");
+    std::string displayName = elemTree.get("<xmlattr>.hpcc:displayName", elementName);
+    std::string tooltip = elemTree.get("<xmlattr>.hpcc:tooltip", "");
+    std::string insertLimitType = elemTree.get("<xmlattr>.hpcc:insertLimitType", "");
+    std::string insertLimitData = elemTree.get("<xmlattr>.hpcc:insertLimitData", "");
+    unsigned minOccurs = elemTree.get<unsigned>("<xmlattr>.minOccurs", 1);
+    std::string maxOccursStr = elemTree.get("<xmlattr>.maxOccurs", "1");
+    unsigned maxOccurs = (maxOccursStr != "unbounded") ? stoi(maxOccursStr) : UINT_MAX;
 
     if (category == "root")
     {
@@ -301,18 +368,9 @@ void XSDSchemaParser::parseElement(const pt::ptree &elemTree)
     }
     else
     {
-        std::string className = elemTree.get("<xmlattr>.hpcc:class", "");
-        std::string displayName = elemTree.get("<xmlattr>.hpcc:displayName", elementName);
-        std::string tooltip = elemTree.get("<xmlattr>.hpcc:tooltip", "");
-        std::string typeName = elemTree.get("<xmlattr>.type", "");
-        std::string itemType = elemTree.get("<xmlattr>.hpcc:itemType", "");
-        std::string insertLimitType = elemTree.get("<xmlattr>.hpcc:insertLimitType", "");
-        std::string insertLimitData = elemTree.get("<xmlattr>.hpcc:insertLimitData", "");
-        unsigned minOccurs = elemTree.get("<xmlattr>.minOccurs", 1);
-        std::string maxOccursStr = elemTree.get("<xmlattr>.maxOccurs", "1");
-        unsigned maxOccurs = (maxOccursStr != "unbounded") ? stoi(maxOccursStr) : UINT_MAX;
-        std::shared_ptr<SchemaItem> pNewSchemaItem = std::make_shared<SchemaItem>(elementName, className, m_pSchemaItem);
-
+        //
+        // Create the new element and set properties
+        pNewSchemaItem = std::make_shared<SchemaItem>(elementName, className, m_pSchemaItem);
         if (!className.empty()) pNewSchemaItem->setProperty("className", className);
         if (!displayName.empty()) pNewSchemaItem->setProperty("displayName", displayName);
         if (!tooltip.empty()) pNewSchemaItem->setProperty("tooltip", tooltip);
@@ -323,58 +381,91 @@ void XSDSchemaParser::parseElement(const pt::ptree &elemTree)
         pNewSchemaItem->setMinInstances(minOccurs);
         pNewSchemaItem->setMaxInstances(maxOccurs);
         pNewSchemaItem->setHidden(elemTree.get("<xmlattr>.hpcc:hidden", "false") == "true");
+        pNewSchemaItem->setRequiredInstanceComponents(elemTree.get("<xmlattr>.hpcc:requiredInstanceComponents", ""));
 
         //
-        // Type specified?
+        // If a typeName was set, see if simple or complex and handle accordingly.
         if (!typeName.empty())
         {
-            //
-            // If a simple type, then it represents the element value type, so allocate a value object, set its type and add
-            // it to the item.
             const std::shared_ptr<SchemaType> pSimpleType = m_pSchemaItem->getSchemaValueType(typeName, false);
             if (pSimpleType != nullptr)
             {
                 std::shared_ptr<SchemaValue> pCfgValue = std::make_shared<SchemaValue>("");  // no name value since it's the element's value
                 pCfgValue->setType(pSimpleType);                      // will throw if type is not defined
                 pNewSchemaItem->setItemSchemaValue(pCfgValue);
-                std::shared_ptr<XSDSchemaParser> pXSDParaser = std::make_shared<XSDSchemaParser>(pNewSchemaItem);
-                pXSDParaser->parseXSD(childTree);
-                m_pSchemaItem->addChild(pNewSchemaItem);
             }
             else
             {
-                //
-                // Wasn't a simple type, complex?
                 std::shared_ptr<SchemaItem> pConfigType = m_pSchemaItem->getSchemaType(typeName, false);
                 if (pConfigType != nullptr)
                 {
-                    //
-                    // A complex type was found. Insert it
-                    std::vector<std::shared_ptr<SchemaItem>> typeChildren;
-                    pConfigType->getChildren(typeChildren);
-                    for (auto childIt = typeChildren.begin(); childIt != typeChildren.end(); ++childIt)
-                    {
-                        std::shared_ptr<SchemaItem> pNewItem = std::make_shared<SchemaItem>(*(*childIt));
-                        pNewItem->setParent(m_pSchemaItem);
-                        m_pSchemaItem->addChild(pNewItem);
-                    }
+                    pNewSchemaItem->insertSchemaType(pConfigType);
                 }
-                else
-                {
-                    std::string msg = "Unable to find type " + typeName + " when parsing element " + elementName;
-                    throw(ParseException(msg));
-                }
+            }
+        }
+
+        //
+        // Now parse the element child tree (note if complex was inserted, this is probably empty)
+        std::shared_ptr<XSDSchemaParser> pXSDParaser = std::make_shared<XSDSchemaParser>(pNewSchemaItem);
+        pXSDParaser->parseXSD(childTree);
+        m_pSchemaItem->addChild(pNewSchemaItem);
+    }
+}
+
+
+void XSDSchemaParser::processSchemaInsert(const pt::ptree &elemTree)
+{
+    std::string path = elemTree.get("<xmlattr>.hpcc:schemaPath", "");
+
+    //
+    // Make sure path is present and well formed
+    if (path.empty() || path[0] != '/' || path.back() == '/')
+    {
+        std::string msg = "Insert schema path is missing, empty or not welformed";
+        throw(ParseException(msg));
+    }
+
+    std::string itemType = elemTree.get("<xmlattr>.hpcc:itemType", "");
+
+    std::vector<std::shared_ptr<SchemaItem>> insertChildren;
+    std::vector<std::string> pathParts = splitString(path, "/");
+    std::shared_ptr<SchemaItem> pInsertItem = m_pSchemaItem->getSchemaRoot();
+    size_t numPasses = pathParts.size() - 1;
+
+    for (size_t i=0; i<numPasses; ++i)
+    {
+        bool isLast = i == (numPasses - 1);
+        if (pInsertItem->getProperty("name") == pathParts[i])
+        {
+            insertChildren.clear();
+            pInsertItem->getChildren(insertChildren, pathParts[i+1], isLast ? itemType : "");
+            if (insertChildren.empty())
+            {
+                std::string msg = "Unable to find insert location, path not found: " + path;
+                throw(ParseException(msg));
+            }
+
+            if (!isLast)
+            {
+                pInsertItem = insertChildren[0];
             }
         }
         else
         {
-            //
-            // No type, just continue parsing a new element
-            //pNewSchemaItem = std::make_shared<SchemaItem>(elementName, className, m_pSchemaItem);
-            std::shared_ptr<XSDSchemaParser> pXSDParaser = std::make_shared<XSDSchemaParser>(pNewSchemaItem);
-            pXSDParaser->parseXSD(childTree);
-            m_pSchemaItem->addChild(pNewSchemaItem);
+            std::string msg = "Unable to find insert location, path not found: " + path;
+            throw(ParseException(msg));
         }
+    }
+
+    //
+    // Get the child tree
+    pt::ptree emptyTree;
+    pt::ptree childTree = elemTree.get_child("", emptyTree);
+
+    for (auto &child: insertChildren)
+    {
+        std::shared_ptr<XSDSchemaParser> pXSDParaser = std::make_shared<XSDSchemaParser>(child);
+        pXSDParaser->parseXSD(childTree);  // will extend this child schema item
     }
 }
 
@@ -410,7 +501,7 @@ void XSDSchemaParser::parseAppInfo(const pt::ptree &elemTree)
         std::string eventType = getXSDAttributeValue(childTree, "eventType");
 
         //
-        // Fir a create event type, get the eventAction attrbute to decide what to do
+        // For a create event type, get the eventAction attrbute to decide what to do
         if (eventType == "create")
         {
             std::string eventAction = getXSDAttributeValue(childTree, "eventAction");
@@ -480,7 +571,7 @@ void XSDSchemaParser::parseAppInfo(const pt::ptree &elemTree)
                     //                          matchItemAttribute
                     else if (it->first == "match")
                     {
-                        std::string attrName = it->second.get("eventNodeAttribute", "").data();
+                        std::string attrName = it->second.get("eventNodeAttribute", "");
                         pInsert->setEventNodeAttributeName(attrName);
                         std::string matchAttrName = it->second.get("targetAttribute", "");
                         if (!matchAttrName.empty())
@@ -526,7 +617,7 @@ void XSDSchemaParser::parseAppInfo(const pt::ptree &elemTree)
                     }
                     else if (it->first == "match")
                     {
-                        std::string attrName = it->second.get("eventNodeAttribute", "").data();
+                        std::string attrName = it->second.get("eventNodeAttribute", "");
                         pSetAttrValue->setEventNodeAttributeName(attrName);
                         std::string matchAttrName = it->second.get("targetAttribute", "");
                         if (!matchAttrName.empty())
@@ -538,6 +629,42 @@ void XSDSchemaParser::parseAppInfo(const pt::ptree &elemTree)
                     }
                 }
                 m_pSchemaItem->addEventHandler(pSetAttrValue);
+            }
+        }
+    }
+}
+
+
+void XSDSchemaParser::processXSDFiles(const std::string &path, const std::string &ignore)
+{
+    Owned<IFile> pDir = createIFile(path.c_str());
+    if (pDir->exists())
+    {
+        Owned<IDirectoryIterator> it = pDir->directoryFiles(nullptr, false, false);
+        ForEach(*it)
+        {
+            StringBuffer fname;
+            std::string filename = it->getName(fname).str();
+
+            if (filename != ignore)
+            {
+                std::size_t dotPos = filename.find_last_of('.');
+                if (dotPos != std::string::npos)
+                {
+                    //
+                    // If the file has an XSD extension and not previously processed, build the fully
+                    // qualified name and parse it.
+                    std::string ext = filename.substr(dotPos + 1);
+                    std::transform(ext.begin(), ext.end(), ext.begin(), tolower);
+                    if (ext == "xsd" && m_pSchemaItem->addUniqueName(filename))
+                    {
+                        std::string fullyQualifiedFilePath = path;
+                        if (std::string(1, fullyQualifiedFilePath.back()) != PATHSEPSTR)
+                            fullyQualifiedFilePath += PATHSEPSTR;
+                        fullyQualifiedFilePath += filename;
+                        parseXSD(fullyQualifiedFilePath);
+                    }
+                }
             }
         }
     }
@@ -696,21 +823,62 @@ void XSDSchemaParser::parseAllowedValue(const pt::ptree &allowedValueTree, Schem
 std::shared_ptr<SchemaValue> XSDSchemaParser::getSchemaValue(const pt::ptree &attr)
 {
     std::string attrName = getXSDAttributeValue(attr, "<xmlattr>.name");
+
+    if (!attr.get("<xmlattr>.default", "").empty())
+    {
+        throw(ParseException( "Attribute " + m_pSchemaItem->getProperty("name") + "[@" + attrName + "], XSD default is not supported, use hpcc:presetValue or hpcc:forcedConfigValue instead"));
+    }
+
     std::shared_ptr<SchemaValue> pCfgValue = std::make_shared<SchemaValue>(attrName);
     pCfgValue->setDisplayName(attr.get("<xmlattr>.hpcc:displayName", attrName));
     pCfgValue->setRequired(attr.get("<xmlattr>.use", "optional") == "required");
     pCfgValue->setTooltip(attr.get("<xmlattr>.hpcc:tooltip", ""));
     pCfgValue->setReadOnly(attr.get("<xmlattr>.hpcc:readOnly", "false") == "true");
-    pCfgValue->setHidden(attr.get("<xmlattr>.hpcc:hidden", "false") == "true");
     pCfgValue->setDeprecated(attr.get("<xmlattr>.hpcc:deprecated", "false") == "true");
     pCfgValue->setMirrorFromPath(attr.get("<xmlattr>.hpcc:mirrorFrom", ""));
     pCfgValue->setAutoGenerateType(attr.get("<xmlattr>.hpcc:autoGenerateType", ""));
     pCfgValue->setAutoGenerateValue(attr.get("<xmlattr>.hpcc:autoGenerateValue", ""));
-    pCfgValue->setDefaultValue(attr.get("<xmlattr>.default", ""));
-    pCfgValue->setCodeDefault(attr.get("<xmlattr>.hpcc:defaultInCode", ""));
     pCfgValue->setValueLimitRuleType(attr.get("<xmlattr>.hpcc:valueLimitRuleType", ""));
     pCfgValue->setValueLimitRuleData(attr.get("<xmlattr>.hpcc:valueLimitRuleData", ""));
     pCfgValue->setRequiredIf(attr.get("<xmlattr>.hpcc:requiredIf", ""));
+
+    //
+    // Process the various hidden/visible flags and ensure no conflicts
+    std::string hidden = attr.get("<xmlattr>.hpcc:hidden", "");
+    std::string hiddenIf = attr.get("<xmlattr>.hpcc:hiddenIf", "");
+    std::string visibleIf = attr.get("<xmlattr>.hpcc:visibleIf", "");
+    unsigned countAttrs = (hidden.empty() ? 0 : 1) + (hiddenIf.empty() ? 0 : 1) + (visibleIf.empty() ? 0 : 1);
+    if (countAttrs > 1)
+    {
+        throw(ParseException( "Attribute " + m_pSchemaItem->getProperty("name") + "[@" + attrName + "] Only one of hpcc:hidden, hpcc:hiddenIf or hpcc:visibleIf may be specified"));
+    }
+
+    if (!hidden.empty())
+    {
+        pCfgValue->setHidden(hidden == "true");
+    }
+    else
+    {
+        pCfgValue->setHiddenIf(!hidden.empty() ? hiddenIf : visibleIf);
+        pCfgValue->setInvertHiddenIf(!visibleIf.empty());
+    }
+
+    //
+    // Defaults
+    std::string preset = attr.get("<xmlattr>.hpcc:presetValue", "");  // This is the value used by code, preset, if no value provided (informational only)
+    std::string forcedConfigValue = attr.get("<xmlattr>.hpcc:forcedConfigValue", "");   // this value is written to the environment if non is provided
+    if (!preset.empty() && !forcedConfigValue.empty())
+    {
+        throw(ParseException( "Attribute " + m_pSchemaItem->getProperty("name") + "[@" + attrName + "] Only one of hpcc:presetValue or hpcc:forcedConfigValue may be specified"));
+    }
+    else if (!preset.empty())
+    {
+        pCfgValue->setPresetValue(preset);
+    }
+    else
+    {
+        pCfgValue->setForcedValue(forcedConfigValue);
+    }
 
     std::string modList = attr.get("<xmlattr>.hpcc:modifiers", "");
     if (modList.length())

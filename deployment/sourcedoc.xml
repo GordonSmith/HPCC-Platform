@@ -26,4 +26,7 @@
     <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="configgen/sourcedoc.xml"/>
     <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="deploy/sourcedoc.xml"/>
     <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="deployutils/sourcedoc.xml"/>
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="configenv/sourcedoc.xml"/>
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="envgen/sourcedoc.xml"/>
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="envgen2/sourcedoc.xml"/>
 </section>

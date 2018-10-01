@@ -172,17 +172,31 @@ var GridHelper = declare(null, {
     postCreate: override(function (inherited) {
         inherited(arguments);
 
-        this.__hpcc_tooltip = new Tooltip({
+        this.__hpcc_tooltip_header = new Tooltip({
             connectId: [this.id],
-            selector: "td,.dgrid-resize-header-container",
-            showDelay: 800,
-            getContent: function (node) {
-                if (node.offsetWidth < node.scrollWidth) {
+            selector: ".dgrid-resize-header-container",
+            showDelay: 400,
+            getContent(node) {
+                if (node.offsetWidth < node.scrollWidth - 4) {
                     return node.innerHTML;
                 }
                 return "";
             }
         });
+        this.__hpcc_tooltip_header.position = ["above-centered", "below-centered", "before-centered", "after-centered"];
+
+        this.__hpcc_tooltip = new Tooltip({
+            connectId: [this.id],
+            selector: "td",
+            showDelay: 400,
+            getContent(node) {
+                if (node.offsetWidth <= node.scrollWidth) {
+                    return node.innerHTML;
+                }
+                return "";
+            }
+        });
+        this.__hpcc_tooltip.position = ["above-centered", "below-centered", "before-centered", "after-centered"];
     }),
 
     _onNotify: override(function (inherited, object, existingId) {
@@ -251,6 +265,33 @@ var GridHelper = declare(null, {
         return retVal;
     }
 });
+
+export var LocalStorage = dojo.declare([Evented], {
+    constructor: function () {
+        var context = this;
+        if (typeof Storage !== void(0)) {
+            window.addEventListener('storage', function (event) {
+                context.emit('storageUpdate', {event});
+            });
+        } else {
+            console.log("Browser doesn't support multi-tab communication");
+        };
+    },
+
+    setItem: function (key, value) {
+        localStorage.setItem(key, value);
+    },
+    removeItem: function (key) {
+        localStorage.removeItem(key);
+    },
+    getItem: function (key) {
+        localStorage.getItem(key)
+    },
+    clear: function () {
+        localStorage.clear();
+    }
+});
+
 
 export var MonitorLockClick = dojo.declare([Evented], {
     unlocked: function () {

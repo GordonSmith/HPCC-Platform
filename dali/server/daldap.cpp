@@ -143,6 +143,8 @@ public:
         {
             username.append(filesdefaultuser);
             decrypt(password, filesdefaultpassword);
+            WARNLOG("Missing credentials, injecting deprecated filesdefaultuser");
+            reqSignature = nullptr;
         }
 
         Owned<ISecUser> user = ldapsecurity->createUser(username);
@@ -180,7 +182,7 @@ public:
                 VStringBuffer expectedStr("%s;%s;%s", obj, username.str(), requestTimestamp.str());
                 StringBuffer b64Signature(reqSignature);// signature of scope;user;timestamp
 
-                if (!pDSM->digiVerify(expectedStr, b64Signature))//does the digital signature match what we expect?
+                if (!pDSM->digiVerify(b64Signature, expectedStr))//does the digital signature match what we expect?
                 {
                     ERRLOG("LDAP: getPermissions(%s) scope=%s user=%s fails digital signature verification",key?key:"NULL",obj?obj:"NULL",username.str());
                     return SecAccess_None;//deny
@@ -194,11 +196,19 @@ public:
                 ERRLOG("LDAP: getPermissions(%s) scope=%s user=%s digital signature support not available",key?key:"NULL",obj?obj:"NULL",username.str());
         }
 
-        if (!ldapsecurity->authenticateUser(*user, NULL))
+        if (!isEmptyString(user->credentials().getPassword()))
         {
-            ERRLOG("LDAP: getPermissions(%s) scope=%s user=%s fails LDAP authentication",key?key:"NULL",obj?obj:"NULL",username.str());
-            return SecAccess_None;//deny
+            if (!ldapsecurity->authenticateUser(*user, NULL))
+            {
+                const char * extra = "";
+                if (isEmptyString(reqSignature))
+                    extra = " (Password or Dali Signature not provided)";
+                ERRLOG("LDAP: getPermissions(%s) scope=%s user=%s fails LDAP authentication%s",key?key:"NULL",obj?obj:"NULL",username.str(), extra);
+                return SecAccess_None;//deny
+            }
         }
+        else
+            user->setAuthenticateStatus(AS_AUTHENTICATED);
 
         bool filescope = stricmp(key,"Scope")==0;
         bool wuscope = stricmp(key,"workunit")==0;
@@ -268,7 +278,7 @@ public:
             if (pDSM && pDSM->isDigiVerifierConfigured())
             {
                 StringBuffer b64Signature(udesc->querySignature());
-                if (!pDSM->digiVerify(username, b64Signature))//digital signature valid?
+                if (!pDSM->digiVerify(b64Signature, username))//digital signature valid?
                 {
                     ERRLOG("LDAP: enableScopeScans(%s) : Invalid user digital signature", username.str());
                     *err = -1;

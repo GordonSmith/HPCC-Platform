@@ -14,7 +14,9 @@
 #    limitations under the License.
 ################################################################################
 HPCC_ADD_SUBDIRECTORY (configgen "PLATFORM")
+HPCC_ADD_SUBDIRECTORY (configenv "PLATFORM")
 HPCC_ADD_SUBDIRECTORY (deploy "PLATFORM")
 HPCC_ADD_SUBDIRECTORY (deployutils "PLATFORM")
 HPCC_ADD_SUBDIRECTORY (envgen "PLATFORM")
+HPCC_ADD_SUBDIRECTORY (envgen2 "PLATFORM")
 HPCC_ADD_SUBDIRECTORY (configutils "PLATFORM")
