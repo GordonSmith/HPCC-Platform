@@ -35,6 +35,7 @@ define([
     "hpcc/DelayLoadWidget",
     "src/ws_machine",
     "hpcc/LockDialogWidget",
+    "src/Session",
 
     "dojo/text!../templates/HPCCPlatformWidget.html",
 
@@ -61,7 +62,7 @@ define([
     registry, Tooltip,
     UpgradeBar, ColorPicker,
     CodeMirror,
-    _TabContainerWidget, ESPRequest, ESPActivity, ESPUtil, WsAccount, WsAccess, WsSMC, WsTopology, DelayLoadWidget, WsMachine, LockDialogWidget,
+    _TabContainerWidget, ESPRequest, ESPActivity, ESPUtil, WsAccount, WsAccess, WsSMC, WsTopology, DelayLoadWidget, WsMachine, LockDialogWidget, Session,
     template) {
 
         declare("HPCCColorPicker", [ColorPicker], {
@@ -79,7 +80,6 @@ define([
 
             bannerContent: "",
             upgradeBar: null,
-            storage: null,
 
             postCreate: function (args) {
                 this.inherited(arguments);
@@ -236,8 +236,7 @@ define([
                 topic.subscribe("hpcc/monitoring_component_update", function (topic) {
                     context.checkMonitoring(topic.status);
                 });
-                this.storage = new ESPUtil.LocalStorage();
-                this.storage.on("storageUpdate", function(msg) {
+                Session.on("storageUpdate", function(msg) {
                     context._onUpdateFromStorage(msg)
                 });
             },
@@ -476,18 +475,7 @@ define([
                 this.logoutConfirm.show();
                 query(".dijitDialogUnderlay").style("opacity", "0.5");
                 this.logoutConfirm.on("execute", function () {
-                    xhr("esp/logout", {
-                        method: "post"
-                    }).then(function (data) {
-                        if (data) {
-                            cookie("ECLWatchUser", "", { expires: -1 });
-                            cookie("ESPSessionID" + location.port + " = '' ", "", { expires: -1 });
-                            window.location.reload();
-                            context.storage.setItem("Status", "logged_out");
-                            cookie("Status", "", { expires: -1 });
-                            cookie("User", "", { expires: -1 });
-                        }
-                    });
+                    Session.logout();
                 });
             },
 

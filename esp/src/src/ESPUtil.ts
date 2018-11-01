@@ -266,33 +266,6 @@ var GridHelper = declare(null, {
     }
 });
 
-export var LocalStorage = dojo.declare([Evented], {
-    constructor: function () {
-        var context = this;
-        if (typeof Storage !== void(0)) {
-            window.addEventListener('storage', function (event) {
-                context.emit('storageUpdate', {event});
-            });
-        } else {
-            console.log("Browser doesn't support multi-tab communication");
-        };
-    },
-
-    setItem: function (key, value) {
-        localStorage.setItem(key, value);
-    },
-    removeItem: function (key) {
-        localStorage.removeItem(key);
-    },
-    getItem: function (key) {
-        localStorage.getItem(key)
-    },
-    clear: function () {
-        localStorage.clear();
-    }
-});
-
-
 export var MonitorLockClick = dojo.declare([Evented], {
     unlocked: function () {
         this.emit("unlocked", {});
@@ -309,7 +282,7 @@ export var IdleWatcher = dojo.declare([Evented], {
     },
 
     fireIdle: function () {
-        this.emit("idle", {status: "firedIdle"});
+        this.emit("idle", { status: "firedIdle" });
     },
 
     start: function () {

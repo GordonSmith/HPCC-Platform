@@ -36,18 +36,3 @@ export function UpdateUserInput(params) {
 export function MyAccount(params) {
     return ESPRequest.send("ws_account", "MyAccount", params);
 }
-
-export function Unlock(params) {
-    lang.mixin(params, {
-        handleAs: "json"
-    });
-    return ESPRequest.send("esp", "unlock", params);
-}
-
-export function Lock(params) {
-    lang.mixin(params, {
-        handleAs: "json"
-    });
-    return ESPRequest.send("esp", "lock", params);
-}
-

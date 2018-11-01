@@ -5,10 +5,11 @@ import * as config from "dojo/_base/config";
 import * as Deferred from "dojo/_base/Deferred";
 import * as QueryResults from "dojo/store/util/QueryResults";
 import * as topic from "dojo/topic";
-import * as cookie from "dojo/cookie";
-import * as ESPUtil from "./ESPUtil";
+import * as Session from "./Session";
 
 import * as hpccComms from "@hpcc-js/comms";
+
+export const SESSION_LOCKED = "session locked";
 
 declare const dojo: any;
 declare const debugConfig: any;
@@ -112,13 +113,7 @@ class RequestHelper {
         return retVal.then(function (response) {
             if (lang.exists("Exceptions.Exception", response)) {
                 if (response.Exceptions.Exception.Code === "401") {
-                    if (cookie("Status") === "Unlocked") {
-                        topic.publish("hpcc/session_management_status", {
-                            status: "DoIdle"
-                        });
-                    }
-                    cookie("Status", "Locked");
-                    ESPUtil.LocalStorage.removeItem("Status");
+                    Session.status("Locked");
                 }
             }
             params.load(response);
@@ -195,25 +190,23 @@ class RequestHelper {
                 }
             }
             return response;
-        },
-            function (error) {
-                var message = "Unknown Error";
-                if (lang.exists("response.text", error)) {
-                    message = error.response.text;
-                } else if (error.message && error.stack) {
-                    message = "<h3>" + error.message + "</h3>";
-                    message += "<p>" + error.stack + "</p>";
-                }
+        }, function (error) {
+            var message = "Unknown Error";
+            if (lang.exists("response.text", error)) {
+                message = error.response.text;
+            } else if (error.message && error.stack) {
+                message = "<h3>" + error.message + "</h3>";
+                message += "<p>" + error.stack + "</p>";
+            }
 
-                topic.publish("hpcc/brToaster", {
-                    Severity: "Error",
-                    Source: service + "." + action,
-                    Exceptions: [{ Message: message }]
-                });
-                return error;
+            topic.publish("hpcc/brToaster", {
+                Severity: "Error",
+                Source: service + "." + action,
+                Exceptions: [{ Message: message }]
             });
+            return error;
+        });
     }
-
     //  XML to JSON helpers  ---
     getValue(domXml, tagName, knownObjectArrays) {
         var retVal = this.getValues(domXml, tagName, knownObjectArrays);

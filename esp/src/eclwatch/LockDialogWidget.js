@@ -23,6 +23,7 @@ define([
     "src/Utility",
     "src/ws_account",
     "src/ESPUtil",
+    "src/Session",
 
     "dojo/text!../templates/LockDialogWidget.html",
 
@@ -36,7 +37,7 @@ define([
 
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, dom, domForm, domClass, on, domStyle, xhr, keys, cookie, topic, query,
     registry, Select, CheckBox,
-    _Widget, Utility, WsAccount, ESPUtil,
+    _Widget, Utility, WsAccount, ESPUtil, Session,
     template) {
         return declare("LockDialogWidget", [_Widget], {
             templateString: template,
@@ -45,7 +46,6 @@ define([
 
             _width: "480px",
             lockDialogWidget: null,
-            storage: null,
             idleFired: null,
 
             postCreate: function (args) {
@@ -56,7 +56,6 @@ define([
                 this.unlockPassword = registry.byId(this.id + "UnlockPassword");
                 this.unlockForm = registry.byId(this.id + "UnlockForm");
                 this.unlockStatus = dom.byId(this.id + "UnlockStatus");
-                this.storage = new ESPUtil.LocalStorage();
             },
 
             startup: function (args) {
@@ -74,20 +73,16 @@ define([
                 this.unlockDialog.show();
                 domClass.add("SessionLock", "overlay");
                 this.unlockUserName.set("value", dojoConfig.username);
-
-                topic.publish("hpcc/session_management_status", {
-                    status: "Locked"
-                });
             },
 
             hide: function (event) {
                 domClass.remove("SessionLock", "overlay");
                 this.unlockDialog.hide();
                 this.unlockDialog.destroyRecursive()
-                dojo.query(".dijitDialogUnderlayWrapper").forEach(function(node){
+                dojo.query(".dijitDialogUnderlayWrapper").forEach(function (node) {
                     dojo.destroy(node.id);
                 });
-                dojo.query(".unlockDialogToHide").forEach(function(node){
+                dojo.query(".unlockDialogToHide").forEach(function (node) {
                     dojo.destroy(node.id);
                 });
             },
@@ -96,13 +91,7 @@ define([
                 var context = this;
 
                 if (this.unlockForm.validate()) {
-                    cookie("Status", "login_attempt");
-                    WsAccount.Unlock({
-                        request: {
-                            username: this.unlockUserName.get("value"),
-                            password: this.unlockPassword.get("value")
-                        }
-                    }).then(function (response) {
+                    Session.unlock(this.unlockUserName.get("value"), this.unlockPassword.get("value")).then(function (response) {
                         if (response.UnlockResponse.Error === 0) {
                             if (context.unlockStatus.innerHTML !== "") {
                                 context.unlockStatus.innerHTML = "";
@@ -110,12 +99,7 @@ define([
                             domClass.remove("SessionLock", "overlay");
                             context.unlockDialog.hide();
                             context.unlockDialog.destroyRecursive();
-                            topic.publish("hpcc/session_management_status", {
-                                status: "Unlocked"
-                            });
-                            cookie("Status", "Unlocked");
-                            context.storage.removeItem("Status");
-                            context.storage.setItem("Status", "Unlocked");
+                            Session.status("Unlocked");
                             if (context.idleFired) {
                                 dojo.publish("hpcc/brToaster", {
                                     Exceptions: [{
@@ -128,7 +112,7 @@ define([
                             }
                         } else {
                             context.unlockStatus.innerHTML = response.UnlockResponse.Message;
-                            cookie("Status", "Locked");
+                            Session.status("Locked");
                         }
                     });
                 }
@@ -151,25 +135,12 @@ define([
                     topic.publish("hpcc/session_management_status", {
                         status: "Locked"
                     });
-                    cookie("Status", "Locked");
-                    context.storage.removeItem("Status");
-                    context.storage.setItem("Status", "Locked");
-                } else if (cookie("Status") === "Unlocked") {
-                    xhr("esp/lock", {
-                        method: "post",
-                    }).then(function(response){
-                        if (response) {
-                            context.unlockDialog.show();
-                            domClass.add("SessionLock", "overlay");
-                            context.unlockUserName.set("value", dojoConfig.username);
-                            topic.publish("hpcc/session_management_status", {
-                                status: "Locked"
-                            });
-                            cookie("Status", "Locked");
-                            context.storage.removeItem("Status");
-                            context.storage.setItem("Status", "Locked");
-                        }
-                    });
+                    Session.status("Locked");
+                } else if (Session.status() === "Unlocked") {
+                    Session.lock();
+                    context.unlockDialog.show();
+                    domClass.add("SessionLock", "overlay");
+                    context.unlockUserName.set("value", dojoConfig.username);
                 }
             },
 

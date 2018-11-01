@@ -17,6 +17,7 @@ define([
     "src/ESPUtil",
     "src/Utility",
     "hpcc/LockDialogWidget",
+    "src/Session",
 
     "dojox/html/entities",
     "dojox/widget/Toaster",
@@ -27,7 +28,7 @@ define([
 
 ], function (fx, dom, domStyle, ioQuery, ready, lang, arrayUtil, topic, xhr, cookie, on,
     Dialog, Button,
-    ESPUtil, Utility, LockDialogWidget,
+    ESPUtil, Utility, LockDialogWidget, Session,
     entities, Toaster) {
 
         var espTimeoutSeconds = cookie("ESPSessionTimeoutSeconds") || 600;  // 10 Minutes?
@@ -41,15 +42,12 @@ define([
         function _resetESPTime(evt) {
             if (Date.now() - _prevReset > SESSION_RESET_FREQ) {
                 _prevReset = Date.now();
-                xhr("esp/reset_session_timeout", {
-                    method: "post"
-                }).then(function (data) {
-                });
+                Session.resetTimeout();
             }
         }
 
         if (sessionIsActive > -1) {
-            cookie("Status", "Unlocked");
+            Session.status("Unlocked");
             cookie("ECLWatchUser", "true");
 
             idleWatcher = new ESPUtil.IdleWatcher(IDLE_TIMEOUT);
@@ -72,6 +70,7 @@ define([
             idleWatcher.start();
             monitorLockClick.unlocked();
         } else if (cookie("ECLWatchUser")) {
+            cookie("ESPAuthenticated", "false", { expires: -1 });
             window.location.replace(dojoConfig.urlInfo.basePath + "/Login.html");
         }
 
@@ -96,7 +95,7 @@ define([
             topic.subscribe("hpcc/session_management_status", function (publishedMessage) {
                 if (publishedMessage.status === "Unlocked") {
                     monitorLockClick.unlocked();
-                } else  if (publishedMessage.status === "Locked") {
+                } else if (publishedMessage.status === "Locked") {
                     monitorLockClick.locked();
                 } else if (publishedMessage.status === "DoIdle") {
                     idleWatcher.fireIdle();
@@ -125,8 +124,10 @@ define([
                     positionDirection: 'br-left'
                 });
                 topic.subscribe("hpcc/brToaster", function (topic) {
-                    if (lang.exists("Exceptions", topic)) {
-                        var context = this;
+                    if (topic.InvalidSession) {
+                        cookie("ESPAuthenticated", "false", { expires: -1 });
+                        window.location.replace(dojoConfig.urlInfo.basePath + "/Login.html");
+                    } else if (lang.exists("Exceptions", topic)) {
                         arrayUtil.forEach(topic.Exceptions, function (_item, idx) {
                             var item = lang.mixin({
                                 Severity: topic.Severity,
