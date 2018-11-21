@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "@hpcc-systems/hpcc-platform",
-  "version": "7.0.0",
+  "version": "7.1.0",
   "description": "HPCC Systems (High Performance Computing Cluster) is an open source, massive parallel-processing computing platform for big data processing and analytics. ",
   "scripts": {
     "gen-changelog": "standard-version",
