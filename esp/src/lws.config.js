@@ -1,6 +1,6 @@
 const fs = require("fs");
 
-const CLUSTER_MV = "192.168.99.103";
+const CLUSTER_MV = "10.173.160.101";
 const CLUSTER_GJS = "localhost";
 const debugServerIP = fs.existsSync("./gjs.md") ? CLUSTER_GJS : CLUSTER_MV;
 

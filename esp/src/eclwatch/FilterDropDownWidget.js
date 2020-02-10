@@ -11,6 +11,8 @@ define([
 
     "hpcc/_Widget",
     "src/Utility",
+    "src/UserPreferences/StatefulFilters",
+    "src/react/index",
 
     "dojo/text!../templates/FilterDropDownWidget.html",
 
@@ -24,7 +26,7 @@ define([
 
 ], function (declare, i18n, nlsHPCC, arrayUtil, dom, domStyle,
     registry, Select,
-    _Widget, Utility,
+    _Widget, Utility, StatefulFilters, srcReact,
     template) {
     return declare("FilterDropDownWidget", [_Widget], {
         templateString: template,
@@ -52,6 +54,10 @@ define([
         startup: function (args) {
             this.inherited(arguments);
             this.iconFilter = dom.byId(this.id + "IconFilter");
+        },
+
+        destroy: function (args) {
+            srcReact.unrender(this.recentFilterNode);
         },
 
         //  Hitched actions  ---
@@ -97,7 +103,7 @@ define([
             return false;
         },
 
-        toObject: function () {
+        toObject: function (evt) {
             if (this.filterDropDown.get("disabled")) {
                 return {};
             }
@@ -111,6 +117,15 @@ define([
                     }
                 }
             });
+            let payload = JSON.stringify(retVal);
+            // StatefulFilters.addToStack(, payload)
+            // if (this.loaded) {
+            //     this.store.set([params.FilterWidget], payload);
+            // }
+            //
+            //StatefulFilters.addFilterToStore.set(evt, payload)
+            this.recentFilterNode = dom.byId(this.id + "RecentFilters");
+            srcReact.render(srcReact.RecentFilters, { filter: retVal }, this.recentFilterNode);
             return retVal;
         },
 

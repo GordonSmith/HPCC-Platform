@@ -301,9 +301,11 @@ define([
                 context.refreshGrid();
             });
             this.filter.on("apply", function (evt) {
+                console.log(evt)
                 context.refreshHRef();
                 context.workunitsGrid._currentPage = 0;
                 context.refreshGrid();
+                //context.emit("addRecentFilter");
             });
 
             topic.subscribe("hpcc/session_management_status", function (publishedMessage) {
