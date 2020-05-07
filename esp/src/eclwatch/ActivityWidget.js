@@ -230,6 +230,11 @@ define([
             promises.refresh();
         },
 
+        destroy: function (args) {
+            this.inherited(arguments);
+            this._diskUsage.target(null);
+        },
+
         postCreate: function (args) {
             this.inherited(arguments);
             var context = this;
