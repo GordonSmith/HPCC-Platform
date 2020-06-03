@@ -1,7 +1,10 @@
 import * as registry from "dijit/registry";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import { resolve } from "../Utility";
+import { resolve } from "../../Utility";
+import "dojo/i18n";
+// @ts-ignore
+import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
 
 export interface DojoProps {
     widgetClassID: string;
@@ -95,7 +98,7 @@ export class DojoComponent extends React.Component<DojoProps, DojoState> {
     }
 
     render() {
-        return <div style={{ width: "100%", height: "100%" }}>...loading {this.props.widgetClassID}...</div>;
+        return <div style={{ width: "100%", height: "100%" }}>{nlsHPCC.Loading} {this.props.widgetClassID}...</div>;
     }
 
 }

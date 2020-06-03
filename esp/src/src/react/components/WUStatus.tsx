@@ -3,10 +3,9 @@ import Step from "@material-ui/core/Step";
 import StepLabel from "@material-ui/core/StepLabel";
 import Stepper from "@material-ui/core/Stepper";
 import { MuiThemeProvider } from "@material-ui/core/styles";
-import nlsHPCC from "../nlsHPCC";
-import { theme } from "./theme";
+import nlsHPCC from "../../nlsHPCC";
+import { theme } from "../theme";
 import * as React from "react";
-
 
 const Steps = [
     {
