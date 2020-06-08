@@ -1,4 +1,4 @@
-var DATA = {
+export const DATA = {
     "components": [
         {
             name: "Activity",
@@ -66,4 +66,3 @@ var DATA = {
         }
     ]
 }
-export default DATA;

@@ -1,6 +1,6 @@
-import { detect } from "detect-browser";
 import { Store, ValueChangedMessage } from "@hpcc-js/comms";
 import { Dispatch, IObserverHandle } from "@hpcc-js/util";
+import { detect } from "detect-browser";
 
 declare const dojoConfig;
 
