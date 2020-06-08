@@ -1,7 +1,7 @@
 import * as React from "react";
 import { makeStyles } from "@material-ui/core/styles"
-import { DojoComponent } from "./DojoComponent";
 import { MainList } from "./NavigationMenu";
+import { Body } from "./Body";
 import { UtilityBar } from "./UtilityBar";
 
 declare const dojoConfig;
@@ -40,15 +40,13 @@ export function Frame() {
 
     return (
         <>
-            <UtilityBar  />
+            <UtilityBar />
             <div className={classes.container}>
                 <div className={classes.nav}>
-                    <MainList getWidgetName={selectedWidgetCallback}/>
+                    <MainList getWidgetName={selectedWidgetCallback} />
                 </div>
                 <div className={classes.contentWrapper}>
-                    <main className={classes.content}>
-                        <DojoComponent widgetClassID={mainWidget} params={{}} />
-                    </main>
+                    <Body widgetClassID={mainWidget} params={{}} />
                 </div>
             </div>
         </>

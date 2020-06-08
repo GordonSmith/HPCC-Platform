@@ -5,18 +5,18 @@ export const theme = createMuiTheme({
         fontSize: 15
     },
     palette: {
-      primary: {
-          main: "#1a9bd7",
-          light: "#66ccff",
-          dark: "#006da5",
-          contrastText: "#f5f5f5"
-      },
-      secondary: {
-          main: "#455a64",
-          light: "#718792",
-          dark: "#1c313a",
-          contrastText: "#fff"
-      }
+        primary: {
+            main: "#1a9bd7",
+            light: "#66ccff",
+            dark: "#006da5",
+            contrastText: "#f5f5f5"
+        },
+        secondary: {
+            main: "#455a64",
+            light: "#718792",
+            dark: "#1c313a",
+            contrastText: "#fff"
+        }
     },
     overrides: {  // lets make everything look the same. if we want to overwrite use the useStyles hook inside the component
         MuiStepIcon: {
@@ -44,8 +44,8 @@ export const theme = createMuiTheme({
         },
         MuiTableCell: {
             head: {
-               fontWeight: 600,
-               width: "50%"
+                fontWeight: 600,
+                width: "50%"
             }
         }
     }

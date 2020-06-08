@@ -1,12 +1,31 @@
 var DojoWebpackPlugin = require("dojo-webpack-plugin");
 var CopyWebpackPlugin = require("copy-webpack-plugin");
 
+var fs = require("fs");
 var path = require("path");
 var webpack = require("webpack");
 
+//  Dev Environment ---
+let debugServerIP = "192.168.99.103";
+if (fs.existsSync("./lws.target.txt")) {
+    debugServerIP = fs.readFileSync("./lws.target.txt").toString().replace("\r\n", "\n").split("\n")[0];
+}
+console.log("debugServerIP:  ", debugServerIP);
+
+const proxy = {};
+['/WsWorkunits', '/WsStore', '/WsSMC', '/WsTopology', '/ws_machine', '/ws_account', '/ws_elk', '/esp/getauthtype', '/esp/reset_session_timeout', '/esp/titlebar']
+    .forEach(item => {
+        proxy[item] = {
+            target: "http://" + debugServerIP + ":8010",
+            secure: false
+        };
+    });
+
+//  WebPack configuration
 module.exports = function (env) {
     const isDev = env && env === "development";
     const isProduction = !isDev;
+    console.log("isProduction:  ", isProduction);
 
     const entry = {
         stub: "eclwatch/stub",
@@ -34,21 +53,17 @@ module.exports = function (env) {
         // For plugins registered after the DojoAMDPlugin, data.request has been normalized and
         // resolved to an absMid and loader-config maps and aliases have been applied
         new webpack.NormalModuleReplacementPlugin(/^dojox\/gfx\/renderer!/, "dojox/gfx/canvas"),
-        new webpack.NormalModuleReplacementPlugin(
-            /^css!/, function (data) {
-                data.request = data.request.replace(/^css!/, "!style-loader!css-loader!")
-            }
-        ),
-        new webpack.NormalModuleReplacementPlugin(
-            /^xstyle\/css!/, function (data) {
-                data.request = data.request.replace(/^xstyle\/css!/, "!style-loader!css-loader!")
-            }
-        )
+        new webpack.NormalModuleReplacementPlugin(/^css!/, function (data) {
+            data.request = data.request.replace(/^css!/, "!style-loader!css-loader!")
+        }),
+        new webpack.NormalModuleReplacementPlugin(/^xstyle\/css!/, function (data) {
+            data.request = data.request.replace(/^xstyle\/css!/, "!style-loader!css-loader!")
+        })
     ];
 
     return {
         context: __dirname,
-        entry: entry,
+        entry,
         output: {
             filename: "[name].eclwatch.js",
             chunkFilename: "[name].eclwatch.js",
@@ -60,14 +75,12 @@ module.exports = function (env) {
             rules: [
                 {
                     test: /\.(png|jpg|gif)$/,
-                    use: [
-                        {
-                            loader: 'url-loader',
-                            options: {
-                                limit: 100000
-                            }
+                    use: [{
+                        loader: 'url-loader',
+                        options: {
+                            limit: 100000
                         }
-                    ]
+                    }]
                 }, {
                     test: /\.css$/,
                     use: ['style-loader', 'css-loader']
@@ -90,11 +103,17 @@ module.exports = function (env) {
                 "clipboard": path.resolve(__dirname, 'node_modules/clipboard/dist/clipboard')
             }
         },
-        plugins: plugins,
+        plugins,
         resolveLoader: {
             modules: ["node_modules"]
         },
         mode: isProduction ? "production" : "development",
-        devtool: isProduction ? undefined : 'source-map'
+        devtool: isProduction ? undefined : 'source-map',
+        devServer: isProduction ? undefined : {
+            contentBase: path.join(__dirname, 'build'),
+            contentBasePublicPath: "/esp/files",
+            proxy,
+            hot: false
+        }
     }
 };

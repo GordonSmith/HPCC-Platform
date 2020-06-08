@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Theme, makeStyles, createStyles } from "@material-ui/core/styles";
-import { ButtonBase, MenuList, MenuItem, Paper, Avatar, ClickAwayListener, Popper, Grow, Typography, Divider  } from "@material-ui/core";
+import { ButtonBase, MenuList, MenuItem, Paper, Avatar, ClickAwayListener, Popper, Grow, Typography, Divider } from "@material-ui/core";
 import KeyboardArrowDownIcon from "@material-ui/icons/KeyboardArrowDown";
 import { getPrevious } from "../hooks/prevState";
 import "dojo/i18n";
@@ -8,12 +8,12 @@ import "dojo/i18n";
 import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
 
 interface ProfileManagerProps {
-    // username: string,
-    // accountType: string
+    username?: string,
+    accountType?: string
 }
 
 const useStyles = makeStyles((theme: Theme) =>
-  createStyles({
+    createStyles({
         root: {
             "&:hover": {
                 background: "rgb(56, 79, 107)"
@@ -25,7 +25,7 @@ const useStyles = makeStyles((theme: Theme) =>
             "&:hover": {
                 background: "transparent"
             },
-            padding: theme.spacing(1,2),
+            padding: theme.spacing(1, 2),
             flexDirection: "row",
             display: "flex",
             boxShadow: "none"
@@ -58,7 +58,7 @@ const useStyles = makeStyles((theme: Theme) =>
             textAlign: "left"
         },
         arrow: {
-            color:theme.palette.common.white,
+            color: theme.palette.common.white,
             marginTop: "2px",
             padding: theme.spacing(0, 2, 0, 2)
         },
@@ -69,7 +69,7 @@ const useStyles = makeStyles((theme: Theme) =>
         userDetails: {
             padding: theme.spacing(3, 0, 1, 0)
         }
-  })
+    })
 );
 
 export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
@@ -91,7 +91,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
         if (prevOpen) {
             anchorRef.current!.focus();
         }
-    },[open]);
+    }, [open]);
 
     return (
         <>
@@ -106,8 +106,8 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
                 <Paper className={classes.container}>
                     <Avatar className={classes.avatar}>MV</Avatar>
                     <div className={classes.text}>
-                        <div className={classes.user}>{ props.username || nlsHPCC.Loading }</div>
-                        <div className={classes.role}><span>{ props.accountType || nlsHPCC.Loading }</span></div>
+                        <div className={classes.user}>{props.username || nlsHPCC.Loading}</div>
+                        <div className={classes.role}><span>{props.accountType || nlsHPCC.Loading}</span></div>
                     </div>
                 </Paper>
                 <span className={classes.arrow}><KeyboardArrowDownIcon></KeyboardArrowDownIcon></span>
@@ -121,16 +121,16 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
             >
                 {({ TransitionProps, placement }) => (
                     <Grow
-                    {...TransitionProps}
-                    style={{
-                        transformOrigin: placement === "bottom" ? "center top" : "center bottom"
-                    }}
+                        {...TransitionProps}
+                        style={{
+                            transformOrigin: placement === "bottom" ? "center top" : "center bottom"
+                        }}
                     >
                         <Paper className={classes.userDetails}>
                             <ClickAwayListener onClickAway={handleClose}>
                                 <div className={classes.flexCenter}>
                                     <Avatar className={classes.avatar}>MV</Avatar>
-                                    <Typography variant="h5">{props.user}</Typography>
+                                    <Typography variant="h5">{props.username}</Typography>
                                     <Typography variant="subtitle2">{props.accountType}</Typography>
                                     <MenuList className={classes.fullWidth} autoFocusItem={open} id="menu-list-grow">
                                         <MenuItem onClick={handleClose}>My Account</MenuItem>

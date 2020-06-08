@@ -24,7 +24,7 @@ export const RecentFilters: React.FC<RecentFilterProps> = ({
     }
 
     const cleanUpFilter = (value: string) => {
-        const result = value.replace(/[{}'"]+/g, '');
+        const result = value.replace(/[{}'"]+/g, "");
         return result;
     }
 

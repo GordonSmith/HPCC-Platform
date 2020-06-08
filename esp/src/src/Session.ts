@@ -52,7 +52,7 @@ export function fireIdle() {
 function resetESPTime() {
     if (Date.now() - _prevReset > SESSION_RESET_FREQ) {
         _prevReset = Date.now();
-        xhr("esp/reset_session_timeout", {
+        xhr("/esp/reset_session_timeout", {
             method: "post"
         }).then(function (data) {
         });
