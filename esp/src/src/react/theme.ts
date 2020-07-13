@@ -6,15 +6,15 @@ export const theme = createMuiTheme({
     },
     palette: {
         primary: {
-            main: "#1a9bd7",
-            light: "#66ccff",
-            dark: "#006da5",
-            contrastText: "#f5f5f5"
+            main: "#199bd7", // teal
+            light: "#65ccff", //light complementary color to teal (for hovers and such) 
+            dark: "#000642", //dark blue
+            contrastText: "#fff"
         },
         secondary: {
-            main: "#455a64",
-            light: "#718792",
-            dark: "#1c313a",
+            main: "#ff8302", // orange accent
+            light: "#ffb444",
+            dark: "#c55400",
             contrastText: "#fff"
         }
     },
@@ -46,6 +46,12 @@ export const theme = createMuiTheme({
             head: {
                 fontWeight: 600,
                 width: "50%"
+            }
+        },
+        MuiBadge: {
+            badge: {
+                "color": "white",
+                "background": "#000642"
             }
         }
     }

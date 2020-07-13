@@ -1,14 +1,13 @@
 import { hashSum } from "@hpcc-js/util";
 import { userKeyValStore } from "../KeyValStore";
 
-const ws_store = userKeyValStore();
-
 export function addToStack(key: string, data: any, expectedLength?: number, removeDuplicates?: boolean) {
+    const ws_store = userKeyValStore();
     let finalData;
     return new Promise(function (resolve, reject) {
         ws_store.get(key)
             .then(response => {
-                if (response === "" || response === undefined) {
+                if (!response) {
                     ws_store.set(key, JSON.stringify([data]));
                     resolve(finalData = JSON.stringify([data]));
                 } else {

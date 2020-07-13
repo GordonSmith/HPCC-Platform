@@ -33,7 +33,7 @@ export const RecentFilters: React.FC<RecentFilterProps> = ({
             <Typography variant="h4" noWrap>
                 {nlsHPCC.RecentFilters}
             </Typography>
-            {loading ? (<div><Skeleton /><Skeleton animation={false} /><Skeleton animation="wave" /></div>) : (data ?
+            {loading ? (<div><Skeleton animation="wave" /></div>) : (data ?
                 <ThemeProvider theme={theme}>
                     <TableContainer component={Paper}>
                         <Table aria-label={nlsHPCC.RecentFiltersTable} size="small">
