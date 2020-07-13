@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {getRecentFilters} from "../../KeyValStore";
 
 export const useGet = (key: string, filter?: object) => {
+    const user_store = userKeyValStore();
     const [responseState, setResponseState] = useState({ data: null, loading: true });
     useEffect(() => {
         setResponseState({ data: null, loading: true });

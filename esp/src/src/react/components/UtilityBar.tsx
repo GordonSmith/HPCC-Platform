@@ -13,9 +13,9 @@ import { ProfileManager } from "./ProfileManager";
 declare const dojoConfig: any;
 
 interface UtilityBarProps {
-	//sendData: any;
+	mainWidget: string;
+	setMainWidget: (widgetID: string) => void;
 }
-
 
 const useStyles = makeStyles((theme: Theme) =>
 	createStyles({
@@ -40,7 +40,7 @@ const useStyles = makeStyles((theme: Theme) =>
 		},
 		icons: {
 			paddingRight: theme.spacing(2),
-			marginTop: "5px"
+			marginTop: "15px"
 		},
 		sectionDesktop: {
 			display: "none",
@@ -57,15 +57,12 @@ const useStyles = makeStyles((theme: Theme) =>
 	})
 );
 
-export const UtilityBar: React.FC<UtilityBarProps> = (props) => {
+export const UtilityBar: React.FC<UtilityBarProps> = ({
+	mainWidget, setMainWidget
+}) => {
 	const classes = useStyles();
 	const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 	const [mobileMoreAnchorEl, setMobileMoreAnchorEl] = React.useState<null | HTMLElement>(null);
-	// let username;
-
-	React.useEffect(() => {
-		// username = dojoConfig.username
-	}, []);
 
 	const isMenuOpen = Boolean(anchorEl);
 	const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
@@ -88,7 +85,7 @@ export const UtilityBar: React.FC<UtilityBarProps> = (props) => {
 	};
 
 	const handleDrawer = () => {
-		//setOpen(!open);
+		//TODO
 	};
 
 	const menuId = "primary-search-account-menu";
@@ -127,7 +124,7 @@ export const UtilityBar: React.FC<UtilityBarProps> = (props) => {
 				</MenuItem>
 				<MenuItem>
 					<IconButton aria-label="show 11 new notifications" color="inherit">
-						<Badge badgeContent={11} color="secondary">
+						<Badge badgeContent={17}>
 							<NotificationsIcon />
 						</Badge>
 					</IconButton>
@@ -162,7 +159,7 @@ export const UtilityBar: React.FC<UtilityBarProps> = (props) => {
 							<MenuIcon />
 						</IconButton>
 						<Typography className={classes.title} variant="h6" noWrap>Stu's 160 Cluster</Typography>
-						<GlobalSearch username={dojoConfig.username} />
+						<GlobalSearch mainWidget={mainWidget} setMainWidget={setMainWidget} username={dojoConfig.username} />
 						<div className={classes.grow} />
 						<div className={classes.sectionDesktop}>
 							<div className={classes.icons}>
@@ -170,7 +167,7 @@ export const UtilityBar: React.FC<UtilityBarProps> = (props) => {
 									<FavoriteIcon />
 								</IconButton>
 								<IconButton aria-label="show 17 new notifications" color="inherit">
-									<Badge badgeContent={17} color="secondary">
+									<Badge badgeContent={11}>
 										<NotificationsIcon />
 									</Badge>
 								</IconButton>
