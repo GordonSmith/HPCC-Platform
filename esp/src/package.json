@@ -60,9 +60,11 @@
     "dojox": "^1.16.2",
     "es6-promise": "^4.2.8",
     "font-awesome": "^4.7.0",
+    "history": "^5.0.0",
     "material-table": "^1.59.0",
     "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react-dom": "^16.13.1",
+    "universal-router": "^9.0.1"
   },
   "devDependencies": {
     "@types/dojo": "1.9.42",
