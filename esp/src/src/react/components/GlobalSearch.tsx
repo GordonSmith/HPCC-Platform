@@ -12,9 +12,7 @@ import "dojo/i18n";
 import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
 
 interface GlobalSearchProps {
-    username: string,
-    mainWidget: string;
-    setMainWidget: (widgetID: string) => void;
+    username: string;
 }
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -70,7 +68,7 @@ const useStyles = makeStyles((theme: Theme) =>
 );
 
 export const GlobalSearch: React.FC<GlobalSearchProps> = ({
-    username, mainWidget, setMainWidget
+    username
 }) => {
     const classes = useStyles();
     const components = DATA;
@@ -103,7 +101,6 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         setOpen(false);
     };
     const handleAutoCompleteClick = widget => {
-        setMainWidget(widget);
         setOpen(false);
         setSearchResults([]);
         setSearchTerm("");

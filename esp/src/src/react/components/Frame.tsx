@@ -8,6 +8,7 @@ import { Body } from "./Body";
 import { UtilityBar } from "./UtilityBar";
 import { UserAccountContext } from "../hooks/userContext";
 import * as ESPRequest from "../../ESPRequest";
+import { RouteParams } from 'universal-router';
 
 declare const dojoConfig;
 
@@ -41,10 +42,17 @@ const useStyles = makeStyles(theme => ({
     }
 }));
 
-export function Frame() {
+interface IFrame {
+    widgetClassID: string,
+    widgetParams?: RouteParams
+}
+
+export const Frame: React.FunctionComponent<IFrame> = ({
+    widgetClassID = "ActivityWidget",
+    widgetParams
+}) => {
     const classes = useStyles();
     const [loading, setLoading] = React.useState(true);
-    const [mainWidget, setMainWidget] = React.useState("ActivityWidget");
     const [userAccount, setUserAccount] = React.useState({});
 
     React.useEffect(() => {
@@ -60,17 +68,17 @@ export function Frame() {
             {loading ? <div className={classes.center}>
                 <CircularProgress color="primary" /></div> : (
                     <UserAccountContext.Provider value={{ userAccount, setUserAccount }}>
-                        <UtilityBar mainWidget={mainWidget} setMainWidget={setMainWidget} />
+                        <UtilityBar />
                         <div className={classes.container}>
                             <div className={classes.nav}>
-                                <MainList mainWidget={mainWidget} setMainWidget={setMainWidget} />
+                                <MainList />
                             </div>
                             <div className={classes.contentWrapper}>
-                                <Body widgetClassID={mainWidget} params={{}} />
+                                <Body widgetClassID={widgetClassID} params={widgetParams} />
                             </div>
                         </div>
                     </UserAccountContext.Provider>
-            )}
+                )}
         </MuiThemeProvider>
     );
-}
+};
