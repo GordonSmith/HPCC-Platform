@@ -616,7 +616,7 @@ define([
                         label: this.i18n.Username,
                         sortable: true,
                         formatter: function (_name, idx) {
-                            return "<a href='#' class='dgrid-row-url'>" + _name + "</a>"
+                            return "<a href='#/Users/' class='dgrid-row-url' onClick='return false;'>" + _name + "</a>"
                         }
                     },
                     employeeID: {

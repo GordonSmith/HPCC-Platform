@@ -394,7 +394,7 @@ define([
                         label: this.i18n.ID,
                         width: 380,
                         formatter: function (Id, idx) {
-                            return "<a href='#' class='dgrid-row-url'>" + Id + "</a>";
+                            return "<a href='#/Queries/' class='dgrid-row-url' onClick='return false;'>" + Id + "</a>";
                         }
                     },
                     Name: {
