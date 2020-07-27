@@ -100,7 +100,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         }
         setOpen(false);
     };
-    const handleAutoCompleteClick = widget => {
+    const handleAutoCompleteClick = () => {
         setOpen(false);
         setSearchResults([]);
         setSearchTerm("");
@@ -186,7 +186,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             }
                                         >
                                             {searchResults.map((item, idx) => (
-                                                <ListItem button dense key={idx} role={undefined} onClick={() => handleAutoCompleteClick(item.widget)} className={classes.halfWidthList}>
+                                                <ListItem button component="a" dense key={idx} role={undefined} href={item.href} onClick={() => handleAutoCompleteClick()} className={classes.halfWidthList}>
                                                     <ListItemIcon>
                                                         <LaunchIcon color="primary" />
                                                     </ListItemIcon>

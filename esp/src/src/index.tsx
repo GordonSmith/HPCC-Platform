@@ -20,7 +20,7 @@ dojoConfig.urlInfo = {
     hash: hashNodes.length >= 2 ? hashNodes[1] : "",
     resourcePath: baseHost + "/esp/files/eclwatch",
     basePath: baseHost + "/esp/files",
-    fullPath: location.origin + "/esp/files",
+    fullPath: location.origin + "/esp/files"
 };
 dojoConfig.disableLegacyHashing = true;
 
@@ -45,7 +45,7 @@ const routes: Routes = [
     },
     { path: '/play', action: () => <Frame widgetClassID="ECLPlaygroundWidget" /> },
     { path: '/files', action: () => <Frame widgetClassID="DFUQueryWidget" /> },
-    { path: '/landingzone', action: () => <Frame widgetClassID="LandingZoneWidget" /> },
+    { path: '/landingzone', action: () => <Frame widgetClassID="LZBrowseWidget" /> },
     { path: '/dfuworkunits', action: () => <Frame widgetClassID="GetDFUWorkunitWidget" /> },
     { path: '/xref', action: () => <Frame widgetClassID="XrefQueryWidget" /> },
     { path: '/queries', action: () => <Frame widgetClassID="QuerySetQueryWidget" /> },

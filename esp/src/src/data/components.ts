@@ -2,67 +2,83 @@ export const DATA = {
     "components": [
         {
             name: "Activity",
-            widget: "ActivityWidget"
+            widget: "ActivityWidget",
+            href: "#/activities"
         },
         {
             name: "Cluster Processes",
-            widget: "ClusterProcessesWidget"
+            widget: "ClusterProcessesWidget",
+            href: "#/processes"
         },
         {
             name: "DFU Workunits",
-            widget: "GetDFUWorkunitsWidget"
+            widget: "GetDFUWorkunitsWidget",
+            href: "#/dfuworkunits"
         },
         {
             name: "Disk Usage",
-            widget: "DiskUsageWidget"
+            widget: "DiskUsageWidget",
+            href: "#/diskusage"
         },
         {
             name: "Dynamic ESDL",
-            widget: "DynamicESDLQueryWidget"
+            widget: "DynamicESDLQeryWidget",
+            href: "#/esdl"
         },
         {
             name: "ECL Playground",
-            widget: "ECLPlaygroundWidget"
+            widget: "ECLPlaygroundWidget",
+            href: "#/play"
         },
         {
             name: "ECL Workunits",
-            widget: "WUQueryWidget"
+            widget: "WUQueryWidget",
+            href: "#/workunits"
         },
         {
             name: "Event Scheduler",
-            widget: "EventSchedulerWidget"
+            widget: "EventSchedulerWidget",
+            href: "#/event"
         },
         {
             name: "Landing Zones",
-            widget: "LandingZonesWidget"
+            widget: "LZBrowseWidget",
+            href: "#/landingzone"
         },
         {
             name: "Log Visualization",
-            widget: "LogVisualizationWidget"
+            widget: "LogVisualizationWidget",
+            href: "#/elk"
         },
         {
             name: "Logical Files",
-            widget: "DFUQueryWidget"
+            widget: "DFUQueryWidget",
+            href: "#/files"
         },
         {
             name: "Package Maps",
-            widget: "PackageMapQueryWidget"
+            widget: "PackageMapQueryWidget",
+            href: "#/packagemaps"
         },
         {
             name: "Queries",
-            widget: "QuerySetQueryWidget"
+            widget: "QuerySetQueryWidget",
+            href: "#/queries"
         },
         {
             name: "Security",
-            widget: "UsersQueryWidget"
+            widget: "UsersQueryWidget",
+            href: "#/security"
         },
         {
             name: "System Servers",
-            widget: "SystemServersQueryWidget"
+            widget: "SystemServersQueryWidget",
+            href: "#/servers"
         },
         {
             name: "Xref",
-            widget: "XrefQueryWidget"
+            widget: "XrefQueryWidget",
+            href: "#/xref"
         }
     ]
 }
