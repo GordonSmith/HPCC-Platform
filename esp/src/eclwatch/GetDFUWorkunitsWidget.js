@@ -394,7 +394,7 @@ define([
                         width: 180,
                         formatter: function (ID, idx) {
                             var wu = ESPDFUWorkunit.Get(ID);
-                            return "<img src='" + wu.getStateImage() + "'>&nbsp;<a href='#' class='dgrid-row-url'>" + ID + "</a>";
+                            return "<img src='" + wu.getStateImage() + "'>&nbsp;<a href='#/DFUWorkunits/' class='dgrid-row-url' onClick='return false;'>" + ID + "</a>";
                         }
                     },
                     Command: {

@@ -37,7 +37,7 @@ export const DATA = {
         },
         {
             name: "Event Scheduler",
-            widget: "EventSchedulerWidget",
+            widget: "EventScheduleWorkunitWidget",
             href: "#/event"
         },
         {

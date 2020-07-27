@@ -82,6 +82,13 @@ export const MainList: React.FC<MainList> = () => {
                         </ListItem>
                     </List>
                 </Collapse>
+                <Collapse in={open === "ECL"} timeout="auto" unmountOnExit>
+                    <List component="div" disablePadding>
+                        <ListItem button component="a" href="#/event" className={classes.nested}>
+                            <ListItemText primary="Event Scheduler" />
+                        </ListItem>
+                    </List>
+                </Collapse>
                 <ListItem button onClick={() => { handleClick("Files") }} title="Files">
                     <ListItemIcon>
                         <StorageIcon />

@@ -130,7 +130,7 @@ define([
                     Wuid: {
                         label: this.i18n.Workunit, width: 180, sortable: false,
                         formatter: function (Wuid) {
-                            return "<a href='#' class='dgrid-row-url'>" + Wuid + "</a>";
+                            return "<a href='#/Event/' class='dgrid-row-url' onClick='return false;'>" + Wuid + "</a>";
                         }
                     },
                     Cluster: { label: this.i18n.Cluster, width: 100, sortable: false },
