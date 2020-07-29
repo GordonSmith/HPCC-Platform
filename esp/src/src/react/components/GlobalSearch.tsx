@@ -83,8 +83,12 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         setOpen(true);
     };
     const handleSearchText = event => {
-        setSearchTerm(event.target.value);
-    };
+        if (event.target.value) {
+            setSearchTerm(event.target.value);
+        } else {
+            setSearchResults([]);
+        }
+    }
     const handleGlobalSearchText = () => {
         if (searchTerm) {
             addToStack("GlobalRecentSearch", { Term: searchTerm }, 5, true).then(function (val) {
@@ -137,8 +141,8 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     onChange={handleSearchText}
                     ref={anchorRef}
                     value={searchTerm}
-                />
-                <IconButton type="submit" onMouseDown={handleGlobalSearchText} className={classes.iconButton} aria-label="search">
+                />\
+                <IconButton type="submit" disabled={searchTerm.length === 0} href={"#/search/" + searchTerm} onMouseDown={handleGlobalSearchText} className={classes.iconButton} aria-label="search">
                     <SearchIcon />
                 </IconButton>
             </div>
