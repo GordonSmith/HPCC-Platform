@@ -3,7 +3,7 @@ import * as ReactDOM from "react-dom";
 import { Frame } from "./react/components/Frame";
 import { initSession } from "./Session";
 import UniversalRouter, { Routes } from 'universal-router'
-import { createHashHistory } from "history";
+import { history } from "./react/util/history";
 
 import "css!dojo-themes/flat/flat.css";
 import "css!hpcc/css/ecl.css";
@@ -32,7 +32,8 @@ const routes: Routes = [
     {
         path: '/workunits',
         children: [
-            { path: '', action: () => <Frame widgetClassID="WUQueryWidget" /> },
+            { path: '', action: () => <Frame widgetClassID="WUQueryComponent" /> },
+            { path: '/legacy', action: () => <Frame widgetClassID="WUQueryWidget" /> },
             { path: '/:Wuid', action: (ctx, params) => <Frame widgetClassID="WUDetailsWidget" widgetParams={params} /> }
         ]
     },
@@ -75,7 +76,9 @@ const routes: Routes = [
     {
         path: '/search',
         children: [
-            { path: '/:searchText', action: (ctx, params) => <Frame widgetClassID="SearchResultsWidget" widgetParams={params} /> }
+            {
+                path: '/:searchText', action: (ctx, params) => <Frame widgetClassID="SearchResultsWidget" widgetParams={params} />
+            }
         ]
     },
     {
@@ -100,10 +103,7 @@ const routes: Routes = [
 
 const router = new UniversalRouter(routes)
 
-const history = createHashHistory();
-
 const render = async (location) => {
-    console.log(location);
     const element = await router.resolve(location);
     if (element) {
         ReactDOM.render(
