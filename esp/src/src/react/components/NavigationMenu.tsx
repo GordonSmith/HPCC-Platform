@@ -73,6 +73,9 @@ export const MainList: React.FC<MainList> = () => {
                         <ListItem button component="a" href="#/workunits" className={classes.nested}>
                             <ListItemText primary="Workunits" />
                         </ListItem>
+                        <ListItem button component="a" href="#/workunits/legacy" className={classes.nested}>
+                            <ListItemText primary="Workunits (Legacy)" />
+                        </ListItem>
                     </List>
                 </Collapse>
                 <Collapse in={open === "ECL"} timeout="auto" unmountOnExit>
