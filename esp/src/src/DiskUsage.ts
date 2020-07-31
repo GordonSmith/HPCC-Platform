@@ -77,7 +77,7 @@ export class Summary extends FlexGrid {
         }
         connection.GetTargetClusterUsageEx(this._targetCluster !== undefined ? [this._targetCluster] : undefined, bypassCachedResult).then(response => {
             this._loadingMsg && this._loadingMsg
-                .html('<i class="fa fa-database"></i>')
+                .html("<i class=\"fa fa-database\"></i>")
                 ;
             if (!this._targetCluster) {
                 response.forEach(details => {

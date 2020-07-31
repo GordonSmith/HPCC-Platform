@@ -8,4 +8,4 @@ export const getPrevious = (value) => {
     },[]);
 
     return ref.current;
-}
+};

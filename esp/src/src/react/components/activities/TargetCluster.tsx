@@ -3,13 +3,12 @@ import { GetTargetClusterUsageEx, SMCActivity } from "@hpcc-js/comms";
 import { Avatar, Card, CardContent, CardHeader, createStyles, Divider, IconButton, makeStyles, Table, TableBody, TableCell, TableContainer, TableRow, MenuItem, Menu, CardActions, Collapse, Typography } from "@material-ui/core";
 import { green, red } from "@material-ui/core/colors";
 import Grid from "@material-ui/core/Grid";
-import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
+import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import MoreVertIcon from "@material-ui/icons/MoreVert";
 import clsx from "clsx";
 import * as React from "react";
-import { ActivityConnection } from "../../comms/activity";
-import { VisualizationComponent } from "./VizAdapter";
-
+import { ActivityConnection } from "../../../comms/activity";
+import { VizAdapter } from "../VizAdapter";
 
 import "dojo/i18n";
 // @ts-ignore
@@ -17,7 +16,7 @@ import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
 
 const useStyles = makeStyles(theme =>
     createStyles({
-        root: {
+        cardRoot: {
             // minWidth: 192,
             // padding: 16
             maxHeight: 320
@@ -42,16 +41,17 @@ const useStyles = makeStyles(theme =>
             // marginBottom: 12
         },
         expand: {
-            transform: 'rotate(0deg)',
-            marginLeft: 'auto',
-            transition: theme.transitions.create('transform', {
+            transform: "rotate(0deg)",
+            marginLeft: "auto",
+            transition: theme.transitions.create("transform", {
                 duration: theme.transitions.duration.shortest,
             }),
         },
         expandOpen: {
-            transform: 'rotate(180deg)',
+            transform: "rotate(180deg)",
         }
-    }));
+    })
+);
 
 function avatarColor(tc: { QueueStatus: string }, classes) {
     switch (tc.QueueStatus) {
@@ -60,12 +60,12 @@ function avatarColor(tc: { QueueStatus: string }, classes) {
         case "paused":
             return classes.red;
         default:
-            console.log(tc.QueueStatus)
+            console.log(tc.QueueStatus);
             return classes.red;
     }
 }
 
-export const TargetCluster: React.FunctionComponent<SMCActivity.TargetCluster> = (tc) => {
+const TargetCluster: React.FunctionComponent<SMCActivity.TargetCluster> = (tc) => {
 
     const [usage, setUsage] = React.useState<GetTargetClusterUsageEx.TargetClusterUsage>();
     const [workunits, setWorkunits] = React.useState<SMCActivity.ActiveWorkunit[]>([]);
@@ -119,7 +119,7 @@ export const TargetCluster: React.FunctionComponent<SMCActivity.TargetCluster> =
         widgetProps.tooltip = usage.ComponentUsagesDescription;
     }
 
-    return <Card key={tc.ClusterName} className={classes.root}>
+    return <Card key={tc.ClusterName} className={classes.cardRoot}>
         <CardHeader
             avatar={
                 <Avatar className={avatarColor(tc, classes)} >
@@ -148,7 +148,7 @@ export const TargetCluster: React.FunctionComponent<SMCActivity.TargetCluster> =
         </Menu>
         <Divider />
         <CardContent>
-            <VisualizationComponent widget={Gauge} widgetProps={widgetProps} width="120px" height="120px"></VisualizationComponent>
+            <VizAdapter widget={Gauge} widgetProps={widgetProps} width="120px" height="120px"></VizAdapter>
             <CardActions disableSpacing title={nlsHPCC.Active + `:  ${workunits.length}`}>
                 <Typography>{nlsHPCC.Active + `:  ${workunits.length}`}</Typography>
                 <IconButton disabled={workunits.length === 0}
@@ -181,7 +181,17 @@ export const TargetCluster: React.FunctionComponent<SMCActivity.TargetCluster> =
     </Card >;
 };
 
-export const ServerJobQueue: React.FunctionComponent<SMCActivity.ServerJobQueue> = (sjq) => {
+export const TargetClusters: React.FunctionComponent<{ targetClusters: SMCActivity.TargetCluster[] }> = ({ targetClusters }) => {
+    return <Grid container justify="center" spacing={3} >
+        {targetClusters.map(tc =>
+            <Grid item key={tc.QueueName}>
+                <TargetCluster {...tc} />
+            </Grid>
+        )}
+    </Grid>;
+};
+
+const ServerJobQueue: React.FunctionComponent<SMCActivity.ServerJobQueue> = (sjq) => {
     const classes = useStyles();
 
     const [workunits, setWorkunits] = React.useState<SMCActivity.ActiveWorkunit[]>([]);
@@ -189,7 +199,7 @@ export const ServerJobQueue: React.FunctionComponent<SMCActivity.ServerJobQueue>
     React.useEffect(() => {
         const activityConnection = ActivityConnection.attach();
 
-        const activityHandle = activityConnection.watch(callback => {
+        const activityHandle = activityConnection.watch(() => {
             setWorkunits(activityConnection.workunits(sjq.QueueName));
         }, true);
 
@@ -198,7 +208,7 @@ export const ServerJobQueue: React.FunctionComponent<SMCActivity.ServerJobQueue>
         };
     }, []);
 
-    return <Card key={sjq.ServerName} className={classes.root}>
+    return <Card key={sjq.ServerName} className={classes.cardRoot}>
         <CardHeader
             avatar={
                 <Avatar className={avatarColor(sjq, classes)} >
@@ -232,46 +242,12 @@ export const ServerJobQueue: React.FunctionComponent<SMCActivity.ServerJobQueue>
     </Card>;
 };
 
-export interface Activities {
-}
-
-export const Activities: React.FunctionComponent<Activities> = ({
-}) => {
-
-    const [targetClusters, setTargetClusters] = React.useState<SMCActivity.TargetCluster[]>([]);
-    const [serverJobQueues, setServerJobQueues] = React.useState<SMCActivity.ServerJobQueue[]>([]);
-
-    React.useEffect(() => {
-        const activityConnection = ActivityConnection.attach();
-        const activityHandle = activityConnection.watch(callback => {
-            setTargetClusters(activityConnection.targetClusters());
-            setServerJobQueues(activityConnection.jobQueues());
-        }, true);
-
-        return () => {
-            activityHandle.release();
-        };
-    }, []);
-
-    return <Grid container direction="column" spacing={4}>
-        <Grid item >
-            <Grid container direction="row" justify="center" alignItems="center" spacing={2} >
-                {targetClusters.map(tc =>
-                    <Grid item key={tc.QueueName}>
-                        <TargetCluster {...tc} />
-                    </Grid>
-                )}
+export const ServerJobQueues: React.FunctionComponent<{ serverJobQueues: SMCActivity.ServerJobQueue[] }> = ({ serverJobQueues }) => {
+    return <Grid container justify="center" spacing={3} >
+        {serverJobQueues.map(sjq =>
+            <Grid item key={sjq.ServerName}>
+                <ServerJobQueue {...sjq} />
             </Grid>
-        </Grid>
-        <Divider />
-        <Grid item >
-            <Grid container direction="row" justify="center" alignItems="center" spacing={2} >
-                {serverJobQueues.map(sjq =>
-                    <Grid item key={sjq.ServerName}>
-                        <ServerJobQueue {...sjq} />
-                    </Grid>
-                )}
-            </Grid>
-        </Grid>
+        )}
     </Grid>;
 };

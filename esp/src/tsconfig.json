@@ -20,6 +20,7 @@
         "noImplicitUseStrict": true,
         "downlevelIteration": true,
         "esModuleInterop": false,
+        "downlevelIteration": true,
         "jsx": "react",
         "lib": [
             "dom",

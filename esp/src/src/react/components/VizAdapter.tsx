@@ -1,14 +1,14 @@
 import { Widget } from "@hpcc-js/common";
 import * as React from "react";
 
-export interface VisualizationProps {
+export interface VizAdapterProps {
     widget: new () => Widget;
     widgetProps?: { [key: string]: any };
     width?: string;
     height?: string;
 }
 
-export const VisualizationComponent: React.FunctionComponent<VisualizationProps> = ({
+export const VizAdapter: React.FunctionComponent<VizAdapterProps> = ({
     widget,
     widgetProps = {},
     width = "100%",
@@ -40,6 +40,39 @@ export const VisualizationComponent: React.FunctionComponent<VisualizationProps>
                 __class: undefined,
                 ...widgetProps
             })
+            .lazyRender()
+            ;
+    }
+
+    return <div ref={myRef} style={{ width, height, display: "block", marginLeft: "auto", marginRight: "auto" }}></div>;
+};
+
+export interface VizInstanceAdapterProps {
+    widget: Widget;
+    width?: string;
+    height?: string;
+}
+
+export const VizInstanceAdapter: React.FunctionComponent<VizInstanceAdapterProps> = ({
+    widget,
+    width = "100%",
+    height = "240px"
+}) => {
+    const myRef = React.useRef<HTMLDivElement>();
+
+    const [loaded, setLoaded] = React.useState<boolean>(false);
+
+    React.useEffect(() => {
+        widget
+            .target(myRef.current)
+            ;
+
+        setLoaded(true);
+    }, []);
+
+    if (loaded) {
+        widget
+            .resize()
             .lazyRender()
             ;
     }
