@@ -76,5 +76,5 @@ export const DojoAdapter: React.FunctionComponent<DojoProps> = ({
         }
     }, [widgetClassID]);
 
-    return <div ref={myRef} style={{ width: "100%", height: "800px" }}>{nlsHPCC.Loading} {widgetClassID}...</div>;
+    return <div ref={myRef} style={{ width: "100%", height: "100%" }}>{nlsHPCC.Loading} {widgetClassID}...</div>;
 };

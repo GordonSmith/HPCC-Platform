@@ -2,8 +2,8 @@ export const DATA = {
     "components": [
         {
             name: "Activity",
-            widget: "ActivityWidget",
-            href: "#/activities"
+            widget: "MainComponent",
+            href: "#/main"
         },
         {
             name: "Cluster Processes",
@@ -81,4 +81,4 @@ export const DATA = {
             href: "#/xref"
         }
     ]
-}
+};

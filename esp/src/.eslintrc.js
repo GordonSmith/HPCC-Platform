@@ -1,13 +1,13 @@
 // eslint-disable-next-line no-undef
 module.exports = {
     root: true,
-    parser: '@typescript-eslint/parser',
+    parser: "@typescript-eslint/parser",
     plugins: [
-        '@typescript-eslint',
+        "@typescript-eslint",
     ],
     extends: [
-        'eslint:recommended',
-        'plugin:@typescript-eslint/recommended',
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
     ],
     env: {
         "browser": true,
@@ -23,12 +23,25 @@ module.exports = {
     rules: {
         "no-redeclare": "off",
         "no-empty": "off",
+        "no-empty-pattern": "off",
         "no-constant-condition": "off",
         "no-case-declarations": "off",
         "no-prototype-builtins": "off",
         "no-unused-vars": "off",
+        "no-useless-escape": "off",
+        "no-unexpected-multiline": "off",
+        "no-extra-boolean-cast": "off",
+        "no-self-assign": "off",
+        "no-multiple-empty-lines": [
+            "warn", {
+                max: 1
+            }],
 
         "prefer-rest-params": "off",
+        "prefer-spread": "off",
+
+        "semi": ["warn", "always"],
+        "quotes": ["warn", "double"],
 
         "@typescript-eslint/explicit-module-boundary-types": "off",
         "@typescript-eslint/no-unused-vars": "off",
@@ -63,5 +76,8 @@ module.exports = {
                 }
             }
         ],
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "@typescript-eslint/no-namespace": "off",
+        "@typescript-eslint/no-var-require": "off"
     }
 };

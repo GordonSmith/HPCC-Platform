@@ -1,4 +1,5 @@
 import * as React from "react";
+import clsx from "clsx";
 import { makeStyles, Theme, createStyles, ThemeProvider } from "@material-ui/core/styles";
 import { AppBar, Toolbar, Typography, IconButton, Badge, Menu, MenuItem } from "@material-ui/core";
 import MenuIcon from "@material-ui/icons/Menu";
@@ -15,8 +16,25 @@ declare const dojoConfig: any;
 interface UtilityBarProps {
 }
 
+const drawerWidth = 0;
+
 const useStyles = makeStyles((theme: Theme) =>
 	createStyles({
+		appBar: {
+			zIndex: theme.zIndex.drawer + 1,
+			transition: theme.transitions.create(["width", "margin"], {
+				easing: theme.transitions.easing.sharp,
+				duration: theme.transitions.duration.leavingScreen,
+			}),
+		},
+		appBarShift: {
+			marginLeft: drawerWidth,
+			width: `calc(100% - ${drawerWidth}px)`,
+			transition: theme.transitions.create(["width", "margin"], {
+				easing: theme.transitions.easing.sharp,
+				duration: theme.transitions.duration.enteringScreen,
+			}),
+		},
 		grow: {
 			display: "flex",
 			flexGrow: 1,
@@ -142,50 +160,48 @@ export const UtilityBar: React.FC<UtilityBarProps> = () => {
 	);
 	return (
 		<ThemeProvider theme={theme}>
-			<div className={classes.grow}>
-				<AppBar position="fixed" color="primary">
-					<Toolbar>
-						<IconButton
-							edge="start"
-							className={classes.menuButton}
-							color="inherit"
-							aria-label="open drawer"
-							onClick={handleDrawer}
-						>
-							<MenuIcon />
-						</IconButton>
-						<Typography className={classes.title} variant="h6" noWrap>Stu's 160 Cluster</Typography>
-						<GlobalSearch username={dojoConfig.username} />
-						<div className={classes.grow} />
-						<div className={classes.sectionDesktop}>
-							<div className={classes.icons}>
-								<IconButton aria-label="show your favorite widgets" color="inherit">
-									<FavoriteIcon />
-								</IconButton>
-								<IconButton aria-label="show 17 new notifications" color="inherit">
-									<Badge badgeContent={11}>
-										<NotificationsIcon />
-									</Badge>
-								</IconButton>
-							</div>
-							<ProfileManager />
-						</div>
-						<div className={classes.sectionMobile}>
-							<IconButton
-								aria-label="show more"
-								aria-controls={mobileMenuId}
-								aria-haspopup="true"
-								onClick={handleMobileMenuOpen}
-								color="inherit"
-							>
-								<MoreIcon />
+			<AppBar position="fixed" color="primary" className={clsx(classes.appBar, open && classes.appBarShift)}>
+				<Toolbar>
+					<IconButton
+						edge="start"
+						className={classes.menuButton}
+						color="inherit"
+						aria-label="open drawer"
+						onClick={handleDrawer}
+					>
+						<MenuIcon />
+					</IconButton>
+					<Typography className={classes.title} variant="h6" noWrap>Stu's 160 Cluster</Typography>
+					<GlobalSearch username={dojoConfig.username} />
+					<div className={classes.grow} />
+					<div className={classes.sectionDesktop}>
+						<div className={classes.icons}>
+							<IconButton aria-label="show your favorite widgets" color="inherit">
+								<FavoriteIcon />
+							</IconButton>
+							<IconButton aria-label="show 17 new notifications" color="inherit">
+								<Badge badgeContent={11}>
+									<NotificationsIcon />
+								</Badge>
 							</IconButton>
 						</div>
-					</Toolbar>
-				</AppBar>
-				{renderMobileMenu}
-				{renderMenu}
-			</div>
+						<ProfileManager />
+					</div>
+					<div className={classes.sectionMobile}>
+						<IconButton
+							aria-label="show more"
+							aria-controls={mobileMenuId}
+							aria-haspopup="true"
+							onClick={handleMobileMenuOpen}
+							color="inherit"
+						>
+							<MoreIcon />
+						</IconButton>
+					</div>
+				</Toolbar>
+			</AppBar>
+			{renderMobileMenu}
+			{renderMenu}
 		</ThemeProvider>
 	);
-}
+};

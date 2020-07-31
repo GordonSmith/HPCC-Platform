@@ -45,7 +45,7 @@ export function parseXML(val) {
 
 export function csvEncode(cell) {
     if (!isNaN(cell)) return cell;
-    return '"' + String(cell).replace('"', '""') + '"';
+    return "\"" + String(cell).replace("\"", "\"\"") + "\"";
 }
 
 export function espTime2Seconds(duration?: string) {

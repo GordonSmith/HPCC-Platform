@@ -9,6 +9,7 @@ import { UtilityBar } from "./UtilityBar";
 import { UserAccountContext } from "../hooks/userContext";
 import * as ESPRequest from "../../ESPRequest";
 import { RouteParams } from 'universal-router';
+import { Box } from '@material-ui/core';
 
 declare const dojoConfig;
 
@@ -74,7 +75,9 @@ export const Frame: React.FunctionComponent<IFrame> = ({
                                 <MainList />
                             </div>
                             <div className={classes.contentWrapper}>
-                                <Body widgetClassID={widgetClassID} params={widgetParams} />
+                                <Box width="100%" height="100%">
+                                    <Body widgetClassID={widgetClassID} params={widgetParams} />
+                                </Box>
                             </div>
                         </div>
                     </UserAccountContext.Provider>
