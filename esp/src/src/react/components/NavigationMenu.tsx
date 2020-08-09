@@ -48,7 +48,7 @@ export const MainList: React.FC<MainList> = () => {
     };
 
     return <><List>
-        <ListItem button title="Main Page" component="a" href="">
+        <ListItem button title="Main Page" component="a" href="#/">
             <ListItemIcon>
                 <HomeIcon />
             </ListItemIcon>

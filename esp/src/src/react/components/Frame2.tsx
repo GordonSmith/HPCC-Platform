@@ -6,13 +6,13 @@ import Drawer from "@material-ui/core/Drawer";
 import Divider from "@material-ui/core/Divider";
 import IconButton from "@material-ui/core/IconButton";
 import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
-import { RouteParams } from "universal-router";
 import { AutoSizer } from "react-virtualized";
 import * as ESPRequest from "../../ESPRequest";
 import { MainList } from "./NavigationMenu";
-import { Body } from "./Body";
 import { UtilityBar } from "./UtilityBar";
 import { UserAccountContext } from "../hooks/userContext";
+import { hashHistory } from "../util/history";
+import { router } from "./routes";
 
 declare const dojoConfig;
 
@@ -98,18 +98,17 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 interface Frame2 {
-    widgetClassID: string,
-    widgetParams?: RouteParams
 }
 
-export const Frame2: React.FunctionComponent<Frame2> = ({
-    widgetClassID = "ActivityWidget",
-    widgetParams
-}) => {
+export const Frame2: React.FunctionComponent<Frame2> = () => {
     const classes = useStyles();
+
     const mainRef = React.useRef<HTMLDivElement>();
 
+    const [body, setBody] = React.useState(<h1>...loading...</h1>);
     const [open, setOpen] = React.useState(false);
+    const [userAccount, setUserAccount] = React.useState({});
+
     // const handleDrawerOpen = () => {
     //     setOpen(true);
     // };
@@ -117,13 +116,20 @@ export const Frame2: React.FunctionComponent<Frame2> = ({
         setOpen(false);
     };
 
-    const [userAccount, setUserAccount] = React.useState({});
-
     React.useEffect(() => {
         ESPRequest.send("ws_account", "MyAccount").then(function (user) {
             setUserAccount(user.MyAccountResponse);
             dojoConfig.username = user.MyAccountResponse.username;
         });
+
+        const unlisten = hashHistory.listen(async (location, action) => {
+            document.title = `ECL Watch${location.pathname.split("/").join(" | ")}`;
+            setBody(await router.resolve(location));
+        });
+
+        router.resolve(hashHistory.location).then(setBody);
+
+        return () => unlisten();
     }, []);
 
     return (
@@ -153,7 +159,7 @@ export const Frame2: React.FunctionComponent<Frame2> = ({
                     {({ height, width }) => {
                         const y = mainRef?.current?.clientHeight || 0;
                         return <div style={{ height: `${height - y}px`, width: `${width - 0}px`, overflow: "auto" }}>
-                            <Body widgetClassID={widgetClassID} params={widgetParams} />
+                            {body}
                         </div>;
                     }}
                 </AutoSizer>
