@@ -3,7 +3,6 @@ import Refresh from "@material-ui/icons/Refresh";
 import MaterialTable, { MaterialTableProps } from "material-table";
 import { AutoSizer } from "react-virtualized";
 import { icons } from "../util/table";
-import { history } from "../util/history";
 
 import "dojo/i18n";
 // @ts-ignore
@@ -27,7 +26,7 @@ const MaterialTableEx: React.FunctionComponent<MaterialTableExProps<object>> = (
     const newProps = {
         ...props,
         actions: [
-            ...(props.actions || {}),
+            ...(props.actions || []),
             {
                 icon: Refresh,
                 tooltip: nlsHPCC.Refresh,
@@ -38,12 +37,6 @@ const MaterialTableEx: React.FunctionComponent<MaterialTableExProps<object>> = (
     };
 
     const data = Array.isArray(props.data) ? props.data : query => {
-        if (isFirstRun.current && history.location.state) {
-            // Restore previous state
-        } else {
-            // Save previouse state
-            // history.replace("/workunits", query);
-        }
         query.pageSize = props.options.pageSize;
         return (props.data as any)(query);
     };

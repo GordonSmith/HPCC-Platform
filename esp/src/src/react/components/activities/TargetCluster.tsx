@@ -56,11 +56,12 @@ const useStyles = makeStyles(theme =>
 function avatarColor(tc: { QueueStatus: string }, classes) {
     switch (tc.QueueStatus) {
         case "active":
+        case "running":
             return classes.green;
         case "paused":
             return classes.red;
         default:
-            console.log(tc.QueueStatus);
+            console.log("Unknown QueueStatus:  " + tc.QueueStatus);
             return classes.red;
     }
 }
