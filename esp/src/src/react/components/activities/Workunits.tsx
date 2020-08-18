@@ -203,10 +203,10 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = (_props) => {
                                     pushParam("lastNDays", event.target.value as number);
                                 }}
                             >
-                                <MenuItem value={1}>Day</MenuItem>
+                                <MenuItem value={1}>1 Day</MenuItem>
                                 <MenuItem value={2}>2 Days</MenuItem>
                                 <MenuItem value={3}>3 Days</MenuItem>
-                                <MenuItem value={7}>Week</MenuItem>
+                                <MenuItem value={7}>1 Week</MenuItem>
                                 <MenuItem value={14}>2 Weeks</MenuItem>
                                 <MenuItem value={21}>3 Weeks</MenuItem>
                                 <MenuItem value={31}>Month</MenuItem>

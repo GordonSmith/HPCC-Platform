@@ -21,7 +21,7 @@ const routes: Routes = [
     {
         path: "/workunits",
         children: [
-            { path: "", action: () => <WUQueryComponent /> },
+            { path: "", action: (context) => <WUQueryComponent search={context.search} /> },
             { path: "/legacy", action: () => <DojoAdapter widgetClassID="WUQueryWidget" /> },
             { path: "/:Wuid", action: (ctx, params) => <DojoAdapter widgetClassID="WUDetailsWidget" params={params} /> }
         ]
