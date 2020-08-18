@@ -6,6 +6,7 @@ import nlsHPCC from "../../nlsHPCC";
 import { icons } from "../util/table";
 
 interface MaterialTableExProps<RowData extends object> extends MaterialTableProps<RowData> {
+    refreshID?: number | string;
 }
 
 const MaterialTableEx: React.FunctionComponent<MaterialTableExProps<object>> = (props) => {
@@ -18,7 +19,7 @@ const MaterialTableEx: React.FunctionComponent<MaterialTableExProps<object>> = (
             return;
         }
         tableRef.current.onQueryChange();
-    }, [props.options.pageSize]);
+    }, [props.options.pageSize, props.refreshID]);
 
     const newProps = {
         ...props,
@@ -55,7 +56,7 @@ export const AutoSizeTable: React.FunctionComponent<MaterialTableExProps<object>
                 - 2     //  Padding
                 ;
 
-            const pageSize = Math.max(Math.floor((bodyHeight) / 38.22) - 1, 0);
+            const pageSize = Math.max(Math.floor((bodyHeight) / 49) - 2, 0);
             if (pageSize === 0) {
                 return <div>loading...</div>;
             }
@@ -65,11 +66,18 @@ export const AutoSizeTable: React.FunctionComponent<MaterialTableExProps<object>
                     ...props.options,
                     pageSize: pageSize,
                     pageSizeOptions: [],
-                    headerStyle: { padding: "0.0em" },
+                    // headerStyle: { paddingTop: "0.0em", paddingBottom: "0.0em" },
                     minBodyHeight: bodyHeight,
                     maxBodyHeight: bodyHeight
                 }
             };
+
+            newProps.columns.forEach(column => {
+                // column.cellStyle = {
+                //     paddingTop: "0.0em",
+                //     paddingBottom: "0.0em",
+                // };
+            });
 
             return <div style={{ width: `${width}px` }}>
                 <MaterialTableEx {...newProps} />
