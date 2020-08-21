@@ -21,12 +21,12 @@ const useStyles = makeStyles((theme: Theme) =>
             minWidth: "28px"
         },
         halfWidthList: {
-            width: "600px"
+            width: "100%"
         },
 
         flexCenter: {
             display: "flex",
-            width: "600px",
+            width: "100%",
             flexDirection: "column"
         },
         userDetails: {
@@ -40,14 +40,33 @@ const useStyles = makeStyles((theme: Theme) =>
             marginLeft: 0,
             width: "600px",
             [theme.breakpoints.up("sm")]: {
-                marginLeft: theme.spacing(1),
-                width: "auto",
+                width: "50%",
+                marginLeft: 0
             }
         },
         inputRoot: {
-            color: "black",
-            width: "600px",
-            padding: "3px 0"
+            width: "95%",
+            padding: "3px 0",
+            [theme.breakpoints.down("xs")]: {
+                marginLeft: theme.spacing(1),
+                width: "85%"
+            },
+            [theme.breakpoints.down("sm")]: {
+                marginLeft: theme.spacing(1),
+                width: "80%"
+            },
+            [theme.breakpoints.up("md")]: {
+                marginLeft: theme.spacing(1),
+                width: "88%"
+            },
+            [theme.breakpoints.up("lg")]: {
+                marginLeft: theme.spacing(1),
+                width: "90%"
+            },
+            [theme.breakpoints.up("xl")]: {
+                marginLeft: theme.spacing(1),
+                width: "90%"
+            }
         },
         iconButton: {
             padding: 10
@@ -56,13 +75,10 @@ const useStyles = makeStyles((theme: Theme) =>
             padding: theme.spacing(1, 1, 1, 0),
             paddingLeft: `calc(1em + ${theme.spacing(0)}px)`,
             transition: theme.transitions.create("width"),
-            width: "100%",
-            // [theme.breakpoints.up('sm')]: {
-            //   width: '12ch',
-            //   '&:focus': {
-            //     width: '20ch',
-            //   }
-            // }
+            width: "80%"
+        },
+        popperRoot: {
+            width: "100%"
         }
     })
 );
@@ -87,8 +103,10 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
             setSearchTerm(event.target.value);
         } else {
             setSearchResults([]);
+            setSearchTerm("");
+            setOpen(false);
         }
-    }
+    };
     const handleGlobalSearchText = () => {
         if (searchTerm) {
             addToStack("GlobalRecentSearch", { Term: searchTerm }, 5, true).then(function (val) {
@@ -145,66 +163,66 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                 <IconButton type="submit" disabled={searchTerm.length === 0} href={"#/search/" + searchTerm} onMouseDown={handleGlobalSearchText} className={classes.iconButton} aria-label="search">
                     <SearchIcon />
                 </IconButton>
+                <Popper
+                    className={classes.popperRoot}
+                    open={open}
+                    anchorEl={anchorRef.current}
+                    role={undefined}
+                    transition
+                    disablePortal
+                >
+                    {({ TransitionProps, placement }) => (
+                        <Grow
+                            {...TransitionProps}
+                            style={{
+                                transformOrigin: placement === "bottom" ? "center top" : "center bottom"
+                            }}
+                        >
+                            <Paper className={classes.userDetails}>
+                                <ClickAwayListener onClickAway={handleClose}>
+                                    <div className={classes.flexCenter}>
+                                        {data.length > 0 ? (
+                                            <List
+                                                component="ul"
+                                                aria-labelledby="nested-list-subheader"
+                                                subheader={
+                                                    <ListSubheader component="div" id="nested-list-subheader">{loading ? (nlsHPCC.Loading) : (nlsHPCC.RecentSearches)}</ListSubheader>
+                                                }
+                                            >
+                                                {data.map((item, idx) => (
+                                                    <ListItem dense button className={classes.halfWidthList} key={idx}>
+                                                        <ListItemIcon className={classes.listItem}>
+                                                            <HistoryIcon />
+                                                        </ListItemIcon>
+                                                        <ListItemText primary={item.Term} />
+                                                    </ListItem>
+                                                ))}
+
+                                            </List>
+                                        ) : ""}
+                                        {searchResults.length > 0 ? (
+                                            <List dense disablePadding
+                                                subheader={
+                                                    <ListSubheader component="div" id="nested-list-subheader">{nlsHPCC.Components}</ListSubheader>
+                                                }
+                                            >
+                                                {searchResults.map((item, idx) => (
+                                                    <ListItem button component="a" dense key={idx} role={undefined} href={item.href} onClick={() => handleAutoCompleteClick()} className={classes.halfWidthList}>
+                                                        <ListItemIcon>
+                                                            <LaunchIcon color="primary" />
+                                                        </ListItemIcon>
+                                                        <ListItemText id={item.name} primary={item.name} />
+                                                    </ListItem>
+                                                ))}
+                                            </List>
+                                        ) : ""}
+                                    </div>
+                                </ClickAwayListener>
+                            </Paper>
+                        </Grow>
+                    )}
+                </Popper>
             </div>
-
-            <Popper
-                open={open}
-                anchorEl={anchorRef.current}
-                role={undefined}
-                transition
-                disablePortal
-            >
-                {({ TransitionProps, placement }) => (
-                    <Grow
-                        {...TransitionProps}
-                        style={{
-                            transformOrigin: placement === "bottom" ? "center top" : "center bottom"
-                        }}
-                    >
-                        <Paper className={classes.userDetails}>
-                            <ClickAwayListener onClickAway={handleClose}>
-                                <div className={classes.flexCenter}>
-                                    {data.length > 0 ? (
-                                        <List
-                                            component="ul"
-                                            aria-labelledby="nested-list-subheader"
-                                            subheader={
-                                                <ListSubheader component="div" id="nested-list-subheader">{loading ? (nlsHPCC.Loading) : (nlsHPCC.RecentSearches)}</ListSubheader>
-                                            }
-                                        >
-                                            {data.map((item, idx) => (
-                                                <ListItem dense button className={classes.halfWidthList} key={idx}>
-                                                    <ListItemIcon className={classes.listItem}>
-                                                        <HistoryIcon />
-                                                    </ListItemIcon>
-                                                    <ListItemText primary={item.Term} />
-                                                </ListItem>
-                                            ))}
-
-                                        </List>
-                                    ) : ""}
-                                    {searchResults.length > 0 ? (
-                                        <List dense disablePadding
-                                            subheader={
-                                                <ListSubheader component="div" id="nested-list-subheader">{nlsHPCC.Components}</ListSubheader>
-                                            }
-                                        >
-                                            {searchResults.map((item, idx) => (
-                                                <ListItem button component="a" dense key={idx} role={undefined} href={item.href} onClick={() => handleAutoCompleteClick()} className={classes.halfWidthList}>
-                                                    <ListItemIcon>
-                                                        <LaunchIcon color="primary" />
-                                                    </ListItemIcon>
-                                                    <ListItemText id={item.name} primary={item.name} />
-                                                </ListItem>
-                                            ))}
-                                        </List>
-                                    ) : ""}
-                                </div>
-                            </ClickAwayListener>
-                        </Paper>
-                    </Grow>
-                )}
-            </Popper>
         </>
-    )
-}
+    );
+};
