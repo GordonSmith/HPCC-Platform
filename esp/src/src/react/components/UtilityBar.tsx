@@ -40,10 +40,6 @@ const useStyles = makeStyles((theme: Theme) =>
 			flexGrow: 1,
 			alignItems: "center"
 		},
-		drawerGrow: {
-			display: "flex",
-			alignItems: "center"
-		},
 		menuButton: {
 			marginRight: theme.spacing(2)
 		},
@@ -96,10 +92,6 @@ export const UtilityBar: React.FC<UtilityBarProps> = () => {
 
 	const handleMobileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
 		setMobileMoreAnchorEl(event.currentTarget);
-	};
-
-	const handleDrawer = () => {
-		//TODO
 	};
 
 	const menuId = "primary-search-account-menu";
@@ -162,15 +154,6 @@ export const UtilityBar: React.FC<UtilityBarProps> = () => {
 		<ThemeProvider theme={theme}>
 			<AppBar position="fixed" color="primary" className={clsx(classes.appBar, open && classes.appBarShift)}>
 				<Toolbar>
-					<IconButton
-						edge="start"
-						className={classes.menuButton}
-						color="inherit"
-						aria-label="open drawer"
-						onClick={handleDrawer}
-					>
-						<MenuIcon />
-					</IconButton>
 					<Typography className={classes.title} variant="h6" noWrap>Stu's 160 Cluster</Typography>
 					<GlobalSearch username={dojoConfig.username} />
 					<div className={classes.grow} />

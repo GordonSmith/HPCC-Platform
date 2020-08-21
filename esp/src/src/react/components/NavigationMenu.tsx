@@ -1,19 +1,19 @@
 import * as React from "react";
-import { List, ListItem, ListItemIcon, ListItemText /*, ListSubheader */ } from "@material-ui/core";
+import { List, ListItem, ListItemIcon, ListItemText, ListSubheader } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import Collapse from "@material-ui/core/Collapse";
 import SettingsIcon from "@material-ui/icons/Settings";
 import StorageIcon from "@material-ui/icons/Storage";
 import PublicIcon from "@material-ui/icons/Public";
 import AssessmentIcon from "@material-ui/icons/Assessment";
-// import LayersIcon from "@material-ui/icons/Layers";
-// import AssignmentIcon from "@material-ui/icons/Assignment";
-// import MapIcon from "@material-ui/icons/Map";
-// import BugReportIcon from "@material-ui/icons/BugReport";
-// import ForumIcon from "@material-ui/icons/Forum";
-// import MenuBookIcon from "@material-ui/icons/MenuBook";
-// import InfoIcon from "@material-ui/icons/Info";
-// import ImportContactsIcon from "@material-ui/icons/ImportContacts";
+import LayersIcon from "@material-ui/icons/Layers";
+import AssignmentIcon from "@material-ui/icons/Assignment";
+import MapIcon from "@material-ui/icons/Map";
+import BugReportIcon from "@material-ui/icons/BugReport";
+import ForumIcon from "@material-ui/icons/Forum";
+import MenuBookIcon from "@material-ui/icons/MenuBook";
+import InfoIcon from "@material-ui/icons/Info";
+import ImportContactsIcon from "@material-ui/icons/ImportContacts";
 import HomeIcon from "@material-ui/icons/Home";
 import ExpandLess from "@material-ui/icons/ExpandLess";
 import ExpandMore from "@material-ui/icons/ExpandMore";
@@ -212,7 +212,7 @@ export const MainList: React.FC<MainList> = () => {
             </List>
         </Collapse>
     </List>
-        {/* <List>
+        <List>
             <ListSubheader inset>Resources</ListSubheader>
             <ListItem button title="Release Notes" onClick={() => { window.open("https://hpccsystems.com/download/release-notes") }}>
                 <ListItemIcon>
@@ -262,6 +262,6 @@ export const MainList: React.FC<MainList> = () => {
                 </ListItemIcon>
                 <ListItemText primary="Transition Guide" />
             </ListItem>
-        </List> */}
+        </List>
     </>;
 };
