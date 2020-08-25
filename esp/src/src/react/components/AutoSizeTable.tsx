@@ -48,7 +48,11 @@ const MaterialTableEx: React.FunctionComponent<MaterialTableExProps<object>> = (
 };
 
 export const AutoSizeTable: React.FunctionComponent<MaterialTableExProps<object>> = (props) => {
-    return <AutoSizer >
+
+    //*[@id="app"]/div/main/div[2]/div/div[1]/div/div/div[2]/div/div
+    // /html/body/div[1]/div/main/div[2]/div/div[1]/div/div/div[2]/div/div
+
+    return <AutoSizer>
         {({ height, width }) => {
             const bodyHeight = height
                 - 64    //  Title
@@ -56,7 +60,7 @@ export const AutoSizeTable: React.FunctionComponent<MaterialTableExProps<object>
                 - 2     //  Padding
                 ;
 
-            const pageSize = Math.max(Math.floor((bodyHeight) / 49) - 2, 0);
+            const pageSize = Math.max(Math.floor((bodyHeight) / 50) - 2, 0);
             if (pageSize === 0) {
                 return <div>loading...</div>;
             }
@@ -79,7 +83,7 @@ export const AutoSizeTable: React.FunctionComponent<MaterialTableExProps<object>
                 // };
             });
 
-            return <div style={{ width: `${width}px` }}>
+            return <div className="hpcc-autosize" style={{ width: `${width}px` }}>
                 <MaterialTableEx {...newProps} />
             </div>;
         }}

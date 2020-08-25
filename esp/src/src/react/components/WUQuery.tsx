@@ -1,5 +1,5 @@
 import * as React from "react";
-import { FormControl, InputLabel, Input, FormHelperText, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@material-ui/core";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@material-ui/core";
 import Abort from "@material-ui/icons/Cancel";
 import Search from "@material-ui/icons/Search";
 import Lock from "@material-ui/icons/Lock";
@@ -12,6 +12,7 @@ import { pushParam } from "../util/history";
 import { icons } from "../util/table";
 import { WUAction } from "../../WsWorkunits";
 import { AutoSizeTable } from "./AutoSizeTable";
+import { FormContent, fieldsToRequest, Fields } from "./Form";
 
 const wuService = new WorkunitsService({ baseUrl: "" });
 
@@ -19,17 +20,6 @@ export interface WUQueryProps {
     orderBy?: string;
     descending?: boolean;
 }
-
-const WUQueryFilter: React.FunctionComponent<WUQueryProps> = ({
-    orderBy,
-    descending
-}) => {
-    return <FormControl >
-        <InputLabel htmlFor="my-input">Email address</InputLabel>
-        <Input id="my-input" aria-describedby="my-helper-text" />
-        <FormHelperText id="my-helper-text">We'll never share your email.</FormHelperText>
-    </FormControl>;
-};
 
 export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
     orderBy,
@@ -63,6 +53,23 @@ export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
     const [refreshID, setRefreshID] = React.useState(0);
     const refresh = () => setRefreshID(refreshID + 1);
 
+    const [filter, setFilter] = React.useState<{ [key: string]: string | boolean }>({});
+    const [resetFilter, setResetFilter] = React.useState(false);
+    const filterFields = React.useRef<Fields>({
+        "Type": { type: "checkbox", label: nlsHPCC.ArchivedOnly },
+        "Wuid": { type: "string", label: nlsHPCC.WUID, placeholder: "W20200824-060035" },
+        "Owner": { type: "string", label: nlsHPCC.Owner, placeholder: nlsHPCC.jsmi },
+        "JobName": { type: "string", label: nlsHPCC.JobName, placeholder: nlsHPCC.log_analysis_1 },
+        "Cluster": { type: "string", label: nlsHPCC.Cluster, placeholder: nlsHPCC.Owner },
+        "State": { type: "string", label: nlsHPCC.State, placeholder: nlsHPCC.Created },
+        "ECL": { type: "string", label: nlsHPCC.ECL, placeholder: nlsHPCC.dataset },
+        "LogicalFile": { type: "string", label: nlsHPCC.LogicalFile, placeholder: nlsHPCC.somefile },
+        "LogicalFileSearchType": { type: "string", label: nlsHPCC.LogicalFileType, placeholder: "" },
+        "StartDate": { type: "datetime", label: nlsHPCC.FromDate, placeholder: "" },
+        "EndDate": { type: "datetime", label: nlsHPCC.ToDate, placeholder: "" },
+        "LastNDays": { type: "string", label: nlsHPCC.LastNDays, placeholder: "2" }
+    }).current;
+
     return <>
         <AutoSizeTable
             title={nlsHPCC.Workunits}
@@ -73,6 +80,7 @@ export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
                 pushParam("orderBy", query.orderBy?.field);
                 pushParam("descending", query.orderDirection === "desc" ? true : undefined);
                 return wuService.WUQuery({
+                    ...filter,
                     Sortby: query.orderBy?.field === "TotalClusterTime" ? "ClusterTime" : query.orderBy?.field as string | undefined,
                     Descending: query.orderDirection === "desc",
                     PageStartFrom: query.page * query.pageSize, PageSize: query.pageSize
@@ -136,18 +144,30 @@ export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
                     }
                 ]}
         />
-        <Dialog onClose={closeFilter} aria-labelledby="simple-dialog-title" open={showFilter}>
-            <DialogTitle id="form-dialog-title">Subscribe</DialogTitle>
+        <Dialog onClose={closeFilter} aria-labelledby="simple-dialog-title" open={showFilter} >
+            <DialogTitle id="form-dialog-title">{nlsHPCC.Filter}</DialogTitle>
             <DialogContent>
-                <WUQueryFilter />
+                <FormContent
+                    fields={filterFields}
+                    reset={resetFilter}
+                    onFieldChanged={(name, value) => {
+                        filterFields[name].value = value;
+                    }}
+                />
             </DialogContent>
             <DialogActions>
-                <Button onClick={closeFilter} color="primary">
-                    Cancel
+                <Button onClick={() => {
+                    setFilter(fieldsToRequest(filterFields));
+                    refresh();
+                    closeFilter();
+                }} >
+                    {nlsHPCC.Apply}
                 </Button>
-                <Button onClick={closeFilter} color="primary">
-                    Subscribe
-                 </Button>
+                <Button onClick={() => {
+                    setFilter({});
+                    for (const field in )
+                }} >
+                </Button>
             </DialogActions>
         </Dialog>
     </>;
