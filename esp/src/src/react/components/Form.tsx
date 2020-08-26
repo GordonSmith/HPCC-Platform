@@ -1,5 +1,6 @@
 import * as React from "react";
-import { FormGroup, TextField, FormControlLabel, Checkbox } from "@material-ui/core";
+import { FormGroup, TextField, FormControlLabel, Checkbox, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@material-ui/core";
+import { nlsHPCC } from "src/dojoLib";
 
 type FieldType = "string" | "datetime" | "checkbox";
 
@@ -7,7 +8,6 @@ interface BaseField {
     type: FieldType;
     label: string;
     placeholder?: string;
-    value?: boolean | number | string;
 }
 
 interface StringField extends BaseField {
@@ -27,42 +27,47 @@ interface CheckboxField extends BaseField {
 
 type Field = StringField | DateTimeField | CheckboxField;
 export type Fields = { [name: string]: Field };
+export type Values = { [name: string]: string | boolean };
 
-export const fieldsToRequest = (fields: Fields) => {
-    const retVal: { [key: string]: string | boolean } = {};
+const fieldsToRequest = (fields: Fields) => {
+    const retVal: Values = {};
     for (const name in fields) {
-        if (fields[name].value) {
-            retVal[name] = fields[name].value;
-        }
+        retVal[name] = fields[name].value;
     }
     return retVal;
 };
 
-export const resetFields = (_fields: Fields) => {
-    const fields = { ..._fields };
-    for (const name in fields) {
-        delete fields[name].value;
-    }
-    return fields;
-};
-
-export interface FormContentProps {
+interface FormContentProps {
     fields: Fields;
-    reset: boolean;
-    onFieldChanged: (name: string, value: any) => void;
+    doSubmit: boolean;
+    doReset: boolean;
+    onSubmit: (fields: Values) => void;
+    onReset: (fields: Values) => void;
 }
 
 export const FormContent: React.FunctionComponent<FormContentProps> = ({
     fields,
-    reset = false,
-    onFieldChanged
+    doSubmit,
+    doReset,
+    onSubmit,
+    onReset
 }) => {
 
     const [localFields, setLocalFields] = React.useState({ ...fields });
 
-    if (reset) {
-        setLocalFields(resetFields(localFields));
-    }
+    React.useEffect(() => {
+        if (doSubmit === false) return;
+        onSubmit(fieldsToRequest(localFields));
+    }, [doSubmit]);
+
+    React.useEffect(() => {
+        if (doReset === false) return;
+        for (const key in localFields) {
+            delete localFields[key].value;
+        }
+        setLocalFields(localFields);
+        onReset(fieldsToRequest(localFields));
+    }, [doReset]);
 
     const handleChange = ev => {
         const field = localFields[ev.target.name];
@@ -70,12 +75,10 @@ export const FormContent: React.FunctionComponent<FormContentProps> = ({
             case "checkbox":
                 localFields[ev.target.name].value = ev.target.checked;
                 setLocalFields({ ...localFields });
-                onFieldChanged(ev.target.name, ev.target.checked);
                 break;
             default:
                 localFields[ev.target.name].value = ev.target.value;
                 setLocalFields({ ...localFields });
-                onFieldChanged(ev.target.name, ev.target.value);
                 break;
         }
     };
@@ -104,4 +107,56 @@ export const FormContent: React.FunctionComponent<FormContentProps> = ({
     return <FormGroup style={{ minWidth: "320px" }}>
         {...formFields}
     </FormGroup >;
+};
+
+interface FilterProps {
+    filterFields: Fields;
+    onApply: (values: Values) => void;
+
+    showFilter: boolean;
+    setShowFilter: (_: boolean) => void;
+}
+
+export const Filter: React.FunctionComponent<FilterProps> = ({
+    filterFields,
+    onApply,
+    showFilter,
+    setShowFilter
+}) => {
+
+    const [doSubmit, setDoSubmit] = React.useState(false);
+    const [doReset, setDoReset] = React.useState(false);
+
+    const closeFilter = () => setShowFilter(false);
+
+    return <Dialog onClose={closeFilter} aria-labelledby="simple-dialog-title" open={showFilter} >
+        <DialogTitle id="form-dialog-title">{nlsHPCC.Filter}</DialogTitle>
+        <DialogContent>
+            <FormContent
+                fields={filterFields}
+                doSubmit={doSubmit}
+                doReset={doReset}
+                onSubmit={fields => {
+                    setDoSubmit(false);
+                    onApply(fields);
+                }}
+                onReset={fields => {
+                    setDoReset(false);
+                }}
+            />
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={() => {
+                setDoSubmit(true);
+                closeFilter();
+            }} >
+                {nlsHPCC.Apply}
+            </Button>
+            <Button onClick={() => {
+                setDoReset(true);
+            }} >
+                {nlsHPCC.Clear}
+            </Button>
+        </DialogActions>
+    </Dialog>;
 };

@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@material-ui/core";
 import Abort from "@material-ui/icons/Cancel";
 import Search from "@material-ui/icons/Search";
 import Lock from "@material-ui/icons/Lock";
@@ -8,23 +7,52 @@ import Failed from "@material-ui/icons/Warning";
 import { WorkunitsService } from "@hpcc-js/comms";
 import { Column } from "material-table";
 import nlsHPCC from "../../nlsHPCC";
-import { pushParam } from "../util/history";
+import {  pushParam, pushParams, parseSearch } from "../util/history";
 import { icons } from "../util/table";
 import { WUAction } from "../../WsWorkunits";
 import { AutoSizeTable } from "./AutoSizeTable";
-import { FormContent, fieldsToRequest, Fields } from "./Form";
+import { Fields, Filter, Values } from "./Form";
 
 const wuService = new WorkunitsService({ baseUrl: "" });
 
+const FilterFields: Fields = {
+    "Type": { type: "checkbox", label: nlsHPCC.ArchivedOnly },
+    "Wuid": { type: "string", label: nlsHPCC.WUID, placeholder: "W20200824-060035" },
+    "Owner": { type: "string", label: nlsHPCC.Owner, placeholder: nlsHPCC.jsmi },
+    "JobName": { type: "string", label: nlsHPCC.JobName, placeholder: nlsHPCC.log_analysis_1 },
+    "Cluster": { type: "string", label: nlsHPCC.Cluster, placeholder: nlsHPCC.Owner },
+    "State": { type: "string", label: nlsHPCC.State, placeholder: nlsHPCC.Created },
+    "ECL": { type: "string", label: nlsHPCC.ECL, placeholder: nlsHPCC.dataset },
+    "LogicalFile": { type: "string", label: nlsHPCC.LogicalFile, placeholder: nlsHPCC.somefile },
+    "LogicalFileSearchType": { type: "string", label: nlsHPCC.LogicalFileType, placeholder: "" },
+    "StartDate": { type: "datetime", label: nlsHPCC.FromDate, placeholder: "" },
+    "EndDate": { type: "datetime", label: nlsHPCC.ToDate, placeholder: "" },
+    "LastNDays": { type: "string", label: nlsHPCC.LastNDays, placeholder: "2" }
+};
+
 export interface WUQueryProps {
-    orderBy?: string;
-    descending?: boolean;
+    search?: string;
+    // Type?: boolean;
+    // Wuid?: string;
+    // Owner?: string;
+    // JobName?: string;
+    // Cluster?: string;
+    // State?: string;
+    // ECL?: string;
+    // LogicalFile?: string;
+    // LogicalFileSearchType?: string;
+    // StartDate?: string;
+    // EndDate?: string;
+    // LastNDays?: string;
+
+    // orderBy?: string;
+    // descending?: boolean;
 }
 
 export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
-    orderBy,
-    descending
+    search
 }) => {
+    const searchParams = parseSearch(search);
 
     const columns: Column<object>[] = [
         {
@@ -40,35 +68,35 @@ export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
         { title: nlsHPCC.Cluster, field: "Cluster", width: 90 },
         { title: nlsHPCC.RoxieCluster, field: "RoxieCluster", width: 99 },
         { title: nlsHPCC.State, field: "State", width: 90 },
-        { title: nlsHPCC.TotalClusterTime, field: "TotalClusterTime", width: 117 },
+        { title: nlsHPCC.TotalClusterTime, field: "TotalClusterTime", width: 117 }
     ].map((row: Column<object>) => {
-        if (row.field === orderBy) {
-            row.defaultSort = descending === true ? "desc" : "asc";
+        if (row.field === searchParams?.orderBy) {
+            row.defaultSort = searchParams?.descending === true ? "desc" : "asc";
         }
         return row;
     });
 
-    const [showFilter, setShowFilter] = React.useState(false);
-    const closeFilter = () => setShowFilter(false);
     const [refreshID, setRefreshID] = React.useState(0);
     const refresh = () => setRefreshID(refreshID + 1);
 
-    const [filter, setFilter] = React.useState<{ [key: string]: string | boolean }>({});
-    const [resetFilter, setResetFilter] = React.useState(false);
-    const filterFields = React.useRef<Fields>({
-        "Type": { type: "checkbox", label: nlsHPCC.ArchivedOnly },
-        "Wuid": { type: "string", label: nlsHPCC.WUID, placeholder: "W20200824-060035" },
-        "Owner": { type: "string", label: nlsHPCC.Owner, placeholder: nlsHPCC.jsmi },
-        "JobName": { type: "string", label: nlsHPCC.JobName, placeholder: nlsHPCC.log_analysis_1 },
-        "Cluster": { type: "string", label: nlsHPCC.Cluster, placeholder: nlsHPCC.Owner },
-        "State": { type: "string", label: nlsHPCC.State, placeholder: nlsHPCC.Created },
-        "ECL": { type: "string", label: nlsHPCC.ECL, placeholder: nlsHPCC.dataset },
-        "LogicalFile": { type: "string", label: nlsHPCC.LogicalFile, placeholder: nlsHPCC.somefile },
-        "LogicalFileSearchType": { type: "string", label: nlsHPCC.LogicalFileType, placeholder: "" },
-        "StartDate": { type: "datetime", label: nlsHPCC.FromDate, placeholder: "" },
-        "EndDate": { type: "datetime", label: nlsHPCC.ToDate, placeholder: "" },
-        "LastNDays": { type: "string", label: nlsHPCC.LastNDays, placeholder: "2" }
-    }).current;
+    const [showFilter, setShowFilter] = React.useState(false);
+
+    // React.useEffect(() => {
+    //     refresh();
+    // }, [props.Type, props.Wuid, props.Owner, props.JobName, props.Cluster, props.State, props.ECL, props.LogicalFile, props.LogicalFileSearchType, props.StartDate, props.EndDate, props.LastNDays, props.orderBy, props.descending]);
+
+    React.useEffect(() => {
+        refresh();
+    }, [search]);
+
+    const filterFields: Fields = {};
+    const filterValues: Values = {};
+    for (const field in FilterFields) {
+        filterFields[field] = { ...FilterFields[field]/*, value: props[field]*/ };
+        // filterValues[field] = props[field];
+    }
+
+    console.log("search:  " + search);
 
     return <>
         <AutoSizeTable
@@ -77,10 +105,11 @@ export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
             columns={columns}
             refreshID={refreshID}
             data={query => {
+                console.log("query.search:  ", query);
                 pushParam("orderBy", query.orderBy?.field);
                 pushParam("descending", query.orderDirection === "desc" ? true : undefined);
                 return wuService.WUQuery({
-                    ...filter,
+                    ...filterValues,
                     Sortby: query.orderBy?.field === "TotalClusterTime" ? "ClusterTime" : query.orderBy?.field as string | undefined,
                     Descending: query.orderDirection === "desc",
                     PageStartFrom: query.page * query.pageSize, PageSize: query.pageSize
@@ -144,32 +173,7 @@ export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
                     }
                 ]}
         />
-        <Dialog onClose={closeFilter} aria-labelledby="simple-dialog-title" open={showFilter} >
-            <DialogTitle id="form-dialog-title">{nlsHPCC.Filter}</DialogTitle>
-            <DialogContent>
-                <FormContent
-                    fields={filterFields}
-                    reset={resetFilter}
-                    onFieldChanged={(name, value) => {
-                        filterFields[name].value = value;
-                    }}
-                />
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={() => {
-                    setFilter(fieldsToRequest(filterFields));
-                    refresh();
-                    closeFilter();
-                }} >
-                    {nlsHPCC.Apply}
-                </Button>
-                <Button onClick={() => {
-                    setFilter({});
-                    for (const field in )
-                }} >
-                </Button>
-            </DialogActions>
-        </Dialog>
+        <Filter showFilter={showFilter} setShowFilter={setShowFilter} filterFields={filterFields} onApply={pushParams} />
     </>;
 };
 

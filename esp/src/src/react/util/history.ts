@@ -119,11 +119,19 @@ export function updateSearch(_: object, state?: any) {
 }
 
 export function pushParam(key: string, val?: string | string[] | number | boolean, state?: any) {
+    pushParams({ [key]: val }, state);
+}
+
+export function pushParams(search: { [key: string]: string | string[] | number | boolean }, state?: any) {
     const params = parseSearch(hashHistory.location.search);
-    if (val === undefined) {
-        delete params[key];
-    } else {
-        params[key] = val;
+    for (const key in search) {
+        const val = search[key];
+        //  No empty strings OR "false" booleans...
+        if (val === "" || val === false) {
+            delete params[key];
+        } else {
+            params[key] = val;
+        }
     }
     pushSearch(params, state);
 }

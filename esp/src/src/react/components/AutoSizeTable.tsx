@@ -29,7 +29,7 @@ const MaterialTableEx: React.FunctionComponent<MaterialTableExProps<object>> = (
                 icon: Refresh,
                 tooltip: nlsHPCC.Refresh,
                 isFreeAction: true,
-                onClick: () => tableRef.current.onQueryChange()
+                onClick: () => tableRef.current && tableRef.current.onQueryChange()
             }
         ]
     };
