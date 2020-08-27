@@ -18,7 +18,7 @@ const MaterialTableEx: React.FunctionComponent<MaterialTableExProps<object>> = (
             isFirstRun.current = false;
             return;
         }
-        tableRef.current.onQueryChange();
+        tableRef.current && tableRef.current.onQueryChange();
     }, [props.options.pageSize, props.refreshID]);
 
     const newProps = {

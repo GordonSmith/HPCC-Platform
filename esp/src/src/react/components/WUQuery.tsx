@@ -7,13 +7,30 @@ import Failed from "@material-ui/icons/Warning";
 import { WorkunitsService } from "@hpcc-js/comms";
 import { Column } from "material-table";
 import nlsHPCC from "../../nlsHPCC";
-import {  pushParam, pushParams, parseSearch } from "../util/history";
+import { pushParams, parseSearch } from "../util/history";
 import { icons } from "../util/table";
 import { WUAction } from "../../WsWorkunits";
 import { AutoSizeTable } from "./AutoSizeTable";
 import { Fields, Filter, Values } from "./Form";
 
 const wuService = new WorkunitsService({ baseUrl: "" });
+
+const Columns: Column<any>[] = [
+    {
+        title: <Lock />, field: "Protected", width: 32,
+        render: row => row.Protected ? <Lock /> : undefined
+    },
+    {
+        title: nlsHPCC.WUID, field: "Wuid", width: 180,
+        render: rowData => <a href={`#/workunits/${rowData.Wuid}`}>{rowData.Wuid}</a>
+    },
+    { title: nlsHPCC.Owner, field: "Owner", width: 90 },
+    { title: nlsHPCC.JobName, field: "Jobname", width: 500 },
+    { title: nlsHPCC.Cluster, field: "Cluster", width: 90 },
+    { title: nlsHPCC.RoxieCluster, field: "RoxieCluster", width: 99 },
+    { title: nlsHPCC.State, field: "State", width: 90 },
+    { title: nlsHPCC.TotalClusterTime, field: "TotalClusterTime", width: 117 }
+];
 
 const FilterFields: Fields = {
     "Type": { type: "checkbox", label: nlsHPCC.ArchivedOnly },
@@ -32,21 +49,6 @@ const FilterFields: Fields = {
 
 export interface WUQueryProps {
     search?: string;
-    // Type?: boolean;
-    // Wuid?: string;
-    // Owner?: string;
-    // JobName?: string;
-    // Cluster?: string;
-    // State?: string;
-    // ECL?: string;
-    // LogicalFile?: string;
-    // LogicalFileSearchType?: string;
-    // StartDate?: string;
-    // EndDate?: string;
-    // LastNDays?: string;
-
-    // orderBy?: string;
-    // descending?: boolean;
 }
 
 export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
@@ -54,22 +56,7 @@ export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
 }) => {
     const searchParams = parseSearch(search);
 
-    const columns: Column<object>[] = [
-        {
-            title: <Lock />, field: "Protected", width: 32,
-            render: row => row.Protected ? <Lock /> : undefined
-        },
-        {
-            title: nlsHPCC.WUID, field: "Wuid", width: 180,
-            render: rowData => <a href={`#/workunits/${rowData.Wuid}`}>{rowData.Wuid}</a>
-        },
-        { title: nlsHPCC.Owner, field: "Owner", width: 90 },
-        { title: nlsHPCC.JobName, field: "Jobname", width: 500 },
-        { title: nlsHPCC.Cluster, field: "Cluster", width: 90 },
-        { title: nlsHPCC.RoxieCluster, field: "RoxieCluster", width: 99 },
-        { title: nlsHPCC.State, field: "State", width: 90 },
-        { title: nlsHPCC.TotalClusterTime, field: "TotalClusterTime", width: 117 }
-    ].map((row: Column<object>) => {
+    const columns: Column<any>[] = Columns.map(row => {
         if (row.field === searchParams?.orderBy) {
             row.defaultSort = searchParams?.descending === true ? "desc" : "asc";
         }
@@ -81,10 +68,6 @@ export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
 
     const [showFilter, setShowFilter] = React.useState(false);
 
-    // React.useEffect(() => {
-    //     refresh();
-    // }, [props.Type, props.Wuid, props.Owner, props.JobName, props.Cluster, props.State, props.ECL, props.LogicalFile, props.LogicalFileSearchType, props.StartDate, props.EndDate, props.LastNDays, props.orderBy, props.descending]);
-
     React.useEffect(() => {
         refresh();
     }, [search]);
@@ -92,11 +75,9 @@ export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
     const filterFields: Fields = {};
     const filterValues: Values = {};
     for (const field in FilterFields) {
-        filterFields[field] = { ...FilterFields[field]/*, value: props[field]*/ };
-        // filterValues[field] = props[field];
+        filterFields[field] = { ...FilterFields[field], value: searchParams[field] as any };
+        filterValues[field] = searchParams[field];
     }
-
-    console.log("search:  " + search);
 
     return <>
         <AutoSizeTable
@@ -104,10 +85,16 @@ export const WUQueryComponent: React.FunctionComponent<WUQueryProps> = ({
             icons={icons}
             columns={columns}
             refreshID={refreshID}
+            onOrderChange={(col, ascDesc) => {
+                if (col >= 0) {
+                    pushParams({
+                        orderBy: columns[col].field as string,
+                        descending: ascDesc === "desc" ? true : undefined
+                    });
+                }
+            }}
             data={query => {
                 console.log("query.search:  ", query);
-                pushParam("orderBy", query.orderBy?.field);
-                pushParam("descending", query.orderDirection === "desc" ? true : undefined);
                 return wuService.WUQuery({
                     ...filterValues,
                     Sortby: query.orderBy?.field === "TotalClusterTime" ? "ClusterTime" : query.orderBy?.field as string | undefined,

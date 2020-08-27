@@ -27,7 +27,7 @@ interface CheckboxField extends BaseField {
 
 type Field = StringField | DateTimeField | CheckboxField;
 export type Fields = { [name: string]: Field };
-export type Values = { [name: string]: string | boolean };
+export type Values = { [name: string]: string | number | boolean | (string | number | boolean)[] };
 
 const fieldsToRequest = (fields: Fields) => {
     const retVal: Values = {};
