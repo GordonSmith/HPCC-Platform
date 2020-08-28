@@ -5,8 +5,8 @@ import SearchIcon from "@material-ui/icons/Search";
 import HistoryIcon from "@material-ui/icons/History";
 import LaunchIcon from "@material-ui/icons/Launch";
 import { DATA } from "src/data/components";
-import { useGet } from "../hooks/useWsStore";
-import { addToStack } from "../../UserPreferences/Recent";
+import { useGet } from "../../hooks/useWsStore";
+import { addToStack } from "../../../UserPreferences/Recent";
 import "dojo/i18n";
 // @ts-ignore
 import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
@@ -65,7 +65,7 @@ const useStyles = makeStyles((theme: Theme) =>
             },
             [theme.breakpoints.up("xl")]: {
                 marginLeft: theme.spacing(1),
-                width: "90%"
+                width: "95%"
             }
         },
         iconButton: {
@@ -116,6 +116,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
             });
         }
     };
+
     const handleClose = (event: React.MouseEvent<EventTarget>) => {
         if (anchorRef.current && anchorRef.current.contains(event.target as HTMLElement)) {
             return;
@@ -159,7 +160,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     onChange={handleSearchText}
                     ref={anchorRef}
                     value={searchTerm}
-                />\
+                />
                 <IconButton type="submit" disabled={searchTerm.length === 0} href={"#/search/" + searchTerm} onMouseDown={handleGlobalSearchText} className={classes.iconButton} aria-label="search">
                     <SearchIcon />
                 </IconButton>
@@ -190,14 +191,13 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 }
                                             >
                                                 {data.map((item, idx) => (
-                                                    <ListItem dense button className={classes.halfWidthList} key={idx}>
+                                                    <ListItem dense button component="a" className={classes.halfWidthList} key={idx} href={"#/search/" + item.Term}>
                                                         <ListItemIcon className={classes.listItem}>
                                                             <HistoryIcon />
                                                         </ListItemIcon>
                                                         <ListItemText primary={item.Term} />
                                                     </ListItem>
                                                 ))}
-
                                             </List>
                                         ) : ""}
                                         {searchResults.length > 0 ? (

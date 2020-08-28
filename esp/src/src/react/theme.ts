@@ -1,5 +1,7 @@
 import { createMuiTheme } from "@material-ui/core/styles";
 
+declare const dojoConfig;
+
 export const theme = createMuiTheme({
     typography: {
         fontSize: 15
@@ -52,6 +54,18 @@ export const theme = createMuiTheme({
             badge: {
                 "color": "white",
                 "background": "#000642"
+            }
+        },
+        MuiDialogActions: {
+            root: {
+                padding: "25px 8px 15px 8px"
+            }
+        },
+        MuiDialogTitle: {
+            root:{
+                h2: {
+                    fontSize: "2rem"
+                }
             }
         }
     }

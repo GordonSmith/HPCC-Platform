@@ -1,15 +1,15 @@
 import * as React from "react";
 import { makeStyles } from "@material-ui/core/styles"
 import { MuiThemeProvider } from "@material-ui/core/styles";
-import { theme } from '../theme';
-import CircularProgress from '@material-ui/core/CircularProgress';
-import { MainList } from "./NavigationMenu";
+import { theme } from "../theme";
+import CircularProgress from "@material-ui/core/CircularProgress";
+//import { MainList } from "./navigation/NavigationMenu";
 import { Body } from "./Body";
-import { UtilityBar } from "./UtilityBar";
+import { UtilityBar } from "./navigation/UtilityBar";
 import { UserAccountContext } from "../hooks/userContext";
 import * as ESPRequest from "../../ESPRequest";
-import { RouteParams } from 'universal-router';
-import { Box } from '@material-ui/core';
+import { RouteParams } from "universal-router";
+import { Box } from "@material-ui/core";
 
 declare const dojoConfig;
 
@@ -72,7 +72,7 @@ export const Frame: React.FunctionComponent<IFrame> = ({
                         <UtilityBar />
                         <div className={classes.container}>
                             <div className={classes.nav}>
-                                <MainList />
+                                {/* <MainList /> */}
                             </div>
                             <div className={classes.contentWrapper}>
                                 <Box width="100%" height="100%">
