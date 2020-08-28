@@ -11,11 +11,13 @@ import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
 import ChevronRightIcon from "@material-ui/icons/ChevronRight";
 import { AutoSizer } from "react-virtualized";
 import * as ESPRequest from "../../ESPRequest";
-import { MainList } from "./NavigationMenu";
-import { UtilityBar } from "./UtilityBar";
-import { UserAccountContext } from "../hooks/userContext";
+import { MainList } from "./navigation/NavigationMenu";
+import { UtilityBar } from "../components/navigation/UtilityBar";
+import { UserAccountContext, GlobalSettingsContext } from "../hooks/userContext";
 import { hashHistory } from "../util/history";
 import { router } from "./routes";
+import { localKeyValStore } from "../../KeyValStore";
+import { globalKeyValStore } from "../../KeyValStore";
 
 declare const dojoConfig;
 
@@ -81,7 +83,7 @@ const useStyles = makeStyles((theme) => ({
         }),
         width: theme.spacing(7),
         [theme.breakpoints.up("sm")]: {
-            width: theme.spacing(9)
+            width: theme.spacing(8)
         }
     },
     appBarSpacer: theme.mixins.toolbar,
@@ -115,26 +117,24 @@ interface Frame2 {
 
 export const Frame2: React.FunctionComponent<Frame2> = () => {
     const classes = useStyles();
-
+    const menuOpenState = localKeyValStore();
     const mainRef = React.useRef<HTMLDivElement>();
-
     const [body, setBody] = React.useState(<h1>...loading...</h1>);
-    const [open, setOpen] = React.useState(false);
     const [userAccount, setUserAccount] = React.useState({});
-    const [loading, setLoading] = React.useState(true);
-
-    const handleDrawerOpen = () => {
-        setOpen(true);
-    };
-    const handleDrawerClose = () => {
-        setOpen(false);
-    };
+    const [globalSettings, setGlobalSettings] = React.useState({});
+    const [pageLoading, setLoading] = React.useState(true);
+    const [open, setOpen] = React.useState(false);
+    const global_store = globalKeyValStore();
 
     React.useEffect(() => {
         ESPRequest.send("ws_account", "MyAccount").then(function (user) {
             setUserAccount(user.MyAccountResponse);
             dojoConfig.username = user.MyAccountResponse.username;
-            setLoading(false);
+            global_store.getAll().then(function(globalSettings){
+                setGlobalSettings(globalSettings);
+                setLoading(false);
+            });
+            setDefaultMenuState();
         });
 
         const unlisten = hashHistory.listen(async (location, action) => {
@@ -147,13 +147,42 @@ export const Frame2: React.FunctionComponent<Frame2> = () => {
         return () => unlisten();
     }, []);
 
+    const setDefaultMenuState = () => {
+        menuOpenState.get("MenuOpenState").then(function(val) {
+            if (val === "false") {
+                menuOpenState.set("MenuOpenState", "false", false);
+            } else {
+                setOpen(!!val);
+            }
+        });
+    };
+
+    const toggleDrawer = () => {
+        menuOpenState.get("MenuOpenState").then(function(val) {
+           if (val === "false") {
+                menuOpenState.set("MenuOpenState", "true", true);
+                setOpen(true);
+            } else {
+                menuOpenState.set("MenuOpenState", "false", false);
+                setOpen(false);
+            }
+        });
+    };
+
+    const handleDrawer = () => {
+        menuOpenState.set("MenuOpenState", "true", true);
+        setOpen(true);
+    };
+
     return (
         <MuiThemeProvider theme={theme}>
-            {loading ? <div className={classes.center}>
+            {pageLoading ? <div className={classes.center}>
                 <CircularProgress color="primary" /></div> : (
                     <div className={classes.root}>
                         <UserAccountContext.Provider value={{ userAccount, setUserAccount }}>
-                            <UtilityBar />
+                            <GlobalSettingsContext.Provider value={{ globalSettings, setGlobalSettings }}>
+                                <UtilityBar />
+                            </GlobalSettingsContext.Provider>
                         </UserAccountContext.Provider>
                         <Drawer
                             variant="permanent"
@@ -164,20 +193,20 @@ export const Frame2: React.FunctionComponent<Frame2> = () => {
                         >
                             <div className={classes.toolbar}>
                                 {open ?
-                                    <IconButton onMouseDown={handleDrawerClose}><ChevronLeftIcon /></IconButton>
+                                    <IconButton onMouseDown={toggleDrawer}><ChevronLeftIcon /></IconButton>
                                 :
-                                    <IconButton onMouseDown={handleDrawerOpen}><ChevronRightIcon /></IconButton>
+                                    <IconButton onMouseDown={toggleDrawer}><ChevronRightIcon /></IconButton>
                                 }
                             </div>
                             <div className={classes.toolbarIcon}>
                                 {open ?
-                                    <IconButton onMouseDown={handleDrawerClose}><ChevronLeftIcon /></IconButton>
+                                    <IconButton onMouseDown={toggleDrawer}><ChevronLeftIcon /></IconButton>
                                 :
-                                    <IconButton onMouseDown={handleDrawerOpen}><ChevronRightIcon /></IconButton>
+                                    <IconButton onMouseDown={toggleDrawer}><ChevronRightIcon /></IconButton>
                                 }
                             </div>
                             <Divider />
-                            <MainList />
+                            <MainList onSelectChildNavItem={handleDrawer} />
                         </Drawer>
                         <main className={classes.content}>
                             <div ref={mainRef} className={classes.appBarSpacer} />

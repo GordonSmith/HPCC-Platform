@@ -1,12 +1,17 @@
 import * as React from "react";
 import { Theme, makeStyles, createStyles } from "@material-ui/core/styles";
-import { ButtonBase, MenuList, MenuItem, Paper, Avatar, ClickAwayListener, Popper, Grow, Typography, Divider } from "@material-ui/core";
+import { ButtonBase, MenuList, MenuItem, Paper, Avatar, ClickAwayListener, Popper, Grow, Typography, Divider, Dialog, DialogTitle, TextField, DialogContent, DialogContentText, DialogActions, Button } from "@material-ui/core";
 import KeyboardArrowDownIcon from "@material-ui/icons/KeyboardArrowDown";
-import { UserAccountContext } from '../hooks/userContext';
-import { getPrevious } from "../hooks/prevState";
+import { UserAccountContext, GlobalSettingsContext } from "../../hooks/userContext";
+import { getPrevious } from "../../hooks/prevState";
+import { ChromePicker } from "react-color";
+import * as ESPRequest from "../../../ESPRequest";
+import { globalKeyValStore } from "../../../KeyValStore";
 import "dojo/i18n";
 // @ts-ignore
 import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
+
+declare const dojoConfig;
 
 interface ProfileManagerProps {
 }
@@ -69,6 +74,13 @@ const useStyles = makeStyles((theme: Theme) =>
         },
         userDetails: {
             padding: theme.spacing(3, 0, 1, 0)
+        },
+        dialogInput: {
+            marginTop: "15px",
+            paddingBottom: "10px"
+        },
+        headings: {
+            padding: "10px 0px"
         }
     })
 );
@@ -79,6 +91,12 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
     const anchorRef = React.useRef<HTMLButtonElement>(null);
     const prevOpen = getPrevious(open);
     const { userAccount } = React.useContext(UserAccountContext);
+    const { globalSettings, setGlobalSettings } = React.useContext(GlobalSettingsContext);
+    const [toolbarChange, setToolbarChange] = React.useState(false);
+    const [toolBarText, setToolBarText] = React.useState("");
+    const [toolBarColor, setToolBarColor] = React.useState("");
+    const [openDialog, setOpenDialog] = React.useState(false);
+    const global_store = globalKeyValStore();
 
     const createAvatar = (username) => {
         return username.substring(0, 2).toLocaleUpperCase();
@@ -90,7 +108,44 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
 
     const handleClose = (event: React.MouseEvent<EventTarget>) => {
         setOpen(false);
-    }
+    };
+
+    const handleDialogClose = () => {
+        setOpenDialog(false);
+    };
+
+    const handleToolbarApply = () => {
+        const updatedTheme = {...globalSettings, HPCCPlatformWidget_Toolbar_Color: toolBarColor, HPCCPlatformWidget_Toolbar_Text: toolBarText };
+        setGlobalSettings(
+            updatedTheme
+        );
+        global_store.set("HPCCPlatformWidget_Toolbar_Color", toolBarColor);
+        global_store.set("HPCCPlatformWidget_Toolbar_Text", toolBarText);
+        handleDialogClose();
+    };
+
+    const handleLogout = () => {
+        ESPRequest.send("esp", "logout", {
+            handleAs: "text",
+            method: "post"
+        }).then(function (status) {
+            window.location.href = location.origin + "/esp/files/Login.html";
+        });
+    };
+
+    const handleToolbar = () => {
+        setOpenDialog(true);
+    };
+
+    const handleTextChange = (evt) => {
+        setToolBarText(evt.target.value);
+        setToolbarChange(true);
+    };
+
+    const handleColorChange = (color) => {
+        setToolBarColor(color.hex);
+        setToolbarChange(true);
+    };
 
     React.useEffect(() => {
         if (prevOpen) {
@@ -100,6 +155,22 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
 
     return (
         <>
+            <Dialog onClose={handleDialogClose} aria-labelledby="simple-dialog-title" open={openDialog} maxWidth={"md"}>
+                <DialogTitle>Set Custom Toolbar</DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="toolbar-creator-description">
+                        Customize your envrionment with your own color scheme and name.
+                    </DialogContentText>
+                    <Divider />
+                    <TextField className={classes.dialogInput} label="Environment Name" onKeyUp={handleTextChange} defaultValue={globalSettings.HPCCPlatformWidget_Toolbar_Text} placeholder="" variant="outlined" fullWidth />
+                    <Typography variant="h6" className={classes.headings}>Toolbar color</Typography>
+                    <ChromePicker disableAlpha color={globalSettings.HPCCPlatformWidget_Toolbar_Color} width="100%" onChangeComplete={ handleColorChange } />
+                    <DialogActions>
+                        <Button variant="contained" onClick={handleDialogClose} color="primary">Dismiss</Button>
+                        <Button variant="contained" disabled={!toolbarChange} onClick={handleToolbarApply} color="primary">Apply</Button>
+                    </DialogActions>
+                </DialogContent>
+            </Dialog>
             <ButtonBase
                 focusRipple
                 className={classes.root}
@@ -140,10 +211,10 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
                                     <MenuList className={classes.fullWidth} autoFocusItem={open} id="menu-list-grow">
                                         <MenuItem onClick={handleClose}>My Account</MenuItem>
                                         <MenuItem onClick={handleClose}>Set Banner</MenuItem>
-                                        <MenuItem onClick={handleClose}>Set Toolbar</MenuItem>
+                                        <MenuItem onClick={handleToolbar}>Set Toolbar</MenuItem>
                                         <MenuItem onClick={handleClose}>Lock</MenuItem>
                                         <Divider />
-                                        <MenuItem onClick={handleClose} color="error">Logout</MenuItem>
+                                        <MenuItem onClick={handleLogout} color="error">Logout</MenuItem>
                                     </MenuList>
                                 </div>
                             </ClickAwayListener>
@@ -153,4 +224,4 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
             </Popper>
         </>
     );
-}
+};

@@ -7,9 +7,10 @@ import AccountCircle from "@material-ui/icons/AccountCircle";
 import FavoriteIcon from "@material-ui/icons/Favorite";
 import NotificationsIcon from "@material-ui/icons/Notifications";
 import MoreIcon from "@material-ui/icons/MoreVert";
-import { theme } from "../theme";
-import { GlobalSearch } from "./GlobalSearch";
+import { theme } from "../../theme";
+import { GlobalSearch } from "../search/GlobalSearch";
 import { ProfileManager } from "./ProfileManager";
+import { UserAccountContext, GlobalSettingsContext } from "../../hooks/userContext";
 
 declare const dojoConfig: any;
 
@@ -73,6 +74,8 @@ export const UtilityBar: React.FC<UtilityBarProps> = () => {
 	const classes = useStyles();
 	const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 	const [mobileMoreAnchorEl, setMobileMoreAnchorEl] = React.useState<null | HTMLElement>(null);
+	const { userAccount } = React.useContext(UserAccountContext);
+	const { globalSettings } = React.useContext(GlobalSettingsContext);
 
 	const isMenuOpen = Boolean(anchorEl);
 	const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
@@ -150,41 +153,42 @@ export const UtilityBar: React.FC<UtilityBarProps> = () => {
 			</Menu>
 		</ThemeProvider>
 	);
+
 	return (
 		<ThemeProvider theme={theme}>
-			<AppBar position="fixed" color="primary" className={clsx(classes.appBar, open && classes.appBarShift)}>
-				<Toolbar>
-					<Typography className={classes.title} variant="h6" noWrap>Stu's 160 Cluster</Typography>
-					<GlobalSearch username={dojoConfig.username} />
-					<div className={classes.grow} />
-					<div className={classes.sectionDesktop}>
-						<div className={classes.icons}>
-							<IconButton aria-label="show your favorite widgets" color="inherit">
-								<FavoriteIcon />
-							</IconButton>
-							<IconButton aria-label="show 17 new notifications" color="inherit">
-								<Badge badgeContent={11}>
-									<NotificationsIcon />
-								</Badge>
+				<AppBar position="fixed" style={{ backgroundColor: globalSettings.HPCCPlatformWidget_Toolbar_Color || "#199bd7" }} className={clsx(classes.appBar, open && classes.appBarShift)}>
+					<Toolbar>
+						<Typography className={classes.title} variant="h6" noWrap>{"HPCC Systems | " + globalSettings.HPCCPlatformWidget_Toolbar_Text || "HPCC Systems | ECL Watch"} </Typography>
+						<GlobalSearch username={userAccount.username} />
+						<div className={classes.grow} />
+						<div className={classes.sectionDesktop}>
+							<div className={classes.icons}>
+								<IconButton aria-label="show your favorite widgets" color="inherit">
+									<FavoriteIcon />
+								</IconButton>
+								<IconButton aria-label="show 17 new notifications" color="inherit">
+									<Badge badgeContent={11}>
+										<NotificationsIcon />
+									</Badge>
+								</IconButton>
+							</div>
+							<ProfileManager />
+						</div>
+						<div className={classes.sectionMobile}>
+							<IconButton
+								aria-label="show more"
+								aria-controls={mobileMenuId}
+								aria-haspopup="true"
+								onClick={handleMobileMenuOpen}
+								color="inherit"
+							>
+								<MoreIcon />
 							</IconButton>
 						</div>
-						<ProfileManager />
-					</div>
-					<div className={classes.sectionMobile}>
-						<IconButton
-							aria-label="show more"
-							aria-controls={mobileMenuId}
-							aria-haspopup="true"
-							onClick={handleMobileMenuOpen}
-							color="inherit"
-						>
-							<MoreIcon />
-						</IconButton>
-					</div>
-				</Toolbar>
-			</AppBar>
-			{renderMobileMenu}
-			{renderMenu}
+					</Toolbar>
+				</AppBar>
+				{renderMobileMenu}
+				{renderMenu}
 		</ThemeProvider>
 	);
 };
