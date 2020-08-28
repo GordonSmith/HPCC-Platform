@@ -38,10 +38,10 @@ const FilterFields: Fields = {
     "Owner": { type: "string", label: nlsHPCC.Owner, placeholder: nlsHPCC.jsmi },
     "JobName": { type: "string", label: nlsHPCC.JobName, placeholder: nlsHPCC.log_analysis_1 },
     "Cluster": { type: "string", label: nlsHPCC.Cluster, placeholder: nlsHPCC.Owner },
-    "State": { type: "string", label: nlsHPCC.State, placeholder: nlsHPCC.Created },
+    "State": { type: "workunit-state", label: nlsHPCC.State, placeholder: nlsHPCC.Created },
     "ECL": { type: "string", label: nlsHPCC.ECL, placeholder: nlsHPCC.dataset },
     "LogicalFile": { type: "string", label: nlsHPCC.LogicalFile, placeholder: nlsHPCC.somefile },
-    "LogicalFileSearchType": { type: "string", label: nlsHPCC.LogicalFileType, placeholder: "" },
+    "LogicalFileSearchType": { type: "logicalfile-type", label: nlsHPCC.LogicalFileType, placeholder: "" },
     "StartDate": { type: "datetime", label: nlsHPCC.FromDate, placeholder: "" },
     "EndDate": { type: "datetime", label: nlsHPCC.ToDate, placeholder: "" },
     "LastNDays": { type: "string", label: nlsHPCC.LastNDays, placeholder: "2" }

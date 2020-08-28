@@ -1,8 +1,11 @@
 import * as React from "react";
-import { FormGroup, TextField, FormControlLabel, Checkbox, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@material-ui/core";
+import { FormGroup, TextField, FormControlLabel, Checkbox, Dialog, DialogTitle, DialogContent, DialogActions, Button, MenuItem } from "@material-ui/core";
 import { nlsHPCC } from "src/dojoLib";
+import { States } from "../../WsWorkunits";
 
-type FieldType = "string" | "datetime" | "checkbox";
+type FieldType = "string" | "checkbox" | "datetime" | "workunit-state" | "logicalfile-type";
+
+const states = Object.keys(States).map(s => States[s]);
 
 interface BaseField {
     type: FieldType;
@@ -25,7 +28,17 @@ interface CheckboxField extends BaseField {
     value?: boolean;
 }
 
-type Field = StringField | DateTimeField | CheckboxField;
+interface WorkunitStateField extends BaseField {
+    type: "workunit-state";
+    value?: string;
+}
+
+interface LogicalFileType extends BaseField {
+    type: "logicalfile-type";
+    value?: string;
+}
+
+type Field = StringField | CheckboxField | DateTimeField | WorkunitStateField | LogicalFileType;
 export type Fields = { [name: string]: Field };
 export type Values = { [name: string]: string | number | boolean | (string | number | boolean)[] };
 
@@ -91,15 +104,32 @@ export const FormContent: React.FunctionComponent<FormContentProps> = ({
                 field.value = field.value || "";
                 formFields.push(<TextField key={name} label={field.label} type="string" name={name} value={field.value} placeholder={field.placeholder} onChange={handleChange} />);
                 break;
-            case "datetime":
-                field.value = field.value || "";
-                formFields.push(<TextField key={name} label={field.label} type="datetime-local" name={name} value={field.value} placeholder={field.placeholder} onChange={handleChange} InputLabelProps={{ shrink: true }} />);
-                break;
             case "checkbox":
                 field.value = field.value || false;
                 formFields.push(<FormControlLabel key={name} label={field.label} name={name} control={
                     <Checkbox checked={field.value === true ? true : false} onChange={handleChange} />
                 } />);
+                break;
+            case "datetime":
+                field.value = field.value || "";
+                formFields.push(<TextField key={name} label={field.label} type="datetime-local" name={name} value={field.value} placeholder={field.placeholder} onChange={handleChange} InputLabelProps={{ shrink: true }} />);
+                break;
+            case "workunit-state":
+                field.value = field.value || "";
+                formFields.push(
+                    <TextField key={name} label={field.label} select name={name} value={field.value} placeholder={field.placeholder} onChange={handleChange} >
+                        {states.map(state => <MenuItem value={state}>{state}</MenuItem>)}
+                    </TextField>
+                );
+                break;
+            case "logicalfile-type":
+                field.value = field.value || "Created";
+                formFields.push(
+                    <TextField key={name} label={field.label} select name={name} value={field.value} placeholder={field.placeholder} onChange={handleChange} >
+                        <MenuItem value="Created">{nlsHPCC.CreatedByWorkunit}</MenuItem>
+                        <MenuItem value="Used">{nlsHPCC.UsedByWorkunit}</MenuItem>
+                    </TextField>
+                );
                 break;
         }
     }
