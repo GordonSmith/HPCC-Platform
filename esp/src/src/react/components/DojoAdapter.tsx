@@ -1,10 +1,8 @@
 import * as registry from "dijit/registry";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
+import nlsHPCC from "../../nlsHPCC";
 import { resolve } from "../../Utility";
-import "dojo/i18n";
-// @ts-ignore
-import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
 
 export interface DojoProps {
     widgetClassID: string;

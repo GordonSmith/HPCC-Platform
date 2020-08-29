@@ -5,11 +5,9 @@ import SearchIcon from "@material-ui/icons/Search";
 import HistoryIcon from "@material-ui/icons/History";
 import LaunchIcon from "@material-ui/icons/Launch";
 import { DATA } from "src/data/components";
+import nlsHPCC from "../../../nlsHPCC";
 import { useGet } from "../../hooks/useWsStore";
 import { addToStack } from "../../../UserPreferences/Recent";
-import "dojo/i18n";
-// @ts-ignore
-import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
 
 interface GlobalSearchProps {
     username: string;

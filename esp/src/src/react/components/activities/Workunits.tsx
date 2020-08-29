@@ -4,14 +4,11 @@ import { Area, Column, Pie, Bar } from "@hpcc-js/chart";
 import { chain, filter, group, map, sort } from "@hpcc-js/dataflow";
 import { Grid, Card, CardHeader, Select, MenuItem, Chip, CircularProgress, Backdrop, makeStyles, Theme, createStyles } from "@material-ui/core";
 import Lock from "@material-ui/icons/LockOutlined";
-import { VizInstanceAdapter } from "../VizAdapter";
+import nlsHPCC from "../../../nlsHPCC";
+import { pushParam } from "../../util/history";
 import { icons } from "../../util/table";
 import { AutoSizeTable } from "../AutoSizeTable";
-import { pushParam } from "../../util/history";
-
-import "dojo/i18n";
-// @ts-ignore
-import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
+import { VizInstanceAdapter } from "../VizAdapter";
 
 const useStyles = makeStyles((theme: Theme) =>
     createStyles({
