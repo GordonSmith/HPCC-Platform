@@ -8,11 +8,8 @@ import MoreVertIcon from "@material-ui/icons/MoreVert";
 import clsx from "clsx";
 import * as React from "react";
 import { ActivityConnection } from "../../../comms/activity";
+import nlsHPCC from "../../../nlsHPCC";
 import { VizAdapter } from "../VizAdapter";
-
-import "dojo/i18n";
-// @ts-ignore
-import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
 
 const useStyles = makeStyles(theme =>
     createStyles({

@@ -4,10 +4,6 @@ import { createStyles, makeStyles } from "@material-ui/core";
 import { green, red } from "@material-ui/core/colors";
 import Grid from "@material-ui/core/Grid";
 import { ActivityConnection } from "../../../comms/activity";
-
-import "dojo/i18n";
-// @ts-ignore
-import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
 import { TargetClusters, ServerJobQueues } from "./TargetCluster";
 
 const useStyles = makeStyles(theme =>

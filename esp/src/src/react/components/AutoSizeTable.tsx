@@ -2,11 +2,8 @@ import * as React from "react";
 import Refresh from "@material-ui/icons/Refresh";
 import MaterialTable, { MaterialTableProps } from "material-table";
 import { AutoSizer } from "react-virtualized";
+import nlsHPCC from "../../nlsHPCC";
 import { icons } from "../util/table";
-
-import "dojo/i18n";
-// @ts-ignore
-import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
 
 interface MaterialTableExProps<RowData extends object> extends MaterialTableProps<RowData> {
 }

@@ -1,12 +1,9 @@
 import * as React from "react";
 import Lock from "@material-ui/icons/LockOutlined";
 import { WorkunitsService } from "@hpcc-js/comms";
+import nlsHPCC from "../../nlsHPCC";
 import { icons } from "../util/table";
 import { AutoSizeTable } from "./AutoSizeTable";
-
-import "dojo/i18n";
-// @ts-ignore
-import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
 
 const wuService = new WorkunitsService({ baseUrl: "" });
 

@@ -2,14 +2,12 @@ import * as React from "react";
 import { Theme, makeStyles, createStyles } from "@material-ui/core/styles";
 import { ButtonBase, MenuList, MenuItem, Paper, Avatar, ClickAwayListener, Popper, Grow, Typography, Divider, Dialog, DialogTitle, TextField, DialogContent, DialogContentText, DialogActions, Button } from "@material-ui/core";
 import KeyboardArrowDownIcon from "@material-ui/icons/KeyboardArrowDown";
-import { UserAccountContext, GlobalSettingsContext } from "../../hooks/userContext";
-import { getPrevious } from "../../hooks/prevState";
 import { ChromePicker } from "react-color";
 import * as ESPRequest from "../../../ESPRequest";
 import { globalKeyValStore } from "../../../KeyValStore";
-import "dojo/i18n";
-// @ts-ignore
-import * as nlsHPCC from "dojo/i18n!hpcc/nls/hpcc";
+import nlsHPCC from "../../../nlsHPCC";
+import { UserAccountContext, GlobalSettingsContext } from "../../hooks/userContext";
+import { getPrevious } from "../../hooks/prevState";
 
 declare const dojoConfig;
 
@@ -115,7 +113,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
     };
 
     const handleToolbarApply = () => {
-        const updatedTheme = {...globalSettings, HPCCPlatformWidget_Toolbar_Color: toolBarColor, HPCCPlatformWidget_Toolbar_Text: toolBarText };
+        const updatedTheme = { ...globalSettings, HPCCPlatformWidget_Toolbar_Color: toolBarColor, HPCCPlatformWidget_Toolbar_Text: toolBarText };
         setGlobalSettings(
             updatedTheme
         );
@@ -164,7 +162,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
                     <Divider />
                     <TextField className={classes.dialogInput} label="Environment Name" onKeyUp={handleTextChange} defaultValue={globalSettings.HPCCPlatformWidget_Toolbar_Text} placeholder="" variant="outlined" fullWidth />
                     <Typography variant="h6" className={classes.headings}>Toolbar color</Typography>
-                    <ChromePicker disableAlpha color={globalSettings.HPCCPlatformWidget_Toolbar_Color} width="100%" onChangeComplete={ handleColorChange } />
+                    <ChromePicker disableAlpha color={globalSettings.HPCCPlatformWidget_Toolbar_Color} width="100%" onChangeComplete={handleColorChange} />
                     <DialogActions>
                         <Button variant="contained" onClick={handleDialogClose} color="primary">Dismiss</Button>
                         <Button variant="contained" disabled={!toolbarChange} onClick={handleToolbarApply} color="primary">Apply</Button>

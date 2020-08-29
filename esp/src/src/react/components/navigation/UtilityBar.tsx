@@ -2,7 +2,6 @@ import * as React from "react";
 import clsx from "clsx";
 import { makeStyles, Theme, createStyles, ThemeProvider } from "@material-ui/core/styles";
 import { AppBar, Toolbar, Typography, IconButton, Badge, Menu, MenuItem } from "@material-ui/core";
-import MenuIcon from "@material-ui/icons/Menu";
 import AccountCircle from "@material-ui/icons/AccountCircle";
 import FavoriteIcon from "@material-ui/icons/Favorite";
 import NotificationsIcon from "@material-ui/icons/Notifications";
@@ -156,39 +155,39 @@ export const UtilityBar: React.FC<UtilityBarProps> = () => {
 
 	return (
 		<ThemeProvider theme={theme}>
-				<AppBar position="fixed" style={{ backgroundColor: globalSettings.HPCCPlatformWidget_Toolbar_Color || "#199bd7" }} className={clsx(classes.appBar, open && classes.appBarShift)}>
-					<Toolbar>
-						<Typography className={classes.title} variant="h6" noWrap>{"HPCC Systems | " + globalSettings.HPCCPlatformWidget_Toolbar_Text || "HPCC Systems | ECL Watch"} </Typography>
-						<GlobalSearch username={userAccount.username} />
-						<div className={classes.grow} />
-						<div className={classes.sectionDesktop}>
-							<div className={classes.icons}>
-								<IconButton aria-label="show your favorite widgets" color="inherit">
-									<FavoriteIcon />
-								</IconButton>
-								<IconButton aria-label="show 17 new notifications" color="inherit">
-									<Badge badgeContent={11}>
-										<NotificationsIcon />
-									</Badge>
-								</IconButton>
-							</div>
-							<ProfileManager />
-						</div>
-						<div className={classes.sectionMobile}>
-							<IconButton
-								aria-label="show more"
-								aria-controls={mobileMenuId}
-								aria-haspopup="true"
-								onClick={handleMobileMenuOpen}
-								color="inherit"
-							>
-								<MoreIcon />
+			<AppBar position="fixed" style={{ backgroundColor: globalSettings.HPCCPlatformWidget_Toolbar_Color || "#199bd7" }} className={clsx(classes.appBar, open && classes.appBarShift)}>
+				<Toolbar>
+					<Typography className={classes.title} variant="h6" noWrap>{"HPCC Systems | " + globalSettings.HPCCPlatformWidget_Toolbar_Text || "HPCC Systems | ECL Watch"} </Typography>
+					<GlobalSearch username={userAccount.username} />
+					<div className={classes.grow} />
+					<div className={classes.sectionDesktop}>
+						<div className={classes.icons}>
+							<IconButton aria-label="show your favorite widgets" color="inherit">
+								<FavoriteIcon />
+							</IconButton>
+							<IconButton aria-label="show 17 new notifications" color="inherit">
+								<Badge badgeContent={11}>
+									<NotificationsIcon />
+								</Badge>
 							</IconButton>
 						</div>
-					</Toolbar>
-				</AppBar>
-				{renderMobileMenu}
-				{renderMenu}
+						<ProfileManager />
+					</div>
+					<div className={classes.sectionMobile}>
+						<IconButton
+							aria-label="show more"
+							aria-controls={mobileMenuId}
+							aria-haspopup="true"
+							onClick={handleMobileMenuOpen}
+							color="inherit"
+						>
+							<MoreIcon />
+						</IconButton>
+					</div>
+				</Toolbar>
+			</AppBar>
+			{renderMobileMenu}
+			{renderMenu}
 		</ThemeProvider>
 	);
 };
