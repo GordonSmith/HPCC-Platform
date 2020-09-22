@@ -18,7 +18,6 @@
         "allowJs": true,
         "skipLibCheck": true,
         "noImplicitUseStrict": true,
-        "downlevelIteration": true,
         "esModuleInterop": false,
         "downlevelIteration": true,
         "jsx": "react",
