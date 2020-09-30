@@ -16,8 +16,7 @@ import { UtilityBar } from "../components/navigation/UtilityBar";
 import { UserAccountContext, GlobalSettingsContext } from "../hooks/userContext";
 import { hashHistory } from "../util/history";
 import { router } from "./routes";
-import { localKeyValStore } from "../../KeyValStore";
-import { globalKeyValStore } from "../../KeyValStore";
+import { localKeyValStore, globalKeyValStore } from "../../KeyValStore";
 
 declare const dojoConfig;
 

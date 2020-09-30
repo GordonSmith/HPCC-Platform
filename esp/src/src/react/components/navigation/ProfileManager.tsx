@@ -127,7 +127,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = (props) => {
             handleAs: "text",
             method: "post"
         }).then(function (status) {
-            window.location.href = location.origin + "/esp/files/Login.html";
+            window.location.href = "#/login";
         });
     };
 

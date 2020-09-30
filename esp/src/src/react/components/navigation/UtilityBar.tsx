@@ -157,7 +157,7 @@ export const UtilityBar: React.FC<UtilityBarProps> = () => {
 		<ThemeProvider theme={theme}>
 			<AppBar position="fixed" style={{ backgroundColor: globalSettings.HPCCPlatformWidget_Toolbar_Color || "#199bd7" }} className={clsx(classes.appBar, open && classes.appBarShift)}>
 				<Toolbar>
-					<Typography className={classes.title} variant="h6" noWrap>{"HPCC Systems | " + globalSettings.HPCCPlatformWidget_Toolbar_Text || "HPCC Systems | ECL Watch"} </Typography>
+					<Typography className={classes.title} variant="h6" noWrap>{globalSettings.HPCCPlatformWidget_Toolbar_Text ? "HPCC Systems | " +  globalSettings.HPCCPlatformWidget_Toolbar_Text : "HPCC Systems | ECL Watch"} </Typography>
 					<GlobalSearch username={userAccount.username} />
 					<div className={classes.grow} />
 					<div className={classes.sectionDesktop}>

@@ -5,6 +5,7 @@ import { Activities } from "./activities/Activities";
 import { WUQueryComponent } from "./WUQuery";
 import { DojoAdapter } from "./DojoAdapter";
 import { Main } from "./Main";
+import { LoginComponent } from './Login';
 
 const routes: Routes = [
     {
@@ -16,6 +17,13 @@ const routes: Routes = [
         children: [
             { path: "", action: (context) => <Main {...parseSearch(context.search)} /> },
             { path: "/legacy", action: () => <Activities /> },
+        ]
+    },
+    {
+        name: "login",
+        path: "/login",
+        children: [
+            { path: "", action: (context) => <LoginComponent /> }
         ]
     },
     {
