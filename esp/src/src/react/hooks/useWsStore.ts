@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { userKeyValStore, localKeyValStore, globalKeyValStore } from "../../KeyValStore";
+import { localKeyValStore, globalKeyValStore, getRecentFilters } from "../../KeyValStore";
 
 export const useGet = (key: string, filter?: object) => {
-    const user_store = userKeyValStore();
     const [responseState, setResponseState] = useState({ data: null, loading: true });
     useEffect(() => {
         setResponseState({ data: null, loading: true });
@@ -15,7 +14,7 @@ export const useGet = (key: string, filter?: object) => {
 
 export const useLocalStorage = (key: string, param?: string) => {
     const localStorage_store = localKeyValStore();
-    const [responseState, setResponseState] = useState({data: null, loading: true });
+    const [responseState, setResponseState] = useState({ data: null, loading: true });
     useEffect(() => {
         setResponseState({ data: null, loading: true });
         localStorage_store.get(key)
@@ -29,7 +28,7 @@ export const useLocalStorage = (key: string, param?: string) => {
 
 export const useGlobalStorage = (key: string, param?: string) => {
     const globalStorage_store = globalKeyValStore();
-    const [responseState, setResponseState] = useState({data: null, loading: true });
+    const [responseState, setResponseState] = useState({ data: null, loading: true });
     useEffect(() => {
         setResponseState({ data: null, loading: true });
         globalStorage_store.get(key)

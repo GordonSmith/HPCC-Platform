@@ -4,67 +4,67 @@ import InputAdornment from "@material-ui/core/InputAdornment";
 import PersonIcon from "@material-ui/icons/Person";
 import HttpsTwoToneIcon from "@material-ui/icons/HttpsTwoTone";
 import { FormGroup, TextField, FormControlLabel, Button, Typography } from "@material-ui/core";
-import Checkbox, { CheckboxProps } from "@material-ui/core/Checkbox";
-import Grid, { GridSpacing } from "@material-ui/core/Grid";
+import Checkbox from "@material-ui/core/Checkbox";
+import Grid from "@material-ui/core/Grid";
 import { localKeyValStore } from "../../KeyValStore";
-import { nlsHPCC } from "src/dojoLib";
+import nlsHPCC from "../../nlsHPCC";
 import * as ESPRequest from "../../ESPRequest";
 
 const useStyles = makeStyles((theme: Theme) =>
-  createStyles({
-    wrapper: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh !important",
-        width: "100%"
-    },
-    form: {
-        padding: 40,
-        maxWidth: "25%",
-        flexBasis: "25%",
-        boxShadow: theme.shadows[10]
-    },
-    control: {
-      padding: theme.spacing(2),
-    },
-    button: {
-        marginTop: theme.spacing(2),
-        padding: theme.spacing(1),
-        fontSize: theme.typography.fontSize,
-    },
-    inputs: {
-        marginTop: theme.spacing(2),
-        marginBottom: theme.spacing(2)
-    },
-    textCenter: {
-        textAlign: "center"
-    },
-    heading: {
-        fontWeight: 500,
-        marginBottom: "10px"
-    },
-    subtitle: {
-        color: "rgba(0, 0, 0, 0.5)",
-        marginBottom: "10px"
-    },
-    userTools: {
-
-    },
-    logo: {
-        display: "none",
-        [theme.breakpoints.up("sm")]: {
-            display: "flex"
+    createStyles({
+        wrapper: {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh !important",
+            width: "100%"
         },
-        marginTop: "40px",
-        marginRight: "20px",
-        maxWidth: "15%",
-        flexBasis: "15%"
-    },
-    error: {
-        color: theme.palette.error.main
-    }
-  })
+        form: {
+            padding: 40,
+            maxWidth: "25%",
+            flexBasis: "25%",
+            boxShadow: theme.shadows[10]
+        },
+        control: {
+            padding: theme.spacing(2),
+        },
+        button: {
+            marginTop: theme.spacing(2),
+            padding: theme.spacing(1),
+            fontSize: theme.typography.fontSize,
+        },
+        inputs: {
+            marginTop: theme.spacing(2),
+            marginBottom: theme.spacing(2)
+        },
+        textCenter: {
+            textAlign: "center"
+        },
+        heading: {
+            fontWeight: 500,
+            marginBottom: "10px"
+        },
+        subtitle: {
+            color: "rgba(0, 0, 0, 0.5)",
+            marginBottom: "10px"
+        },
+        userTools: {
+
+        },
+        logo: {
+            display: "none",
+            [theme.breakpoints.up("sm")]: {
+                display: "flex"
+            },
+            marginTop: "40px",
+            marginRight: "20px",
+            maxWidth: "15%",
+            flexBasis: "15%"
+        },
+        error: {
+            color: theme.palette.error.main
+        }
+    })
 );
 
 export interface LoginProps {
@@ -97,10 +97,10 @@ export const LoginComponent: React.FunctionComponent<LoginProps> = ({
             } else {
                 if (checked) {
                     setErrorStatus("");
-                    rememberSaveUsernnameCheckBoxState.set("RememberUsernameState", usernameTextField, false).then(function(val) {});
+                    rememberSaveUsernnameCheckBoxState.set("RememberUsernameState", usernameTextField, false).then(function (val) { });
                 } else {
                     setErrorStatus("");
-                    rememberSaveUsernnameCheckBoxState.delete("ECLWatch:RememberUsernameState", true).then(function(val) {});
+                    rememberSaveUsernnameCheckBoxState.delete("ECLWatch:RememberUsernameState", true).then(function (val) { });
                 }
             }
         });
@@ -111,7 +111,7 @@ export const LoginComponent: React.FunctionComponent<LoginProps> = ({
     };
 
     const checkRememberMePreference = () => {
-        rememberSaveUsernnameCheckBoxState.get("RememberUsernameState").then(function(val) {
+        rememberSaveUsernnameCheckBoxState.get("RememberUsernameState").then(function (val) {
             if (val !== null) {
                 setUsernameTextField(val);
                 setChecked(true);
@@ -123,12 +123,12 @@ export const LoginComponent: React.FunctionComponent<LoginProps> = ({
         checkRememberMePreference();
     }, []);
 
-    return(
+    return (
         <div className={classes.wrapper}>
             <Grid container direction="row" justify="center" alignItems="center">
                 <Grid item>
                     <div className={classes.logo}>
-                        <img src="../eclwatch/img/hpcc_systems_logo2.png"/>
+                        <img src="../eclwatch/img/hpcc_systems_logo2.png" />
                     </div>
                 </Grid>
                 <div className={classes.form}>
@@ -142,7 +142,7 @@ export const LoginComponent: React.FunctionComponent<LoginProps> = ({
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                    <PersonIcon />
+                                        <PersonIcon />
                                     </InputAdornment>
                                 )
                             }}
@@ -161,7 +161,7 @@ export const LoginComponent: React.FunctionComponent<LoginProps> = ({
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                    <HttpsTwoToneIcon />
+                                        <HttpsTwoToneIcon />
                                     </InputAdornment>
                                 )
                             }}
@@ -184,7 +184,7 @@ export const LoginComponent: React.FunctionComponent<LoginProps> = ({
                     </div>
                     <div className={classes.textCenter}>
                         <Typography variant="subtitle1" className={classes.error}>{errorStatus}</Typography>
-                        <Button className={classes.button} disabled={usernameTextField === "" && passwordTextField === "" } fullWidth variant="contained" color="primary" onClick={handleSubmit}>{nlsHPCC.Login}</Button>
+                        <Button className={classes.button} disabled={usernameTextField === "" && passwordTextField === ""} fullWidth variant="contained" color="primary" onClick={handleSubmit}>{nlsHPCC.Login}</Button>
                     </div>
                 </div>
             </Grid>

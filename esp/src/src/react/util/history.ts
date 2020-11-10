@@ -105,14 +105,14 @@ class History<S extends object = object> {
 export const hashHistory = new History<any>();
 
 export function pushSearch(_: object, state?: any) {
-    const search = stringify(_);
+    const search = stringify(_ as any);
     hashHistory.push({
         search: search ? "?" + search : ""
     }, state);
 }
 
 export function updateSearch(_: object, state?: any) {
-    const search = stringify(_);
+    const search = stringify(_ as any);
     hashHistory.replace({
         search: search ? "?" + search : ""
     }, state);

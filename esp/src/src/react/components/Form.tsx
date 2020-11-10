@@ -1,8 +1,8 @@
 import * as React from "react";
 import { FormGroup, TextField, FormControlLabel, Checkbox, Dialog, DialogTitle, DialogContent, DialogActions, Button, MenuItem, TextFieldProps } from "@material-ui/core";
-import { nlsHPCC } from "src/dojoLib";
-import { States } from "../../WsWorkunits";
 import { Topology, TpLogicalClusterQuery } from "@hpcc-js/comms";
+import { States } from "../../WsWorkunits";
+import nlsHPCC from "../../nlsHPCC";
 
 type FieldType = "string" | "checkbox" | "datetime" | "workunit-state" | "target-cluster" | "logicalfile-type";
 
@@ -65,7 +65,7 @@ export const TargetClusterTextField: React.FunctionComponent<TextFieldProps> = (
         topology.fetchLogicalClusters().then(response => {
             setTargetClusters([{ Name: "", Type: "", LanguageVersion: "", Process: "", Queue: "" }, ...response]);
         });
-    }, [])
+    }, []);
 
     return <TextField {...props} >
         {targetClusters.map(tc => <MenuItem value={tc.Name}>{tc.Name}{tc.Name !== tc.Type ? ` (${tc.Type})` : ""}</MenuItem>)}
