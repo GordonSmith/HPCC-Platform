@@ -12,7 +12,8 @@ export function useWorkunit(wuid: string, full: boolean = false): [Workunit, WUS
         const handle = wu.watch(() => {
             if (full) {
                 wu.refresh(true).then(() => {
-                setState(wu.StateID);
+                    setWorkunit(wu);
+                    setState(wu.StateID);
                 });
             } else {
                 setState(wu.StateID);

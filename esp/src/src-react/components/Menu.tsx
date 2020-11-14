@@ -10,7 +10,9 @@ const navLinkGroups: INavLinkGroup[] = [
             { url: "#/activities", name: nlsHPCC.Activities },
             { url: "#/activities/legacy", name: `${nlsHPCC.Activities} (L)` },
             { url: "#/clusters", name: nlsHPCC.TargetClusters },
-            { url: "#/events", name: nlsHPCC.EventScheduler }
+            { url: "#/events", name: nlsHPCC.EventScheduler },
+            { url: "#/search/e", name: nlsHPCC.SearchResults },
+            { url: "#/search", name: `${nlsHPCC.SearchResults} (L)` },
         ]
     },
     {
@@ -53,6 +55,12 @@ const navLinkGroups: INavLinkGroup[] = [
             { url: "#/monitoring", name: nlsHPCC.Monitoring },
             { url: "#/esdl", name: nlsHPCC.DESDL },
             { url: "#/elk", name: nlsHPCC.LogVisualization },
+        ]
+    },
+    {
+        name: "Testing",
+        links: [
+            { url: "#/holygrail", name: "Holy Grail" },
         ]
     }
 ];

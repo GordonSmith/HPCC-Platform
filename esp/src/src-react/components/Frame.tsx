@@ -32,7 +32,7 @@ export const DevFrame: React.FunctionComponent<DevFrameProps> = () => {
         return () => unlisten();
     }, []);
 
-    return <ThemeProvider theme={useDarkMode ? darkTheme : lightTheme} style={{ height: "100%" }}>
+    return <ThemeProvider theme={useDarkMode ? darkTheme as any : lightTheme as any} style={{ height: "100%" }}>
         <HolyGrail
             header={<DevTitle paths={paths} useDarkMode={useDarkMode} setUseDarkMode={setUseDarkMode} />}
             left={showMenu ? <DevMenu location={location} /> : undefined}
