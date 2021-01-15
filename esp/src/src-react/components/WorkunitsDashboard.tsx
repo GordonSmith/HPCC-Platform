@@ -1,26 +1,86 @@
 import * as React from "react";
 import { Dropdown, IStackItemStyles, IStackStyles, IStackTokens, Overlay, Spinner, SpinnerSize, Stack, Text } from "@fluentui/react";
 import { Card } from "@fluentui/react-cards";
+import { useConst } from "@fluentui/react-hooks";
+import Chip from "@material-ui/core/Chip";
 import * as Memory from "dojo/store/Memory";
 import * as Observable from "dojo/store/Observable";
-import * as ESPWorkunit from "src/ESPWorkunit";
 import { WorkunitsService, WUQuery } from "@hpcc-js/comms";
-import { Area, Column, Pie, Bar } from "@hpcc-js/chart";
+import { Column, Pie, Bar } from "@hpcc-js/chart";
 import { chain, filter, group, map, sort } from "@hpcc-js/dataflow";
-import Chip from "@material-ui/core/Chip";
+import * as ESPWorkunit from "src/ESPWorkunit";
 import nlsHPCC from "src/nlsHPCC";
 import { pushParamExact } from "../util/history";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { Workunits } from "./Workunits";
-import { useConst } from "@fluentui/react-hooks";
 
 const service = new WorkunitsService({ baseUrl: "" });
 
+// Utility  ---
 const wuidToDate = (wuid: string) => `${wuid.substr(1, 4)}-${wuid.substr(5, 2)}-${wuid.substr(7, 2)}`;
+
+const undefinedOrEquals = <T extends unknown>(item: T, compare: T) => item === undefined || item === compare;
+
+const toSeconds = (timeStr: string): number => {
+    const [timeStr2, milliSec] = timeStr.split(".");
+    const timeParts = timeStr2.split(":");
+    let seconds = Number(milliSec) / 1000;
+    timeParts.forEach((row, i) => {
+        seconds += Number(row) * (i * 60);
+    });
+    return seconds;
+};
+
+const durationBuckets = row => {
+    if (row.duration < 60) {
+        return 0;
+    } else if (row.duration < 5 * 60) {
+        return 1;
+    } else if (row.duration < 10 * 60) {
+        return 2;
+    } else if (row.duration < 30 * 60) {
+        return 3;
+    } else if (row.duration < 60 * 60) {
+        return 4;
+    } else if (row.duration < 2 * 60 * 60) {
+        return 5;
+    } else if (row.duration < 3 * 60 * 60) {
+        return 6;
+    }
+    return 7;
+};
+
+const defaultDurationBuckets = [
+    ["<1m", 0],
+    ["<5m", 0],
+    ["<10m", 0],
+    ["<30m", 0],
+    ["<60m", 0],
+    ["<1h", 0],
+    ["<2h", 0],
+    ["<3h", 0],
+    [">=3h", 0]
+];
 
 interface WorkunitEx extends WUQuery.ECLWorkunit {
     Day: string;
 }
+
+const stackStyles: IStackStyles = {
+    root: {
+        height: "100%",
+    },
+};
+const stackItemStyles: IStackItemStyles = {
+    root: {
+        minHeight: 240
+    },
+};
+const outerStackTokens: IStackTokens = { childrenGap: 5 };
+const innerStackTokens: IStackTokens = {
+    childrenGap: 5,
+    padding: 10,
+};
 
 export interface WorkunitsDashboardFilter {
     lastNDays?: number;
@@ -40,6 +100,11 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
 }) => {
     filterProps = {
         lastNDays: 7,
+        cluster: undefined,
+        owner: undefined,
+        state: undefined,
+        protected: undefined,
+        day: undefined,
         ...filterProps
     };
 
@@ -62,139 +127,163 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
         });
     }, [filterProps.lastNDays]);
 
-    //  Cluster Chart ---
-    const clusterChart = React.useRef(
-        new Bar()
-            .columns(["Cluster", "Count"])
-            .on("click", (row, col, sel) => pushParamExact("cluster", sel ? row.Cluster : undefined))
-    ).current;
-
-    const clusterPipeline = chain(
-        filter(row => filterProps.state === undefined || row.State === filterProps.state),
-        filter(row => filterProps.owner === undefined || row.Owner === filterProps.owner),
-        filter(row => filterProps.day === undefined || row.Day === filterProps.day),
-        filter(row => filterProps.protected === undefined || row.Protected === filterProps.protected),
-        group((row: WUQuery.ECLWorkunit) => row.Cluster),
-        map(row => [row.key, row.value.length] as [string, number]),
-        sort((l, r) => l[0].localeCompare(r[0])),
-    );
-
-    clusterChart
-        .data([...clusterPipeline(workunits)])
-        ;
-
-    //  Owner Chart ---
-    const ownerChart = React.useRef(
-        new Column()
-            .columns(["Owner", "Count"])
-            .on("click", (row, col, sel) => pushParamExact("owner", sel ? row.Owner : undefined))
-    ).current;
-
-    const ownerPipeline = chain(
-        filter(row => filterProps.cluster === undefined || row.Cluster === filterProps.cluster),
-        filter(row => filterProps.state === undefined || row.State === filterProps.state),
-        filter(row => filterProps.day === undefined || row.Day === filterProps.day),
-        filter(row => filterProps.protected === undefined || row.Protected === filterProps.protected),
-        group((row: WUQuery.ECLWorkunit) => row.Owner),
-        map(row => [row.key, row.value.length] as [string, number]),
-        sort((l, r) => l[0].localeCompare(r[0])),
-    );
-
-    ownerChart
-        .data([...ownerPipeline(workunits)])
-        ;
-
     //  State Chart ---
-    const stateChart = React.useRef(
+    const stateChart = useConst(
         new Pie()
             .columns(["State", "Count"])
             .on("click", (row, col, sel) => pushParamExact("state", sel ? row.State : undefined))
-    ).current;
-
-    const statePipeline = chain(
-        filter(row => filterProps.cluster === undefined || row.Cluster === filterProps.cluster),
-        filter(row => filterProps.owner === undefined || row.Owner === filterProps.owner),
-        filter(row => filterProps.day === undefined || row.Day === filterProps.day),
-        filter(row => filterProps.protected === undefined || row.Protected === filterProps.protected),
-        group((row: WUQuery.ECLWorkunit) => row.State),
-        map(row => [row.key, row.value.length])
     );
 
-    stateChart
-        .data([...statePipeline(workunits)])
-        ;
+    React.useEffect(() => {
+        const statePipeline = chain(
+            filter(row => undefinedOrEquals(filterProps.day, row.Day)),
+            filter(row => undefinedOrEquals(filterProps.protected, row.Protected)),
+            filter(row => undefinedOrEquals(filterProps.owner, row.Owner)),
+            filter(row => undefinedOrEquals(filterProps.cluster, row.Cluster)),
+            group((row: WUQuery.ECLWorkunit) => row.State),
+            map(row => [row.key, row.value.length])
+        );
+
+        stateChart
+            .data([...statePipeline(workunits)])
+            ;
+    }, [filterProps.cluster, filterProps.day, filterProps.owner, filterProps.protected, stateChart, workunits]);
+
+    //  Day Chart ---
+    const dayChart = useConst(
+        new Column()
+            .columns(["Day", "Count"])
+            .xAxisType("time")
+            .xAxisOverlapMode("hide")
+            // .interpolate("cardinal")
+            // .xAxisTypeTimePattern("")
+            .on("click", (row, col, sel) => pushParamExact("day", sel ? row.Day : undefined))
+    );
+
+    React.useEffect(() => {
+        const dayPipeline = chain(
+            filter(row => undefinedOrEquals(filterProps.state, row.State)),
+            filter(row => undefinedOrEquals(filterProps.protected, row.Protected)),
+            filter(row => undefinedOrEquals(filterProps.owner, row.Owner)),
+            filter(row => undefinedOrEquals(filterProps.cluster, row.Cluster)),
+            group(row => row.Day),
+            map(row => [row.key, row.value.length] as [string, number]),
+            sort((l, r) => l[0].localeCompare(r[0])),
+        );
+
+        dayChart
+            .data([...dayPipeline(workunits)])
+            ;
+    }, [dayChart, filterProps.cluster, filterProps.owner, filterProps.protected, filterProps.state, workunits]);
 
     //  Protected Chart ---
-    const protectedChart = React.useRef(
+    const protectedChart = useConst(
         new Pie()
             .columns(["Protected", "Count"])
             .on("click", (row, col, sel) => pushParamExact("protected", sel ? row.Protected === "true" : undefined))
-    ).current;
-
-    const protectedPipeline = chain(
-        filter(row => filterProps.cluster === undefined || row.Cluster === filterProps.cluster),
-        filter(row => filterProps.owner === undefined || row.Owner === filterProps.owner),
-        filter(row => filterProps.day === undefined || row.Day === filterProps.day),
-        group((row: WorkunitEx) => "" + row.Protected),
-        map(row => [row.key, row.value.length])
     );
 
-    protectedChart
-        .data([...protectedPipeline(workunits)])
-        ;
+    React.useEffect(() => {
+        const protectedPipeline = chain(
+            filter(row => undefinedOrEquals(filterProps.state, row.State)),
+            filter(row => undefinedOrEquals(filterProps.day, row.Day)),
+            filter(row => undefinedOrEquals(filterProps.owner, row.Owner)),
+            filter(row => undefinedOrEquals(filterProps.cluster, row.Cluster)),
+            group((row: WorkunitEx) => "" + row.Protected),
+            map(row => [row.key, row.value.length])
+        );
 
-    //  Day Chart ---
-    const dayChart = React.useRef(
-        new Area()
-            .columns(["Day", "Count"])
-            .xAxisType("time")
-            .interpolate("cardinal")
-            // .xAxisTypeTimePattern("")
-            .on("click", (row, col, sel) => pushParamExact("day", sel ? row.Day : undefined))
-    ).current;
+        protectedChart
+            .data([...protectedPipeline(workunits)])
+            ;
+    }, [filterProps.cluster, filterProps.day, filterProps.owner, filterProps.state, protectedChart, workunits]);
 
-    const dayPipeline = chain(
-        filter(row => filterProps.cluster === undefined || row.Cluster === filterProps.cluster),
-        filter(row => filterProps.owner === undefined || row.Owner === filterProps.owner),
-        filter(row => filterProps.state === undefined || row.State === filterProps.state),
-        filter(row => filterProps.protected === undefined || row.Protected === filterProps.protected),
-        group(row => row.Day),
-        map(row => [row.key, row.value.length] as [string, number]),
-        sort((l, r) => l[0].localeCompare(r[0])),
+    //  Owner Chart ---
+    const ownerChart = useConst(
+        new Column()
+            .columns(["Owner", "Count"])
+            .on("click", (row, col, sel) => pushParamExact("owner", sel ? row.Owner : undefined))
     );
 
-    dayChart
-        .data([...dayPipeline(workunits)])
-        ;
+    React.useEffect(() => {
+        const ownerPipeline = chain(
+            filter(row => undefinedOrEquals(filterProps.state, row.State)),
+            filter(row => undefinedOrEquals(filterProps.day, row.Day)),
+            filter(row => undefinedOrEquals(filterProps.protected, row.Protected)),
+            filter(row => undefinedOrEquals(filterProps.cluster, row.Cluster)),
+            group((row: WUQuery.ECLWorkunit) => row.Owner),
+            map(row => [row.key, row.value.length] as [string, number]),
+            sort((l, r) => l[0].localeCompare(r[0])),
+        );
+
+        ownerChart
+            .data([...ownerPipeline(workunits)])
+            ;
+    }, [filterProps.cluster, filterProps.day, filterProps.protected, filterProps.state, ownerChart, workunits]);
+
+    //  Cluster Chart ---
+    const clusterChart = useConst(
+        new Bar()
+            .columns(["Cluster", "Count"])
+            .on("click", (row, col, sel) => pushParamExact("cluster", sel ? row.Cluster : undefined))
+    );
+
+    React.useEffect(() => {
+        const clusterPipeline = chain(
+            filter(row => undefinedOrEquals(filterProps.state, row.State)),
+            filter(row => undefinedOrEquals(filterProps.day, row.Day)),
+            filter(row => undefinedOrEquals(filterProps.protected, row.Protected)),
+            filter(row => undefinedOrEquals(filterProps.owner, row.Owner)),
+            group((row: WUQuery.ECLWorkunit) => row.Cluster),
+            map(row => [row.key, row.value.length] as [string, number]),
+            sort((l, r) => l[0].localeCompare(r[0])),
+        );
+
+        clusterChart
+            .data([...clusterPipeline(workunits)])
+            ;
+    }, [clusterChart, filterProps.day, filterProps.owner, filterProps.protected, filterProps.state, workunits]);
+
+    //  WU Histogram ---
+    const histogramChart = useConst(
+        new Column()
+            .columns(["Duration", "Count"])
+        // .on("click", (row, col, sel) => pushParamExact("cluster", sel ? row.Cluster : undefined))
+    );
+
+    React.useEffect(() => {
+        const histogramPipeline = chain(
+            filter(row => undefinedOrEquals(filterProps.state, row.State)),
+            filter(row => undefinedOrEquals(filterProps.day, row.Day)),
+            filter(row => undefinedOrEquals(filterProps.protected, row.Protected)),
+            filter(row => undefinedOrEquals(filterProps.owner, row.Owner)),
+            filter(row => undefinedOrEquals(filterProps.cluster, row.Cluster)),
+            map((row: WUQuery.ECLWorkunit) => ({ ...row, duration: toSeconds(row.TotalClusterTime) })),
+            group(durationBuckets)
+        );
+        const data = [...defaultDurationBuckets];
+        for (const row of histogramPipeline(workunits)) {
+            data[row.key][1] = row.value.length;
+        }
+
+        histogramChart
+            .data(data)
+            ;
+    }, [filterProps.cluster, filterProps.day, filterProps.owner, filterProps.protected, filterProps.state, histogramChart, workunits]);
 
     //  Table ---
     const workunitsStore = useConst(Observable(new Memory({ idProperty: "Wuid", data: [] })));
+
+    //  Won't work inside a "useEffect"  ---
     const tablePipeline = chain(
-        filter(row => filterProps.cluster === undefined || row.Cluster === filterProps.cluster),
-        filter(row => filterProps.owner === undefined || row.Owner === filterProps.owner),
-        filter(row => filterProps.state === undefined || row.State === filterProps.state),
-        filter(row => filterProps.protected === undefined || row.Protected === filterProps.protected),
-        filter(row => filterProps.day === undefined || row.Day === filterProps.day),
+        filter(row => undefinedOrEquals(filterProps.state, row.State)),
+        filter(row => undefinedOrEquals(filterProps.day, row.Day)),
+        filter(row => undefinedOrEquals(filterProps.protected, row.Protected)),
+        filter(row => undefinedOrEquals(filterProps.owner, row.Owner)),
+        filter(row => undefinedOrEquals(filterProps.cluster, row.Cluster)),
         map(row => ESPWorkunit.Get(row.Wuid, row))
     );
     workunitsStore.setData([...tablePipeline(workunits)]);
-
-    //  --- --- ---
-    const stackStyles: IStackStyles = {
-        root: {
-            height: "100%",
-        },
-    };
-    const stackItemStyles: IStackItemStyles = {
-        root: {
-            minHeight: 240
-        },
-    };
-    const outerStackTokens: IStackTokens = { childrenGap: 5 };
-    const innerStackTokens: IStackTokens = {
-        childrenGap: 5,
-        padding: 10,
-    };
 
     return <>
         <Stack tokens={outerStackTokens} styles={{ root: { height: "100%" } }}>
@@ -255,7 +344,7 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
                 </Stack.Item>
                 <Stack.Item styles={stackItemStyles}>
                     <Stack horizontal tokens={{ childrenGap: 16 }} >
-                        <Stack.Item align="start" styles={{ root: { width: "66%" } }}>
+                        <Stack.Item align="start" styles={{ root: { width: "40%" } }}>
                             <Card tokens={{ childrenMargin: 12, minWidth: "100%" }}>
                                 <Card.Item>
                                     <Stack horizontal horizontalAlign="space-between">
@@ -268,7 +357,20 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
                                 </Card.Item>
                             </Card>
                         </Stack.Item>
-                        <Stack.Item align="center" styles={{ root: { width: "34%" } }}>
+                        <Stack.Item align="start" styles={{ root: { width: "40%" } }}>
+                            <Card tokens={{ childrenMargin: 12, minWidth: "100%" }}>
+                                <Card.Item>
+                                    <Stack horizontal horizontalAlign="space-between">
+                                        <Text variant="large" nowrap block styles={{ root: { fontWeight: "bold" } }}>{nlsHPCC.Duration}</Text>
+                                        {filterProps.owner !== undefined && <Chip label={filterProps.owner} clickable color="primary" onDelete={() => pushParamExact("owner", undefined)} />}
+                                    </Stack>
+                                </Card.Item>
+                                <Card.Item>
+                                    <AutosizeHpccJSComponent widget={histogramChart} fixedHeight="240px" />
+                                </Card.Item>
+                            </Card>
+                        </Stack.Item>
+                        <Stack.Item align="center" styles={{ root: { width: "20%" } }}>
                             <Card tokens={{ childrenMargin: 12, minWidth: "100%" }} >
                                 <Card.Item>
                                     <Stack horizontal horizontalAlign="space-between">
