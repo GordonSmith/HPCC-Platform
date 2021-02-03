@@ -26,7 +26,14 @@ project(nlp)
 
 if(USE_NLP)
 
-#    set (CMAKE_C_STANDARD 99)
+    include_directories(nlp-engine/cs/include)
+    include_directories(nlp-engine/include)
+    include_directories(nlp-engine/include/Api)
+    include_directories(nlp-engine/include/Api/lite)
+
+    add_subdirectory(nlp-engine/cs)
+    add_subdirectory(nlp-engine/src)
+    add_subdirectory(nlp-engine/lite)
 
     set(SRCS
         nlp.hpp
@@ -39,7 +46,6 @@ if(USE_NLP)
         ./../../rtl/include
         ./../../common/deftype
         ./../../system/jlib
-#        ./uber-nlp/src/h3lib/include
         )
 
     add_definitions(-D_USRDLL -DECL_NLP_EXPORTS)
@@ -60,6 +66,7 @@ if(USE_NLP)
     target_link_libraries(nlp
         eclrtl
         jlib
+        lite
         ${EXAMPLE_PLUGIN_DEP_LIBRARIES})
 
 endif(USE_NLP)
