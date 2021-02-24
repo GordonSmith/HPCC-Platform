@@ -375,7 +375,7 @@ export const Details: React.FunctionComponent<DetailsProps> = ({
         }
     }
 
-    return <table style={{}}>
+    return <table style={{ padding: 4 }}>
         <tbody>
             {formFields.map((ff) => {
                 return <tr key={ff.id}>

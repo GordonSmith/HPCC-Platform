@@ -63,7 +63,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
             <PivotItem headerText={wuid} itemKey="summary" style={pivotItemStyle(size)}>
                 <div style={{ height: "100%", position: "relative" }}>
                     <ReflexContainer orientation="horizontal">
-                        <ReflexElement className="left-pane">
+                        <ReflexElement style={{ borderWidth: 1, borderStyle: "solid", borderColor: "darkgray" }}>
                             <div className="pane-content">
                                 <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto}>
                                     <Sticky stickyPosition={StickyPositionType.Header}>
@@ -93,8 +93,20 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
                                 </ScrollablePane>
                             </div>
                         </ReflexElement>
-                        <ReflexSplitter />
-                        <ReflexElement propagateDimensions={true} className="right-pane" style={{ overflow: "hidden" }}>
+                        <ReflexSplitter style={{ position: "relative", height: "5px", backgroundColor: "transparent", borderStyle: "none" }}>
+                            <div style={{
+                                fontFamily: "Lucida Sans,Lucida Grande,Arial !important",
+                                fontSize: "13px !important",
+                                cursor: "row-resize",
+                                position: "absolute",
+                                left: "49%",
+                                background: "#9e9e9e",
+                                height: "1px",
+                                top: "2px",
+                                width: "19px"
+                            }}></div>
+                        </ReflexSplitter>
+                        <ReflexElement propagateDimensions={true} style={{ borderWidth: 1, borderStyle: "solid", borderColor: "darkgray", overflow: "hidden" }}>
                             <InfoGrid wuid={wuid} />
                         </ReflexElement>
                     </ReflexContainer>
