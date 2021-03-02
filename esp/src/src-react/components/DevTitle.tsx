@@ -1,6 +1,5 @@
 import * as React from "react";
-import { DefaultPalette, Icon, ILinkStyles, Image, Link, SearchBox, Stack } from "@fluentui/react";
-import { ToggleButton } from "@fluentui/react-button";
+import { DefaultPalette, ILinkStyles, Image, Link, SearchBox, Stack, Toggle } from "@fluentui/react";
 
 import nlsHPCC from "src/nlsHPCC";
 
@@ -46,7 +45,7 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
             </Stack>
         </Stack>
         <Stack horizontal tokens={{ padding: 4, childrenGap: 9 }} styles={{ root: { background: DefaultPalette.themeLighter, } }} >
-            <ToggleButton checked={debugMenu} onClick={() => setDebugMenu(!debugMenu)} iconOnly icon={<Icon iconName="Bug" styles={{ root: { colorXXX: debugMenu ? DefaultPalette.black : DefaultPalette.white } }} />} />
+            <Toggle checked={debugMenu} onClick={() => setDebugMenu(!debugMenu)} />
             {mainPage === "Main" && <>
                 <Stack.Item align="center" className="titleLink2">
                     <Link href="#/activities" styles={linkStyles}>{nlsHPCC.Activity}</Link>
