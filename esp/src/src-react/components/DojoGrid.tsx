@@ -28,6 +28,7 @@ interface DojoGridProps {
     query?: any;
     sort?: any;
     columns: any;
+    getSelected?: () => any[];
     setGrid: (_: any) => void;
     setSelection: (_: any[]) => void;
 }
@@ -38,6 +39,7 @@ export const DojoGrid: React.FunctionComponent<DojoGridProps> = ({
     query = {},
     sort,
     columns,
+    getSelected,
     setGrid,
     setSelection
 }) => {
@@ -54,7 +56,13 @@ export const DojoGrid: React.FunctionComponent<DojoGridProps> = ({
         }
     });
 
-    return <DojoComponent Widget={Grid} WidgetParams={{ deselectOnRefresh: true, store, query, sort, columns: { ...columns } }} postCreate={grid => {
+    const widgetParams = { deselectOnRefresh: true, store, query, sort, columns: { ...columns } };
+
+    if (getSelected) {
+        widgetParams["getSelected"] = getSelected;
+    }
+
+    return <DojoComponent Widget={Grid} WidgetParams={widgetParams} postCreate={grid => {
         grid.onSelectionChanged(() => setSelection(grid.getSelected()));
         setGrid(grid);
     }} />;
