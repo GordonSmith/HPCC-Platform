@@ -38,7 +38,7 @@ const Dropdown: React.FunctionComponent<DropdownProps> = ({
     return <DropdownBase key={key} label={label} className={className} defaultSelectedKey={selectedKey} onChange={onChange} placeholder={placeholder} options={selOptions} />;
 };
 
-export type FieldType = "string" | "checkbox" | "datetime" | "link" |
+export type FieldType = "string" | "number" | "checkbox" | "datetime" | "link" |
     "workunit-state" |
     "file-type" | "file-sortby" |
     "queries-suspend-state" | "queries-active-state" |
@@ -58,6 +58,13 @@ interface BaseField {
 interface StringField extends BaseField {
     type: "string";
     value?: string;
+    readonly?: boolean;
+    multiline?: boolean;
+}
+
+interface NumericField extends BaseField {
+    type: "number";
+    value?: number;
 }
 
 interface DateTimeField extends BaseField {
@@ -112,18 +119,6 @@ interface LogicalFileType extends BaseField {
 
 interface DFUWorkunitStateField extends BaseField {
     type: "dfuworkunit-state";
-    value?: string;
-}
-
-interface StringField extends BaseField {
-    type: "string";
-    value?: string;
-    readonly?: boolean;
-    multiline?: boolean;
-}
-
-interface DateTimeField extends BaseField {
-    type: "datetime";
     value?: string;
 }
 
@@ -133,57 +128,7 @@ interface LinkField extends BaseField {
     value?: undefined;
 }
 
-interface CheckboxField extends BaseField {
-    type: "checkbox";
-    value?: boolean;
-}
-
-interface WorkunitStateField extends BaseField {
-    type: "workunit-state";
-    value?: string;
-}
-
-interface FileTypeField extends BaseField {
-    type: "file-type";
-    value?: string;
-}
-
-interface FileSortByField extends BaseField {
-    type: "file-sortby";
-    value?: string;
-}
-
-interface QueriesSuspendStateField extends BaseField {
-    type: "queries-suspend-state";
-    value?: string;
-}
-
-interface QueriesActiveStateField extends BaseField {
-    type: "queries-active-state";
-    value?: string;
-}
-
-interface TargetClusterField extends BaseField {
-    type: "target-cluster";
-    value?: string;
-}
-
-interface TargetGroupField extends BaseField {
-    type: "target-group";
-    value?: string;
-}
-
-interface LogicalFileType extends BaseField {
-    type: "logicalfile-type";
-    value?: string;
-}
-
-interface DFUWorkunitStateField extends BaseField {
-    type: "dfuworkunit-state";
-    value?: string;
-}
-
-type Field = StringField | CheckboxField | DateTimeField | LinkField |
+type Field = StringField | NumericField | CheckboxField | DateTimeField | LinkField |
     WorkunitStateField |
     FileTypeField | FileSortByField |
     QueriesSuspendStateField | QueriesActiveStateField |
