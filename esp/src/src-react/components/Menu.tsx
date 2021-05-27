@@ -1,9 +1,18 @@
 import * as React from "react";
-import { INavLinkGroup, INavStyles, Nav } from "@fluentui/react";
+import { INavLink, INavLinkGroup, INavStyles, Nav } from "@fluentui/react";
 import { SizeMe } from "react-sizeme";
 import nlsHPCC from "src/nlsHPCC";
+import { hashHistory } from "../util/history";
 
 const navLinkGroups: INavLinkGroup[] = [
+    {
+        name: "Favorites",
+        links: []
+    },
+    {
+        name: "History",
+        links: []
+    },
     {
         name: "Home",
         links: [
@@ -84,10 +93,21 @@ export const DevMenu: React.FunctionComponent<DevMenuProps> = ({
 
     const fixedWidth = 240;
 
+    const [menu, setMenu] = React.useState<INavLinkGroup[]>([...navLinkGroups]);
+    React.useEffect(() => {
+        return hashHistory.listen((location, action) => {
+            navLinkGroups[1].links = hashHistory.recent().map((row): INavLink => {
+                return { url: `#${row.pathname + row.search}`, name: row.pathname };
+            });
+            setMenu([...navLinkGroups]);
+        });
+    }, []);
+
     return <SizeMe monitorHeight>{({ size }) =>
         <div style={{ width: `${fixedWidth}px`, height: "100%", position: "relative" }}>
             <div style={{ position: "absolute" }}>
-                <Nav groups={navLinkGroups} selectedKey={location} styles={navStyles(fixedWidth, size.height)} />
+                {/* <ul>{menu.map(row => <li><a href={`#${row}`}>{row}</a></li>)}</ul> */}
+                <Nav groups={menu} selectedKey={location} styles={navStyles(fixedWidth, size.height)} />
             </div>
         </div>
     }
