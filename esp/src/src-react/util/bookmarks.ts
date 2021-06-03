@@ -1,4 +1,4 @@
-import { CallbackFunction, Message, Observable } from "@hpcc-js/util";
+import { CallbackFunction, Observable } from "@hpcc-js/util";
 import { userKeyValStore } from "src/KeyValStore";
 
 const STORE_ID = "bookmark";

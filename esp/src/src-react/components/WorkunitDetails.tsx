@@ -3,8 +3,6 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, mergeStyleSet
 import { SizeMe } from "react-sizeme";
 import { ReflexContainer, ReflexSplitter, ReflexElement } from "react-reflex";
 import nlsHPCC from "src/nlsHPCC";
-import { getImageURL } from "src/Utility";
-import { getStateIconClass } from "src/ESPWorkunit";
 import { WUStatus } from "src/react/index";
 import { useWorkunit } from "../hooks/Workunit";
 import { DojoAdapter } from "../layouts/DojoAdapter";
@@ -20,6 +18,7 @@ import { Queries } from "./Queries";
 import { Resources } from "./Resources";
 import { WUXMLSourceEditor } from "./SourceEditor";
 import { Workflows } from "./Workflows";
+import { WorkunitPersona } from "./controls/StateIcon";
 
 import "react-reflex/styles.css";
 
@@ -117,8 +116,6 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
         { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
     ];
 
-    const protectedImage = getImageURL(workunit?.Protected ? "locked.png" : "unlocked.png");
-    const stateIconClass = getStateIconClass(workunit?.StateID, workunit?.isComplete(), workunit?.Archived);
     const serviceNames = workunit?.ServiceNames?.Item?.join("\n") || "";
     const resourceCount = workunit?.ResourceURLCount > 1 ? workunit?.ResourceURLCount - 1 : undefined;
 
@@ -134,11 +131,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
                                         <CommandBar items={buttons} />
                                     </Sticky>
                                     <Sticky stickyPosition={StickyPositionType.Header}>
-                                        <div style={{ display: "inline-block" }}>
-                                            <h2>
-                                                <img src={protectedImage} />&nbsp;<div className={stateIconClass}></div>&nbsp;<span className="bold">{wuid}</span>
-                                            </h2>
-                                        </div>
+                                        <WorkunitPersona wuid={wuid} />
                                         <div style={{ width: "512px", height: "64px", float: "right" }}>
                                             <WUStatus wuid={wuid}></WUStatus>
                                         </div>
