@@ -121,7 +121,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
 
     return <SizeMe monitorHeight>{({ size }) =>
         <Pivot overflowBehavior="menu" style={{ height: "100%" }} selectedKey={tab} onLinkClick={evt => pushUrl(`/workunits/${wuid}/${evt.props.itemKey}`)}>
-            <PivotItem headerText={wuid} itemKey="summary" style={pivotItemStyle(size)}>
+            <PivotItem headerText={wuid} itemKey="summary" style={pivotItemStyle(size)} >
                 <div style={{ height: "100%", position: "relative" }}>
                     <ReflexContainer orientation="horizontal">
                         <ReflexElement className={classNames.reflexScrollPane}>
