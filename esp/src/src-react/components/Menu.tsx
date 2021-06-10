@@ -1,7 +1,9 @@
 import * as React from "react";
 import { INavLink, INavLinkGroup, INavStyles, Nav } from "@fluentui/react";
+import { useConst } from "@fluentui/react-hooks";
 import { SizeMe } from "react-sizeme";
 import nlsHPCC from "src/nlsHPCC";
+import { Favorites } from "../util/bookmarks";
 import { hashHistory } from "../util/history";
 
 const navLinkGroups: INavLinkGroup[] = [
@@ -93,7 +95,25 @@ export const DevMenu: React.FunctionComponent<DevMenuProps> = ({
 
     const fixedWidth = 240;
 
+    const favorites = useConst(Favorites.attach());
     const [menu, setMenu] = React.useState<INavLinkGroup[]>([...navLinkGroups]);
+
+    async function updateFavorites() {
+        const all = await favorites.all();
+        navLinkGroups[0].links = all.map((row): INavLink => {
+            return { url: row, name: row };
+        });
+        setMenu([...navLinkGroups]);
+    }
+
+    React.useEffect(() => {
+        updateFavorites();
+        return favorites?.listen(async () => {
+            updateFavorites();
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [favorites]);
+
     React.useEffect(() => {
         return hashHistory.listen((location, action) => {
             navLinkGroups[1].links = hashHistory.recent().map((row): INavLink => {

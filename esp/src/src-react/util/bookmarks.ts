@@ -1,14 +1,13 @@
 import { CallbackFunction, Observable } from "@hpcc-js/util";
 import { userKeyValStore } from "src/KeyValStore";
 
-const STORE_ID = "bookmark";
-interface Bookmark {
-    id: string;
-    url: string;
-}
-type BookmarkMap = { [id: string]: Bookmark };
-let g_bookmarks: Bookmarks;
-export class Bookmarks {
+const STORE_ID = "favorites";
+const STORE_CACHE_TIMEOUT = 5000;
+
+type StringArray = string[];
+let g_favorites: Favorites;
+
+export class Favorites {
 
     private _store = userKeyValStore();
     private _observable = new Observable("added", "removed");
@@ -16,61 +15,62 @@ export class Bookmarks {
     private constructor() {
     }
 
-    static attach(): Bookmarks {
-        if (!g_bookmarks) {
-            g_bookmarks = new Bookmarks();
+    static attach(): Favorites {
+        if (!g_favorites) {
+            g_favorites = new Favorites();
         }
-        return g_bookmarks;
+        return g_favorites;
     }
 
-    private async pull(): Promise<BookmarkMap> {
-        return this._store.get(STORE_ID).then(str => {
-            try {
-                return JSON.parse(str);
-            } catch (e) {
-                return {};
-            }
-        });
+    private _prevPull: Promise<StringArray>;
+    private async pull(): Promise<StringArray> {
+        if (!this._prevPull) {
+            this._prevPull = this._store.get(STORE_ID).then(str => {
+                if (typeof str !== "string") return [];
+                try {
+                    return JSON.parse(str);
+                } catch (e) {
+                    return [];
+                }
+            });
+            setTimeout(() => delete this._prevPull, STORE_CACHE_TIMEOUT);
+        }
+        return this._prevPull;
     }
 
-    private async push(bms: BookmarkMap): Promise<void> {
-        return this._store.set(STORE_ID, JSON.stringify(bms));
+    private async push(favs: StringArray): Promise<void> {
+        this._prevPull = Promise.resolve(favs);
+        return this._store.set(STORE_ID, JSON.stringify(favs));
     }
 
-    async add(id: string, url: string): Promise<void> {
-        const bms = await this.pull();
-        bms[id] = { id, url };
-        await this.push(bms);
-        this._observable.dispatchEvent("added", id);
+    async has(url: string): Promise<boolean> {
+        const favs = await this.pull();
+        return favs.indexOf(url) >= 0;
     }
 
-    async remove(id: string): Promise<void> {
-        const bms = await this.pull();
-        delete bms[id];
-        await this.push(bms);
-        this._observable.dispatchEvent("removed", id);
+    async add(url: string): Promise<void> {
+        const favs = await this.pull();
+        if (favs.indexOf(url) < 0) {
+            favs.push(url);
+        }
+        this.push(favs);
+        this._observable.dispatchEvent("added", url);
     }
 
-    async all(): Promise<BookmarkMap> {
+    async remove(url: string): Promise<void> {
+        let favs = await this.pull();
+        favs = favs.filter(row => row !== url);
+        this.push(favs);
+        this._observable.dispatchEvent("removed", url);
+    }
+
+    async all(): Promise<StringArray> {
         return await this.pull();
     }
 
-    async ids(): Promise<string[]> {
-        return await this.pull().then(bms => Object.keys(bms));
-    }
-
-    async urls(): Promise<string[]> {
-        return await this.pull().then(bms => Object.values(bms).map(bm => bm.url));
-    }
-
-    async url(id: string): Promise<string> {
-        const bms = await this.pull();
-        return bms[id].url;
-    }
-
     listen(callback: CallbackFunction): () => void {
-        const added = this._observable.addObserver("added", callback);
-        const removed = this._observable.addObserver("removed", callback);
+        const added = this._observable.addObserver("added", val => callback("added", val));
+        const removed = this._observable.addObserver("removed", val => callback("removed", val));
         return () => {
             added.release();
             removed.release();

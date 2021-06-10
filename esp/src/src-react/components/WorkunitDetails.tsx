@@ -6,7 +6,8 @@ import nlsHPCC from "src/nlsHPCC";
 import { WUStatus } from "src/react/index";
 import { useWorkunit } from "../hooks/Workunit";
 import { DojoAdapter } from "../layouts/DojoAdapter";
-import { pushUrl } from "../util/history";
+import { pushUrl, hashHistory } from "../util/history";
+import { Favorites } from "../util/bookmarks";
 import { ShortVerticalDivider } from "./Common";
 import { Results } from "./Results";
 import { Variables } from "./Variables";
@@ -21,6 +22,7 @@ import { Workflows } from "./Workflows";
 import { WorkunitPersona } from "./controls/StateIcon";
 
 import "react-reflex/styles.css";
+import { useConst } from "@fluentui/react-hooks";
 
 const classNames = mergeStyleSets({
     reflexScrollPane: {
@@ -74,6 +76,16 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
     const [jobname, setJobname] = React.useState("");
     const [description, setDescription] = React.useState("");
     const [_protected, setProtected] = React.useState(false);
+    const [favorite, setFavorite] = React.useState(false);
+
+    const favorites = useConst(Favorites.attach());
+    React.useEffect(() => {
+        favorites.has(window.location.hash).then(setFavorite);
+        return favorites?.listen(() => {
+            favorites.has(window.location.hash).then(setFavorite);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [favorites, window.location.hash]);
 
     React.useEffect(() => {
         setJobname(jobname || workunit?.Jobname);
@@ -116,6 +128,19 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
         { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
     ];
 
+    const rightButtons: ICommandBarItemProps[] = [
+        {
+            key: "star", iconProps: { iconName: favorite ? "FavoriteStarFill" : "FavoriteStar" },
+            onClick: () => {
+                if (favorite) {
+                    favorites.remove(window.location.hash);
+                } else {
+                    favorites.add(window.location.hash);
+                }
+            }
+        },
+    ];
+
     const serviceNames = workunit?.ServiceNames?.Item?.join("\n") || "";
     const resourceCount = workunit?.ResourceURLCount > 1 ? workunit?.ResourceURLCount - 1 : undefined;
 
@@ -128,7 +153,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
                             <div className="pane-content">
                                 <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto}>
                                     <Sticky stickyPosition={StickyPositionType.Header}>
-                                        <CommandBar items={buttons} />
+                                        <CommandBar items={buttons} farItems={rightButtons} />
                                     </Sticky>
                                     <Sticky stickyPosition={StickyPositionType.Header}>
                                         <WorkunitPersona wuid={wuid} />
