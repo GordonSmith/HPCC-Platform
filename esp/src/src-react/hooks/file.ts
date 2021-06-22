@@ -1,7 +1,7 @@
 import * as React from "react";
 import { LogicalFile } from "@hpcc-js/comms";
 import * as WsDfu from "src/WsDfu";
-import { useCounter } from "./Workunit";
+import { useCounter } from "./workunit";
 
 export function useFile(cluster: string, name: string): [LogicalFile, number, () => void] {
 
@@ -31,7 +31,7 @@ export function useDefFile(cluster: string, name: string, format: "def" | "xml")
                 setFile(response);
             });
         }
-    }, [cluster, name]);
+    }, [cluster, format, name]);
 
     return [file];
 }

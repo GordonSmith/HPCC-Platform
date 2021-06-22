@@ -36,6 +36,7 @@ let rewrite = [
     { from: "/ws_elk/(.*)", to: protocol + "://" + ip + ":" + port + "/ws_elk/$1" },
     { from: "/esp/files/esp/reset_session_timeout", to: protocol + "://" + ip + ":" + port + "/esp/reset_session_timeout" },
     { from: "/esp/files/node_modules/@hpcc-js/(.*)/dist/index.min.js", to: "/node_modules/@hpcc-js/$1/dist/index.js" },
+    //    { from: "/esp/files/dist/graphvizlib.wasm", to: "/node_modules/@hpcc-js/graph/dist/graphvizlib.wasm" },
     { from: "/esp/files/dist/(.*)", to: "/build/dist/$1" },
     { from: "/esp/files/(.*)", to: "/$1" },
     { from: "/ws_elk/(.*)", to: protocol + "://" + ip + ":" + port + "/ws_elk/$1" },

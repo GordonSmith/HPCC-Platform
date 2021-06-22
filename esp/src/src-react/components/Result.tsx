@@ -314,7 +314,7 @@ export const Result: React.FunctionComponent<ResultProps> = ({
         main={
             <>
                 <AutosizeHpccJSComponent widget={resultTable} />
-                <Filter showFilter={showFilter} setShowFilter={setShowFilter} filterFields={filterFields} onApply={pushParams} />
+                <Filter showFilter={showFilter} setShow={setShowFilter} filterFields={filterFields} onApply={pushParams} />
             </>
         }
     />;

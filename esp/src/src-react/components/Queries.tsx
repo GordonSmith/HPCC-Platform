@@ -274,7 +274,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
         main={
             <>
                 <DojoGrid store={gridStore} query={gridQuery} sort={gridSort} columns={gridColumns} setGrid={setGrid} setSelection={setSelection} />
-                <Filter showFilter={showFilter} setShowFilter={setShowFilter} filterFields={filterFields} onApply={pushParams} />
+                <Filter showFilter={showFilter} setShow={setShowFilter} filterFields={filterFields} onApply={pushParams} />
             </>
         }
     />;
