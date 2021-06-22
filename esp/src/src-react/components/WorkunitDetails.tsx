@@ -20,6 +20,7 @@ import { Queries } from "./Queries";
 import { Resources } from "./Resources";
 import { WUXMLSourceEditor } from "./SourceEditor";
 import { Workflows } from "./Workflows";
+import { Metrics } from "./Metrics";
 import { WorkunitPersona } from "./controls/StateIcon";
 
 import "react-reflex/styles.css";
@@ -194,7 +195,10 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
             <PivotItem headerText={nlsHPCC.Inputs} itemKey="inputs" itemCount={workunit?.SourceFileCount} style={pivotItemStyle(size, 0)}>
                 <SourceFiles wuid={wuid} />
             </PivotItem>
-            <PivotItem headerText={nlsHPCC.Timers} itemKey="timers" itemCount={workunit?.TimerCount} style={pivotItemStyle(size, 0)}>
+            <PivotItem headerText={nlsHPCC.Timers} itemKey="graphNew" itemCount={workunit?.TimerCount} style={pivotItemStyle(size, 0)}>
+                <Metrics wuid={wuid} />
+            </PivotItem>
+            <PivotItem headerText={nlsHPCC.Timers + " (L)"} itemKey="timers" itemCount={workunit?.TimerCount} style={pivotItemStyle(size, 0)}>
                 <DojoAdapter widgetClassID="TimingPageWidget" params={{ Wuid: wuid }} />
             </PivotItem>
             <PivotItem headerText={nlsHPCC.Graphs} itemKey="graphs" itemCount={workunit?.GraphCount} style={pivotItemStyle(size, 0)}>

@@ -52,6 +52,7 @@
     "@hpcc-js/react": "^2.32.0",
     "@hpcc-js/tree": "^2.22.0",
     "@hpcc-js/util": "^2.30.0",
+    "@hpcc-js/wasm": "1.5.2",
     "@material-ui/core": "^4.11.4",
     "@material-ui/icons": "^4.11.2",
     "@material-ui/lab": "^4.0.0-alpha.58",

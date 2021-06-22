@@ -272,6 +272,9 @@ export abstract class WUScopeControllerBase<ISubgraph, IVertex, IEdge, IGraphDat
                         ScopeType: "dummy-edge",
                         Properties: {
                             Property: [vertex._.attr("Label")]
+                        },
+                        Notes: {
+                            Note: []
                         }
                     });
                 });
@@ -718,6 +721,9 @@ export class WUScopeController extends WUScopeControllerBase<Subgraph, VertexTyp
                                     Creator: "",
                                     CreatorType: ""
                                 }]
+                            },
+                            Notes: {
+                                Note: []
                             }
                         };
                         const dummyScope = new BaseScope(dummyDetails);
@@ -732,6 +738,9 @@ export class WUScopeController extends WUScopeControllerBase<Subgraph, VertexTyp
                                         ScopeType: "dummy-in",
                                         Properties: {
                                             Property: []
+                                        },
+                                        Notes: {
+                                            Note: []
                                         }
                                     });
                                     console.log(dummyEdgeScope.Id);
@@ -746,6 +755,9 @@ export class WUScopeController extends WUScopeControllerBase<Subgraph, VertexTyp
                                         ScopeType: "dummy-out",
                                         Properties: {
                                             Property: []
+                                        },
+                                        Notes: {
+                                            Note: []
                                         }
                                     });
                                     console.log(dummyEdgeScope.Id);
