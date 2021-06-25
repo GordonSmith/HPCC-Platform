@@ -1,6 +1,7 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Pivot, PivotItem } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
+import { graphviz } from "@hpcc-js/wasm";
 import * as Observable from "dojo/store/Observable";
 import { Memory } from "src/Memory";
 import nlsHPCC from "src/nlsHPCC";
@@ -8,6 +9,7 @@ import { WUTimelinePatched } from "src/Timings";
 import { useWorkunitMetrics } from "../hooks/Workunit";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
+import { createGraph, graphTpl, MetricGraph } from "../util/metricGraph";
 import { createCopyDownloadSelection, ShortVerticalDivider } from "./Common";
 import { DojoGrid } from "./DojoGrid";
 
@@ -26,7 +28,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const [grid, setGrid] = React.useState<any>(undefined);
     const [selection, setSelection] = React.useState([]);
     const [uiState, setUIState] = React.useState({ ...defaultUIState });
-    const [metrics, _columns, _attributes, _measures, _scopeTypes] = useWorkunitMetrics(wuid);
+    const [metrics, _columns, _activities, _properties, _measures, _scopeTypes, _scopes] = useWorkunitMetrics(wuid);
 
     //  Command Bar  ---
     const buttons: ICommandBarItemProps[] = [
@@ -133,13 +135,37 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gridStore, metrics]);
 
+    const metricGraph = useConst(new MetricGraph());
+
+    React.useEffect(() => {
+        if (metrics.length) {
+            const graph = createGraph(metrics);
+            const dot = graphTpl(graph);
+            graphviz.dot(dot).then(svg => {
+                metricGraph
+                    .svg(svg)
+                    .resize()
+                    .lazyRender()
+                    ;
+            }).catch(e => {
+                //                debugger;
+            });
+        }
+    }, [metricGraph, metrics]);
+
     return <HolyGrail
         header={<CommandBar items={buttons} overflowButtonProps={{}} farItems={rightButtons} />}
         main={
             <HolyGrail
                 header={<AutosizeHpccJSComponent widget={timings} fixedHeight="160px" />}
                 main={<DojoGrid store={gridStore} query={gridQuery} sort={gridSort} columns={gridColumns} setGrid={setGrid} setSelection={setSelection} />}
-                right={<div style={{ minWidth: 240 }}>Properties</div>}
+                right={<Pivot overflowBehavior="menu" style={{ width: "480px", height: "800px" }}>
+                    <PivotItem headerText={nlsHPCC.Graph} itemKey="graph" style={{ height: "600px" }}>
+                        <AutosizeHpccJSComponent widget={metricGraph} />
+                    </PivotItem>
+                    <PivotItem headerText={nlsHPCC.Properties} itemKey="properties">
+                    </PivotItem>
+                </Pivot >}
             />
         }
     />;

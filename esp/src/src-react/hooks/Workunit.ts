@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useConst } from "@fluentui/react-hooks";
-import { Workunit, Result, WUStateID, WUInfo, WorkunitsService, WUDetailsMeta } from "@hpcc-js/comms";
+import { Workunit, Result, WUStateID, WUInfo, WorkunitsService, WUDetailsMeta, WUDetails, Scope } from "@hpcc-js/comms";
 import nlsHPCC from "src/nlsHPCC";
 import * as Utility from "src/Utility";
 
@@ -13,33 +13,27 @@ export function useCounter(): [number, () => void] {
 
 export function useWorkunit(wuid: string, full: boolean = false): [Workunit, WUStateID, number] {
 
-    const [workunit, setWorkunit] = React.useState<Workunit>();
-    const [state, setState] = React.useState<WUStateID>();
-    const [lastUpdate, setLastUpdate] = React.useState(Date.now());
+    const [retVal, setRetVal] = React.useState<{ workunit: Workunit, state: number, lastUpdate: number }>();
 
     React.useEffect(() => {
         const wu = Workunit.attach({ baseUrl: "" }, wuid);
-        const handle = wu.watch(() => {
-            if (wu.StateID !== 999) {
-                if (full) {
-                    wu.refresh(true).then(() => {
-                        setWorkunit(wu);
-                        setState(wu.StateID);
-                    });
-                } else {
-                    setState(wu.StateID);
-                }
-                setLastUpdate(Date.now());
+        let active = true;
+        let handle;
+        wu.refresh(full).then(() => {
+            if (active) {
+                setRetVal({ workunit: wu, state: wu.StateID, lastUpdate: Date.now() });
+                handle = wu.watch(() => {
+                    setRetVal({ workunit: wu, state: wu.StateID, lastUpdate: Date.now() });
+                });
             }
         });
-        setWorkunit(wu);
-        setLastUpdate(Date.now());
         return () => {
-            handle.release();
+            active = false;
+            handle?.release();
         };
     }, [wuid, full]);
 
-    return [workunit, state, lastUpdate];
+    return [retVal?.workunit, retVal?.state, retVal?.lastUpdate];
 }
 
 export function useWorkunitResults(wuid: string): [Result[], Workunit, WUStateID] {
@@ -286,7 +280,7 @@ export function useWorkunitHelpers(wuid: string): [HelperRow[]] {
     return [helpers];
 }
 
-export function useWorkunitMetrics(wuid: string): [any[], { [id: string]: any }, WUDetailsMeta.Activity[], WUDetailsMeta.Property[], string[], string[], () => void] {
+export function useWorkunitMetrics(wuid: string): [any[], { [id: string]: any }, WUDetailsMeta.Activity[], WUDetailsMeta.Property[], string[], string[], WUDetails.Scope[], () => void] {
 
     const [workunit, state] = useWorkunit(wuid);
     const [data, setData] = React.useState<any[]>([]);
@@ -295,6 +289,7 @@ export function useWorkunitMetrics(wuid: string): [any[], { [id: string]: any },
     const [properties, setProperties] = React.useState<WUDetailsMeta.Property[]>([]);
     const [measures, setMeasures] = React.useState<string[]>([]);
     const [scopeTypes, setScopeTypes] = React.useState<string[]>([]);
+    const [scopes, setScopes] = React.useState<WUDetails.Scope[]>([]);
     const [count, increment] = useCounter();
 
     React.useEffect(() => {
@@ -336,8 +331,9 @@ export function useWorkunitMetrics(wuid: string): [any[], { [id: string]: any },
             setProperties(response?.meta?.Properties?.Property || []);
             setMeasures(response?.meta?.Measures?.Measure || []);
             setScopeTypes(response?.meta?.ScopeTypes?.ScopeType || []);
+            setScopes(response?.scopes?.map(rawScope => new Scope(workunit, rawScope)) || []);
         });
     }, [workunit, state, count]);
 
-    return [data, columns, activities, properties, measures, scopeTypes, increment];
+    return [data, columns, activities, properties, measures, scopeTypes, scopes, increment];
 }
