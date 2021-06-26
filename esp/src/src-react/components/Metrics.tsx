@@ -28,6 +28,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const [grid, setGrid] = React.useState<any>(undefined);
     const [selection, setSelection] = React.useState([]);
     const [uiState, setUIState] = React.useState({ ...defaultUIState });
+    const [timelineFilter, setTimelineFilter] = React.useState("");
     const [metrics, _columns, _activities, _properties, _measures, _scopeTypes, _scopes] = useWorkunitMetrics(wuid);
 
     //  Command Bar  ---
@@ -91,6 +92,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             }
         })
         .on("click", (row, col, sel) => {
+            setTimelineFilter(sel ? row[6].ScopeName : "");
         })
     );
 
@@ -123,7 +125,9 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     }, [selection]);
 
     React.useEffect(() => {
-        gridStore.setData(metrics.map((row, idx) => {
+        gridStore.setData(metrics.filter(row => {
+            return timelineFilter === "" || row?.name?.indexOf(timelineFilter) === 0;
+        }).map((row, idx) => {
             return {
                 __hpcc_id: idx,
                 Type: row.type,
@@ -133,14 +137,19 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         }));
         refreshTable();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gridStore, metrics]);
+    }, [gridStore, metrics, timelineFilter]);
 
     const metricGraph = useConst(new MetricGraph());
 
+    const [graph, setGraph] = React.useState(createGraph([]));
+
     React.useEffect(() => {
-        if (metrics.length) {
-            const graph = createGraph(metrics);
-            const dot = graphTpl(graph);
+        setGraph(createGraph(metrics));
+    }, [metrics]);
+
+    React.useEffect(() => {
+        if (metrics.length && selection.length) {
+            const dot = graphTpl(graph, selection[0]?.__hpcc_row?.id);
             graphviz.dot(dot).then(svg => {
                 metricGraph
                     .svg(svg)
@@ -151,7 +160,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                 //                debugger;
             });
         }
-    }, [metricGraph, metrics]);
+    }, [graph, metricGraph, metrics, selection]);
 
     return <HolyGrail
         header={<CommandBar items={buttons} overflowButtonProps={{}} farItems={rightButtons} />}

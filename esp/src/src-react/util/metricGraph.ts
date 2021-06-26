@@ -7,7 +7,7 @@ interface IScope {
     id: string;
     name: string;
     type: string;
-    // [key: string]: any;
+    [key: string]: any;
 }
 
 interface IScopeEdge extends IScope {
@@ -18,9 +18,24 @@ interface IScopeEdge extends IScope {
 class GraphContainer extends Graph2<IScope, IScopeEdge, IScope> {
 }
 
-const vertexTpl = (v: IScope): string => `"${v.id}" [id="${v.id}" label="${v.id}"]`;
+const decodeHTML = function (str?: string) {
+    return str?.replace(/&apos;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&gt;/g, ">")
+        .replace(/&lt;/g, "<")
+        .replace(/&amp;/g, "&");
+};
 
-const edgeTpl = (e: IScopeEdge) => `"${e.IdSource}" -> "${e.IdTarget}" [id="${e.id}", label="${e.id}"]`;
+const vertexTpl = (v: IScope): string => {
+    return `"${v.id}" [id="${v.id}",label="[${decodeHTML(v.Kind)}]\n${decodeHTML(v.Label) || v.id}"]`;
+};
+
+const edgeTpl = (g: GraphContainer, e: IScopeEdge) => {
+    if (g.vertex(e.IdSource).Kind === "22") {
+        return "";
+    }
+    return `"${e.IdSource}" -> "${e.IdTarget}" [id="${e.id}", label=""]`;
+};
 
 const subgraphTpl = (g: GraphContainer, sg: IScope): string => {
     const childTpls: string[] = [];
@@ -31,9 +46,12 @@ const subgraphTpl = (g: GraphContainer, sg: IScope): string => {
         childTpls.push(vertexTpl(child));
     });
     g.subgraphEdges(sg.id).forEach(child => {
-        childTpls.push(edgeTpl(child));
+        childTpls.push(edgeTpl(g, child));
     });
     return `subgraph cluster_${sg.id} {
+color="darkgrey";
+fillcolor="white";
+style="filled";
 id="${sg.id}";
 label="${sg.id}";
 // margin=16;
@@ -44,16 +62,21 @@ ${childTpls.join("\n")}
 export const graphTpl = (g: GraphContainer, root?: string) => {
     const childTpls: string[] = [];
     if (root) {
-        g.subgraphSubgraphs(root).forEach(child => {
-            childTpls.push(subgraphTpl(g, child));
-        });
-        g.subgraphVertices(root).forEach(child => {
-            childTpls.push(vertexTpl(child));
-        });
-        g.subgraphEdges(root).forEach(child => {
-            childTpls.push(edgeTpl(child));
-        });
+        if (g.subgraphExists(root)) {
+            childTpls.push(subgraphTpl(g, g.subgraph(root)));
+        } else {
+            const item = g.item(root);
+            if (item?.__parentID) {
+                childTpls.push(subgraphTpl(g, g.subgraph(item.__parentID)));
+            } else {
+                all();
+            }
+        }
     } else {
+        all();
+    }
+
+    function all() {
         g.subgraphs().filter(sg => sg.__parentID === undefined).forEach(child => {
             childTpls.push(subgraphTpl(g, child));
         });
@@ -61,14 +84,16 @@ export const graphTpl = (g: GraphContainer, root?: string) => {
             childTpls.push(vertexTpl(child));
         });
         g.edges().filter(e => e.__parentID === undefined).forEach(child => {
-            childTpls.push(edgeTpl(child));
+            childTpls.push(edgeTpl(g, child));
         });
     }
     return `\
 digraph G {
-    // graph [fontname=Verdana,fontsize=11.0];
+    graph [fontname="Verdana"];//,fontsize=11.0];
     // graph [rankdir=TB];
     // node [shape=rect,fontname=Verdana,fontsize=11.0,fixedsize=true];
+    node [color="darkgrey", fontname="Verdana", fillcolor="whitesmoke", style="filled"]
+    edge [color="darkgrey"]
     // edge [fontname=Verdana,fontsize=11.0];
     
     ${childTpls.join("\n")}
@@ -154,15 +179,6 @@ export class MetricGraph extends SVGZoomWidget {
         this._svg = _;
         return this;
     }
-    enterXXX(domNode, element) {
-        super.enter(domNode, element);
-        this._renderElement.append("circle")
-            .attr("cx", 50)
-            .attr("cy", 50)
-            .attr("r", 40)
-            .attr("fill", "red")
-            ;
-    }
 
     protected _prevSvg;
     update(domNode, element) {
@@ -170,10 +186,15 @@ export class MetricGraph extends SVGZoomWidget {
         if (this._prevSvg !== this._svg) {
             const startPos = this._svg.indexOf("<g id=");
             const endPos = this._svg.indexOf("</svg>");
-            const xxx = this._svg.substring(startPos, endPos);
-            console.log(xxx);
             this._renderElement.html(this._svg.substring(startPos, endPos));
             this._prevSvg = this._svg;
+            setTimeout(() => {
+                this.zoomToFit();
+                this._renderElement.selectAll(".node,.cluster")
+                    .on("click", function () {
+                        console.log(this.id);
+                    });
+            }, 0);
         }
     }
 }
