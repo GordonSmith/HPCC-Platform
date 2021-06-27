@@ -1,17 +1,16 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Pivot, PivotItem } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
+import { DockPanel } from "@hpcc-js/phosphor";
+import { Table } from "@hpcc-js/dgrid";
 import { graphviz } from "@hpcc-js/wasm";
-import * as Observable from "dojo/store/Observable";
-import { Memory } from "src/Memory";
 import nlsHPCC from "src/nlsHPCC";
 import { WUTimelinePatched } from "src/Timings";
 import { useWorkunitMetrics } from "../hooks/Workunit";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { createGraph, graphTpl, MetricGraph } from "../util/metricGraph";
-import { createCopyDownloadSelection, ShortVerticalDivider } from "./Common";
-import { DojoGrid } from "./DojoGrid";
+import { ShortVerticalDivider } from "./Common";
 
 const defaultUIState = {
     hasSelection: false
@@ -25,39 +24,31 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     wuid
 }) => {
 
-    const [grid, setGrid] = React.useState<any>(undefined);
-    const [selection, setSelection] = React.useState([]);
-    const [uiState, setUIState] = React.useState({ ...defaultUIState });
+    const [uiState, _setUIState] = React.useState({ ...defaultUIState });
     const [timelineFilter, setTimelineFilter] = React.useState("");
+    const [graph] = React.useState(createGraph([]));
     const [metrics, _columns, _activities, _properties, _measures, _scopeTypes, _scopes] = useWorkunitMetrics(wuid);
 
     //  Command Bar  ---
     const buttons: ICommandBarItemProps[] = [
         {
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
-            onClick: () => refreshTable()
+            onClick: () => { }
         },
         { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
             onClick: () => {
-                if (selection.length === 1) {
-                    window.location.href = `#/files/${selection[0].Name}`;
-                } else {
-                    for (let i = selection.length - 1; i >= 0; --i) {
-                        window.open(`#/files/${selection[i].Name}`, "_blank");
-                    }
-                }
             }
         },
     ];
 
     const rightButtons: ICommandBarItemProps[] = [
-        ...createCopyDownloadSelection(grid, selection, "sourcefiles.csv")
+        // ...createCopyDownloadSelection(grid, selection, "sourcefiles.csv")
     ];
 
     //  Timeline ---
-    const timings = useConst(new WUTimelinePatched()
+    const timeline = useConst(() => new WUTimelinePatched()
         .maxZoom(Number.MAX_SAFE_INTEGER)
         .overlapTolerence(1)
         .baseUrl("")
@@ -96,60 +87,56 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         })
     );
 
-    //  Grid ---
-    const gridStore = useConst(new Observable(new Memory("__hpcc_id")));
-    const gridSort = useConst([{ attribute: "__hpcc_id", descending: false }]);
-    const gridQuery = useConst({});
-    const gridColumns = useConst({
-        __hpcc_id: { label: "##", width: 64, sortable: true },
-        Type: { label: nlsHPCC.Type, width: 120, sortable: true },
-        Scope: { label: nlsHPCC.Scope, sortable: true },
-    });
-
-    const refreshTable = (clearSelection = false) => {
-        grid?.set("query", gridQuery);
-        if (clearSelection) {
-            grid?.clearSelection();
-        }
-    };
-
-    //  Selection  ---
-    React.useEffect(() => {
-        const state = { ...defaultUIState };
-
-        for (let i = 0; i < selection.length; ++i) {
-            state.hasSelection = true;
-            break;
-        }
-        setUIState(state);
-    }, [selection]);
+    //  Scopes Table  ---
+    const scopesTable = useConst(() => new Table()
+        .columns(["##", nlsHPCC.Type, nlsHPCC.Scope])
+        .on("click", (row, col, sel) => {
+            updatePropsTable(sel ? [row.__lparam] : []);
+            updateMetricGraph(sel ? [row.__lparam] : []);
+        })
+    );
 
     React.useEffect(() => {
-        gridStore.setData(metrics.filter(row => {
+        scopesTable.data(metrics.filter(row => {
             return timelineFilter === "" || row?.name?.indexOf(timelineFilter) === 0;
         }).map((row, idx) => {
-            return {
-                __hpcc_id: idx,
-                Type: row.type,
-                Scope: row.name,
-                __hpcc_row: row
-            };
-        }));
-        refreshTable();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gridStore, metrics, timelineFilter]);
+            return [idx, row.type, row.name, row];
+        })).lazyRender();
+    }, [metrics, scopesTable, timelineFilter]);
 
-    const metricGraph = useConst(new MetricGraph());
+    //  Props Table  ---
+    const propsTable = useConst(() => new Table()
+        .columns([nlsHPCC.Property, nlsHPCC.Value])
+    );
 
-    const [graph, setGraph] = React.useState(createGraph([]));
+    const updatePropsTable = selection => {
+        const props = [];
+        for (const key in selection[0]) {
+            props.push([key, selection[0][key]]);
+        }
+        propsTable
+            ?.data(props)
+            ?.lazyRender()
+            ;
+    };
+
+    //  Graph  ---
+    const metricGraph = useConst(() => new MetricGraph()
+        .zoomToFitLimit(1)
+        .on("click", (row, col, sel) => {
+            const item = graph.item(row.id);
+            updatePropsTable([item]);
+            // scopesTable.selection([item]).lazyRender();
+        })
+    );
 
     React.useEffect(() => {
-        setGraph(createGraph(metrics));
-    }, [metrics]);
+        createGraph(metrics, graph);
+    }, [metrics, graph]);
 
-    React.useEffect(() => {
-        if (metrics.length && selection.length) {
-            const dot = graphTpl(graph, selection[0]?.__hpcc_row?.id);
+    const updateMetricGraph = selection => {
+        if (selection.length) {
+            const dot = graphTpl(graph, selection[0]?.id);
             graphviz.dot(dot).then(svg => {
                 metricGraph
                     .svg(svg)
@@ -157,25 +144,20 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                     .lazyRender()
                     ;
             }).catch(e => {
-                //                debugger;
             });
         }
-    }, [graph, metricGraph, metrics, selection]);
+    };
+
+    //  DockPanel ---
+    const dockPanel = useConst(() => new DockPanel()
+        .addWidget(timeline, nlsHPCC.Timings)
+        .addWidget(scopesTable, nlsHPCC.Scope, "split-bottom")
+        .addWidget(metricGraph, nlsHPCC.Graph, "split-right", scopesTable)
+        .addWidget(propsTable, nlsHPCC.Properties, "split-bottom", scopesTable)
+    );
 
     return <HolyGrail
         header={<CommandBar items={buttons} overflowButtonProps={{}} farItems={rightButtons} />}
-        main={
-            <HolyGrail
-                header={<AutosizeHpccJSComponent widget={timings} fixedHeight="160px" />}
-                main={<DojoGrid store={gridStore} query={gridQuery} sort={gridSort} columns={gridColumns} setGrid={setGrid} setSelection={setSelection} />}
-                right={<Pivot overflowBehavior="menu" style={{ width: "480px", height: "800px" }}>
-                    <PivotItem headerText={nlsHPCC.Graph} itemKey="graph" style={{ height: "600px" }}>
-                        <AutosizeHpccJSComponent widget={metricGraph} />
-                    </PivotItem>
-                    <PivotItem headerText={nlsHPCC.Properties} itemKey="properties">
-                    </PivotItem>
-                </Pivot >}
-            />
-        }
+        main={<AutosizeHpccJSComponent widget={dockPanel} />}
     />;
 };

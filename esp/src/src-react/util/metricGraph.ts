@@ -16,6 +16,7 @@ interface IScopeEdge extends IScope {
 }
 
 class GraphContainer extends Graph2<IScope, IScopeEdge, IScope> {
+
 }
 
 const decodeHTML = function (str?: string) {
@@ -101,8 +102,8 @@ digraph G {
 }`;
 };
 
-export function createGraph(data: any[]): GraphContainer {
-    const gc = new GraphContainer();
+export function createGraph(data: any[], gc = new GraphContainer()): GraphContainer {
+    gc.clear();
     gc.idFunc(scope => scope.id);
     gc.sourceFunc(scope => scope.IdSource);
     gc.targetFunc(scope => scope.IdTarget);
@@ -188,13 +189,18 @@ export class MetricGraph extends SVGZoomWidget {
             const endPos = this._svg.indexOf("</svg>");
             this._renderElement.html(this._svg.substring(startPos, endPos));
             this._prevSvg = this._svg;
+            const context = this;
             setTimeout(() => {
                 this.zoomToFit();
                 this._renderElement.selectAll(".node,.cluster")
                     .on("click", function () {
-                        console.log(this.id);
+                        context.click({ id: this.id }, "id", true);
                     });
             }, 0);
         }
+    }
+
+    //  Events  ---
+    click(row, col, sel) {
     }
 }
