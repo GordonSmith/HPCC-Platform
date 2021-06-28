@@ -3,6 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluen
 import { useConst } from "@fluentui/react-hooks";
 import { DockPanel } from "@hpcc-js/phosphor";
 import { Table } from "@hpcc-js/dgrid";
+import { chain, group, map, sort } from "@hpcc-js/dataflow";
 import { graphviz } from "@hpcc-js/wasm";
 import nlsHPCC from "src/nlsHPCC";
 import { WUTimelinePatched } from "src/Timings";
@@ -11,6 +12,15 @@ import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { createGraph, graphTpl, MetricGraph } from "../util/metricGraph";
 import { ShortVerticalDivider } from "./Common";
+import { Filter } from "./forms/Filter";
+import { Fields } from "./forms/Fields";
+import { pushParams } from "../util/history";
+
+const scopeTypePipeline = chain(
+    group<any>(row => row.type),
+    map(row => [row.key, row.value.length] as [string, number]),
+    sort((l, r) => l[0].localeCompare(r[0])),
+);
 
 const defaultUIState = {
     hasSelection: false
@@ -18,16 +28,24 @@ const defaultUIState = {
 
 interface MetricsProps {
     wuid: string;
+    filter?: object;
 }
 
+const emptyFilter = {};
+
 export const Metrics: React.FunctionComponent<MetricsProps> = ({
-    wuid
+    wuid,
+    filter = emptyFilter
 }) => {
 
-    const [uiState, _setUIState] = React.useState({ ...defaultUIState });
+    const [_uiState, _setUIState] = React.useState({ ...defaultUIState });
     const [timelineFilter, setTimelineFilter] = React.useState("");
     const [graph] = React.useState(createGraph([]));
-    const [metrics, _columns, _activities, _properties, _measures, _scopeTypes, _scopes] = useWorkunitMetrics(wuid);
+    const [metrics, _columns, _activities, _properties, _measures, _scopeTypes] = useWorkunitMetrics(wuid);
+    const [scopeTypes, setScopeTypes] = React.useState([]);
+    const [scopeProperties, setScopeProperties] = React.useState([]);
+    const [showFilter, setShowFilter] = React.useState(false);
+    const [showProperties, setShowProperties] = React.useState(false);
 
     //  Command Bar  ---
     const buttons: ICommandBarItemProps[] = [
@@ -37,8 +55,15 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         },
         { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
         {
-            key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
+            key: "filter", text: nlsHPCC.Scope, iconProps: { iconName: "Filter" },
             onClick: () => {
+                setShowFilter(true);
+            }
+        },
+        {
+            key: "props", text: nlsHPCC.Properties, iconProps: { iconName: "Filter" },
+            onClick: () => {
+                setShowProperties(true);
             }
         },
     ];
@@ -88,6 +113,8 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     );
 
     //  Scopes Table  ---
+    const hasFilter = Object.keys(filter).length > 0;
+    // const filterStr = JSON.stringify(filter);
     const scopesTable = useConst(() => new Table()
         .columns(["##", nlsHPCC.Type, nlsHPCC.Scope])
         .on("click", (row, col, sel) => {
@@ -97,12 +124,20 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     );
 
     React.useEffect(() => {
+        const scopeProps = {};
         scopesTable.data(metrics.filter(row => {
-            return timelineFilter === "" || row?.name?.indexOf(timelineFilter) === 0;
+            return (timelineFilter === "" || row.name?.indexOf(timelineFilter) === 0) &&
+                (!hasFilter || filter[row.type]);
         }).map((row, idx) => {
+            for (const key in row) {
+                scopeProps[key] = true;
+            }
             return [idx, row.type, row.name, row];
         })).lazyRender();
-    }, [metrics, scopesTable, timelineFilter]);
+
+        setScopeTypes([...scopeTypePipeline(metrics)]);
+        setScopeProperties(Object.keys(scopeProps));
+    }, [hasFilter, metrics, scopesTable, timelineFilter, filter]);
 
     //  Props Table  ---
     const propsTable = useConst(() => new Table()
@@ -150,14 +185,32 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
 
     //  DockPanel ---
     const dockPanel = useConst(() => new DockPanel()
-        .addWidget(timeline, nlsHPCC.Timings)
-        .addWidget(scopesTable, nlsHPCC.Scope, "split-bottom")
+        .addWidget(scopesTable, nlsHPCC.Scope)
         .addWidget(metricGraph, nlsHPCC.Graph, "split-right", scopesTable)
         .addWidget(propsTable, nlsHPCC.Properties, "split-bottom", scopesTable)
     );
 
+    //  Filter  ---
+    const filterFields: Fields = {};
+    for (const field of scopeTypes) {
+        filterFields[field[0]] = { type: "checkbox", label: field[0], value: hasFilter ? filter[field[0]] : true };
+    }
+
+    //  Properties  ---
+    const propFields: Fields = {};
+    for (const field of scopeProperties) {
+        propFields[field] = { type: "checkbox", label: field, value: true };
+    }
+
     return <HolyGrail
-        header={<CommandBar items={buttons} overflowButtonProps={{}} farItems={rightButtons} />}
-        main={<AutosizeHpccJSComponent widget={dockPanel} />}
+        header={<>
+            <CommandBar items={buttons} overflowButtonProps={{}} farItems={rightButtons} />
+            <AutosizeHpccJSComponent widget={timeline} fixedHeight={"160px"} padding={4} />
+        </>}
+        main={
+            <><AutosizeHpccJSComponent widget={dockPanel} padding={4} />
+                <Filter showFilter={showFilter} setShowFilter={setShowFilter} filterFields={filterFields} onApply={pushParams} />
+                <Filter showFilter={showProperties} setShowFilter={setShowProperties} filterFields={propFields} onApply={() => { }} />
+            </>}
     />;
 };

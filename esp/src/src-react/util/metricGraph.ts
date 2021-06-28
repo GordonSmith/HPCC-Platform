@@ -1,6 +1,36 @@
 import { SVGZoomWidget } from "@hpcc-js/common";
 import { Graph2 } from "@hpcc-js/util";
 
+const KindShape = {
+    2: "cylinder",          //  Disk Write
+    3: "tripleoctagon",     //  Local Sort
+    5: "invtrapezium",      //  Filter
+    6: "diamond",           //  Split
+    7: "trapezium",         //  Project
+    16: "cylinder",         //  Output
+    17: "invtrapezium",     //  Funnel
+    19: "doubleoctagon",    //  Skew Distribute
+    22: "cylinder",         //
+    28: "diamond",          //  If
+    71: "cylinder",         //  Disk Read
+    73: "cylinder",         //  Disk Aggregate Spill
+    74: "cylinder",         //  Disk Exists
+    94: "cylinder",         //  Local Result
+    125: "circle",          //  Count
+    133: "cylinder",        //  Inline Dataset
+    146: "doubleoctagon",   //  Distribute Merge
+    148: "cylinder",        //  Inline Dataset
+    155: "invhouse",        //  Join
+    161: "invhouse",        //  Smart Join
+    185: "invhouse",        //  Smart Denormalize Group
+    195: "cylinder",        //  Spill Read
+    196: "cylinder",        //  Spill Write
+};
+
+function shape(kind: string) {
+    return KindShape[kind] || "rectangle";
+}
+
 interface IScope {
     __parentID: string;
     __funcs: IScope[];
@@ -28,14 +58,14 @@ const decodeHTML = function (str?: string) {
 };
 
 const vertexTpl = (v: IScope): string => {
-    return `"${v.id}" [id="${v.id}",label="[${decodeHTML(v.Kind)}]\n${decodeHTML(v.Label) || v.id}"]`;
+    return `"${v.id}" [id="${v.id}" label="[${decodeHTML(v.Kind)}]\n${decodeHTML(v.Label) || v.id}" shape="${shape(decodeHTML(v.Kind))}"]`;
 };
 
 const edgeTpl = (g: GraphContainer, e: IScopeEdge) => {
     if (g.vertex(e.IdSource).Kind === "22") {
         return "";
     }
-    return `"${e.IdSource}" -> "${e.IdTarget}" [id="${e.id}", label=""]`;
+    return `"${e.IdSource}" -> "${e.IdTarget}" [id="${e.id}" label="" style="${g.vertexParent(e.IdSource) === g.vertexParent(e.IdTarget) ? "solid" : "dashed"}"]`;
 };
 
 const subgraphTpl = (g: GraphContainer, sg: IScope): string => {
@@ -78,24 +108,24 @@ export const graphTpl = (g: GraphContainer, root?: string) => {
     }
 
     function all() {
-        g.subgraphs().filter(sg => sg.__parentID === undefined).forEach(child => {
+        g.subgraphs().forEach(child => {
             childTpls.push(subgraphTpl(g, child));
         });
-        g.vertices().filter(v => v.__parentID === undefined).forEach(child => {
+        g.vertices().forEach(child => {
             childTpls.push(vertexTpl(child));
         });
-        g.edges().filter(e => e.__parentID === undefined).forEach(child => {
+        g.edges().forEach(child => {
             childTpls.push(edgeTpl(g, child));
         });
     }
     return `\
 digraph G {
-    graph [fontname="Verdana"];//,fontsize=11.0];
+    graph [fontname="arial"];// fontsize=11.0];
     // graph [rankdir=TB];
-    // node [shape=rect,fontname=Verdana,fontsize=11.0,fixedsize=true];
-    node [color="darkgrey", fontname="Verdana", fillcolor="whitesmoke", style="filled"]
+    // node [shape=rect fontname=arial fontsize=11.0 fixedsize=true];
+    node [color="darkgrey" fontname="arial" fillcolor="whitesmoke" style="filled" margin=0.2]
     edge [color="darkgrey"]
-    // edge [fontname=Verdana,fontsize=11.0];
+    // edge [fontname=arial fontsize=11.0];
     
     ${childTpls.join("\n")}
     
@@ -185,13 +215,14 @@ export class MetricGraph extends SVGZoomWidget {
     update(domNode, element) {
         super.update(domNode, element);
         if (this._prevSvg !== this._svg) {
+            // this.zoomTo([0, 0], 1, 0);
             const startPos = this._svg.indexOf("<g id=");
             const endPos = this._svg.indexOf("</svg>");
             this._renderElement.html(this._svg.substring(startPos, endPos));
             this._prevSvg = this._svg;
             const context = this;
             setTimeout(() => {
-                this.zoomToFit();
+                this.zoomToFit(0);
                 this._renderElement.selectAll(".node,.cluster")
                     .on("click", function () {
                         context.click({ id: this.id }, "id", true);

@@ -59,11 +59,15 @@ const classNames = mergeStyleSets({
 interface WorkunitDetailsProps {
     wuid: string;
     tab?: string;
+    filter?: object;
 }
+
+const emptyFilter = {};
 
 export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
     wuid,
-    tab = "summary"
+    tab = "summary",
+    filter = emptyFilter
 }) => {
 
     const [workunit] = useWorkunit(wuid, true);
@@ -196,7 +200,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
                 <SourceFiles wuid={wuid} />
             </PivotItem>
             <PivotItem headerText={nlsHPCC.Timers} itemKey="graphNew" itemCount={workunit?.TimerCount} style={pivotItemStyle(size, 0)}>
-                <Metrics wuid={wuid} />
+                <Metrics wuid={wuid} filter={filter} />
             </PivotItem>
             <PivotItem headerText={nlsHPCC.Timers + " (L)"} itemKey="timers" itemCount={workunit?.TimerCount} style={pivotItemStyle(size, 0)}>
                 <DojoAdapter widgetClassID="TimingPageWidget" params={{ Wuid: wuid }} />

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useConst } from "@fluentui/react-hooks";
-import { Workunit, Result, WUStateID, WUInfo, WorkunitsService, WUDetailsMeta, WUDetails, Scope } from "@hpcc-js/comms";
+import { Workunit, Result, WUStateID, WUInfo, WorkunitsService, WUDetailsMeta } from "@hpcc-js/comms";
 import nlsHPCC from "src/nlsHPCC";
 import * as Utility from "src/Utility";
 
@@ -280,7 +280,7 @@ export function useWorkunitHelpers(wuid: string): [HelperRow[]] {
     return [helpers];
 }
 
-export function useWorkunitMetrics(wuid: string): [any[], { [id: string]: any }, WUDetailsMeta.Activity[], WUDetailsMeta.Property[], string[], string[], WUDetails.Scope[], () => void] {
+export function useWorkunitMetrics(wuid: string): [any[], { [id: string]: any }, WUDetailsMeta.Activity[], WUDetailsMeta.Property[], string[], string[], () => void] {
 
     const [workunit, state] = useWorkunit(wuid);
     const [data, setData] = React.useState<any[]>([]);
@@ -289,7 +289,7 @@ export function useWorkunitMetrics(wuid: string): [any[], { [id: string]: any },
     const [properties, setProperties] = React.useState<WUDetailsMeta.Property[]>([]);
     const [measures, setMeasures] = React.useState<string[]>([]);
     const [scopeTypes, setScopeTypes] = React.useState<string[]>([]);
-    const [scopes, setScopes] = React.useState<WUDetails.Scope[]>([]);
+    // const [scopes, setScopes] = React.useState<WUDetails.Scope[]>([]);
     const [count, increment] = useCounter();
 
     React.useEffect(() => {
@@ -331,9 +331,9 @@ export function useWorkunitMetrics(wuid: string): [any[], { [id: string]: any },
             setProperties(response?.meta?.Properties?.Property || []);
             setMeasures(response?.meta?.Measures?.Measure || []);
             setScopeTypes(response?.meta?.ScopeTypes?.ScopeType || []);
-            setScopes(response?.scopes?.map(rawScope => new Scope(workunit, rawScope)) || []);
+            // setScopes(response?.scopes?.map(rawScope => new Scope(workunit, rawScope)) || []);
         });
     }, [workunit, state, count]);
 
-    return [data, columns, activities, properties, measures, scopeTypes, scopes, increment];
+    return [data, columns, activities, properties, measures, scopeTypes, increment];
 }
