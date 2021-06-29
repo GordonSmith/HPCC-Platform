@@ -15,6 +15,7 @@ import { ShortVerticalDivider } from "./Common";
 import { Filter } from "./forms/Filter";
 import { Fields } from "./forms/Fields";
 import { pushParams } from "../util/history";
+import { MetricOptions } from "./MetricOptions";
 
 const scopeTypePipeline = chain(
     group<any>(row => row.type),
@@ -46,6 +47,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const [scopeProperties, setScopeProperties] = React.useState([]);
     const [showFilter, setShowFilter] = React.useState(false);
     const [showProperties, setShowProperties] = React.useState(false);
+    const [showMetricOptions, setShowMetricOptions] = React.useState(false);
 
     //  Command Bar  ---
     const buttons: ICommandBarItemProps[] = [
@@ -64,6 +66,12 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             key: "props", text: nlsHPCC.Properties, iconProps: { iconName: "Filter" },
             onClick: () => {
                 setShowProperties(true);
+            }
+        },
+        {
+            key: "options", text: nlsHPCC.Options, iconProps: { iconName: "Settings" },
+            onClick: () => {
+                setShowMetricOptions(true);
             }
         },
     ];
@@ -116,6 +124,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const hasFilter = Object.keys(filter).length > 0;
     // const filterStr = JSON.stringify(filter);
     const scopesTable = useConst(() => new Table()
+        .multiSelect(true)
         .columns(["##", nlsHPCC.Type, nlsHPCC.Scope])
         .on("click", (row, col, sel) => {
             updatePropsTable(sel ? [row.__lparam] : []);
@@ -132,6 +141,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             for (const key in row) {
                 scopeProps[key] = true;
             }
+            row.__hpcc_id = row.id;
             return [idx, row.type, row.name, row];
         })).lazyRender();
 
@@ -158,10 +168,14 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     //  Graph  ---
     const metricGraph = useConst(() => new MetricGraph()
         .zoomToFitLimit(1)
-        .on("click", (row, col, sel) => {
-            const item = graph.item(row.id);
-            updatePropsTable([item]);
-            // scopesTable.selection([item]).lazyRender();
+        .on("selectionChanged", () => {
+            const items = metricGraph.selection().map(id => {
+                return graph.item(id);
+            });
+            // const item = graph.item(row.id);
+            updatePropsTable(items);
+            const tableItems = scopesTable.data().filter(tableRow => items.indexOf(tableRow[tableRow.length - 1]) >= 0);
+            scopesTable.selection(tableItems);
         })
     );
 
@@ -176,7 +190,9 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                 metricGraph
                     .svg(svg)
                     .resize()
-                    .lazyRender()
+                    .render(() => {
+                        metricGraph.selection([selection[0]?.id]);
+                    })
                     ;
             }).catch(e => {
             });
@@ -209,8 +225,10 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         </>}
         main={
             <><AutosizeHpccJSComponent widget={dockPanel} padding={4} />
-                <Filter showFilter={showFilter} setShowFilter={setShowFilter} filterFields={filterFields} onApply={pushParams} />
-                <Filter showFilter={showProperties} setShowFilter={setShowProperties} filterFields={propFields} onApply={() => { }} />
+                <Filter showFilter={showFilter} setShow={setShowFilter} filterFields={filterFields} onApply={pushParams} />
+                <Filter showFilter={showProperties} setShow={setShowProperties} filterFields={propFields} onApply={() => { }} />
+                <MetricOptions show={showMetricOptions} setShow={setShowMetricOptions} />
+
             </>}
     />;
 };

@@ -9,20 +9,20 @@ interface FilterProps {
     onApply: (values: Values) => void;
 
     showFilter: boolean;
-    setShowFilter: (_: boolean) => void;
+    setShow: (_: boolean) => void;
 }
 
 export const Filter: React.FunctionComponent<FilterProps> = ({
     filterFields,
     onApply,
     showFilter,
-    setShowFilter
+    setShow
 }) => {
 
     const [doSubmit, setDoSubmit] = React.useState(false);
     const [doReset, setDoReset] = React.useState(false);
 
-    const closeFilter = () => setShowFilter(false);
+    const closeFilter = () => setShow(false);
 
     const dragOptions: IDragOptions = {
         moveMenuItemText: "Move",

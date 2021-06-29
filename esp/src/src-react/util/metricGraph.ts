@@ -1,4 +1,4 @@
-import { SVGZoomWidget } from "@hpcc-js/common";
+import { d3Event, select as d3Select, SVGZoomWidget } from "@hpcc-js/common";
 import { Graph2 } from "@hpcc-js/util";
 
 const KindShape = {
@@ -10,7 +10,7 @@ const KindShape = {
     16: "cylinder",         //  Output
     17: "invtrapezium",     //  Funnel
     19: "doubleoctagon",    //  Skew Distribute
-    22: "cylinder",         //
+    22: "cylinder",         //  Store Internal
     28: "diamond",          //  If
     71: "cylinder",         //  Disk Read
     73: "cylinder",         //  Disk Aggregate Spill
@@ -200,9 +200,39 @@ export function createGraph(data: any[], gc = new GraphContainer()): GraphContai
 
 export class MetricGraph extends SVGZoomWidget {
 
+    protected _selection: { [id: string]: boolean } = {};
+
     constructor() {
         super();
         this._drawStartPos = "origin";
+    }
+
+    clearSelection(broadcast: boolean = false) {
+        Object.keys(this._selection).forEach(id => {
+            d3Select(`#${id}`).classed("selected", false);
+        });
+        this._selection = {};
+        this._selectionChanged(broadcast);
+    }
+
+    toggleSelection(id: string, broadcast: boolean = false) {
+        if (this._selection[id]) {
+            delete this._selection[id];
+        } else {
+            this._selection[id] = true;
+        }
+        this._selectionChanged(broadcast);
+    }
+
+    selection(): string[];
+    selection(_: string[]): this;
+    selection(_: string[], broadcast: boolean): this;
+    selection(_?: string[], broadcast: boolean = false): string[] | this {
+        if (!arguments.length) return Object.keys(this._selection);
+        this.clearSelection();
+        _.forEach(id => this._selection[id] = true);
+        this._selectionChanged(broadcast);
+        return this;
     }
 
     protected _svg = "";
@@ -215,7 +245,6 @@ export class MetricGraph extends SVGZoomWidget {
     update(domNode, element) {
         super.update(domNode, element);
         if (this._prevSvg !== this._svg) {
-            // this.zoomTo([0, 0], 1, 0);
             const startPos = this._svg.indexOf("<g id=");
             const endPos = this._svg.indexOf("</svg>");
             this._renderElement.html(this._svg.substring(startPos, endPos));
@@ -225,13 +254,33 @@ export class MetricGraph extends SVGZoomWidget {
                 this.zoomToFit(0);
                 this._renderElement.selectAll(".node,.cluster")
                     .on("click", function () {
-                        context.click({ id: this.id }, "id", true);
+                        const event = d3Event();
+                        if (!event.ctrlKey) {
+                            context.clearSelection();
+                        }
+                        context.toggleSelection(this.id, true);
                     });
             }, 0);
         }
     }
 
+    _selectionChanged(broadcast = false) {
+        const context = this;
+        this._renderElement.selectAll(".node,.cluster")
+            .each(function () {
+                d3Select(this).selectAll("path,polygon")
+                    .style("stroke", () => {
+                        return context._selection[this.id] ? "red" : "darkgrey";
+                    })
+                    ;
+            })
+            ;
+        if (broadcast) {
+            this.selectionChanged();
+        }
+    }
+
     //  Events  ---
-    click(row, col, sel) {
+    selectionChanged() {
     }
 }
