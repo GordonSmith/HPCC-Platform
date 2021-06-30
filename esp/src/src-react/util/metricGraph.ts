@@ -1,5 +1,6 @@
 import { d3Event, select as d3Select, SVGZoomWidget } from "@hpcc-js/common";
 import { Graph2 } from "@hpcc-js/util";
+import { decodeHTML } from "src/Utility";
 
 const KindShape = {
     2: "cylinder",          //  Disk Write
@@ -33,7 +34,8 @@ function shape(kind: string) {
 
 interface IScope {
     __parentID: string;
-    __funcs: IScope[];
+    __children: IScope[];
+    __functions: IScope[];
     id: string;
     name: string;
     type: string;
@@ -46,19 +48,13 @@ interface IScopeEdge extends IScope {
 }
 
 class GraphContainer extends Graph2<IScope, IScopeEdge, IScope> {
-
 }
 
-const decodeHTML = function (str?: string) {
-    return str?.replace(/&apos;/g, "'")
-        .replace(/&quot;/g, '"')
-        .replace(/&gt;/g, ">")
-        .replace(/&lt;/g, "<")
-        .replace(/&amp;/g, "&");
-};
-
 const vertexTpl = (v: IScope): string => {
-    return `"${v.id}" [id="${v.id}" label="[${decodeHTML(v.Kind)}]\n${decodeHTML(v.Label) || v.id}" shape="${shape(decodeHTML(v.Kind))}"]`;
+    if (v.id === "a2463") {
+        debugger;
+    }
+    return `"${v.id}" [id="${v.id}" label="[${decodeHTML(v.Kind)}]\n${decodeHTML(v.Label) || v.id}" shape="${shape(v.Kind)}"]`;
 };
 
 const edgeTpl = (g: GraphContainer, e: IScopeEdge) => {
@@ -97,7 +93,7 @@ export const graphTpl = (g: GraphContainer, root?: string) => {
             childTpls.push(subgraphTpl(g, g.subgraph(root)));
         } else {
             const item = g.item(root);
-            if (item?.__parentID) {
+            if (item?.__parentID && g.subgraphExists(item?.__parentID)) {
                 childTpls.push(subgraphTpl(g, g.subgraph(item.__parentID)));
             } else {
                 all();
@@ -137,46 +133,62 @@ export function createGraph(data: any[], gc = new GraphContainer()): GraphContai
     gc.idFunc(scope => scope.id);
     gc.sourceFunc(scope => scope.IdSource);
     gc.targetFunc(scope => scope.IdTarget);
-    const hierarchy: { [id: string]: IScope[] } = {};
+
+    const index: { [id: string]: IScope } = {};
     data.forEach((scope: IScope) => {
+        index[scope.id] = scope;
         const parents = scope.name.split(":");
         parents.pop();
-        scope.__parentID = parents[parents.length - 1];
-        scope.__funcs = [];
-        if (scope.type !== "function") {
-            hierarchy[scope.id] = [];
-            if (scope.__parentID) {
-                //  Child Subgraph
-                if (hierarchy[scope.__parentID] === undefined) {
-                    parents.pop();
-                    parents.pop();
-                    scope.__parentID = parents[parents.length - 1];
-                }
-                hierarchy[scope.__parentID].push(scope);
-            }
+        let parentID = parents.pop();
+        while (parentID && (parentID[0] === "a" || parentID[0] === "c")) {
+            parentID = parents.pop();
+        }
+        scope.__parentID = parentID;
+        scope.__children = [];
+        scope.__functions = [];
+        const parent = index[parentID];
+        if (parent) {
+            parent.__children.push(scope);
         }
     });
+
     data.forEach((scope: IScope) => {
+        const parentScope = index[scope.__parentID];
+        if (scope.__parentID && !gc.subgraphExists(scope.__parentID)) {
+            console.warn(`Vertex missing subgraph:  ${scope.__parentID}`);
+            //  Elevate to next viable parent ---
+            const parents = scope.name.split(":");
+            parents.pop();
+            const name = parents.join(":");
+            parents.pop();
+            let parentID = parents.pop();
+            while (parentID && (parentID[0] === "a" || parentID[0] === "c")) {
+                parentID = parents.pop();
+            }
+            const gparentScope = index[parentID];
+            gc.addSubgraph({
+                id: scope.__parentID,
+                type: "missing",
+                name: name,
+                __children: [],
+                __parentID: parentID,
+                __functions: []
+            }, gparentScope);
+        }
         switch (scope.type) {
             case "function":
-                gc.item(scope.__parentID).__funcs.push(scope);
+                parentScope.__functions.push(scope);
                 break;
             case "activity":
-                gc.addVertex(scope, scope.__parentID ? gc.subgraph(scope.__parentID) : undefined);
+                gc.addVertex(scope, parentScope);
                 break;
             case "edge":
                 break;
             default:
-                if (hierarchy[scope.id]?.length) {
-                    if (scope.__parentID) {
-                        gc.addSubgraph(scope, gc.subgraph(scope.__parentID));
-                    } else {
-                        gc.addSubgraph(scope);
-                    }
-                } else if (scope.__parentID) {
-                    gc.addVertex(scope, gc.subgraph(scope.__parentID));
+                if (scope.__children.length) {
+                    gc.addSubgraph(scope, parentScope);
                 } else {
-                    gc.addVertex(scope);
+                    gc.addVertex(scope, parentScope);
                 }
         }
     });
@@ -187,7 +199,10 @@ export function createGraph(data: any[], gc = new GraphContainer()): GraphContai
             else if (!gc.vertexExists((scope as IScopeEdge).IdTarget)) {
                 console.warn(`Missing vertex:  ${(scope as IScopeEdge).IdTarget}`);
             } else {
-                if (scope.__parentID) {
+                if (scope.__parentID && !gc.subgraphExists(scope.__parentID)) {
+                    console.warn(`Edge missing subgraph:  ${scope.__parentID}`);
+                }
+                if (gc.subgraphExists(scope.__parentID)) {
                     gc.addEdge(scope as IScopeEdge, gc.subgraph(scope.__parentID));
                 } else {
                     gc.addEdge(scope as IScopeEdge);
@@ -252,7 +267,7 @@ export class MetricGraph extends SVGZoomWidget {
             const context = this;
             setTimeout(() => {
                 this.zoomToFit(0);
-                this._renderElement.selectAll(".node,.cluster")
+                this._renderElement.selectAll(".node,.edge,.cluster")
                     .on("click", function () {
                         const event = d3Event();
                         if (!event.ctrlKey) {
@@ -266,7 +281,7 @@ export class MetricGraph extends SVGZoomWidget {
 
     _selectionChanged(broadcast = false) {
         const context = this;
-        this._renderElement.selectAll(".node,.cluster")
+        this._renderElement.selectAll(".node,.edge,.cluster")
             .each(function () {
                 d3Select(this).selectAll("path,polygon")
                     .style("stroke", () => {

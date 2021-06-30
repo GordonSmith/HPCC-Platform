@@ -6,7 +6,6 @@ function getConfig(env) {
     var dojoRoot = env.dojoRoot;
     var baseUrl = dojoRoot ? "." : "/esp/files";
     var hpccBaseUrl = fs.existsSync(baseUrl + "/node_modules/@hpcc-js") ? baseUrl + "/node_modules/@hpcc-js" : baseUrl + "/../../../hpcc-js/packages";
-    var hpccWasmBaseUrl = fs.existsSync(baseUrl + "/node_modules/@hpcc-js/wasm") ? baseUrl + "/node_modules/@hpcc-js/wasm" : baseUrl + "/../../../hpcc-js-wasm";
 
     return {
         baseUrl: baseUrl,
@@ -48,7 +47,6 @@ function getConfig(env) {
             "@hpcc-js/timeline": hpccBaseUrl + "/timeline/dist/index",
             "@hpcc-js/tree": hpccBaseUrl + "/tree/dist/index",
             "@hpcc-js/util": hpccBaseUrl + "/util/dist/index",
-            "@hpcc-js/wasm": hpccWasmBaseUrl + "/dist/index",
             "@hpcc-js/TopoJSON": dojoRoot ? "/esp/files/dist/TopoJSON" : hpccBaseUrl + "/map/TopoJSON",
             "clipboard": baseUrl + "/node_modules/clipboard/dist/clipboard",
             "codemirror": baseUrl + "/node_modules/codemirror",

@@ -4,7 +4,7 @@ import { useConst } from "@fluentui/react-hooks";
 import { DockPanel } from "@hpcc-js/phosphor";
 import { Table } from "@hpcc-js/dgrid";
 import { chain, group, map, sort } from "@hpcc-js/dataflow";
-import { graphviz } from "@hpcc-js/wasm";
+import { graphviz } from "@hpcc-js/graph";
 import nlsHPCC from "src/nlsHPCC";
 import { WUTimelinePatched } from "src/Timings";
 import { useWorkunitMetrics } from "../hooks/Workunit";
@@ -16,6 +16,8 @@ import { Filter } from "./forms/Filter";
 import { Fields } from "./forms/Fields";
 import { pushParams } from "../util/history";
 import { MetricOptions } from "./MetricOptions";
+
+declare const dojoConfig;
 
 const scopeTypePipeline = chain(
     group<any>(row => row.type),
@@ -127,8 +129,10 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         .multiSelect(true)
         .columns(["##", nlsHPCC.Type, nlsHPCC.Scope])
         .on("click", (row, col, sel) => {
-            updatePropsTable(sel ? [row.__lparam] : []);
-            updateMetricGraph(sel ? [row.__lparam] : []);
+            if (sel) {
+                updatePropsTable([row.__lparam]);
+                updateMetricGraph([row.__lparam]);
+            }
         })
     );
 
@@ -186,7 +190,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const updateMetricGraph = selection => {
         if (selection.length) {
             const dot = graphTpl(graph, selection[0]?.id);
-            graphviz.dot(dot).then(svg => {
+            graphviz(dot, "dot", dojoConfig.urlInfo.fullPath + "/dist").then(svg => {
                 metricGraph
                     .svg(svg)
                     .resize()
