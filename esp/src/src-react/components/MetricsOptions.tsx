@@ -12,11 +12,13 @@ const dragOptions: IDragOptions = {
 interface MetricsOptionsProps {
     show: boolean;
     setShow: (_: boolean) => void;
+    layout: any;
 }
 
 export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
     show,
-    setShow
+    setShow,
+    layout
 }) => {
 
     const [scopeTypes, properties] = useMetricMeta();
@@ -71,6 +73,8 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
                 <Checkbox label={nlsHPCC.IgnoreGlobalStoreOutEdges} checked={options.ignoreGlobalStoreOutEdges} onChange={(ev, checked) => {
                     setOptions({ ...options, ignoreGlobalStoreOutEdges: !!checked });
                 }} />
+            </PivotItem>
+            <PivotItem headerText={nlsHPCC.Layout}>
             </PivotItem>
         </Pivot>
         <DialogFooter>
