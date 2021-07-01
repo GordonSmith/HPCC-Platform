@@ -1,6 +1,10 @@
 import { d3Event, select as d3Select, SVGZoomWidget } from "@hpcc-js/common";
+import { graphviz } from "@hpcc-js/graph";
 import { Graph2 } from "@hpcc-js/util";
 import { decodeHTML } from "src/Utility";
+import { MetricsOptions } from "../hooks/metrics";
+
+declare const dojoConfig;
 
 const KindShape = {
     2: "cylinder",          //  Disk Write
@@ -50,30 +54,27 @@ interface IScopeEdge extends IScope {
 class GraphContainer extends Graph2<IScope, IScopeEdge, IScope> {
 }
 
-const vertexTpl = (v: IScope): string => {
-    if (v.id === "a2463") {
-        debugger;
-    }
+const vertexTpl = (v: IScope, options: MetricsOptions): string => {
     return `"${v.id}" [id="${v.id}" label="[${decodeHTML(v.Kind)}]\n${decodeHTML(v.Label) || v.id}" shape="${shape(v.Kind)}"]`;
 };
 
-const edgeTpl = (g: GraphContainer, e: IScopeEdge) => {
-    if (g.vertex(e.IdSource).Kind === "22") {
+const edgeTpl = (g: GraphContainer, e: IScopeEdge, options: MetricsOptions) => {
+    if (options.ignoreGlobalStoreOutEdges && g.vertex(e.IdSource).Kind === "22") {
         return "";
     }
     return `"${e.IdSource}" -> "${e.IdTarget}" [id="${e.id}" label="" style="${g.vertexParent(e.IdSource) === g.vertexParent(e.IdTarget) ? "solid" : "dashed"}"]`;
 };
 
-const subgraphTpl = (g: GraphContainer, sg: IScope): string => {
+const subgraphTpl = (g: GraphContainer, sg: IScope, options: MetricsOptions): string => {
     const childTpls: string[] = [];
     g.subgraphSubgraphs(sg.id).forEach(child => {
-        childTpls.push(subgraphTpl(g, child));
+        childTpls.push(subgraphTpl(g, child, options));
     });
     g.subgraphVertices(sg.id).forEach(child => {
-        childTpls.push(vertexTpl(child));
+        childTpls.push(vertexTpl(child, options));
     });
     g.subgraphEdges(sg.id).forEach(child => {
-        childTpls.push(edgeTpl(g, child));
+        childTpls.push(edgeTpl(g, child, options));
     });
     return `subgraph cluster_${sg.id} {
 color="darkgrey";
@@ -86,15 +87,15 @@ ${childTpls.join("\n")}
 }`;
 };
 
-export const graphTpl = (g: GraphContainer, root?: string) => {
+export const graphTpl = (g: GraphContainer, root: string = "", options: MetricsOptions) => {
     const childTpls: string[] = [];
     if (root) {
         if (g.subgraphExists(root)) {
-            childTpls.push(subgraphTpl(g, g.subgraph(root)));
+            childTpls.push(subgraphTpl(g, g.subgraph(root), options));
         } else {
             const item = g.item(root);
             if (item?.__parentID && g.subgraphExists(item?.__parentID)) {
-                childTpls.push(subgraphTpl(g, g.subgraph(item.__parentID)));
+                childTpls.push(subgraphTpl(g, g.subgraph(item.__parentID), options));
             } else {
                 all();
             }
@@ -105,13 +106,13 @@ export const graphTpl = (g: GraphContainer, root?: string) => {
 
     function all() {
         g.subgraphs().forEach(child => {
-            childTpls.push(subgraphTpl(g, child));
+            childTpls.push(subgraphTpl(g, child, options));
         });
         g.vertices().forEach(child => {
-            childTpls.push(vertexTpl(child));
+            childTpls.push(vertexTpl(child, options));
         });
         g.edges().forEach(child => {
-            childTpls.push(edgeTpl(g, child));
+            childTpls.push(edgeTpl(g, child, options));
         });
     }
     return `\
@@ -250,33 +251,16 @@ export class MetricGraph extends SVGZoomWidget {
         return this;
     }
 
-    protected _svg = "";
-    svg(_: string): this {
-        this._svg = _;
+    protected _dot = "";
+    dot(_: string): this {
+        this._dot = _;
         return this;
     }
 
-    protected _prevSvg;
+    protected _prevDot;
+    _prevGV;
     update(domNode, element) {
         super.update(domNode, element);
-        if (this._prevSvg !== this._svg) {
-            const startPos = this._svg.indexOf("<g id=");
-            const endPos = this._svg.indexOf("</svg>");
-            this._renderElement.html(this._svg.substring(startPos, endPos));
-            this._prevSvg = this._svg;
-            const context = this;
-            setTimeout(() => {
-                this.zoomToFit(0);
-                this._renderElement.selectAll(".node,.edge,.cluster")
-                    .on("click", function () {
-                        const event = d3Event();
-                        if (!event.ctrlKey) {
-                            context.clearSelection();
-                        }
-                        context.toggleSelection(this.id, true);
-                    });
-            }, 0);
-        }
     }
 
     _selectionChanged(broadcast = false) {
@@ -293,6 +277,41 @@ export class MetricGraph extends SVGZoomWidget {
         if (broadcast) {
             this.selectionChanged();
         }
+    }
+
+    render(callback) {
+        return super.render(w => {
+            if (this._prevDot !== this._dot) {
+                this._prevDot = this._dot;
+                this?._prevGV?.terminate();
+                const dot = this._dot;
+                this._prevGV = graphviz(dot, "dot", dojoConfig.urlInfo.fullPath + "/dist");
+                this._prevGV.response.then(svg => {
+                    //  Check for race condition  ---
+                    if (dot === this._prevDot) {
+                        const startPos = svg.indexOf("<g id=");
+                        const endPos = svg.indexOf("</svg>");
+                        this._renderElement.html(svg.substring(startPos, endPos));
+                        const context = this;
+                        setTimeout(() => {
+                            this.zoomToFit(0);
+                            this._renderElement.selectAll(".node,.edge,.cluster")
+                                .on("click", function () {
+                                    const event = d3Event();
+                                    if (!event.ctrlKey) {
+                                        context.clearSelection();
+                                    }
+                                    context.toggleSelection(this.id, true);
+                                });
+                            if (callback) {
+                                callback(this);
+                            }
+                        }, 0);
+                    }
+                }).catch(e => {
+                });
+            }
+        });
     }
 
     //  Events  ---

@@ -3,27 +3,14 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluen
 import { useConst } from "@fluentui/react-hooks";
 import { DockPanel } from "@hpcc-js/phosphor";
 import { Table } from "@hpcc-js/dgrid";
-import { chain, group, map, sort } from "@hpcc-js/dataflow";
-import { graphviz } from "@hpcc-js/graph";
 import nlsHPCC from "src/nlsHPCC";
 import { WUTimelinePatched } from "src/Timings";
-import { useWorkunitMetrics } from "../hooks/Workunit";
+import { useMetricsOptions, useWorkunitMetrics } from "../hooks/metrics";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { createGraph, graphTpl, MetricGraph } from "../util/metricGraph";
 import { ShortVerticalDivider } from "./Common";
-import { Filter } from "./forms/Filter";
-import { Fields } from "./forms/Fields";
-import { pushParams } from "../util/history";
-import { MetricOptions } from "./MetricOptions";
-
-declare const dojoConfig;
-
-const scopeTypePipeline = chain(
-    group<any>(row => row.type),
-    map(row => [row.key, row.value.length] as [string, number]),
-    sort((l, r) => l[0].localeCompare(r[0])),
-);
+import { MetricsOptions } from "./MetricsOptions";
 
 const defaultUIState = {
     hasSelection: false
@@ -36,6 +23,8 @@ interface MetricsProps {
 
 const emptyFilter = {};
 
+let layout: any;
+
 export const Metrics: React.FunctionComponent<MetricsProps> = ({
     wuid,
     filter = emptyFilter
@@ -45,11 +34,8 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const [timelineFilter, setTimelineFilter] = React.useState("");
     const [graph] = React.useState(createGraph([]));
     const [metrics, _columns, _activities, _properties, _measures, _scopeTypes] = useWorkunitMetrics(wuid);
-    const [scopeTypes, setScopeTypes] = React.useState([]);
-    const [scopeProperties, setScopeProperties] = React.useState([]);
-    const [showFilter, setShowFilter] = React.useState(false);
-    const [showProperties, setShowProperties] = React.useState(false);
     const [showMetricOptions, setShowMetricOptions] = React.useState(false);
+    const [options] = useMetricsOptions();
 
     //  Command Bar  ---
     const buttons: ICommandBarItemProps[] = [
@@ -58,18 +44,6 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             onClick: () => { }
         },
         { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
-        {
-            key: "filter", text: nlsHPCC.Scope, iconProps: { iconName: "Filter" },
-            onClick: () => {
-                setShowFilter(true);
-            }
-        },
-        {
-            key: "props", text: nlsHPCC.Properties, iconProps: { iconName: "Filter" },
-            onClick: () => {
-                setShowProperties(true);
-            }
-        },
         {
             key: "options", text: nlsHPCC.Options, iconProps: { iconName: "Settings" },
             onClick: () => {
@@ -126,8 +100,10 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const hasFilter = Object.keys(filter).length > 0;
     // const filterStr = JSON.stringify(filter);
     const scopesTable = useConst(() => new Table()
+        .id("scopesTable")
         .multiSelect(true)
-        .columns(["##", nlsHPCC.Type, nlsHPCC.Scope])
+        .columns(["##", nlsHPCC.Type, nlsHPCC.Scope, ...options.properties])
+        .sortable(true)
         .on("click", (row, col, sel) => {
             if (sel) {
                 updatePropsTable([row.__lparam]);
@@ -137,25 +113,24 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     );
 
     React.useEffect(() => {
-        const scopeProps = {};
-        scopesTable.data(metrics.filter(row => {
-            return (timelineFilter === "" || row.name?.indexOf(timelineFilter) === 0) &&
-                (!hasFilter || filter[row.type]);
-        }).map((row, idx) => {
-            for (const key in row) {
-                scopeProps[key] = true;
-            }
-            row.__hpcc_id = row.id;
-            return [idx, row.type, row.name, row];
-        })).lazyRender();
-
-        setScopeTypes([...scopeTypePipeline(metrics)]);
-        setScopeProperties(Object.keys(scopeProps));
-    }, [hasFilter, metrics, scopesTable, timelineFilter, filter]);
+        scopesTable
+            .columns(["##", nlsHPCC.Type, nlsHPCC.Scope, ...options.properties])
+            .data(metrics.filter(row => {
+                return (timelineFilter === "" || row.name?.indexOf(timelineFilter) === 0) &&
+                    (options.scopeTypes.indexOf(row.type) >= 0);
+            }).map((row, idx) => {
+                row.__hpcc_id = row.id;
+                return [idx, row.type, row.name, ...options.properties.map(p => row[p] !== undefined ? row[p] : ""), row];
+            }))
+            .lazyRender()
+            ;
+    }, [hasFilter, metrics, scopesTable, timelineFilter, filter, options.properties, options.scopeTypes]);
 
     //  Props Table  ---
     const propsTable = useConst(() => new Table()
+        .id("propsTable")
         .columns([nlsHPCC.Property, nlsHPCC.Value])
+        .columnWidth("none")
     );
 
     const updatePropsTable = selection => {
@@ -171,6 +146,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
 
     //  Graph  ---
     const metricGraph = useConst(() => new MetricGraph()
+        .id("metricGraph")
         .zoomToFitLimit(1)
         .on("selectionChanged", () => {
             const items = metricGraph.selection().map(id => {
@@ -187,40 +163,37 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         createGraph(metrics, graph);
     }, [metrics, graph]);
 
-    const updateMetricGraph = selection => {
+    const updateMetricGraph = React.useCallback(selection => {
         if (selection.length) {
-            const dot = graphTpl(graph, selection[0]?.id);
-            graphviz(dot, "dot", dojoConfig.urlInfo.fullPath + "/dist").then(svg => {
-                metricGraph
-                    .svg(svg)
-                    .resize()
-                    .render(() => {
-                        metricGraph.selection([selection[0]?.id]);
-                    })
-                    ;
-            }).catch(e => {
-            });
+            metricGraph
+                .dot(graphTpl(graph, selection[0]?.id, options))
+                .resize()
+                .render(() => {
+                    metricGraph.selection([selection[0]?.id]);
+                })
+                ;
         }
-    };
+    }, [graph, metricGraph, options]);
 
     //  DockPanel ---
-    const dockPanel = useConst(() => new DockPanel()
-        .addWidget(scopesTable, nlsHPCC.Scope)
-        .addWidget(metricGraph, nlsHPCC.Graph, "split-right", scopesTable)
-        .addWidget(propsTable, nlsHPCC.Properties, "split-bottom", scopesTable)
-    );
+    const dockPanel = useConst(() => {
+        const retVal = new DockPanel()
+            .addWidget(scopesTable, nlsHPCC.Metrics)
+            .addWidget(metricGraph, nlsHPCC.Graph, "split-right", scopesTable)
+            .addWidget(propsTable, nlsHPCC.Properties, "split-bottom", scopesTable)
+            ;
+        if (layout) {
+            retVal.layout(layout);
+        }
+        return retVal;
+    });
 
-    //  Filter  ---
-    const filterFields: Fields = {};
-    for (const field of scopeTypes) {
-        filterFields[field[0]] = { type: "checkbox", label: field[0], value: hasFilter ? filter[field[0]] : true };
-    }
-
-    //  Properties  ---
-    const propFields: Fields = {};
-    for (const field of scopeProperties) {
-        propFields[field] = { type: "checkbox", label: field, value: true };
-    }
+    React.useEffect(() => {
+        return () => {
+            layout = dockPanel?.layout();
+            console.log(layout);
+        };
+    }, [dockPanel]);
 
     return <HolyGrail
         header={<>
@@ -228,11 +201,10 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             <AutosizeHpccJSComponent widget={timeline} fixedHeight={"160px"} padding={4} />
         </>}
         main={
-            <><AutosizeHpccJSComponent widget={dockPanel} padding={4} />
-                <Filter showFilter={showFilter} setShow={setShowFilter} filterFields={filterFields} onApply={pushParams} />
-                <Filter showFilter={showProperties} setShow={setShowProperties} filterFields={propFields} onApply={() => { }} />
-                <MetricOptions show={showMetricOptions} setShow={setShowMetricOptions} />
-
+            <>
+                <AutosizeHpccJSComponent widget={dockPanel} padding={4} debounce={false} />
+                <MetricsOptions show={showMetricOptions} setShow={setShowMetricOptions} />
             </>}
     />;
 };
+
