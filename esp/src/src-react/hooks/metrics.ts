@@ -7,13 +7,15 @@ import { useCounter, useWorkunit } from "./workunit";
 const defaults = {
     ignoreGlobalStoreOutEdges: true,
     scopeTypes: ["graph", "subgraph", "activity", "edge"],
-    properties: ["TimeElapsed"]
+    properties: ["TimeElapsed"],
+    layout: undefined
 };
 
 export interface MetricsOptions {
     ignoreGlobalStoreOutEdges: boolean;
     scopeTypes: string[];
     properties: string[];
+    layout: object
 }
 
 export function useMetricsOptions(): [MetricsOptions, (opts: MetricsOptions) => void, () => void, (toDefaults?: boolean) => void] {

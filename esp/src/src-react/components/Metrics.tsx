@@ -105,9 +105,11 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         .columns(["##", nlsHPCC.Type, nlsHPCC.Scope, ...options.properties])
         .sortable(true)
         .on("click", (row, col, sel) => {
-            if (sel) {
-                updatePropsTable([row.__lparam]);
-                updateMetricGraph([row.__lparam]);
+            const rows = scopesTable.selection().map(row => row.__lparam);
+            if (rows.length) {
+                updatePropsTable(rows);
+                updatePropsTable2(rows);
+                updateMetricGraph(rows);
             }
         })
     );
@@ -126,24 +128,6 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             ;
     }, [hasFilter, metrics, scopesTable, timelineFilter, filter, options.properties, options.scopeTypes]);
 
-    //  Props Table  ---
-    const propsTable = useConst(() => new Table()
-        .id("propsTable")
-        .columns([nlsHPCC.Property, nlsHPCC.Value])
-        .columnWidth("none")
-    );
-
-    const updatePropsTable = selection => {
-        const props = [];
-        for (const key in selection[0]) {
-            props.push([key, selection[0][key]]);
-        }
-        propsTable
-            ?.data(props)
-            ?.lazyRender()
-            ;
-    };
-
     //  Graph  ---
     const metricGraph = useConst(() => new MetricGraph()
         .id("metricGraph")
@@ -154,6 +138,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             });
             // const item = graph.item(row.id);
             updatePropsTable(items);
+            updatePropsTable2(items);
             const tableItems = scopesTable.data().filter(tableRow => items.indexOf(tableRow[tableRow.length - 1]) >= 0);
             scopesTable.selection(tableItems);
         })
@@ -165,22 +150,78 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
 
     const updateMetricGraph = React.useCallback(selection => {
         if (selection.length) {
+            const items = selection?.map(s => s.id);
             metricGraph
-                .dot(graphTpl(graph, selection[0]?.id, options))
+                .dot(graphTpl(graph, items, options))
                 .resize()
                 .render(() => {
-                    metricGraph.selection([selection[0]?.id]);
+                    metricGraph.selection(items);
                 })
                 ;
         }
     }, [graph, metricGraph, options]);
 
+    //  Props Table  ---
+    const propsTable = useConst(() => new Table()
+        .id("propsTable")
+        .columns([nlsHPCC.Property, nlsHPCC.Value])
+        .columnWidth("none")
+    );
+
+    const updatePropsTable = items => {
+        const props = [];
+        items.forEach((item, idx) => {
+            for (const key in item) {
+                if (key.indexOf("__") !== 0) {
+                    props.push([key, item[key]]);
+                }
+            }
+            if (idx < items.length - 1) {
+                props.push(["------------------------------", "------------------------------"]);
+            }
+        });
+        propsTable
+            ?.data(props)
+            ?.lazyRender()
+            ;
+    };
+
+    const propsTable2 = useConst(() => new Table()
+        .id("propsTable2")
+        .columns([nlsHPCC.Property, nlsHPCC.Value])
+        .columnWidth("none")
+    );
+
+    const updatePropsTable2 = items => {
+        const columns = [];
+        const props = [];
+        items.forEach(item => {
+            for (const key in item) {
+                if (key.indexOf("__") !== 0 && columns.indexOf(key) < 0) {
+                    columns.push(key);
+                }
+            }
+        });
+        items.forEach(item => {
+            const row = [];
+            columns.forEach(column => {
+                row.push(item[column]);
+            });
+            props.push(row);
+        });
+        propsTable2
+            ?.columns(columns)
+            ?.data(props)
+            ?.lazyRender()
+            ;
+    };
     //  DockPanel ---
     const dockPanel = useConst(() => {
         const retVal = new DockPanel()
             .addWidget(scopesTable, nlsHPCC.Metrics)
             .addWidget(metricGraph, nlsHPCC.Graph, "split-right", scopesTable)
             .addWidget(propsTable, nlsHPCC.Properties, "split-bottom", scopesTable)
+            .addWidget(propsTable2, nlsHPCC.CrossTab, "tab-after", propsTable)
             ;
         if (layout) {
             retVal.layout(layout);
@@ -191,7 +232,6 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     React.useEffect(() => {
         return () => {
             layout = dockPanel?.layout();
-            console.log(layout);
         };
     }, [dockPanel]);
 
@@ -203,8 +243,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         main={
             <>
                 <AutosizeHpccJSComponent widget={dockPanel} padding={4} debounce={false} />
-                <MetricsOptions show={showMetricOptions} setShow={setShowMetricOptions} />
+                <MetricsOptions show={showMetricOptions} setShow={setShowMetricOptions} layout={dockPanel?.layout()} />
             </>}
     />;
 };
-

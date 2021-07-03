@@ -87,24 +87,28 @@ ${childTpls.join("\n")}
 }`;
 };
 
-export const graphTpl = (g: GraphContainer, root: string = "", options: MetricsOptions) => {
+export const graphTpl = (g: GraphContainer, subgraphs: string[] = [], options: MetricsOptions) => {
+    subgraphs.sort();
     const childTpls: string[] = [];
-    if (root) {
-        if (g.subgraphExists(root)) {
-            childTpls.push(subgraphTpl(g, g.subgraph(root), options));
-        } else {
-            const item = g.item(root);
-            if (item?.__parentID && g.subgraphExists(item?.__parentID)) {
-                childTpls.push(subgraphTpl(g, g.subgraph(item.__parentID), options));
+    if (subgraphs?.length) {
+        subgraphs.forEach(subgraph => {
+            if (g.subgraphExists(subgraph)) {
+                childTpls.push(subgraphTpl(g, g.subgraph(subgraph), options));
             } else {
-                all();
+                const item = g.item(subgraph);
+                if (item?.__parentID && g.subgraphExists(item?.__parentID)) {
+                    childTpls.push(subgraphTpl(g, g.subgraph(item.__parentID), options));
+                }
             }
-        }
+        });
+        g.allEdges().filter(e => {
+            const sV = g.vertex(e.IdSource);
+            const tV = g.vertex(e.IdTarget);
+            return sV.__parentID !== tV.__parentID && subgraphs.indexOf(sV.__parentID) >= 0 && subgraphs.indexOf(tV.__parentID) >= 0;
+        }).forEach(child => {
+            childTpls.push(edgeTpl(g, child, options));
+        });
     } else {
-        all();
-    }
-
-    function all() {
         g.subgraphs().forEach(child => {
             childTpls.push(subgraphTpl(g, child, options));
         });
