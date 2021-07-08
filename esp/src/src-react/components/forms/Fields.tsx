@@ -42,7 +42,7 @@ const Dropdown: React.FunctionComponent<DropdownProps> = ({
     return <DropdownBase key={key} label={label} errorMessage={errorMessage} required={required} className={className} defaultSelectedKey={selectedKey} onChange={onChange} placeholder={placeholder} options={selOptions} />;
 };
 
-export type FieldType = "string" | "number" | "checkbox" | "datetime" | "link" | "links" |
+export type FieldType = "string" | "number" | "checkbox" | "datetime" | "link" | "links" | "dropdown" |
     "workunit-state" |
     "file-type" | "file-sortby" |
     "queries-suspend-state" | "queries-active-state" |
@@ -89,6 +89,21 @@ interface DropdownField extends BaseField {
     options: IDropdownOption[];
 }
 
+interface TargetDropzoneField extends BaseField {
+    type: "target-dropzone";
+    value?: string;
+}
+
+interface TargetServerField extends BaseField {
+    type: "target-server";
+    value?: string;
+}
+
+interface TargetDfuSprayQueueField extends BaseField {
+    type: "target-dfuqueue"
+    value?: string;
+}
+
 interface WorkunitStateField extends BaseField {
     type: "workunit-state";
     value?: string;
@@ -124,20 +139,6 @@ interface TargetGroupField extends BaseField {
     value?: string;
 }
 
-interface TargetServerField extends BaseField {
-    type: "target-server";
-    value?: string;
-}
-
-interface TargetDropzoneField extends BaseField {
-    type: "target-dropzone";
-    value?: string;
-}
-interface TargetDfuSprayQueueField extends BaseField {
-    type: "target-dfuqueue";
-    value?: string;
-}
-
 interface LogicalFileType extends BaseField {
     type: "logicalfile-type";
     value?: string;
@@ -161,7 +162,7 @@ interface LinksField extends BaseField {
     value?: string;
 }
 
-type Field = StringField | NumericField | CheckboxField | DateTimeField | LinkField | LinksField |
+type Field = StringField | NumericField | CheckboxField | DateTimeField | LinkField | LinksField | DropdownField |
     WorkunitStateField |
     FileTypeField | FileSortByField |
     QueriesSuspendStateField | QueriesActiveStateField |
@@ -203,7 +204,6 @@ export const TargetClusterTextField: React.FunctionComponent<TargetClusterTextFi
                 })
             );
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return <Dropdown key={key} label={label} selectedKey={selectedKey} optional className={className} onChange={onChange} placeholder={placeholder} options={targetClusters} />;
@@ -215,7 +215,7 @@ export interface TargetDropzoneTextFieldProps extends DropdownProps {
     selectedKey?: string;
     optional?: boolean;
     className?: string;
-    onChange?: (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => void;
+    onChange?: (event?: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => void;
     placeholder?: string;
 }
 
@@ -225,17 +225,27 @@ export const TargetDropzoneTextField: React.FunctionComponent<TargetDropzoneText
 
     React.useEffect(() => {
         TpDropZoneQuery({}).then(({ TpDropZoneQueryResponse }) => {
+            let selected: IDropdownOption;
+            let selectedIdx: number;
             setTargetDropzones(
-                TpDropZoneQueryResponse.TpDropZones.TpDropZone.map(n => {
-                    return {
-                        key: n.Name,
-                        text: n.Name,
-                        path: n.Path
+                TpDropZoneQueryResponse?.TpDropZones?.TpDropZone?.map((row, idx) => {
+                    const retVal = {
+                        key: row.Name,
+                        text: row.Name,
+                        path: row.Path
                     };
-                })
+                    if (retVal.key === props.selectedKey) {
+                        selected = retVal;
+                        selectedIdx = idx;
+                    }
+                    return retVal;
+                }) || []
             );
+            if (selected) {
+                props.onChange(undefined, selected, selectedIdx);
+            }
         });
-    }, []);
+    }, [props]);
 
     return <Dropdown {...props} options={targetDropzones} />;
 };
@@ -247,26 +257,29 @@ export interface TargetServerTextFieldProps extends DropdownProps {
     optional?: boolean;
     onChange?: (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => void;
     placeholder?: string;
+    setSetDropzone?: (setDropzone: (dropzone: string) => void) => void;
 }
 
 export const TargetServerTextField: React.FunctionComponent<TargetServerTextFieldProps> = (props) => {
 
     const [targetServers, setTargetServers] = React.useState<IDropdownOption[]>([]);
+    const [dropzone, setDropzone] = React.useState("");
+
+    props.setSetDropzone && props.setSetDropzone(setDropzone);
 
     React.useEffect(() => {
-        // if (!selectedDropzone) return;
         TpDropZoneQuery({ Name: "" }).then(({ TpDropZoneQueryResponse }) => {
             setTargetServers(
-                TpDropZoneQueryResponse.TpDropZones.TpDropZone[0].TpMachines.TpMachine.map(n => {
+                TpDropZoneQueryResponse?.TpDropZones?.TpDropZone?.filter(row => row.Name === dropzone)[0]?.TpMachines?.TpMachine?.map(n => {
                     return {
-                        key: n.Netaddress,
+                        key: n.ConfigNetaddress,
                         text: n.Netaddress,
                         OS: n.OS
                     };
-                })
+                }) || []
             );
         });
-    }, []);
+    }, [props.selectedKey, dropzone]);
 
     return <Dropdown {...props} options={targetServers} />;
 };
@@ -419,6 +432,7 @@ const dfustates = Object.keys(DFUStates).map(s => DFUStates[s]);
 
 export function createInputs(fields: Fields, onChange?: (id: string, newValue: any) => void) {
     const retVal: { id: string, label: string, field: any }[] = [];
+    let setDropzone = (dropzone: string) => { };
     for (const fieldID in fields) {
         const field = fields[fieldID];
         if (!field.disabled) {
@@ -634,24 +648,28 @@ export function createInputs(fields: Fields, onChange?: (id: string, newValue: a
                     field: <TargetDropzoneTextField
                         key={fieldID}
                         selectedKey={field.value}
-                        onChange={(ev, row) => onChange(fieldID, row.key)}
+                        onChange={(ev, row) => {
+                            onChange(fieldID, row.key);
+                            setDropzone(row.key as string);
+                        }}
                         placeholder={field.placeholder}
                     />
                 });
                 break;
-                case "target-server":
-                    field.value = field.value || "";
-                    retVal.push({
-                        id: fieldID,
-                        label: field.label,
-                        field: <TargetServerTextField
-                            key={fieldID}
-                            selectedKey={field.value}
-                            onChange={(ev, row) => onChange(fieldID, row.key)}
-                            placeholder={field.placeholder}
-                        />
-                    });
-                    break;
+            case "target-server":
+                field.value = field.value || "";
+                retVal.push({
+                    id: fieldID,
+                    label: field.label,
+                    field: <TargetServerTextField
+                        key={fieldID}
+                        selectedKey={field.value}
+                        onChange={(ev, row) => onChange(fieldID, row.key)}
+                        placeholder={field.placeholder}
+                        setSetDropzone={_ => setDropzone = _}
+                    />
+                });
+                break;
             case "target-group":
                 field.value = field.value || "";
                 retVal.push({

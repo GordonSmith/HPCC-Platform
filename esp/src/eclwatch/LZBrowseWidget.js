@@ -142,7 +142,7 @@ define([
 
             this.dropZoneTarget2Select.on("change", function (evt) {
                 if (evt) {
-                    context.serverFilterSelect.loadDropZoneMachines(evt);
+                    context.serverFilterSelect.loadDropZoneMachines(evt, true);
                 }
             });
         },
@@ -517,7 +517,6 @@ define([
             });
             if (dropZoneInfo.length && dropZoneMachineInfo.length) {
                 retVal.__dropZone = dropZoneInfo[0];
-                retVal.__dropZoneMachine = dropZoneMachineInfo[0];
             }
             return retVal;
         },
