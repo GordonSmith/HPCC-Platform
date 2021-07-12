@@ -338,9 +338,15 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
                     </div>
                 </div>
                 <DojoGrid
-                    store={gridStore}
-                    columns={gridColumns}
-                    query={gridQuery} sort={gridSort} setGrid={setGrid} setSelection={setSelection}
+                    store={gridStore} columns={gridColumns}
+                    query={gridQuery} sort={gridSort} setGrid={setGrid}
+                    getSelected={function () {
+                        if (Object.keys(filter).length) {
+                            return this.inherited(arguments, [FileSpray.CreateLandingZonesFilterStore({})]);
+                        }
+                        return this.inherited(arguments, [FileSpray.CreateFileListStore({})]);
+                    }}
+                    setSelection={setSelection}
                 />
                 <Filter
                     showFilter={showFilter} setShowFilter={setShowFilter}

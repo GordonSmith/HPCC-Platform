@@ -63,7 +63,9 @@ export const DojoGrid: React.FunctionComponent<DojoGridProps> = ({
     }
 
     return <DojoComponent Widget={Grid} WidgetParams={widgetParams} postCreate={grid => {
-        grid.onSelectionChanged(() => setSelection(grid.getSelected()));
+        grid.onSelectionChanged(() => {
+            setSelection(grid.getSelected());
+        });
         setGrid(grid);
     }} />;
 };
