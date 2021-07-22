@@ -94,6 +94,7 @@ export = {
         Close: "Close",
         CloseModal: "Close popup modal",
         Cluster: "Cluster",
+        Clusters: "Clusters",
         ClusterName: "Cluster Name",
         ClusterPlaceholder: "r?x*",
         ClusterProcesses: "Cluster Processes",

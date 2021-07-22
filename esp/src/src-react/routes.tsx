@@ -45,15 +45,43 @@ export const routes: RoutesEx = [
         mainNav: ["activities", "topology"],
         path: "/clusters",
         children: [
+            { path: "", action: (context) => import("./components/Clusters").then(_ => <_.Clusters />) },
             { path: "/:ClusterName", action: (ctx, params) => import("./layouts/DojoAdapter").then(_ => <_.DojoAdapter widgetClassID="TpClusterInfoWidget" params={params} />) },
             { path: "/:Cluster/usage", action: (ctx, params) => import("./components/DiskUsage").then(_ => <_.ClusterUsage cluster={params.Cluster as string} />) },
         ]
     },
     {
         mainNav: ["topology"],
+        name: "services",
+        path: "/services",
+        children: [
+            { path: "", action: (context) => import("./components/Services").then(_ => <_.Services />) },
+        ]
+    },
+    {
+        mainNav: ["topology"],
+        name: "services",
+        path: "/services",
+        children: [
+            { path: "", action: (context) => import("./components/Services").then(_ => <_.Services />) },
+        ]
+    },
+    {
+        mainNav: ["topology"],
         path: "/machines",
         children: [
-            { path: "/:Machine/usage", action: (ctx, params) => import("./components/DiskUsage").then(_ => <_.MachineUsage machine={params.Machine as string} />) },
+            { path: "/:Machine", action: (ctx, params) => import("./components/MachineDetails").then(_ => <_.MachineDetails machine={params.Machine as string} />) },
+            {
+                path: "/:Machine/:Tab", action: (ctx, params) => {
+                    switch (params.Tab) {
+                        case "summary":
+                        case "usage":
+                            return import("./components/MachineDetails").then(_ => <_.MachineDetails machine={params.Machine as string} tab={params.Tab as string} />);
+                    }
+                    pushUrl(`/machines/${params.Machine}/${params.Tab}/summary`);
+                }
+            },
+            { path: "/:Machine/:Process/:Tab", action: (ctx, params) => import("./components/ProcessDetails").then(_ => <_.ProcessDetails machine={params.Machine as string} process={params.Process as string} tab={params.Tab as string} />) },
         ]
     },
     {

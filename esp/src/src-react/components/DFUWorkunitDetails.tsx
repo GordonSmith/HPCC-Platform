@@ -30,7 +30,7 @@ export const DFUWorkunitDetails: React.FunctionComponent<DFUWorkunitDetailsProps
 
     React.useEffect(() => {
         setWorkunit(ESPDFUWorkunit.Get(wuid));
-        FileSpray.GetDFUWorkunit({ request: { wuid }}).then(response => {
+        FileSpray.GetDFUWorkunit({ request: { wuid } }).then(response => {
             setDfuWuData(response?.GetDFUWorkunitResponse?.result);
         });
     }, [wuid]);

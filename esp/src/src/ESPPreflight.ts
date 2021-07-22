@@ -135,7 +135,7 @@ class ClusterTargetStore extends ESPRequest.Store {
         arrayUtil.forEach(tempArr, function (item, idx) {
             children.push({
                 hpcc_id: parent.Name + "_" + item.Name,
-                Name: item.Type + " - " + item.Name,
+                Name: item.Name,
                 Type: item.Type,
                 DaliServer: item.DaliServer ? true : false,
                 Directory: item.TpMachines ? item.TpMachines.TpMachine[0].Directory : "",

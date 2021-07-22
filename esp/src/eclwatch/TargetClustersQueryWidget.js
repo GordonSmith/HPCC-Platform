@@ -150,6 +150,16 @@ define([
                             return false;
                         }
                     }),
+                    Type: {
+                        formatter: function (type, row) {
+                            if (row.type === "targetClusterComponent") {
+                                return type;
+                            }
+                            return "";
+                        },
+                        label: nlsHPCC.Type,
+                        width: 100,
+                    },
                     Node: {
                         label: this.i18n.Node,
                         sortable: false,
