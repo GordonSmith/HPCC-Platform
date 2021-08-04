@@ -4,7 +4,7 @@ import { useId } from "@fluentui/react-hooks";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
 import * as FormStyles from "./landing-zone/styles";
-import { useWorkunit } from "../../hooks/Workunit";
+import { useWorkunit } from "../../hooks/workunit";
 
 interface PublishFormValues {
     jobName: string;
@@ -111,13 +111,13 @@ export const PublishQueryForm: React.FunctionComponent<PublishFormProps> = ({
                         field: { onChange, name: fieldName, value },
                         fieldState: { error }
                     }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        required={true}
-                        label={nlsHPCC.JobName}
-                        value={value}
-                        errorMessage={ error && error?.message }
-                    /> }
+                            name={fieldName}
+                            onChange={onChange}
+                            required={true}
+                            label={nlsHPCC.JobName}
+                            value={value}
+                            errorMessage={error && error?.message}
+                        />}
                     rules={{
                         required: nlsHPCC.ValidationErrorRequired
                     }}
@@ -128,12 +128,12 @@ export const PublishQueryForm: React.FunctionComponent<PublishFormProps> = ({
                         field: { onChange, name: fieldName, value },
                         fieldState: { error }
                     }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        label={nlsHPCC.RemoteDali}
-                        value={value}
-                        errorMessage={ error && error?.message }
-                    /> }
+                            name={fieldName}
+                            onChange={onChange}
+                            label={nlsHPCC.RemoteDali}
+                            value={value}
+                            errorMessage={error && error?.message}
+                        />}
                 />
                 <Controller
                     control={control} name="sourceProcess"
@@ -141,12 +141,12 @@ export const PublishQueryForm: React.FunctionComponent<PublishFormProps> = ({
                         field: { onChange, name: fieldName, value },
                         fieldState: { error }
                     }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        label={nlsHPCC.SourceProcess}
-                        value={value}
-                        errorMessage={ error && error?.message }
-                    /> }
+                            name={fieldName}
+                            onChange={onChange}
+                            label={nlsHPCC.SourceProcess}
+                            value={value}
+                            errorMessage={error && error?.message}
+                        />}
                 />
                 <Controller
                     control={control} name="comment"
@@ -154,11 +154,11 @@ export const PublishQueryForm: React.FunctionComponent<PublishFormProps> = ({
                         field: { onChange, name: fieldName, value },
                         fieldState: { error }
                     }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        label={nlsHPCC.Comment}
-                        value={value}
-                    /> }
+                            name={fieldName}
+                            onChange={onChange}
+                            label={nlsHPCC.Comment}
+                            value={value}
+                        />}
                 />
                 <Controller
                     control={control} name="priority"
@@ -166,34 +166,34 @@ export const PublishQueryForm: React.FunctionComponent<PublishFormProps> = ({
                         field: { onChange, name: fieldName, value },
                         fieldState: { error }
                     }) => <Dropdown
-                        key={fieldName}
-                        label={nlsHPCC.Priority}
-                        options={[
-                            { key: "", text: nlsHPCC.None },
-                            { key: "SLA", text: nlsHPCC.SLA },
-                            { key: "Low", text: nlsHPCC.Low },
-                            { key: "High", text: nlsHPCC.High },
-                        ]}
-                        selectedKey={value}
-                        onChange={(evt, option) => {
-                            onChange(option.key);
-                        }}
-                    /> }
+                            key={fieldName}
+                            label={nlsHPCC.Priority}
+                            options={[
+                                { key: "", text: nlsHPCC.None },
+                                { key: "SLA", text: nlsHPCC.SLA },
+                                { key: "Low", text: nlsHPCC.Low },
+                                { key: "High", text: nlsHPCC.High },
+                            ]}
+                            selectedKey={value}
+                            onChange={(evt, option) => {
+                                onChange(option.key);
+                            }}
+                        />}
                 />
                 <div style={{ paddingTop: "15px" }}>
                     <Controller
                         control={control} name="allowForeignFiles"
                         render={({
-                            field : { onChange, name: fieldName, value }
-                        }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.AllowForeignFiles} /> }
+                            field: { onChange, name: fieldName, value }
+                        }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.AllowForeignFiles} />}
                     />
                 </div>
                 <div style={{ paddingTop: "10px" }}>
                     <Controller
                         control={control} name="updateSuperFiles"
                         render={({
-                            field : { onChange, name: fieldName, value }
-                        }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.UpdateSuperFiles} /> }
+                            field: { onChange, name: fieldName, value }
+                        }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.UpdateSuperFiles} />}
                     />
                 </div>
             </Stack>

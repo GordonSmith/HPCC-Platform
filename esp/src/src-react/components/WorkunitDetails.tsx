@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Pivot, PivotI
 import { SizeMe } from "react-sizeme";
 import nlsHPCC from "src/nlsHPCC";
 import { WUStatus } from "src/react/index";
-import { useWorkunit } from "../hooks/Workunit";
+import { useWorkunit } from "../hooks/workunit";
 import { useFavorite } from "../hooks/favorite";
 import { DojoAdapter } from "../layouts/DojoAdapter";
 import { pivotItemStyle } from "../layouts/pivot";

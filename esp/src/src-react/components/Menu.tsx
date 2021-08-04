@@ -120,6 +120,7 @@ const subMenuItems: SubMenuItems = {
         { headerText: nlsHPCC.Activities, itemKey: "/activities" },
         { headerText: nlsHPCC.Activities + " (L)", itemKey: "/activities/legacy" },
         { headerText: nlsHPCC.TargetClusters, itemKey: "/clusters" },
+        { headerText: nlsHPCC.Services, itemKey: "/services" },
         { headerText: nlsHPCC.EventScheduler + " (L)", itemKey: "/events" }
     ],
     "workunits": [
@@ -145,7 +146,7 @@ const subMenuItems: SubMenuItems = {
     "topology": [
         { headerText: nlsHPCC.Topology, itemKey: "/topology" },
         { headerText: nlsHPCC.DiskUsage, itemKey: "/diskusage" },
-        { headerText: nlsHPCC.TargetClusters, itemKey: "/clusters2" },
+        { headerText: nlsHPCC.TargetClusters, itemKey: "/clusters" },
         { headerText: nlsHPCC.ClusterProcesses, itemKey: "/processes" },
         { headerText: nlsHPCC.SystemServers, itemKey: "/servers" },
         { headerText: nlsHPCC.Security, itemKey: "/security" },

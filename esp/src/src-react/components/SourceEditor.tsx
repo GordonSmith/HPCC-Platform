@@ -5,7 +5,7 @@ import { Editor, ECLEditor, XMLEditor } from "@hpcc-js/codemirror";
 import nlsHPCC from "src/nlsHPCC";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
-import { useWorkunitXML } from "../hooks/Workunit";
+import { useWorkunitXML } from "../hooks/workunit";
 import { darkTheme } from "../themes";
 import { ShortVerticalDivider } from "./Common";
 import "eclwatch/css/cmDarcula.css";
@@ -163,6 +163,25 @@ interface FetchEditor {
 }
 
 export const FetchEditor: React.FunctionComponent<FetchEditor> = ({
+    url,
+    readonly = true,
+    mode = "text"
+}) => {
+
+    const [text, setText] = React.useState("");
+
+    React.useEffect(() => {
+        fetch(url).then(response => {
+            return response.text();
+        }).then(content => {
+            setText(content);
+        });
+    }, [url]);
+
+    return <SourceEditor text={text} readonly={readonly} mode={mode}></SourceEditor>;
+};
+
+export const ComponentFile: React.FunctionComponent<FetchEditor> = ({
     url,
     readonly = true,
     mode = "text"
