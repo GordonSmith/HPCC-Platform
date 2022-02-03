@@ -67,14 +67,20 @@
 #
 #########################################################
 
-project(hpccsystems-platform LANGUAGES C CXX)
+cmake_minimum_required(VERSION 3.13.0)
+
+set(HPCC_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+include(${HPCC_SOURCE_DIR}/version.cmake)
+
+project(hpccsystems-platform 
+    LANGUAGES C CXX
+    VERSION ${HPCC_MAJOR}.${HPCC_MINOR}.${HPCC_POINT}.${HPCC_SEQUENCE}
+)
 
 # Stupid workaround. See https://gitlab.kitware.com/cmake/cmake/-/issues/21378
 # If cmake runs twice, cmake might not correctly set the compiler version variables
 unset ( ENV{CC} )
 unset ( ENV{CXX} )
-
-cmake_minimum_required(VERSION 3.13.0)
 
 set(TOP_LEVEL_PROJECT ON)
 if(NOT CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
@@ -84,10 +90,7 @@ endif(NOT CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 include(CTest)
 enable_testing()
 
-set(HPCC_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(CMAKE_MODULE_PATH "${HPCC_SOURCE_DIR}/cmake_modules/")
-
-include(${HPCC_SOURCE_DIR}/version.cmake)
 
 ###
 ## Build Level
@@ -135,12 +138,6 @@ endif()
 include(${HPCC_SOURCE_DIR}/cmake_modules/optionDefaults.cmake)
 
 set(CMAKE_INSTALL_MESSAGE LAZY)
-
-if ( REMBED AND (NOT INCLUDE_PLUGINS) )
-  # various components that are not needed if only making the R plugin
-  SET(USE_LIBARCHIVE 0)
-  SET(USE_APR 0)
-endif()
 
 include(${HPCC_SOURCE_DIR}/cmake_modules/commonSetup.cmake)
 

@@ -25,18 +25,6 @@
 IF ("${COMMONSETUP_DONE}" STREQUAL "")
   SET (COMMONSETUP_DONE 1)
 
-  MACRO (MACRO_ENSURE_OUT_OF_SOURCE_BUILD _errorMessage)
-    STRING(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}" insource)
-    IF (insource)
-      MESSAGE(FATAL_ERROR "${_errorMessage}")
-    ENDIF(insource)
-  ENDMACRO (MACRO_ENSURE_OUT_OF_SOURCE_BUILD)
-
-  macro_ensure_out_of_source_build("The LexisNexis Hpcc requires an out of source build.
-    Please remove the directory ${CMAKE_BINARY_DIR}/CMakeFiles
-    and the file ${CMAKE_BINARY_DIR}/CMakeCache.txt,
-    then create a separate build directory and run 'cmake path_to_source [options]' there.")
-
   cmake_policy ( SET CMP0011 NEW )
   if (NOT (CMAKE_MAJOR_VERSION LESS 3))
     cmake_policy ( SET CMP0026 OLD )
@@ -44,6 +32,14 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
       cmake_policy ( SET CMP0054 NEW )
     endif()
   endif()
+
+##Options#################################################
+  if ( REMBED AND (NOT INCLUDE_PLUGINS) )
+    # various components that are not needed if only making the R plugin
+    SET(USE_LIBARCHIVE 0)
+    SET(USE_APR 0)
+  endif()
+
   option(CONTAINERIZED "Build for container images." OFF)
   option(CLIENTTOOLS "Enable the building/inclusion of a Client Tools component." ON)
   option(PLATFORM "Enable the building/inclusion of a Platform component." ON)
@@ -146,26 +142,6 @@ endif ()
 
   set(CUSTOM_PACKAGE_SUFFIX "" CACHE STRING "Custom package suffix to differentiate development builds")
 
-     MACRO(SET_PLUGIN_PACKAGE plugin)
-        string(TOLOWER "${plugin}" pname)
-	    if(DEFINED pluginname)
-            message(FATAL_ERROR "Cannot enable ${pname}, already declared ${pluginname}")
-	    else()
-            set(pluginname "${pname}")
-        endif()
-        foreach(p in ${PLUGINS_LIST})
-            if(NOT "${p}" STREQUAL "${plugin}" AND ${p})
-                message(FATAL_ERROR "Cannot declare multiple plugins in a plugin package")
-            endif()
-        endforeach()
-        set(PLUGIN ON)
-        set(CLIENTTOOLS OFF)
-        set(PLATFORM OFF)
-        set(INCLUDE_PLUGINS OFF)
-        set(SIGN_MODULES OFF)
-        set(USE_OPTIONAL OFF) # Force failure if we can't find the plugin dependencies
-    ENDMACRO()
-  
     # Plugin options
     set(PLUGINS_LIST
     REMBED
@@ -195,7 +171,6 @@ endif ()
     endforeach()
     #"cmake -DEXAMPLEPLUGIN=ON <path-to/HPCC-Platform/>" will configure the plugin makefiles to be built with "make".
 
-  set(CMAKE_MODULE_PATH "${HPCC_SOURCE_DIR}/cmake_modules/")
 
   if ( NOT MAKE_DOCS_ONLY )
     set(LIBMEMCACHED_MINVERSION "1.0.10")
@@ -525,6 +500,43 @@ endif ()
       endif()
   endif()
 
+  ##########################################################
+
+  # Macros / Functions
+
+MACRO (MACRO_ENSURE_OUT_OF_SOURCE_BUILD _errorMessage)
+  STRING(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}" insource)
+  IF (insource)
+    MESSAGE(FATAL_ERROR "${_errorMessage}")
+  ENDIF(insource)
+ENDMACRO (MACRO_ENSURE_OUT_OF_SOURCE_BUILD)
+
+macro_ensure_out_of_source_build("The LexisNexis Hpcc requires an out of source build.
+  Please remove the directory ${CMAKE_BINARY_DIR}/CMakeFiles
+  and the file ${CMAKE_BINARY_DIR}/CMakeCache.txt,
+  then create a separate build directory and run 'cmake path_to_source [options]' there."
+)
+
+MACRO(SET_PLUGIN_PACKAGE plugin)
+  string(TOLOWER "${plugin}" pname)
+  if(DEFINED pluginname)
+    message(FATAL_ERROR "Cannot enable ${pname}, already declared ${pluginname}")
+  else()
+    set(pluginname "${pname}")
+  endif()
+  foreach(p in ${PLUGINS_LIST})
+    if(NOT "${p}" STREQUAL "${plugin}" AND ${p})
+      message(FATAL_ERROR "Cannot declare multiple plugins in a plugin package")
+    endif()
+  endforeach()
+  set(PLUGIN ON)
+  set(CLIENTTOOLS OFF)
+  set(PLATFORM OFF)
+  set(INCLUDE_PLUGINS OFF)
+  set(SIGN_MODULES OFF)
+  set(USE_OPTIONAL OFF) # Force failure if we can't find the plugin dependencies
+ENDMACRO()
+
   macro(HPCC_ADD_EXECUTABLE target)
     add_executable(${target} ${ARGN})
   endmacro(HPCC_ADD_EXECUTABLE target)
@@ -593,7 +605,61 @@ endif ()
     endif()
   endmacro(HPCC_ADD_SUBDIRECTORY)
 
-  set ( SCM_GENERATED_DIR ${CMAKE_BINARY_DIR}/generated )
+MACRO(SIGN_MODULE module)
+  if(SIGN_MODULES)
+    set(GPG_COMMAND_STR "gpg")
+    if(DEFINED SIGN_MODULES_PASSPHRASE)
+        set(GPG_COMMAND_STR "${GPG_COMMAND_STR} --passphrase ${SIGN_MODULES_PASSPHRASE}")
+    endif()
+    if(DEFINED SIGN_MODULES_KEYID)
+        set(GPG_COMMAND_STR "${GPG_COMMAND_STR} --default-key ${SIGN_MODULES_KEYID}")
+    endif()
+    if("${GPG_VERSION}" VERSION_GREATER "2.1")
+        set(GPG_COMMAND_STR "${GPG_COMMAND_STR} --pinentry-mode loopback")
+    endif()
+    set(GPG_COMMAND_STR "${GPG_COMMAND_STR} --batch --yes --no-tty --output ${CMAKE_CURRENT_BINARY_DIR}/${module} --clearsign ${module}")
+    add_custom_command(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${module}
+      COMMAND bash "-c" "${GPG_COMMAND_STR}"
+      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${module}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      COMMENT "Adding signed ${module} to project"
+      )
+  else()
+    add_custom_command(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${module}
+      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${module} ${CMAKE_CURRENT_BINARY_DIR}/${module}
+      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${module}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      COMMENT "Adding unsigned ${module} to project"
+      VERBATIM
+      )
+  endif()
+  # Use custom target to cause build to fail if dependency file isn't generated by gpg or cp commands
+  get_filename_component(module_without_extension ${module} NAME_WE)
+  add_custom_target(
+    ${module_without_extension}-ecl ALL
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${module}
+    )
+  if(SIGN_MODULES)
+    add_dependencies(${module_without_extension}-ecl export-stdlib-pubkey)
+  endif()
+ENDMACRO()
+
+MACRO (FETCH_GIT_TAG workdir edition result)
+  execute_process(COMMAND "${GIT_COMMAND}" describe --tags --dirty --abbrev=6 --match ${edition}*
+    WORKING_DIRECTORY "${workdir}"
+    OUTPUT_VARIABLE ${result}
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if ("${${result}}" STREQUAL "")
+        execute_process(COMMAND "${GIT_COMMAND}" describe --always --tags --all --abbrev=6 --dirty --long
+            WORKING_DIRECTORY "${workdir}"
+            OUTPUT_VARIABLE ${result}
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+    endif()
+ENDMACRO()
 
     ###############################################################
     # Macro for Logging Plugin build in CMake
@@ -657,6 +723,57 @@ endif ()
             set(nbPLUGINS ${nbPLUGINS} ${PLUGIN_NAME})
         endif()
     endmacro()
+
+function(LIST_TO_STRING separator outvar)
+  set ( tmp_str "" )
+  list (LENGTH ARGN list_length)
+  if ( ${list_length} LESS 2 )
+    set ( tmp_str "${ARGN}" )
+  else()
+    math(EXPR last_index "${list_length} - 1")
+
+    foreach( index RANGE ${last_index} )
+      if ( ${index} GREATER 0 )
+        list( GET ARGN ${index} element )
+        set( tmp_str "${tmp_str}${separator}${element}")
+      else()
+        list( GET ARGN 0 element )
+        set( tmp_str "${element}")
+      endif()
+    endforeach()
+  endif()
+  set ( ${outvar} "${tmp_str}" PARENT_SCOPE )
+endfunction()
+
+function(STRING_TO_LIST separator outvar stringvar)
+  set( tmp_list "" )
+  string(REPLACE "${separator}" ";" tmp_list ${stringvar})
+  string(STRIP "${tmp_list}" tmp_list)
+  set( ${outvar} "${tmp_list}" PARENT_SCOPE)
+endfunction()
+
+###########################################################################
+###
+## The following sets the dependency list for a package
+###
+###########################################################################
+function(SET_DEPENDENCIES cpackvar)
+  set(_tmp "")
+  if(${cpackvar})
+    STRING_TO_LIST(", " _tmp ${${cpackvar}})
+  endif()
+  foreach(element ${ARGN})
+    list(APPEND _tmp ${element})
+  endforeach()
+  list(REMOVE_DUPLICATES _tmp)
+  LIST_TO_STRING(", " _tmp "${_tmp}")
+  set(${cpackvar} "${_tmp}" CACHE STRING "" FORCE)
+  message(STATUS "Updated ${cpackvar} to ${${cpackvar}}")
+endfunction()
+
+  ##################################################################
+
+  set ( SCM_GENERATED_DIR ${CMAKE_BINARY_DIR}/generated )
 
   ##################################################################
 
@@ -1071,106 +1188,5 @@ endif ()
   set (CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
   set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${LIB_DIR};${CMAKE_INSTALL_PREFIX}/${PLUGINS_DIR};${CMAKE_INSTALL_PREFIX}/${LIB_DIR}/external")
   set (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-  MACRO (FETCH_GIT_TAG workdir edition result)
-      execute_process(COMMAND "${GIT_COMMAND}" describe --tags --dirty --abbrev=6 --match ${edition}*
-        WORKING_DIRECTORY "${workdir}"
-        OUTPUT_VARIABLE ${result}
-        ERROR_QUIET
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-        if ("${${result}}" STREQUAL "")
-            execute_process(COMMAND "${GIT_COMMAND}" describe --always --tags --all --abbrev=6 --dirty --long
-                WORKING_DIRECTORY "${workdir}"
-                OUTPUT_VARIABLE ${result}
-                ERROR_QUIET
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
-        endif()
-  ENDMACRO()
 
-  function(LIST_TO_STRING separator outvar)
-    set ( tmp_str "" )
-    list (LENGTH ARGN list_length)
-    if ( ${list_length} LESS 2 )
-      set ( tmp_str "${ARGN}" )
-    else()
-      math(EXPR last_index "${list_length} - 1")
-
-      foreach( index RANGE ${last_index} )
-        if ( ${index} GREATER 0 )
-          list( GET ARGN ${index} element )
-          set( tmp_str "${tmp_str}${separator}${element}")
-        else()
-          list( GET ARGN 0 element )
-          set( tmp_str "${element}")
-        endif()
-      endforeach()
-    endif()
-    set ( ${outvar} "${tmp_str}" PARENT_SCOPE )
-  endfunction()
-
-  function(STRING_TO_LIST separator outvar stringvar)
-    set( tmp_list "" )
-    string(REPLACE "${separator}" ";" tmp_list ${stringvar})
-    string(STRIP "${tmp_list}" tmp_list)
-    set( ${outvar} "${tmp_list}" PARENT_SCOPE)
-  endfunction()
-
-  ###########################################################################
-  ###
-  ## The following sets the dependency list for a package
-  ###
-  ###########################################################################
-  function(SET_DEPENDENCIES cpackvar)
-    set(_tmp "")
-    if(${cpackvar})
-      STRING_TO_LIST(", " _tmp ${${cpackvar}})
-    endif()
-    foreach(element ${ARGN})
-      list(APPEND _tmp ${element})
-    endforeach()
-    list(REMOVE_DUPLICATES _tmp)
-    LIST_TO_STRING(", " _tmp "${_tmp}")
-    set(${cpackvar} "${_tmp}" CACHE STRING "" FORCE)
-    message(STATUS "Updated ${cpackvar} to ${${cpackvar}}")
-  endfunction()
-
-  MACRO(SIGN_MODULE module)
-    if(SIGN_MODULES)
-      set(GPG_COMMAND_STR "gpg")
-      if(DEFINED SIGN_MODULES_PASSPHRASE)
-          set(GPG_COMMAND_STR "${GPG_COMMAND_STR} --passphrase ${SIGN_MODULES_PASSPHRASE}")
-      endif()
-      if(DEFINED SIGN_MODULES_KEYID)
-          set(GPG_COMMAND_STR "${GPG_COMMAND_STR} --default-key ${SIGN_MODULES_KEYID}")
-      endif()
-      if("${GPG_VERSION}" VERSION_GREATER "2.1")
-          set(GPG_COMMAND_STR "${GPG_COMMAND_STR} --pinentry-mode loopback")
-      endif()
-      set(GPG_COMMAND_STR "${GPG_COMMAND_STR} --batch --yes --no-tty --output ${CMAKE_CURRENT_BINARY_DIR}/${module} --clearsign ${module}")
-      add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${module}
-        COMMAND bash "-c" "${GPG_COMMAND_STR}"
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${module}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Adding signed ${module} to project"
-        )
-    else()
-      add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${module}
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${module} ${CMAKE_CURRENT_BINARY_DIR}/${module}
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${module}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Adding unsigned ${module} to project"
-        VERBATIM
-        )
-    endif()
-    # Use custom target to cause build to fail if dependency file isn't generated by gpg or cp commands
-    get_filename_component(module_without_extension ${module} NAME_WE)
-    add_custom_target(
-      ${module_without_extension}-ecl ALL
-      DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${module}
-      )
-    if(SIGN_MODULES)
-      add_dependencies(${module_without_extension}-ecl export-stdlib-pubkey)
-    endif()
-  ENDMACRO()
 endif ("${COMMONSETUP_DONE}" STREQUAL "")
