@@ -1,10 +1,13 @@
 import * as React from "react";
-import { DetailsList, DetailsListLayoutMode, IColumn, ICommandBarItemProps, IDetailsHeaderProps, Selection, TooltipHost, TooltipOverflowMode } from "@fluentui/react";
+import { DetailsList, DetailsListLayoutMode, Dropdown, IColumn, ICommandBarItemProps, IDetailsHeaderProps, Label, Selection, Stack, TooltipHost, TooltipOverflowMode } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
 import { AlphaNumSortMemory } from "src/Memory";
+import * as ESPRequest from "src/ESPRequest";
+import nlsHPCC from "src/nlsHPCC";
 import { createCopyDownloadSelection } from "../components/Common";
 import { DojoGrid } from "../components/DojoGrid";
 import { useDeepCallback, useDeepEffect } from "./deepHooks";
+import { Pagination } from "@fluentui/react-experiments/lib/Pagination";
 
 interface useGridProps {
     store: any,
@@ -25,7 +28,7 @@ export function useGrid({ store, query = {}, sort = [], columns, getSelected, fi
     const [grid, setGrid] = React.useState<any>(undefined);
     const [selection, setSelection] = React.useState([]);
 
-    const Grid = React.useMemo(() => () => <DojoGrid
+    const Grid = React.useCallback(() => <DojoGrid
         store={constStore}
         query={constQuery}
         sort={constSort}
@@ -63,7 +66,10 @@ function tooltipItemRenderer(item: any, index: number, column: IColumn) {
     const id = `${column.key}-${index}`;
     const value = item[column.fieldName || column.key];
     return <TooltipHost id={id} content={value} overflowMode={TooltipOverflowMode.Parent}>
-        <span aria-describedby={id}>{value}</span>
+        {column.data.formatter ?
+            <span style={{ display: "flex" }}>{column.data.formatter(value, item)}</span> :
+            <span aria-describedby={id}>{value}</span>
+        }
     </TooltipHost>;
 }
 
@@ -91,7 +97,7 @@ function columnsAdapter(columns, sorted: Sorted): IColumn[] {
     return retVal;
 }
 
-export interface useFluentGrid2Props {
+export interface useFluentGridProps {
     data: any[],
     primaryID: string,
     alphaNumColumns?: { [id: string]: boolean },
@@ -102,7 +108,16 @@ export interface useFluentGrid2Props {
     filename: string
 }
 
-export function useFluentGrid({ data, primaryID, alphaNumColumns = {}, query = {}, sort = [], columns, getSelected, filename }: useFluentGrid2Props): [React.FunctionComponent, any[], ICommandBarItemProps[]] {
+export function useFluentGrid({
+    data,
+    primaryID,
+    alphaNumColumns = {},
+    query = {},
+    sort = [],
+    columns,
+    getSelected,
+    filename
+}: useFluentGridProps): [React.FunctionComponent, any[], ICommandBarItemProps[]] {
 
     const constStore = useConst(new AlphaNumSortMemory(primaryID, alphaNumColumns));
     const constQuery = useConst({ ...query });
@@ -174,31 +189,159 @@ export function useFluentGrid({ data, primaryID, alphaNumColumns = {}, query = {
         });
     }, []);
 
-    const renderItemColumn = React.useCallback((item: any, index: number, column: IColumn) => {
-        if (constColumns[column.key].formatter) {
-            return <span style={{ display: "flex" }}>{constColumns[column.key].formatter(item[column.key], item)}</span>;
-        }
-        return <span>{item[column.key]}</span>;
-    }, [constColumns]);
-
-    const Grid = React.useMemo(() => () => <DetailsList
+    const Grid = React.useCallback(() => <DetailsList
         compact={true}
         items={items}
         columns={fluentColumns}
         setKey="set"
         layoutMode={DetailsListLayoutMode.justified}
-        onRenderItemColumn={renderItemColumn}
         selection={selectionHandler}
         selectionPreservedOnEmptyClick={true}
         onItemInvoked={this._onItemInvoked}
         onColumnHeaderClick={onColumnClick}
         onRenderDetailsHeader={renderDetailsHeader}
-
-    />, [fluentColumns, items, onColumnClick, renderDetailsHeader, renderItemColumn, selectionHandler]);
+    />, [fluentColumns, items, onColumnClick, renderDetailsHeader, selectionHandler]);
 
     const copyButtons = React.useMemo((): ICommandBarItemProps[] => [
         ...createCopyDownloadSelection(constColumns, selection, `${filename}.csv`)
     ], [constColumns, filename, selection]);
 
     return [Grid, selection, copyButtons];
+}
+
+export interface useFluentPagedGridProps {
+    store: ESPRequest.Store,
+    alphaNumColumns?: { [id: string]: boolean },
+    query?: object,
+    sort?: object[],
+    columns: object,
+    getSelected?: () => any[],
+    filename: string,
+    width?: string;
+    height?: string;
+}
+
+export function useFluentPagedGrid({
+    store,
+    alphaNumColumns = {},
+    query = {},
+    sort = [],
+    columns,
+    getSelected,
+    filename,
+    width,
+    height
+}: useFluentPagedGridProps): [(height: string) => JSX.Element, React.FunctionComponent, any[], (full?: boolean) => void, ICommandBarItemProps[]] {
+
+    const constQuery = useConst({ ...query });
+    const constColumns = useConst({ ...columns });
+    const [sorted, setSorted] = React.useState<Sorted>({ column: "", descending: false });
+    const [page, setPage] = React.useState(0);
+    const [pageSize, setPageSize] = React.useState(25);
+    const [selection, setSelection] = React.useState([]);
+    const [items, setItems] = React.useState<any[]>([]);
+    const [total, setTotal] = React.useState<number>();
+
+    const refreshTable = React.useCallback(() => {
+        const sort = sorted.column ? [{ attribute: sorted.column, descending: sorted.descending }] : undefined;
+        const storeQuery = store.query({ ...constQuery, [store.startProperty]: page * pageSize, [store.countProperty]: pageSize }, { sort });
+        storeQuery.total.then(total => {
+            setTotal(total);
+        });
+        storeQuery.then(items => {
+            setItems(items);
+        });
+    }, [sorted.column, sorted.descending, store, constQuery, page, pageSize]);
+
+    const fluentColumns: IColumn[] = React.useMemo(() => {
+        return columnsAdapter(constColumns, sorted);
+    }, [constColumns, sorted]);
+
+    const onColumnClick = React.useCallback((event: React.MouseEvent<HTMLElement>, column: IColumn) => {
+        if (constColumns[column.key]?.sortable === false) return;
+
+        let sorted = column.isSorted;
+        let isSortedDescending: boolean = column.isSortedDescending;
+        if (!sorted) {
+            sorted = true;
+            isSortedDescending = false;
+        } else if (!isSortedDescending) {
+            isSortedDescending = true;
+        } else {
+            sorted = false;
+            isSortedDescending = false;
+        }
+        setSorted({
+            column: sorted ? column.key : "",
+            descending: sorted ? isSortedDescending : false
+        });
+    }, [constColumns]);
+
+    React.useEffect(() => {
+        refreshTable();
+    }, [refreshTable]);
+
+    const selectionHandler = useConst(new Selection({
+        onSelectionChanged: () => {
+            setSelection(selectionHandler.getSelection());
+        }
+    }));
+
+    const renderDetailsHeader = React.useCallback((props: IDetailsHeaderProps, defaultRender?: any) => {
+        return defaultRender({
+            ...props,
+            onRenderColumnHeaderTooltip: (tooltipHostProps) => {
+                return <TooltipHost {...tooltipHostProps} content={tooltipHostProps?.column?.data?.headerTooltip ?? ""} />;
+            },
+            styles: { root: { paddingTop: 1 } }
+        });
+    }, []);
+
+    const Grid = React.useCallback((height: string) => <DetailsList
+        compact={true}
+        items={items}
+        columns={fluentColumns}
+        setKey="set"
+        layoutMode={DetailsListLayoutMode.justified}
+        selection={selectionHandler}
+        selectionPreservedOnEmptyClick={true}
+        onItemInvoked={this._onItemInvoked}
+        onColumnHeaderClick={onColumnClick}
+        onRenderDetailsHeader={renderDetailsHeader}
+        styles={{ root: { width, height, maxHeight: height } }}
+    />, [fluentColumns, items, onColumnClick, renderDetailsHeader, selectionHandler, width]);
+
+    const dropdownChange = React.useCallback((evt, option) => {
+        const newPageSize = option.key as number;
+        setPage(Math.floor((page * pageSize) / newPageSize));
+        setPageSize(newPageSize);
+    }, [page, pageSize]);
+
+    const GridPagination = React.useCallback(() => {
+        return <Stack horizontal horizontalAlign="space-between">
+            <Stack.Item>
+            </Stack.Item>
+            <Stack.Item>
+                <Pagination selectedPageIndex={page} itemsPerPage={pageSize} totalItemCount={total} pageCount={Math.ceil(total / pageSize)} format="buttons" onPageChange={index => setPage(Math.round(index))} />
+            </Stack.Item>
+            <Stack.Item align="center">
+                <Label htmlFor={"pageSize"}>{nlsHPCC.PageSize}</Label>
+                <Dropdown id="pageSize" options={[
+                    { key: 10, text: "10" },
+                    { key: 25, text: "25" },
+                    { key: 50, text: "50" },
+                    { key: 100, text: "100" },
+                    { key: 250, text: "250" },
+                    { key: 500, text: "500" },
+                    { key: 1000, text: "1000" }
+                ]} defaultSelectedKey={pageSize} onChange={dropdownChange} />
+            </Stack.Item>
+        </Stack>;
+    }, [dropdownChange, page, pageSize, total]);
+
+    const copyButtons = React.useMemo((): ICommandBarItemProps[] => [
+        ...createCopyDownloadSelection(constColumns, selection, `${filename}.csv`)
+    ], [constColumns, filename, selection]);
+
+    return [Grid, GridPagination, selection, refreshTable, copyButtons];
 }
