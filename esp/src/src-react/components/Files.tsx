@@ -80,10 +80,9 @@ export const Files: React.FunctionComponent<FilesProps> = ({
     const [, { currencyCode }] = useBuildInfo();
 
     //  Grid ---
-    const [Grid, GridPagination, selection, refreshTable, copyButtons] = useFluentPagedGrid({
+    const { Grid, GridPagination, selection, refreshTable, copyButtons } = useFluentPagedGrid({
         store: store || ESPLogicalFile.CreateLFQueryStore({}),
         query: formatQuery(filter),
-        sort: [{ attribute: "Modified", "descending": true }],
         filename: "logicalfiles",
         columns: {
             col1: {

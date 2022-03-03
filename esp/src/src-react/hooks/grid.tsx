@@ -1,7 +1,7 @@
 import * as React from "react";
 import { DetailsList, DetailsListLayoutMode, Dropdown, IColumn, ICommandBarItemProps, IDetailsHeaderProps, Label, Selection, Stack, TooltipHost, TooltipOverflowMode } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
-import { AlphaNumSortMemory } from "src/Memory";
+import { AlphaNumSortMemory, BaseStore, QueryRequest, QuerySortItem } from "src/Memory";
 import * as ESPRequest from "src/ESPRequest";
 import nlsHPCC from "src/nlsHPCC";
 import { createCopyDownloadSelection } from "../components/Common";
@@ -11,18 +11,32 @@ import { Pagination } from "@fluentui/react-experiments/lib/Pagination";
 
 interface useGridProps {
     store: any,
-    query?: object,
-    sort?: object[],
+    query?: QueryRequest,
+    sort?: QuerySortItem,
     columns: object,
     getSelected?: () => any[],
     filename: string
 }
 
-export function useGrid({ store, query = {}, sort = [], columns, getSelected, filename }: useGridProps): [React.FunctionComponent, any[], (clearSelection?: boolean) => void, ICommandBarItemProps[]] {
+interface useGridResponse {
+    Grid: React.FunctionComponent,
+    selection: any[],
+    refreshTable: (clearSelection?: boolean) => void,
+    copyButtons: ICommandBarItemProps[]
+}
+
+export function useGrid({
+    store,
+    query,
+    sort,
+    columns,
+    getSelected,
+    filename
+}: useGridProps): useGridResponse {
 
     const constStore = useConst(store);
     const constQuery = useConst({ ...query });
-    const constSort = useConst([...sort]);
+    const constSort = useConst({ ...sort });
     const constColumns = useConst({ ...columns });
     const constGetSelected = useConst(() => getSelected);
     const [grid, setGrid] = React.useState<any>(undefined);
@@ -54,12 +68,7 @@ export function useGrid({ store, query = {}, sort = [], columns, getSelected, fi
         ...createCopyDownloadSelection(constColumns, selection, `${filename}.csv`)
     ], [constColumns, filename, selection]);
 
-    return [Grid, selection, refreshTable, copyButtons];
-}
-
-interface Sorted {
-    column: string;
-    descending: boolean;
+    return { Grid, selection, refreshTable, copyButtons };
 }
 
 function tooltipItemRenderer(item: any, index: number, column: IColumn) {
@@ -73,7 +82,9 @@ function tooltipItemRenderer(item: any, index: number, column: IColumn) {
     </TooltipHost>;
 }
 
-function columnsAdapter(columns, sorted: Sorted): IColumn[] {
+function columnsAdapter(columns, sorted?: QuerySortItem): IColumn[] {
+    const attr = sorted?.attribute;
+    const desc = sorted?.descending;
     const retVal: IColumn[] = [];
     for (const key in columns) {
         const column = columns[key];
@@ -85,8 +96,8 @@ function columnsAdapter(columns, sorted: Sorted): IColumn[] {
                 minWidth: column.width,
                 maxWidth: column.width,
                 isResizable: true,
-                isSorted: key == sorted.column,
-                isSortedDescending: key == sorted.column && sorted.descending,
+                isSorted: key == attr,
+                isSortedDescending: key == attr && desc,
                 iconName: column.headerIcon,
                 isIconOnly: !!column.headerIcon,
                 data: column,
@@ -97,50 +108,43 @@ function columnsAdapter(columns, sorted: Sorted): IColumn[] {
     return retVal;
 }
 
-export interface useFluentGridProps {
-    data: any[],
-    primaryID: string,
-    alphaNumColumns?: { [id: string]: boolean },
-    query?: object,
-    sort?: object[],
+interface useFluentStoreGridProps {
+    store: BaseStore,
+    query?: QueryRequest,
+    sort?: QuerySortItem,
     columns: object,
-    getSelected?: () => any[],
     filename: string
 }
 
-export function useFluentGrid({
-    data,
-    primaryID,
-    alphaNumColumns = {},
-    query = {},
-    sort = [],
-    columns,
-    getSelected,
-    filename
-}: useFluentGridProps): [React.FunctionComponent, any[], ICommandBarItemProps[]] {
+interface useFluentStoreGridResponse {
+    Grid: React.FunctionComponent,
+    selection: any[],
+    copyButtons: ICommandBarItemProps[],
+    refreshTable: () => void
+}
 
-    const constStore = useConst(new AlphaNumSortMemory(primaryID, alphaNumColumns));
-    const constQuery = useConst({ ...query });
+export function useFluentStoreGrid({
+    store,
+    query,
+    sort,
+    columns,
+    filename
+}: useFluentStoreGridProps): useFluentStoreGridResponse {
+
     const constColumns = useConst({ ...columns });
-    const [sorted, setSorted] = React.useState<Sorted>({ column: "", descending: false });
+    const [sorted, setSorted] = React.useState<QuerySortItem>(sort);
     const [selection, setSelection] = React.useState([]);
     const [items, setItems] = React.useState<any[]>([]);
 
     const refreshTable = React.useCallback(() => {
-        const sort = sorted.column ? [{ attribute: sorted.column, descending: sorted.descending }] : undefined;
-        constStore.query(constQuery, { sort }).then(items => {
-            setItems(items);
+        store.query(query ?? {}, sorted ? { sort: [sorted] } : undefined).then(response => {
+            setItems(response);
         });
-    }, [constQuery, constStore, sorted.column, sorted.descending]);
+    }, [query, sorted, store]);
 
     React.useEffect(() => {
         refreshTable();
     }, [refreshTable]);
-
-    React.useEffect(() => {
-        constStore.setData(data);
-        refreshTable();
-    }, [constStore, data, refreshTable]);
 
     const fluentColumns: IColumn[] = React.useMemo(() => {
         return columnsAdapter(constColumns, sorted);
@@ -161,17 +165,10 @@ export function useFluentGrid({
             isSortedDescending = false;
         }
         setSorted({
-            column: sorted ? column.key : "",
+            attribute: sorted ? column.key : "",
             descending: sorted ? isSortedDescending : false
         });
     }, [constColumns]);
-
-    React.useEffect(() => {
-        const sort = sorted.column ? [{ attribute: sorted.column, descending: sorted.descending }] : undefined;
-        constStore.query(constQuery, { sort }).then(items => {
-            setItems(items);
-        });
-    }, [constQuery, constStore, sorted.column, sorted.descending]);
 
     const selectionHandler = useConst(new Selection({
         onSelectionChanged: () => {
@@ -206,36 +203,64 @@ export function useFluentGrid({
         ...createCopyDownloadSelection(constColumns, selection, `${filename}.csv`)
     ], [constColumns, filename, selection]);
 
-    return [Grid, selection, copyButtons];
+    return { Grid, selection, copyButtons, refreshTable };
 }
 
-export interface useFluentPagedGridProps {
-    store: ESPRequest.Store,
+interface useFluentGridProps {
+    data: any[],
+    primaryID: string,
     alphaNumColumns?: { [id: string]: boolean },
-    query?: object,
-    sort?: object[],
+    sort?: QuerySortItem,
     columns: object,
-    getSelected?: () => any[],
-    filename: string,
-    width?: string;
-    height?: string;
+    filename: string
+}
+
+export function useFluentGrid({
+    data,
+    primaryID,
+    alphaNumColumns,
+    sort,
+    columns,
+    filename
+}: useFluentGridProps): useFluentStoreGridResponse {
+
+    const constStore = useConst(new AlphaNumSortMemory(primaryID, alphaNumColumns));
+    const { Grid, selection, copyButtons, refreshTable } = useFluentStoreGrid({ store: constStore, columns, sort, filename });
+
+    React.useEffect(() => {
+        constStore.setData(data);
+        refreshTable();
+    }, [constStore, data, refreshTable]);
+
+    return { Grid, selection, copyButtons, refreshTable };
+}
+
+interface useFluentPagedGridProps {
+    store: ESPRequest.Store,
+    query?: QueryRequest,
+    sort?: QuerySortItem,
+    columns: object,
+    filename: string
+}
+
+interface useFluentPagedGridResponse {
+    Grid: (height: string) => JSX.Element,
+    GridPagination: React.FunctionComponent,
+    selection: any[],
+    refreshTable: (full?: boolean) => void,
+    copyButtons: ICommandBarItemProps[]
 }
 
 export function useFluentPagedGrid({
     store,
-    alphaNumColumns = {},
-    query = {},
-    sort = [],
+    query,
+    sort,
     columns,
-    getSelected,
-    filename,
-    width,
-    height
-}: useFluentPagedGridProps): [(height: string) => JSX.Element, React.FunctionComponent, any[], (full?: boolean) => void, ICommandBarItemProps[]] {
+    filename
+}: useFluentPagedGridProps): useFluentPagedGridResponse {
 
-    const constQuery = useConst({ ...query });
     const constColumns = useConst({ ...columns });
-    const [sorted, setSorted] = React.useState<Sorted>({ column: "", descending: false });
+    const [sorted, setSorted] = React.useState<QuerySortItem>(sort);
     const [page, setPage] = React.useState(0);
     const [pageSize, setPageSize] = React.useState(25);
     const [selection, setSelection] = React.useState([]);
@@ -243,15 +268,21 @@ export function useFluentPagedGrid({
     const [total, setTotal] = React.useState<number>();
 
     const refreshTable = React.useCallback(() => {
-        const sort = sorted.column ? [{ attribute: sorted.column, descending: sorted.descending }] : undefined;
-        const storeQuery = store.query({ ...constQuery, [store.startProperty]: page * pageSize, [store.countProperty]: pageSize }, { sort });
+        const sort = sorted;
+        const storeQuery = store.query(query ?? {}, { start: page * pageSize, count: pageSize, sort: sort ? [sort] : undefined });
         storeQuery.total.then(total => {
             setTotal(total);
         });
         storeQuery.then(items => {
             setItems(items);
         });
-    }, [sorted.column, sorted.descending, store, constQuery, page, pageSize]);
+        // const observeHandle = storeQuery.observe(function (object, removedFrom, insertedInto) {
+        //     refreshTable();
+        // });
+        // return () => {
+        //     observeHandle.cancel();
+        // };
+    }, [page, pageSize, query, sorted, store]);
 
     const fluentColumns: IColumn[] = React.useMemo(() => {
         return columnsAdapter(constColumns, sorted);
@@ -272,7 +303,7 @@ export function useFluentPagedGrid({
             isSortedDescending = false;
         }
         setSorted({
-            column: sorted ? column.key : "",
+            attribute: sorted ? column.key : "",
             descending: sorted ? isSortedDescending : false
         });
     }, [constColumns]);
@@ -308,8 +339,8 @@ export function useFluentPagedGrid({
         onItemInvoked={this._onItemInvoked}
         onColumnHeaderClick={onColumnClick}
         onRenderDetailsHeader={renderDetailsHeader}
-        styles={{ root: { width, height, maxHeight: height } }}
-    />, [fluentColumns, items, onColumnClick, renderDetailsHeader, selectionHandler, width]);
+        styles={{ root: { height, maxHeight: height } }}
+    />, [fluentColumns, items, onColumnClick, renderDetailsHeader, selectionHandler]);
 
     const dropdownChange = React.useCallback((evt, option) => {
         const newPageSize = option.key as number;
@@ -343,5 +374,5 @@ export function useFluentPagedGrid({
         ...createCopyDownloadSelection(constColumns, selection, `${filename}.csv`)
     ], [constColumns, filename, selection]);
 
-    return [Grid, GridPagination, selection, refreshTable, copyButtons];
+    return { Grid, GridPagination, selection, refreshTable, copyButtons };
 }

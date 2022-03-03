@@ -64,10 +64,9 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
     const hasFilter = React.useMemo(() => Object.keys(filter).length > 0, [filter]);
 
     //  Grid ---
-    const [Grid, GridPagination, selection, refreshTable, copyButtons] = useFluentPagedGrid({
+    const { Grid, GridPagination, selection, refreshTable, copyButtons } = useFluentPagedGrid({
         store: store || ESPQuery.CreateQueryStore({}),
         query: formatQuery(filter),
-        sort: [{ attribute: "Id" }],
         filename: "roxiequeries",
         columns: {
             col1: {

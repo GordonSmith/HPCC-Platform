@@ -87,12 +87,16 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
     const gridStore = React.useMemo(() => {
         return store ? store : ESPWorkunit.CreateWUQueryStore({});
     }, [store]);
-    const [Grid, GridPagination, selection, refreshTable, copyButtons] = useFluentPagedGrid({
+
+    const query = React.useMemo(() => {
+        return formatQuery(filter);
+    }, [filter]);
+
+    const { Grid, GridPagination, selection, refreshTable, copyButtons } = useFluentPagedGrid({
         store: gridStore,
-        query: formatQuery(filter),
-        sort: [{ attribute: "Wuid", "descending": true }],
+        query,
+        sort: { attribute: "Wuid", descending: true },
         filename: "workunits",
-        height: "100px",
         columns: {
             col1: {
                 width: 27,
