@@ -139,6 +139,7 @@ function useFluentStoreGrid({
 }: useFluentStoreGridProps): useFluentStoreGridResponse {
 
     const constColumns = useConst({ ...columns });
+    // const memoizedColumns = React.useMemo(() => { return { ...columns } }, [columns]);
     const [sorted, setSorted] = React.useState<QuerySortItem>(sort);
     const [selection, setSelection] = React.useState([]);
     const [items, setItems] = React.useState<any[]>([]);

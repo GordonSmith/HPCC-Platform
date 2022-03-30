@@ -1,8 +1,8 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
+import { DFUService, DFUArrayActions, DFUChangeProtection, DFUChangeRestriction } from "@hpcc-js/comms";
 import nlsHPCC from "src/nlsHPCC";
 import { formatCost } from "src/Session";
-import * as WsDfu from "src/WsDfu";
 import * as Utility from "src/Utility";
 import { getStateImageName, IFile } from "src/ESPLogicalFile";
 import { useConfirm } from "../hooks/confirm";
@@ -17,6 +17,8 @@ import { ReplicateFile } from "./forms/ReplicateFile";
 import { replaceUrl } from "../util/history";
 
 import "react-reflex/styles.css";
+
+const dfuService = new DFUService({ baseUrl: "" });
 
 interface LogicalFileSummaryProps {
     cluster?: string;
@@ -46,8 +48,8 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
         title: nlsHPCC.Delete,
         message: nlsHPCC.YouAreAboutToDeleteThisFile,
         onSubmit: React.useCallback(() => {
-            WsDfu.DFUArrayAction([file], "Delete").then(response => {
-                const actionInfo = response?.DFUArrayActionResponse?.ActionResults?.DFUActionInfo;
+            dfuService.DFUArrayAction({ Type: DFUArrayActions.Delete, LogicalFiles: { Item: [file.Filename] } }).then(({ ActionResults }) => {
+                const actionInfo = ActionResults?.DFUActionInfo;
                 if (actionInfo && actionInfo.length && !actionInfo[0].Failed) {
                     replaceUrl("/files");
                 }
@@ -105,8 +107,8 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
                 file?.update({
                     UpdateDescription: true,
                     FileDesc: description,
-                    Protect: _protected ? "1" : "2",
-                    Restrict: restricted ? "1" : "2",
+                    Protect: _protected ? DFUChangeProtection.Protect : DFUChangeProtection.Unprotect,
+                    Restrict: restricted ? DFUChangeRestriction.Restrict : DFUChangeRestriction.Unrestricted,
                 });
             }
         },
@@ -160,7 +162,8 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
                 "NodeGroup": { label: nlsHPCC.ClusterName, type: "string", value: file?.NodeGroup, readonly: true },
                 "Description": { label: nlsHPCC.Description, type: "string", value: description },
                 "JobName": { label: nlsHPCC.JobName, type: "string", value: file?.JobName, readonly: true },
-                "Cost": { label: nlsHPCC.Cost, type: "string", value: `${formatCost(file?.Cost ?? 0)} (${currencyCode})`, readonly: true },
+                "AccessCost": { label: nlsHPCC.FileAccessCost, type: "string", value: `${formatCost(file?.AccessCost ?? 0)} (${currencyCode})`, readonly: true },
+                "AtRestCost": { label: nlsHPCC.FileCostAtRest, type: "string", value: `${formatCost(file?.AtRestCost ?? 0)} (${currencyCode})`, readonly: true },
                 "isProtected": { label: nlsHPCC.Protected, type: "checkbox", value: _protected },
                 "isRestricted": { label: nlsHPCC.Restricted, type: "checkbox", value: restricted },
                 "ContentType": { label: nlsHPCC.ContentType, type: "string", value: file?.ContentType, readonly: true },

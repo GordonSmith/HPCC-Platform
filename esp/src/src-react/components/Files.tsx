@@ -76,6 +76,7 @@ export const Files: React.FunctionComponent<FilesProps> = ({
     const [showAddToSuperfile, setShowAddToSuperfile] = React.useState(false);
     const [showDesprayFile, setShowDesprayFile] = React.useState(false);
     const [mine, setMine] = React.useState(false);
+    const [viewByScope, setViewByScope] = React.useState(false);
     const [uiState, setUIState] = React.useState({ ...defaultUIState });
     const [, { currencyCode }] = useBuildInfo();
 
@@ -240,12 +241,20 @@ export const Files: React.FunctionComponent<FilesProps> = ({
             }
         },
         {
+            key: "viewByScope", text: nlsHPCC.ViewByScope, iconProps: { iconName: "BulletedTreeList" }, iconOnly: true, canCheck: true, checked: viewByScope,
+            onClick: () => {
+                setViewByScope(!viewByScope);
+                window.location.href = "#/scopes";
+            }
+        },
+        { key: "divider_5", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        {
             key: "mine", text: nlsHPCC.Mine, disabled: true, iconProps: { iconName: "Contact" }, canCheck: true, checked: mine,
             onClick: () => {
                 setMine(!mine);
             }
         },
-    ], [hasFilter, mine, refreshTable, selection, setShowDeleteConfirm, store, uiState.hasSelection]);
+    ], [hasFilter, mine, refreshTable, selection, setShowDeleteConfirm, store, uiState.hasSelection, viewByScope]);
 
     //  Filter  ---
     const filterFields: Fields = {};
