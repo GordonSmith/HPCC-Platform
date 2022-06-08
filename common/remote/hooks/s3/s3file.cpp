@@ -15,6 +15,14 @@
     limitations under the License.
 ############################################################################## */
 
+#include <aws/core/Aws.h>
+#include <aws/core/auth/AWSCredentialsProvider.h>
+#include <aws/s3/S3Client.h>
+#include <aws/s3/model/GetObjectRequest.h>
+#include <aws/s3/model/HeadObjectRequest.h>
+#include <aws/s3/model/PutObjectRequest.h>
+#include <aws/s3/model/DeleteObjectRequest.h>
+
 #include "platform.h"
 
 #include "jlib.hpp"
@@ -27,14 +35,6 @@
 #include "jlog.hpp"
 
 #include "s3file.hpp"
-
-#include <aws/core/Aws.h>
-#include <aws/core/auth/AWSCredentialsProvider.h>
-#include <aws/s3/S3Client.h>
-#include <aws/s3/model/GetObjectRequest.h>
-#include <aws/s3/model/HeadObjectRequest.h>
-#include <aws/s3/model/PutObjectRequest.h>
-#include <aws/s3/model/DeleteObjectRequest.h>
 
 /*
  * S3 questions:
@@ -61,12 +61,12 @@
 //#define TEST_S3_PAGING
 //#define FIXED_CREDENTIALS
 
-constexpr const char * s3FilePrefix = "s3://";
+constexpr const char *s3FilePrefix = "s3://";
 
 #ifdef TEST_S3_PAGING
 constexpr offset_t awsReadRequestSize = 50;
 #else
-constexpr offset_t awsReadRequestSize = 0x400000;  // Default to requesting 4Mb each time
+constexpr offset_t awsReadRequestSize = 0x400000; // Default to requesting 4Mb each time
 #endif
 
 static Aws::SDKOptions options;
@@ -86,23 +86,23 @@ class S3File;
 class S3FileReadIO : implements CInterfaceOf<IFileIO>
 {
 public:
-    S3FileReadIO(S3File * _file, Aws::S3::Model::GetObjectOutcome & firstRead, FileIOStats & _stats);
+    S3FileReadIO(S3File *_file, Aws::S3::Model::GetObjectOutcome &firstRead, FileIOStats &_stats);
 
-    virtual size32_t read(offset_t pos, size32_t len, void * data) override;
+    virtual size32_t read(offset_t pos, size32_t len, void *data) override;
     virtual offset_t size() override;
     virtual void close() override
     {
-        //This could set a flag here to check for reading after close(), but I don't think any file read code
-        //ever calls close, and it would be harmless (and would complicate the rest of the code).
+        // This could set a flag here to check for reading after close(), but I don't think any file read code
+        // ever calls close, and it would be harmless (and would complicate the rest of the code).
     }
 
     // Write methods not implemented - this is a read-only file
-    virtual size32_t write(offset_t pos, size32_t len, const void * data) override
+    virtual size32_t write(offset_t pos, size32_t len, const void *data) override
     {
         throwUnexpected();
         return 0;
     }
-    virtual offset_t appendFile(IFile *file,offset_t pos=0,offset_t len=(offset_t)-1) override
+    virtual offset_t appendFile(IFile *file, offset_t pos = 0, offset_t len = (offset_t)-1) override
     {
         throwUnexpected();
         return 0;
@@ -113,12 +113,12 @@ public:
     }
     virtual void flush() override
     {
-        //Could implement if we use the async version of the putObject call.
+        // Could implement if we use the async version of the putObject call.
     }
     unsigned __int64 getStatistic(StatisticKind kind) override;
 
 protected:
-    size_t extractDataFromResult(size_t offset, size_t length, void * target);
+    size_t extractDataFromResult(size_t offset, size_t length, void *target);
 
 protected:
     Linked<S3File> file;
@@ -132,10 +132,10 @@ protected:
 class S3FileWriteIO : implements CInterfaceOf<IFileIO>
 {
 public:
-    S3FileWriteIO(S3File * _file);
+    S3FileWriteIO(S3File *_file);
     virtual void beforeDispose() override;
 
-    virtual size32_t read(offset_t pos, size32_t len, void * data) override
+    virtual size32_t read(offset_t pos, size32_t len, void *data) override
     {
         throwUnexpected();
     }
@@ -146,8 +146,8 @@ public:
     }
 
     virtual void close() override;
-    virtual offset_t appendFile(IFile *file,offset_t pos=0,offset_t len=(offset_t)-1) override;
-    virtual size32_t write(offset_t pos, size32_t len, const void * data) override;
+    virtual offset_t appendFile(IFile *file, offset_t pos = 0, offset_t len = (offset_t)-1) override;
+    virtual size32_t write(offset_t pos, size32_t len, const void *data) override;
     virtual void setSize(offset_t size) override;
     virtual void flush() override;
 
@@ -164,6 +164,7 @@ class S3File : implements CInterfaceOf<IFile>
 {
     friend class S3FileReadIO;
     friend class S3FileWriteIO;
+
 public:
     S3File(const char *_s3FileName);
     virtual bool exists() override
@@ -171,7 +172,7 @@ public:
         ensureMetaData();
         return fileExists;
     }
-    virtual bool getTime(CDateTime * createTime, CDateTime * modifiedTime, CDateTime * accessedTime) override;
+    virtual bool getTime(CDateTime *createTime, CDateTime *modifiedTime, CDateTime *accessedTime) override;
     virtual fileBool isDirectory() override
     {
         ensureMetaData();
@@ -193,25 +194,25 @@ public:
             return fileBool::notFound;
         return fileBool::foundYes;
     }
-    virtual IFileIO * open(IFOmode mode, IFEflags extraFlags=IFEnone) override
+    virtual IFileIO *open(IFOmode mode, IFEflags extraFlags = IFEnone) override
     {
         if (mode == IFOcreate)
             return createFileWriteIO();
-        assertex(mode==IFOread && fileExists);
+        assertex(mode == IFOread && fileExists);
         return createFileReadIO();
     }
-    virtual IFileAsyncIO * openAsync(IFOmode mode) override
+    virtual IFileAsyncIO *openAsync(IFOmode mode) override
     {
         UNIMPLEMENTED;
     }
-    virtual IFileIO * openShared(IFOmode mode, IFSHmode shmode, IFEflags extraFlags=IFEnone) override
+    virtual IFileIO *openShared(IFOmode mode, IFSHmode shmode, IFEflags extraFlags = IFEnone) override
     {
         if (mode == IFOcreate)
             return createFileWriteIO();
-        assertex(mode==IFOread && fileExists);
+        assertex(mode == IFOread && fileExists);
         return createFileReadIO();
     }
-    virtual const char * queryFilename() override
+    virtual const char *queryFilename() override
     {
         return fullName.str();
     }
@@ -221,12 +222,12 @@ public:
         return fileSize;
     }
 
-// Directory functions
+    // Directory functions
     virtual IDirectoryIterator *directoryFiles(const char *mask, bool sub, bool includeDirs) override
     {
         UNIMPLEMENTED;
     }
-    virtual bool getInfo(bool &isdir,offset_t &size,CDateTime &modtime) override
+    virtual bool getInfo(bool &isdir, offset_t &size, CDateTime &modtime) override
     {
         ensureMetaData();
         isdir = isDir;
@@ -236,7 +237,7 @@ public:
     }
 
     // Not going to be implemented - this IFile interface is too big..
-    virtual bool setTime(const CDateTime * createTime, const CDateTime * modifiedTime, const CDateTime * accessedTime) override { UNIMPLEMENTED; }
+    virtual bool setTime(const CDateTime *createTime, const CDateTime *modifiedTime, const CDateTime *accessedTime) override { UNIMPLEMENTED; }
     virtual bool remove() override;
     virtual void rename(const char *newTail) override { UNIMPLEMENTED; }
     virtual void move(const char *newName) override { UNIMPLEMENTED; }
@@ -249,24 +250,27 @@ public:
     virtual void setShareMode(IFSHmode shmode) override { UNIMPLEMENTED; }
     virtual bool createDirectory() override { UNIMPLEMENTED; }
     virtual IDirectoryDifferenceIterator *monitorDirectory(
-                                  IDirectoryIterator *prev=NULL,    // in (NULL means use current as baseline)
-                                  const char *mask=NULL,
-                                  bool sub=false,
-                                  bool includedirs=false,
-                                  unsigned checkinterval=60*1000,
-                                  unsigned timeout=(unsigned)-1,
-                                  Semaphore *abortsem=NULL) override { UNIMPLEMENTED; }
-    virtual void copySection(const RemoteFilename &dest, offset_t toOfs=(offset_t)-1, offset_t fromOfs=0, offset_t size=(offset_t)-1, ICopyFileProgress *progress=NULL, CFflags copyFlags=CFnone) override { UNIMPLEMENTED; }
-    virtual void copyTo(IFile *dest, size32_t buffersize=DEFAULT_COPY_BLKSIZE, ICopyFileProgress *progress=NULL, bool usetmp=false, CFflags copyFlags=CFnone) override { UNIMPLEMENTED; }
-    virtual IMemoryMappedFile *openMemoryMapped(offset_t ofs=0, memsize_t len=(memsize_t)-1, bool write=false) override { UNIMPLEMENTED; }
+        IDirectoryIterator *prev = NULL, // in (NULL means use current as baseline)
+        const char *mask = NULL,
+        bool sub = false,
+        bool includedirs = false,
+        unsigned checkinterval = 60 * 1000,
+        unsigned timeout = (unsigned)-1,
+        Semaphore *abortsem = NULL) override
+    {
+        UNIMPLEMENTED;
+    }
+    virtual void copySection(const RemoteFilename &dest, offset_t toOfs = (offset_t)-1, offset_t fromOfs = 0, offset_t size = (offset_t)-1, ICopyFileProgress *progress = NULL, CFflags copyFlags = CFnone) override { UNIMPLEMENTED; }
+    virtual void copyTo(IFile *dest, size32_t buffersize = DEFAULT_COPY_BLKSIZE, ICopyFileProgress *progress = NULL, bool usetmp = false, CFflags copyFlags = CFnone) override { UNIMPLEMENTED; }
+    virtual IMemoryMappedFile *openMemoryMapped(offset_t ofs = 0, memsize_t len = (memsize_t)-1, bool write = false) override { UNIMPLEMENTED; }
 
 protected:
-    void readBlob(Aws::S3::Model::GetObjectOutcome & readResult, FileIOStats & stats, offset_t from = 0, offset_t length = unknownFileSize);
-    size32_t writeBlob(size32_t len, const void * data, FileIOStats & stats);
+    void readBlob(Aws::S3::Model::GetObjectOutcome &readResult, FileIOStats &stats, offset_t from = 0, offset_t length = unknownFileSize);
+    size32_t writeBlob(size32_t len, const void *data, FileIOStats &stats);
     void ensureMetaData();
     void gatherMetaData();
-    IFileIO * createFileReadIO();
-    IFileIO * createFileWriteIO();
+    IFileIO *createFileReadIO();
+    IFileIO *createFileWriteIO();
 
 protected:
     StringBuffer fullName;
@@ -282,14 +286,14 @@ protected:
 
 //---------------------------------------------------------------------------------------------------------------------
 
-S3FileReadIO::S3FileReadIO(S3File * _file, Aws::S3::Model::GetObjectOutcome & firstRead, FileIOStats & _firstStats)
-: file(_file), readResult(std::move(firstRead)), stats(_firstStats)
+S3FileReadIO::S3FileReadIO(S3File *_file, Aws::S3::Model::GetObjectOutcome &firstRead, FileIOStats &_firstStats)
+    : file(_file), readResult(std::move(firstRead)), stats(_firstStats)
 {
     startResultOffset = 0;
     endResultOffset = readResult.GetResult().GetContentLength();
 }
 
-size32_t S3FileReadIO::read(offset_t pos, size32_t len, void * data)
+size32_t S3FileReadIO::read(offset_t pos, size32_t len, void *data)
 {
     if (pos > file->fileSize)
         return 0;
@@ -302,11 +306,11 @@ size32_t S3FileReadIO::read(offset_t pos, size32_t len, void * data)
     offset_t lastOffset = pos + len;
 
     // MORE: Do we ever read file IO from more than one thread?  I'm not convinced we do, and the critical blocks waste space and slow it down.
-    //It might be worth revisiting (although I'm not sure what effect stranding has) - by revisiting the primary interface used to read files.
+    // It might be worth revisiting (although I'm not sure what effect stranding has) - by revisiting the primary interface used to read files.
     CriticalBlock block(cs);
-    for(;;)
+    for (;;)
     {
-        //Check if part of the request can be fulfilled from the current read block
+        // Check if part of the request can be fulfilled from the current read block
         if (pos >= startResultOffset && pos < endResultOffset)
         {
             size_t copySize = ((lastOffset > endResultOffset) ? endResultOffset : lastOffset) - pos;
@@ -330,7 +334,7 @@ size32_t S3FileReadIO::read(offset_t pos, size32_t len, void * data)
         if (!readResult.IsSuccess())
             return sizeRead;
         offset_t contentSize = readResult.GetResult().GetContentLength();
-        //If the results are inconsistent then do not loop forever
+        // If the results are inconsistent then do not loop forever
         if (contentSize == 0)
             return sizeRead;
 
@@ -344,9 +348,9 @@ offset_t S3FileReadIO::size()
     return file->fileSize;
 }
 
-size_t S3FileReadIO::extractDataFromResult(size_t offset, size_t length, void * target)
+size_t S3FileReadIO::extractDataFromResult(size_t offset, size_t length, void *target)
 {
-    auto & contents = readResult.GetResultWithOwnership().GetBody();
+    auto &contents = readResult.GetResultWithOwnership().GetBody();
     auto buffer = contents.rdbuf();
     buffer->pubseekoff(0, std::ios_base::beg, std::ios_base::in);
     return buffer->sgetn((char *)target, length);
@@ -359,8 +363,8 @@ unsigned __int64 S3FileReadIO::getStatistic(StatisticKind kind)
 
 //---------------------------------------------------------------------------------------------------------------------
 
-S3FileWriteIO::S3FileWriteIO(S3File * _file)
-: file(_file)
+S3FileWriteIO::S3FileWriteIO(S3File *_file)
+    : file(_file)
 {
 }
 
@@ -388,15 +392,15 @@ offset_t S3FileWriteIO::appendFile(IFile *file, offset_t pos, offset_t len)
     return 0;
 }
 
-size32_t S3FileWriteIO::write(offset_t pos, size32_t len, const void * data)
+size32_t S3FileWriteIO::write(offset_t pos, size32_t len, const void *data)
 {
     if (len)
     {
         CriticalBlock block(cs);
-        //Very strange semantics for a proof of concept - only allow a single write to the file.
-        //A full implementation will need to either
-        //  write to a temporary file, and then copy to the s3 file when the file is closed.
-        //  use the multi-part upload functionality (has a minimum part size of 5Mb)
+        // Very strange semantics for a proof of concept - only allow a single write to the file.
+        // A full implementation will need to either
+        //   write to a temporary file, and then copy to the s3 file when the file is closed.
+        //   use the multi-part upload functionality (has a minimum part size of 5Mb)
         assertex(!blobWritten);
         file->writeBlob(len, data, stats);
         blobWritten = true;
@@ -422,48 +426,47 @@ unsigned __int64 S3FileWriteIO::getStatistic(StatisticKind kind)
 
 static Aws::S3::S3Client createAwsClient()
 {
-    //There should be a default region, (and a default client), but allow the region to be overridden with s3:@region//,
-    //in which a new client would be created.
-    // Set up the request
+    // There should be a default region, (and a default client), but allow the region to be overridden with s3:@region//,
+    // in which a new client would be created.
+    //  Set up the request
     Aws::Client::ClientConfiguration configuration;
     configuration.region = "eu-west-2";
 
 #ifdef FIXED_CREDENTIALS
-    //The following code allows the access id/secret to come from a value that had been saved away in a secrets manager
-    constexpr const char * myAccessKeyId = "<id>";
-    constexpr const char * myAccessKeySecret = "<secret>";
+    // The following code allows the access id/secret to come from a value that had been saved away in a secrets manager
+    constexpr const char *myAccessKeyId = "<id>";
+    constexpr const char *myAccessKeySecret = "<secret>";
     auto credentials = std::make_shared<Aws::Auth::SimpleAWSCredentialsProvider>(Aws::String(myAccessKeyId), Aws::String(myAccessKeySecret));
     return Aws::S3::S3Client(credentials, configuration);
 #else
-    //Retrieve the details from environment variables/file/current environment
+    // Retrieve the details from environment variables/file/current environment
     return Aws::S3::S3Client(configuration);
 #endif
 }
 
-static Aws::S3::S3Client & getAwsClient()
+static Aws::S3::S3Client &getAwsClient()
 {
     static Aws::S3::S3Client client = createAwsClient();
     return client;
 }
 
-
 S3File::S3File(const char *_s3FileName) : fullName(_s3FileName)
 {
-    const char * filename = fullName.str() + strlen(s3FilePrefix);
-    const char * slash = strchr(filename, '/');
+    const char *filename = fullName.str() + strlen(s3FilePrefix);
+    const char *slash = strchr(filename, '/');
     assertex(slash);
 
-    bucketName.append(slash-filename, filename);
-    objectName.set(slash+1);
+    bucketName.append(slash - filename, filename);
+    objectName.set(slash + 1);
 }
 
-bool S3File::getTime(CDateTime * createTime, CDateTime * modifiedTime, CDateTime * accessedTime)
+bool S3File::getTime(CDateTime *createTime, CDateTime *modifiedTime, CDateTime *accessedTime)
 {
     ensureMetaData();
     if (createTime)
     {
         createTime->clear();
-        //Creation date does not seem to be available, so use the last modified date instead.
+        // Creation date does not seem to be available, so use the last modified date instead.
         createTime->set((time_t)(modifiedMsTime / 1000));
     }
     if (modifiedTime)
@@ -476,9 +479,9 @@ bool S3File::getTime(CDateTime * createTime, CDateTime * modifiedTime, CDateTime
     return false;
 }
 
-void S3File::readBlob(Aws::S3::Model::GetObjectOutcome & readResult, FileIOStats & stats, offset_t from, offset_t length)
+void S3File::readBlob(Aws::S3::Model::GetObjectOutcome &readResult, FileIOStats &stats, offset_t from, offset_t length)
 {
-    Aws::S3::S3Client & s3_client = getAwsClient();
+    Aws::S3::S3Client &s3_client = getAwsClient();
 
     Aws::S3::Model::GetObjectRequest object_request;
     object_request.SetBucket(bucketName);
@@ -509,16 +512,16 @@ void S3File::readBlob(Aws::S3::Model::GetObjectOutcome & readResult, FileIOStats
 #endif
 }
 
-size32_t S3File::writeBlob(size32_t len, const void * data, FileIOStats & stats)
+size32_t S3File::writeBlob(size32_t len, const void *data, FileIOStats &stats)
 {
-    Aws::S3::S3Client & s3_client = getAwsClient();
+    Aws::S3::S3Client &s3_client = getAwsClient();
 
     Aws::S3::Model::PutObjectOutcome writeResult;
     Aws::S3::Model::PutObjectRequest writeRequest;
     writeRequest.WithBucket(bucketName).WithKey(objectName);
 
     auto body = std::make_shared<std::stringstream>(std::stringstream::in | std::stringstream::out | std::stringstream::binary);
-    body->write(reinterpret_cast<const char*>(data), len);
+    body->write(reinterpret_cast<const char *>(data), len);
 
     writeRequest.SetBody(body);
 
@@ -539,10 +542,10 @@ size32_t S3File::writeBlob(size32_t len, const void * data, FileIOStats & stats)
     return len;
 }
 
-IFileIO * S3File::createFileReadIO()
+IFileIO *S3File::createFileReadIO()
 {
-    //Read the first chunk of the file.  If it is the full file then fill in the meta information, otherwise
-    //ensure the meta information is calculated before creating the file IO object
+    // Read the first chunk of the file.  If it is the full file then fill in the meta information, otherwise
+    // ensure the meta information is calculated before creating the file IO object
     Aws::S3::Model::GetObjectOutcome readResult;
     FileIOStats readStats;
 
@@ -555,7 +558,7 @@ IFileIO * S3File::createFileReadIO()
     {
         offset_t readSize = readResult.GetResult().GetContentLength();
 
-        //If we read the entire file then we don't need to gather the meta to discover the file size.
+        // If we read the entire file then we don't need to gather the meta to discover the file size.
         if (readSize < awsReadRequestSize)
         {
             haveMeta = true;
@@ -577,7 +580,7 @@ IFileIO * S3File::createFileReadIO()
     return new S3FileReadIO(this, readResult, readStats);
 }
 
-IFileIO * S3File::createFileWriteIO()
+IFileIO *S3File::createFileWriteIO()
 {
     return new S3FileWriteIO(this);
 }
@@ -593,7 +596,7 @@ void S3File::ensureMetaData()
 
 void S3File::gatherMetaData()
 {
-    Aws::S3::S3Client & s3_client = getAwsClient();
+    Aws::S3::S3Client &s3_client = getAwsClient();
 
     Aws::S3::Model::HeadObjectRequest request;
     request.SetBucket(bucketName);
@@ -619,7 +622,7 @@ void S3File::gatherMetaData()
 
 bool S3File::remove()
 {
-    Aws::S3::S3Client & s3_client = getAwsClient();
+    Aws::S3::S3Client &s3_client = getAwsClient();
 
     Aws::S3::Model::DeleteObjectRequest object_request;
     object_request.SetBucket(bucketName);
@@ -645,7 +648,6 @@ bool S3File::remove()
     }
 }
 
-
 //---------------------------------------------------------------------------------------------------------------------
 
 static IFile *createS3File(const char *s3FileName)
@@ -653,32 +655,28 @@ static IFile *createS3File(const char *s3FileName)
     return new S3File(s3FileName);
 }
 
-
 //---------------------------------------------------------------------------------------------------------------------
 
-class S3FileHook : public CInterfaceOf<IContainedFileHook>
-{
-public:
-    virtual IFile * createIFile(const char *fileName)
-    {
-        if (isS3FileName(fileName))
-            return createS3File(fileName);
-        else
-            return NULL;
-    }
+class S3FileHook : public CInterfaceOf<IContainedFileHook>{
+    public :
+        virtual IFile * createIFile(const char *fileName){
+                            if (isS3FileName(fileName)) return createS3File(fileName);
+else return NULL;
+}
 
 protected:
-    static bool isS3FileName(const char *fileName)
-    {
-        if (!startsWith(fileName, s3FilePrefix))
-            return false;
-        const char * filename = fileName + strlen(s3FilePrefix);
-        const char * slash = strchr(filename, '/');
-        if (!slash)
-            return false;
-        return true;
-    }
-} *s3FileHook;
+static bool isS3FileName(const char *fileName)
+{
+    if (!startsWith(fileName, s3FilePrefix))
+        return false;
+    const char *filename = fileName + strlen(s3FilePrefix);
+    const char *slash = strchr(filename, '/');
+    if (!slash)
+        return false;
+    return true;
+}
+}
+*s3FileHook;
 
 static CriticalSection *cs;
 
@@ -709,7 +707,7 @@ extern S3FILE_API void removeFileHook()
 MODULE_INIT(INIT_PRIORITY_STANDARD)
 {
     cs = new CriticalSection;
-    s3FileHook = NULL;  // Not really needed, but you have to have a modinit to match a modexit
+    s3FileHook = NULL; // Not really needed, but you have to have a modinit to match a modexit
     return true;
 }
 
