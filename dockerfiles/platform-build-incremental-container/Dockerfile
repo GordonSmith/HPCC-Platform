@@ -20,7 +20,7 @@
 ARG CR_USER=hpccsystems
 ARG CR_REPO=docker.io
 ARG PLATFORM_PRBASE_VER
-FROM ${CR_REPO}/${CR_USER}/smoketest-platform-build:${PLATFORM_PRBASE_VER}
+FROM ${CR_REPO}/${CR_USER}/smoketest-platform-build-vcpkg:${PLATFORM_PRBASE_VER}
 
 USER hpcc
 
@@ -34,6 +34,8 @@ RUN git fetch upstream +${GITHUB_PRREF}
 RUN git checkout FETCH_HEAD
 RUN git submodule update --init --recursive
 
+ARG BUILD_TYPE=RelWithDebInfo
+ARG USE_CPPUNIT=1
 WORKDIR /hpcc-dev/build
 
 ARG BUILD_THREADS

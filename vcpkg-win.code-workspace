@@ -17,6 +17,17 @@
 			"-DUSE_AWS=OFF",
 			"-DWSSQL_SERVICE=OFF",
 			"-DUSE_CASSANDRA=OFF"
+		],
+		"cmake.buildArgs": [
+			"-m"
+		],
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-vscode.cpptools",
+			"ms-vscode.cpptools-extension-pack",
+			"ms-vscode.cmake-tools",
+			"twxs.cmake",
 		]
 	}
 }

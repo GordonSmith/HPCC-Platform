@@ -15,11 +15,15 @@
 			"-DINCLUDE_PLUGINS=ON",
 			"-DSUPPRESS_V8EMBED=ON",
 			"-DSUPPRESS_REMBED=ON",
-			"-DSUPPRESS_COUCHBASEEMBED=ON",
-			"-DUSE_NLP=OFF"
+			"-DSUPPRESS_COUCHBASEEMBED=ON"
 		],
-		"cmake.buildToolArgs": [
-			"-j"
-		],
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-vscode.cpptools",
+			"ms-vscode.cpptools-extension-pack",
+			"ms-vscode.cmake-tools",
+			"twxs.cmake",
+		]
 	}
 }
