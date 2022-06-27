@@ -16,5 +16,5 @@
 ############################################################################## */
 
 EXPORT nlp := SERVICE : plugin('nlp'), namespace('nlp'), library('nlp'), CPP, PURE
-  string AnalyzeText(const string analyzer, const string txt) : cpp,pure,entrypoint='AnalyzeText';
+  string AnalyzeText(const string analyzer, const string txt) : context,cpp,pure,entrypoint='AnalyzeText';
 END;

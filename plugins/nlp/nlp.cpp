@@ -25,6 +25,13 @@
 #include "eclrtl.hpp"
 #include "nlp.hpp"
 
+#include <workunit.hpp>
+// #include <agentctx.hpp>
+#include <enginecontext.hpp>
+#include <environment.hpp>
+#include <seclib.hpp>
+#include <wuwebview.hpp>
+
 #define NLP_VERSION "nlp plugin 1.0.0"
 
 ECL_NLP_API bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
@@ -43,33 +50,45 @@ ECL_NLP_API bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
 
 #include <fstream>
 
-namespace nlp {
+namespace nlp
+{
 
-    IPluginContext * parentCtx = NULL;
-    static CriticalSection cs; 
+    IPluginContext *parentCtx = NULL;
+    static CriticalSection cs;
     static NLPEng *nlpEng = NULL;
 
     //--------------------------------------------------------------------------------
     //                           ECL SERVICE ENTRYPOINTS
     //--------------------------------------------------------------------------------
 
-    ECL_NLP_API void ECL_NLP_CALL AnalyzeText(size32_t & tgtLen, char * & tgt, size32_t anaLen, const char * ana, size32_t txtLen, const char * txt)
+    ECL_NLP_API void ECL_NLP_CALL AnalyzeText(ICodeContext *codeCtx, size32_t &tgtLen, char *&tgt, size32_t anaLen, const char *ana, size32_t txtLen, const char *txt)
     {
         {
             CriticalBlock block(cs);
-            if (nlpEng == NULL) {
+            if (nlpEng == NULL)
+            {
+                IEngineContext *engine = codeCtx->queryEngineContext();
+                if (engine)
+                {
+                    StringArray filePaths;
+                    engine->getManifestFiles("UNKNOWN", filePaths);
+                    ForEachItemIn(idx, filePaths)
+                    {
+                        // filePaths.item(idx);
+                    }
+                }
                 nlpEng = new NLPEng();
             }
         }
-        StringBuffer anaBuff(anaLen,ana);
-        StringBuffer txtBuff(txtLen,txt);
+        StringBuffer anaBuff(anaLen, ana);
+        StringBuffer txtBuff(txtLen, txt);
         ostringstream sso;
-        tgtLen = nlpEng->nlpEngAnalyze(anaBuff,txtBuff,sso);
-        tgt = (char *) CTXMALLOC(parentCtx, tgtLen);
+        tgtLen = nlpEng->nlpEngAnalyze(anaBuff, txtBuff, sso);
+        tgt = (char *)CTXMALLOC(parentCtx, tgtLen);
         memcpy_iflen(tgt, sso.str().c_str(), tgtLen);
     }
 } // namespace nlp
 
 using namespace nlp;
 
-ECL_NLP_API void setPluginContext(IPluginContext * _ctx) { parentCtx = _ctx; }
+ECL_NLP_API void setPluginContext(IPluginContext *_ctx) { parentCtx = _ctx; }

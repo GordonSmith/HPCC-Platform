@@ -43,7 +43,15 @@ if(USE_NLP)
         nlp_eng.cpp)
 
     include_directories(
+        ./../../common/environment 
+        ./../../system/mp 
+        ./../../common/workunit 
+        ./../../common/wuwebview
         ./../../system/include
+        ./../../dali/base 
+        ./../../common/thorhelper 
+        ./../../system/security/shared
+
         ./../../rtl/eclrtl
         ./../../rtl/include
         ./../../common/deftype
@@ -74,6 +82,8 @@ if(USE_NLP)
         consh
         words
         lite
+        workunit 
+        wuwebview
         ${EXAMPLE_PLUGIN_DEP_LIBRARIES})
 
     if(PLATFORM OR CLIENTTOOLS_ONLY)
