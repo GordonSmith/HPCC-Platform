@@ -16,6 +16,10 @@
         "boost-property-tree",
         "boost-regex",
         "curl",
+        {
+            "name": "elasticlient",
+            "platform": "!windows"
+        },
         "h3",
         "hiredis",
         "icu",

@@ -16,37 +16,7 @@
 
 project(ElasticStackLogAccess)
 
-
-# elasticlient dependency submodule
-
-include(ExternalProject)
-ExternalProject_Add(
-  elasticlient-build
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/elasticlient
-  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/elasticlient
-  CMAKE_ARGS -DBUILD_ELASTICLIENT_TESTS=OFF -DBUILD_ELASTICLIENT_EXAMPLE=OFF -DUSE_ALL_SYSTEM_LIBS=OFF -DBUILD_CPR_TESTS=OFF -DUSE_SYSTEM_CURL=ON
-  BUILD_COMMAND ${CMAKE_MAKE_PROGRAM} cpr jsoncpp_lib elasticlient
-  BUILD_BYPRODUCTS
-    ${CMAKE_CURRENT_BINARY_DIR}/elasticlient/lib/libjsoncpp${CMAKE_SHARED_LIBRARY_SUFFIX}
-    ${CMAKE_CURRENT_BINARY_DIR}/elasticlient/lib/libelasticlient${CMAKE_SHARED_LIBRARY_SUFFIX}
-    ${CMAKE_CURRENT_BINARY_DIR}/elasticlient/lib/libcpr${CMAKE_SHARED_LIBRARY_SUFFIX}
-  INSTALL_COMMAND "")
-
-add_library(elasticlient SHARED IMPORTED GLOBAL)
-set_property(TARGET elasticlient
-  PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/elasticlient/lib/libelasticlient${CMAKE_SHARED_LIBRARY_SUFFIX})
-add_dependencies(elasticlient elasticlient-build)
-
-add_library(jsoncpp SHARED IMPORTED GLOBAL)
-set_property(TARGET jsoncpp
-  PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/elasticlient/lib/libjsoncpp${CMAKE_SHARED_LIBRARY_SUFFIX})
-add_dependencies(jsoncpp elasticlient-build)
-
-add_library(cpr SHARED IMPORTED GLOBAL)
-set_property(TARGET cpr
-  PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/elasticlient/lib/libcpr${CMAKE_SHARED_LIBRARY_SUFFIX})
-add_dependencies(cpr elasticlient-build)
-
+find_package(elasticlient REQUIRED)
 
 # elastistacklogaccess library
 # update cxx_flags to be less restrictive when building against elasticlient header files
@@ -54,14 +24,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
 
 set(srcs
   ${CMAKE_CURRENT_SOURCE_DIR}/ElasticStackLogAccess.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/elasticlient/include/elasticlient/client.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/elasticlient/include/elasticlient/scroll.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/ElasticStackLogAccess.hpp
 )
 
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/elasticlient/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/elasticlient/external/jsoncpp/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/elasticlient/external/cpr/include
   ${HPCC_SOURCE_DIR}/system/include
   ${HPCC_SOURCE_DIR}/system/jlib
 )
@@ -70,9 +36,9 @@ add_definitions(-DELASTICSTACKLOGACCESS_EXPORTS)
 HPCC_ADD_LIBRARY(elasticstacklogaccess SHARED ${srcs})
 target_link_libraries(elasticstacklogaccess
   jlib
-  elasticlient
-  jsoncpp
-  cpr
+  libelasticlient::libelasticlient
+  # jsoncpp
+  # cpr
 )
 
 install(TARGETS elasticstacklogaccess
