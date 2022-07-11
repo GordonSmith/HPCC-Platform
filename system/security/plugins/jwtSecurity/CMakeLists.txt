@@ -28,6 +28,7 @@ set(BUILD_EXAMPLES OFF)
 # Required installed libraries
 find_package(CURL REQUIRED)
 find_path(JWT_CPP_INCLUDE_DIRS "jwt-cpp/base.h" HINTS "${VCPKG_INSTALLED_DIR}")
+find_package(nlohmann_json CONFIG REQUIRED)
 
 set(SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/jwtSecurity.cpp"

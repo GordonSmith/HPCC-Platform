@@ -16,7 +16,10 @@
 
 project(ElasticStackLogAccess)
 
-find_package(elasticlient REQUIRED)
+find_path(ELASTIC_CLIENT_INCLUDE_DIRS "elasticlient/logging.h" HINTS "${VCPKG_INSTALLED_DIR}")
+find_library(ELASTIC_CLIENT_LIBRARY "lib/libelasticlient.a" HINTS "${VCPKG_INSTALLED_DIR}")
+find_package(jsoncpp CONFIG REQUIRED)
+find_package(cpr CONFIG REQUIRED)
 
 # elastistacklogaccess library
 # update cxx_flags to be less restrictive when building against elasticlient header files
@@ -30,15 +33,16 @@ set(srcs
 include_directories(
   ${HPCC_SOURCE_DIR}/system/include
   ${HPCC_SOURCE_DIR}/system/jlib
+  ${ELASTIC_CLIENT_INCLUDE_DIRS}
 )
 
 add_definitions(-DELASTICSTACKLOGACCESS_EXPORTS)
 HPCC_ADD_LIBRARY(elasticstacklogaccess SHARED ${srcs})
 target_link_libraries(elasticstacklogaccess
   jlib
-  libelasticlient::libelasticlient
-  # jsoncpp
-  # cpr
+  ${ELASTIC_CLIENT_LIBRARY}
+  JsonCpp::JsonCpp
+  cpr::cpr
 )
 
 install(TARGETS elasticstacklogaccess
