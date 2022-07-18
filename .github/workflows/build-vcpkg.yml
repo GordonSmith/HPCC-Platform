@@ -31,8 +31,14 @@ jobs:
   build:
     strategy:
       matrix:
-        os: ["ubuntu-20.04", "ubuntu-22.04", "windows-2019", "windows-2022", "macos-11", "macos-12"]
+        os: ["ubuntu-18.04", "ubuntu-20.04", "ubuntu-22.04", "windows-2019", "windows-2022", "macos-11", "macos-12"]
         include:
+          - os: "ubuntu-18.04"
+            triplet: "x64-linux"
+            mono: "mono"
+            sudo: "sudo"
+            cmake_config_options: '-DCMAKE_BUILD_TYPE=Release -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_REMBED=ON'
+            cmake_build_options: "-- -j$(nproc) -k"
           - os: "ubuntu-20.04"
             triplet: "x64-linux"
             mono: "mono"
@@ -168,7 +174,7 @@ jobs:
   build-docker:
     strategy:
       matrix:
-        os: ["centos-7"]
+        os: ["centos-7", "centos-8"]
         include:
           - os: "centos-7"
             docker-folder: "dockerfiles/platform-build-centos-7"
