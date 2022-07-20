@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="GitHub" value="https://nuget.pkg.github.com/hpcc-systems/index.json" />
+  </packageSources>
+  <packageSourceCredentials>
+    <GitHub>
+      <add key="Username" value="@GITHUB_ACTOR@" />
+      <add key="ClearTextPassword" value="@GITHUB_TOKEN@" />
+    </GitHub>
+  </packageSourceCredentials>
+</configuration>
