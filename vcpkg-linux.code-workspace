@@ -7,11 +7,10 @@
 	"settings": {
 		"cmake.generator": "Unix Makefiles",
 		"cmake.configureArgs": [
-			"-DRUNTIME_USER=${env:USER}",
-			"-DDESTDIR=${userHome}/hpcc-${buildType}",
 			"-DCONTAINERIZED=OFF",
 			"-DUSE_OPTIONAL=OFF",
-			"-DINCLUDE_PLUGINS=ON",
+			"-DUSE_AZURE=OFF",
+			"-DINCLUDE_PLUGINS=OFF",
 			"-DSUPPRESS_V8EMBED=ON",
 			"-DSUPPRESS_REMBED=ON"
 		],
