@@ -71,23 +71,23 @@ WORKDIR /hpcc-dev/build
 
 ARG BUILD_TYPE=RelWithDebInfo
 ARG USE_CPPUNIT=1
-RUN cmake /hpcc-dev/HPCC-Platform -Wno-dev -DCONTAINERIZED=1 -DINCLUDE_PLUGINS=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_PYTHON2=0 -DSUPPRESS_SPARK=1 -DUSE_CPPUNIT=${USE_CPPUNIT}
-RUN rm -rf ./vcpkg_downloads && rm -rf ./vcpkg_buildtrees && rm -rf ./vcpkg_packages
+RUN cmake /hpcc-dev/HPCC-Platform -Wno-dev -DCONTAINERIZED=1 -DINCLUDE_PLUGINS=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_PYTHON2=0 -DSUPPRESS_SPARK=1 -DUSE_CPPUNIT=${USE_CPPUNIT} || echo "****************************  CMAKE failed  ****************************"
+# RUN rm -rf ./vcpkg_downloads && rm -rf ./vcpkg_buildtrees && rm -rf ./vcpkg_packages
 
-ARG BUILD_THREADS
-RUN if [ -n "${BUILD_THREADS}" ] ; then echo ${BUILD_THREADS} > ~/build_threads; else echo $(nproc) > ~/build_threads ; fi
-RUN echo Building with $(cat ~/build_threads) threads
-RUN make -j$(cat ~/build_threads) jlib
-RUN make -j$(cat ~/build_threads) esp
-RUN make -j$(cat ~/build_threads) roxie
-RUN make -j$(cat ~/build_threads) ws_workunits ecl
-RUN make -j$(cat ~/build_threads)
+# ARG BUILD_THREADS
+# RUN if [ -n "${BUILD_THREADS}" ] ; then echo ${BUILD_THREADS} > ~/build_threads; else echo $(nproc) > ~/build_threads ; fi
+# RUN echo Building with $(cat ~/build_threads) threads
+# RUN make -j$(cat ~/build_threads) jlib
+# RUN make -j$(cat ~/build_threads) esp
+# RUN make -j$(cat ~/build_threads) roxie
+# RUN make -j$(cat ~/build_threads) ws_workunits ecl
+# RUN make -j$(cat ~/build_threads)
 
-USER root
+# USER root
 
-RUN make -j$(cat ~hpcc/build_threads) install
-RUN mkdir /var/lib/HPCCSystems && chown hpcc:hpcc /var/lib/HPCCSystems
-RUN mkdir /var/log/HPCCSystems && chown hpcc:hpcc /var/log/HPCCSystems
-RUN mkdir /var/lock/HPCCSystems && chown hpcc:hpcc /var/lock/HPCCSystems
-RUN mkdir /var/run/HPCCSystems && chown hpcc:hpcc /var/run/HPCCSystems
+# RUN make -j$(cat ~hpcc/build_threads) install
+# RUN mkdir /var/lib/HPCCSystems && chown hpcc:hpcc /var/lib/HPCCSystems
+# RUN mkdir /var/log/HPCCSystems && chown hpcc:hpcc /var/log/HPCCSystems
+# RUN mkdir /var/lock/HPCCSystems && chown hpcc:hpcc /var/lock/HPCCSystems
+# RUN mkdir /var/run/HPCCSystems && chown hpcc:hpcc /var/run/HPCCSystems
 
