@@ -3,10 +3,7 @@
 {
 	"name": "C++",
 	"build": {
-		"dockerfile": "Dockerfile",
-		"args": {
-			"BASE_VER": "8.6"
-		}
+		"dockerfile": "ubuntu-20.04.dockerfile"
 	},
 	"runArgs": [
 		"--cap-add=SYS_PTRACE",
@@ -17,7 +14,6 @@
 	// Set *default* container specific settings.json values on container create.
 	"settings": {
 		"cmake.configureArgs": [
-			"-DUSE_SHLIBDEPS=ON"
 		]
 	},
 	// Add the IDs of extensions you want installed when the container is created.
@@ -30,7 +26,7 @@
 	// "forwardPorts": [],
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "gcc -v",
-	"initializeCommand": "git submodule update --init --recursive"
+	// "initializeCommand": "git submodule update --init --recursive"
 	// Comment out this line to run as root instead.
 	// "remoteUser": "vscode"
 }
