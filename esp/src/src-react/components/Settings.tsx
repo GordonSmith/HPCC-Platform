@@ -1,6 +1,6 @@
 import * as React from "react";
 import { DefaultButton, Dialog, DialogFooter, DialogType, Pivot, PivotItem, PrimaryButton } from "@fluentui/react";
-import { ThemeEditor } from "./ThemeEditor";
+import { ThemeDesigner } from "../theme-shims/designer/index";
 import { useUserTheme } from "../hooks/theme";
 import nlsHPCC from "src/nlsHPCC";
 
@@ -23,7 +23,7 @@ export const Settings: React.FunctionComponent<SettingsProps> = ({
     const [cancelButtonText, setCancelButtonText] = React.useState(nlsHPCC.Reset);
     const [activePivot, setActivePivot] = React.useState("theme");
 
-    return <Dialog hidden={!show} onDismiss={onClose} dialogContentProps={dialogContentProps} minWidth="640px">
+    return <Dialog hidden={!show} onDismiss={onClose} dialogContentProps={dialogContentProps} minWidth="1150px">
         <Pivot onLinkClick={item => {
             setActivePivot(item.props.itemKey);
             switch (item.props.itemKey) {
@@ -35,7 +35,7 @@ export const Settings: React.FunctionComponent<SettingsProps> = ({
             }
         }}>
             <PivotItem itemKey="theme" headerText={nlsHPCC.Theme}>
-                <ThemeEditor />
+                <ThemeDesigner />
             </PivotItem>
         </Pivot>
         <DialogFooter>

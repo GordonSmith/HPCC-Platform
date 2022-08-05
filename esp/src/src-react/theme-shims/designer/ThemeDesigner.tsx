@@ -1,0 +1,51 @@
+import * as React from "react";
+import type { ThemeDesignerProps } from "./ThemeDesigner.types";
+import { useStaticStyles, useStyles } from "./ThemeDesigner.styles";
+import { AppState, DispatchTheme, initialAppState, useThemeDesignerReducer } from "./useThemeDesignerReducer";
+import { FluentProvider, webLightTheme } from "@fluentui/react-components";
+import { createContext } from "@fluentui/react-context-selector";
+import { Sidebar } from "./components/Sidebar/Sidebar";
+import { Content } from "./components/Content/Content";
+
+export type AppContextValue = {
+  appState: AppState;
+  dispatchAppState: React.Dispatch<DispatchTheme>;
+  name: string;
+  setName: React.Dispatch<React.SetStateAction<string>>;
+};
+
+export const AppContext = createContext<AppContextValue>({
+  appState: initialAppState,
+  dispatchAppState: () => null,
+  name: "Untitled",
+  setName: () => null,
+});
+
+/**
+ * ThemeDesigner component - TODO: add more docs
+ */
+export const ThemeDesigner: React.FC<ThemeDesignerProps> = props => {
+  const styles = useStyles();
+  useStaticStyles();
+
+  const [appState, dispatchAppState] = useThemeDesignerReducer();
+  const [name, setName] = React.useState<string>("myTheme");
+
+  const { darkOverrides, isDark, lightOverrides, theme } = appState;
+  const overrides = isDark ? darkOverrides : lightOverrides;
+  const overridenTheme = { ...theme, ...overrides };
+
+  return (
+    <FluentProvider theme={webLightTheme}>
+      <AppContext.Provider value={{ appState, dispatchAppState, name, setName }}>
+        <div className={styles.root}>
+          <span className={styles.nav} />
+          <Sidebar className={styles.sidebar} />
+          <FluentProvider theme={overridenTheme}>
+            <Content className={styles.content} />
+          </FluentProvider>
+        </div>
+      </AppContext.Provider>
+    </FluentProvider>
+  );
+};
