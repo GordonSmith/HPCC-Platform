@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ContextualMenuItemType, DefaultButton, IconButton, IIconProps, Image, IPanelProps, IPersonaSharedProps, IRenderFunction, Link, mergeStyleSets, Panel, PanelType, Persona, PersonaSize, SearchBox, Stack, Text, useTheme } from "@fluentui/react";
+import { ContextualMenuItemType, DefaultButton, FontIcon, IconButton, IIconProps, Image, IPanelProps, IPersonaSharedProps, IRenderFunction, Link, mergeStyles, mergeStyleSets, Panel, PanelType, Persona, PersonaSize, SearchBox, Stack, Text, useTheme } from "@fluentui/react";
 import { Level } from "@hpcc-js/util";
 import { useBoolean } from "@fluentui/react-hooks";
 import { Toaster } from "react-hot-toast";
@@ -19,9 +19,11 @@ import { About } from "./About";
 import { MyAccount } from "./MyAccount";
 import { toasterScale } from "./controls/CustomToaster";
 
+import "./controls/Logo";
+
 const collapseMenuIcon: IIconProps = { iconName: "CollapseMenu" };
 
-const waffleIcon: IIconProps = { iconName: "WaffleOffice365" };
+const waffleIcon: IIconProps = { iconName: "hpcc-icon" };
 const searchboxStyles = { margin: "5px", height: "auto", width: "100%" };
 
 const personaStyles = {
@@ -62,15 +64,22 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
         };
     }, [currentUser]);
 
+    const iconClass = mergeStyles({
+        fontSize: 50,
+        height: 32,
+        width: 32,
+        margin: "0 4px",
+    });
+
     const onRenderNavigationContent: IRenderFunction<IPanelProps> = React.useCallback(
         (props, defaultRender) => (
             <>
-                <IconButton iconProps={waffleIcon} onClick={dismissPanel} style={{ width: 48, height: 48 }} />
+                <IconButton iconProps={waffleIcon} onClick={dismissPanel} className={iconClass} />
                 <span style={searchboxStyles} />
                 {defaultRender!(props)}
             </>
         ),
-        [dismissPanel],
+        [dismissPanel, iconClass],
     );
 
     const [log, logLastUpdated] = useECLWatchLogger();
@@ -172,7 +181,10 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
             <Stack.Item align="center">
                 <Stack horizontal>
                     <Stack.Item>
-                        <IconButton iconProps={waffleIcon} onClick={openPanel} style={{ width: 48, height: 48, color: theme.palette.themeDarker }} />
+                        {/* <IconButton iconProps={waffleIcon} onClick={openPanel} style={{ width: 48, height: 48, color: theme.palette.themeDarker }} /> */}
+                        <DefaultButton onClick={openPanel}>
+                            <FontIcon aria-label="OneDrive logo" iconName="hpcc-icon" className={iconClass} />
+                        </DefaultButton>
                     </Stack.Item>
                     <Stack.Item align="center">
                         <Link href="#/activities">

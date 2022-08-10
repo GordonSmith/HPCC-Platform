@@ -169,7 +169,7 @@ for (const key in subMenuItems) {
 }
 
 function subNavSelectedKey(hashPath) {
-    return !!subNavIdx[hashPath] ? hashPath : null;
+    return !!subNavIdx[hashPath] ? hashPath : subMenuItems[hashPath] ? subMenuItems[hashPath][0] : null;
 }
 
 const handleLinkClick = (item?: PivotItem) => {
