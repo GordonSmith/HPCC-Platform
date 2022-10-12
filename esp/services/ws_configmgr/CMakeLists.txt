@@ -63,6 +63,7 @@ install(
     LIBRARY DESTINATION ${LIB_DIR}
     COMPONENT Runtime
 )
+install_deps($<TARGET_FILE:ws_configmgr>)
 
 add_dependencies(ws_configmgr espscm configmgr)
 target_link_libraries(ws_configmgr

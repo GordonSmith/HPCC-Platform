@@ -72,3 +72,4 @@ if ( USE_CPPUNIT )
 endif()
 
 install ( TARGETS wutool RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:wutool>)

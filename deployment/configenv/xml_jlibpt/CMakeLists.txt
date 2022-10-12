@@ -99,6 +99,7 @@ ADD_DEFINITIONS ( -D_USRDLL -DCONFIGENV_EXPORTS )
 
 HPCC_ADD_LIBRARY( configenv SHARED ${SRCS} )
 install ( TARGETS configenv RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:configenv>)
 target_link_libraries ( configenv
          jlib
 #         environment

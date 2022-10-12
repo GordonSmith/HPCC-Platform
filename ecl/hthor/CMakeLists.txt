@@ -82,6 +82,7 @@ ADD_DEFINITIONS( -D_USRDLL -DHTHOR_EXPORTS -DSTARTQUERY_EXPORTS )
 
 HPCC_ADD_LIBRARY( hthorlib SHARED ${SRCS} ${INCLUDES} )
 install ( TARGETS hthorlib RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION componentfiles/cl/lib )
+install_deps($<TARGET_FILE:hthorlib>)
 target_link_libraries ( hthorlib
          dafsclient
          dalibase

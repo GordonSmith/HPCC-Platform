@@ -56,6 +56,8 @@ endif()
 
 HPCC_ADD_EXECUTABLE ( daserver ${SRCS} )
 install ( TARGETS daserver RUNTIME DESTINATION ${EXEC_DIR})
+install_deps($<TARGET_FILE:daserver>)
+
 target_link_libraries ( daserver 
          jlib
          mp 

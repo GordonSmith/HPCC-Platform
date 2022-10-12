@@ -60,6 +60,7 @@ ADD_DEFINITIONS( -D_CONSOLE -DWSSMC_API_LOCAL )
 
 HPCC_ADD_EXECUTABLE ( ecl-bundle ${SRCS} )
 install ( TARGETS ecl-bundle RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:ecl-bundle>)
 target_link_libraries ( ecl-bundle
         jlib
         esphttp

@@ -61,6 +61,7 @@ endif()
 
 HPCC_ADD_EXECUTABLE ( eclcc ${SRCS} )
 install ( TARGETS eclcc RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:eclcc>)
 target_link_libraries ( eclcc 
          eclrtl 
          deftype 

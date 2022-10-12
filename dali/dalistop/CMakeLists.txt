@@ -42,6 +42,7 @@ ADD_DEFINITIONS( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( dalistop ${SRCS} )
 install ( TARGETS dalistop RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:dalistop>)
 target_link_libraries ( dalistop 
          jlib
          mp 

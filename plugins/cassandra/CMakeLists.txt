@@ -30,7 +30,7 @@ project(cassandraembed)
 if(USE_CASSANDRA)
   find_path(CPP_DRIVER_INCLUDE_DIRS "include/cassandra.h" HINTS "${VCPKG_INSTALLED_DIR}" REQUIRED)
   find_library(CPP_DRIVER_LIBRARY "lib/libcassandra_static.a" HINTS "${VCPKG_INSTALLED_DIR}" REQUIRED )
-  find_package(unofficial-libuv CONFIG REQUIRED)
+  find_package(libuv CONFIG REQUIRED)
 
   ADD_PLUGIN(cassandraembed)
 
@@ -67,6 +67,7 @@ if(USE_CASSANDRA)
     TARGETS cassandraembed
     DESTINATION ${LIB_DIR}
     COMPONENT Runtime )
+  install_deps($<TARGET_FILE:cassandraembed>)
 
   target_link_libraries(
     cassandraembed
@@ -76,7 +77,7 @@ if(USE_CASSANDRA)
     workunit
     jlib
     ${CPP_DRIVER_LIBRARY}
-    unofficial::libuv::libuv)
+    $<IF:$<TARGET_EXISTS:uv_a>,uv_a,uv>)
 
   if(PLATFORM OR CLIENTTOOLS_ONLY)
     install(

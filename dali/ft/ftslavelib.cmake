@@ -40,6 +40,7 @@ ADD_DEFINITIONS( -D_USRDLL -DFTSLAVELIB_EXPORTS )
 
 HPCC_ADD_LIBRARY ( ftslavelib SHARED ${SRCS} )
 install ( TARGETS ftslavelib RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:ftslavelib>)
 target_link_libraries ( ftslavelib
          dalibase 
          dalift 

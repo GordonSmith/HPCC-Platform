@@ -43,6 +43,7 @@ ADD_DEFINITIONS( -D_USRDLL -DNBCD_EXPORTS )
 HPCC_ADD_LIBRARY( nbcd SHARED ${SRCS} )
 if (NOT PLUGIN)
   install ( TARGETS nbcd RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION componentfiles/cl/lib )
+  install_deps($<TARGET_FILE:nbcd>)
 endif()
 target_link_libraries ( nbcd 
       jlib

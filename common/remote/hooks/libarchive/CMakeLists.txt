@@ -43,6 +43,7 @@ endif ( WIN32 )
 
 HPCC_ADD_LIBRARY( archivefile SHARED ${SRCS}  )
 install ( TARGETS archivefile RUNTIME DESTINATION filehooks LIBRARY DESTINATION filehooks )
+install_deps($<TARGET_FILE:archivefile>)
 
 target_link_libraries ( archivefile
     jlib

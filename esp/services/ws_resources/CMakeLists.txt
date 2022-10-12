@@ -59,6 +59,7 @@ ADD_DEFINITIONS( -D_USRDLL -DWS_RESOURCES_EXPORTS -DWsResources_API_LOCAL )
 HPCC_ADD_LIBRARY( ws_resources SHARED ${SRCS} )
 add_dependencies ( ws_resources espscm )
 install ( TARGETS ws_resources RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:ws_resources>)
 target_link_libraries ( ws_resources
          jlib
          xmllib

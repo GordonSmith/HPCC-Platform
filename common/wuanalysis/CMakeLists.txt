@@ -59,6 +59,7 @@ set_target_properties(wuanalysis PROPERTIES
     DEFINE_SYMBOL WUANALYSIS_EXPORTS )
 
 install ( TARGETS wuanalysis RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:wuanalysis>)
 
 target_link_libraries ( wuanalysis
          jlib

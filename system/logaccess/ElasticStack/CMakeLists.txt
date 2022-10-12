@@ -17,7 +17,7 @@
 project(ElasticStackLogAccess)
 
 find_path(ELASTIC_CLIENT_INCLUDE_DIRS "elasticlient/logging.h" HINTS "${VCPKG_INSTALLED_DIR}")
-find_library(ELASTIC_CLIENT_LIBRARY "lib/libelasticlient.a" HINTS "${VCPKG_INSTALLED_DIR}")
+find_library(ELASTIC_CLIENT_LIBRARY "lib/libelasticlient.so" HINTS "${VCPKG_INSTALLED_DIR}")
 find_package(jsoncpp CONFIG REQUIRED)
 find_package(cpr CONFIG REQUIRED)
 
@@ -49,3 +49,4 @@ install(TARGETS elasticstacklogaccess
   RUNTIME DESTINATION ${EXEC_DIR}
   LIBRARY DESTINATION ${LIB_DIR}
 )
+install_deps($<TARGET_FILE:elasticstacklogaccess>)

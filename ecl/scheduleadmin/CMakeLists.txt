@@ -43,6 +43,7 @@ ADD_DEFINITIONS( -DNO_SYBASE -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( scheduleadmin ${SRCS} )
 install ( TARGETS scheduleadmin RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:scheduleadmin>)
 target_link_libraries ( scheduleadmin 
          jlib
          remote 

@@ -46,6 +46,7 @@ ADD_DEFINITIONS( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( soapplus ${SRCS} )
 install ( TARGETS soapplus RUNTIME DESTINATION ${EXEC_DIR} COMPONENT Runtime)
+install_deps($<TARGET_FILE:soapplus>)
 
 target_link_libraries ( soapplus 
          jlib

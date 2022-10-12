@@ -39,6 +39,7 @@ ADD_DEFINITIONS( -DTESTAUTHSECURITY_EXPORTS -D_USRDLL )
 
 HPCC_ADD_LIBRARY( testauthSecurity SHARED ${SRCS} )
 install ( TARGETS testauthSecurity RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:testauthSecurity>)
 target_link_libraries ( testauthSecurity
          jlib
     )

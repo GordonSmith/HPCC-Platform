@@ -65,6 +65,7 @@ ADD_DEFINITIONS( -D_USRDLL -DWsFileIO_API_LOCAL )
 
 HPCC_ADD_LIBRARY( ws_fileio SHARED ${SRCS} )
 install ( TARGETS ws_fileio RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:ws_fileio>)
 add_dependencies (ws_fileio espscm)
 target_link_libraries ( ws_fileio 
          jlib

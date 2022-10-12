@@ -44,6 +44,8 @@ ADD_DEFINITIONS( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( updtdalienv ${SRCS} )
 install ( TARGETS updtdalienv RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:updtdalienv>)
+
 target_link_libraries ( updtdalienv  
          jlib
          mp 

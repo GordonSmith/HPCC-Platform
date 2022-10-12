@@ -60,6 +60,7 @@ ADD_DEFINITIONS( -DTHORSORT_EXPORTS )
 
 HPCC_ADD_LIBRARY( thorsort_lcr SHARED ${SRCS} )
 install ( TARGETS thorsort_lcr RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:thorsort_lcr>)
 target_link_libraries ( thorsort_lcr
         jlib
         eclrtl

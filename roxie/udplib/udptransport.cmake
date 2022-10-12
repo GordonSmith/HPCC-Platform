@@ -46,6 +46,7 @@ endif()
 
 HPCC_ADD_EXECUTABLE ( udptransport ${SRCS} )
 #install ( TARGETS udptransport RUNTIME DESTINATION ${EXEC_DIR} )
+# install_deps($<TARGET_FILE:udptransport>)
 target_link_libraries ( udptransport 
          jlib
          roxiemem

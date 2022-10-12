@@ -70,6 +70,8 @@ ADD_DEFINITIONS( -DECLPLUS_EXPORTS -D_CONSOLE -DWSWU_API_LOCAL -Dws_logaccess_AP
 HPCC_ADD_EXECUTABLE ( eclplus ${SRCS} )
 add_dependencies ( eclplus espscm )
 install ( TARGETS eclplus RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:eclplus>)
+
 target_link_libraries (  eclplus 
          jlib
          esphttp 

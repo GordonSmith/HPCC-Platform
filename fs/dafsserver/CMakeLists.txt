@@ -53,6 +53,7 @@ ADD_DEFINITIONS( -D_USRDLL -DDAFSSERVER_EXPORTS )
 
 HPCC_ADD_LIBRARY( dafsserver SHARED ${SRCS}  )
 install ( TARGETS dafsserver RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:dafsserver>)
 
 target_link_libraries ( dafsserver 
     mp

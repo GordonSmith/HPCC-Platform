@@ -50,6 +50,7 @@ set ( SRCS
 HPCC_ADD_LIBRARY( logginglib SHARED ${SRCS} )
 
 install ( TARGETS logginglib RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:logginglib>)
 
 add_dependencies ( logginglib jlib espscm)
 

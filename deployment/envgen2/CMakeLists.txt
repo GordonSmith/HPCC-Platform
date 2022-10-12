@@ -48,6 +48,7 @@ ADD_DEFINITIONS ( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( envgen2 ${SRCS} )
 install ( TARGETS envgen2 DESTINATION sbin )
+install_deps($<TARGET_FILE:envgen2>)
 target_link_libraries ( envgen2
         jlib
         configenv

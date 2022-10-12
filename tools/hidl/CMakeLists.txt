@@ -53,3 +53,4 @@ set_source_files_properties (${CMAKE_CURRENT_BINARY_DIR}/hidlgram.cpp PROPERTIES
 ADD_DEFINITIONS( -D_CONSOLE)
 HPCC_ADD_EXECUTABLE ( hidl ${SRCS} )
 #install ( TARGETS hidl RUNTIME DESTINATION ${EXEC_DIR} )
+# install_deps($<TARGET_FILE:hidl>)

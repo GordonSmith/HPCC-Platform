@@ -64,6 +64,7 @@ ADD_DEFINITIONS( -D_USRDLL -Dws_elk_API_LOCAL )
 HPCC_ADD_LIBRARY( ws_elk SHARED ${SRCS}  )
 add_dependencies (ws_elk espscm )
 install ( TARGETS ws_elk RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:ws_elk>)
 target_link_libraries ( ws_elk
          jlib
          xmllib

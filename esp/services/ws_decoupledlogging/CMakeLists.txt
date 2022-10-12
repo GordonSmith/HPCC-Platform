@@ -57,6 +57,8 @@ HPCC_ADD_LIBRARY( ws_decoupledlogging SHARED ${SRCS} )
 add_dependencies( ws_decoupledlogging espscm )
 
 install ( TARGETS ws_decoupledlogging RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:ws_decoupledlogging>)
+
 target_link_libraries ( ws_decoupledlogging
          jlib
          xmllib
