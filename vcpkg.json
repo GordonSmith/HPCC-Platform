@@ -20,10 +20,6 @@
         "cpp-driver",
         "cpr",
         "curl",
-        {
-            "name": "elasticlient",
-            "platform": "!windows"
-        },
         "h3",
         "hiredis",
         {

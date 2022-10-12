@@ -11,7 +11,8 @@
 			"-DUSE_OPTIONAL=OFF",
 			"-DINCLUDE_PLUGINS=ON",
 			"-DSUPPRESS_V8EMBED=ON",
-			"-DSUPPRESS_REMBED=ON"
+			"-DSUPPRESS_REMBED=ON",
+			"-DUSE_ELASTICSTACK_CLIENT=OFF"
 		],
 		"editor.formatOnSave": false
 	},
