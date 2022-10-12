@@ -27,17 +27,7 @@ SET(CMAKE_UNITY_BUILD FALSE)
 
 if(USE_NLP)
 
-    # too many warnings about register qualifiers, and clashes of std::byte with the definition of byte in platform.h
-    set(CMAKE_CXX_STANDARD 11)
-
-    include_directories(nlp-engine/cs/include)
-    include_directories(nlp-engine/include)
-    include_directories(nlp-engine/include/Api)
-    include_directories(nlp-engine/include/Api/lite)
-
-    add_subdirectory(nlp-engine/cs)
-    add_subdirectory(nlp-engine/src)
-    add_subdirectory(nlp-engine/lite)
+    find_package(nlp-engine CONFIG REQUIRED)
 
     set(SRCS
         nlp.hpp
@@ -51,8 +41,9 @@ if(USE_NLP)
         ./../../rtl/include
         ./../../common/deftype
         ./../../system/jlib
-        ./nlp-engine/include/Api
-        ./nlp-engine)
+        ${NLP_ENGINE_INCLUDE_DIR}
+        ${NLP_ENGINE_INCLUDE_DIR}/Api
+        ${NLP_ENGINE_INCLUDE_DIR}/Api/lite)
 
     add_definitions(-D_USRDLL -DECL_NLP_EXPORTS)
 
@@ -70,15 +61,11 @@ if(USE_NLP)
         DESTINATION plugins
         CALC_DEPS)
 
-    target_link_libraries(nlp
+    target_link_libraries(nlp PRIVATE
         eclrtl
         jlib
-        prim
-        kbm
-        consh
-        words
-        lite
-        ${EXAMPLE_PLUGIN_DEP_LIBRARIES})
+        nlp-engine
+        )
 
     if(PLATFORM OR CLIENTTOOLS_ONLY)
 
