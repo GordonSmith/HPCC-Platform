@@ -77,8 +77,8 @@ IF(MONGODBEMBED)
 
         target_link_libraries(
             mongodbembed
-            PRIVATE mongo::bsoncxx_static
-            PRIVATE mongo::mongocxx_static
+            PRIVATE mongo::bsoncxx_shared
+            PRIVATE mongo::mongocxx_shared
             eclrtl
             jlib
         )
