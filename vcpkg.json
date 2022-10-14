@@ -22,10 +22,7 @@
         "curl",
         "h3",
         "hiredis",
-        {
-            "name": "icu",
-            "platform": "!linux"
-        },
+        "icu",
         "jwt-cpp",
         "jsoncpp",
         {
