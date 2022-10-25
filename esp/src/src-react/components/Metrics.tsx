@@ -44,6 +44,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const [showMetricOptions, setShowMetricOptions] = React.useState(false);
     const [options, setOptions, saveOptions] = useMetricsOptions();
     const [dockpanel, setDockpanel] = React.useState<ResetableDockPanel>();
+    const [rawData, setRawData] = React.useState(false);
 
     // Disable until ESP supports hotspot
     // const onHotspot = React.useCallback(() => {
@@ -92,7 +93,26 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     ], [dockpanel, options, refresh, setOptions]);
 
     const rightButtons = React.useMemo((): ICommandBarItemProps[] => [
-    ], []);
+        {
+            key: "rawData", text: nlsHPCC.RawData, iconOnly: true, iconProps: { iconName: "Table" }, canCheck: true, checked: rawData,
+            onClick: () => {
+                setRawData(!rawData)
+            }
+        },
+        {
+            key: "copy", text: nlsHPCC.CopySelectionToClipboard, disabled: !selection.length || !navigator?.clipboard?.writeText, iconOnly: true, iconProps: { iconName: "Copy" },
+            onClick: () => {
+                // const tsv = Utility.formatAsDelim(columns, selection, "\t");
+                // navigator?.clipboard?.writeText(tsv);
+            }
+        },
+        {
+            key: "download", text: nlsHPCC.DownloadSelectionAsCSV, disabled: !selection.length, iconOnly: true, iconProps: { iconName: "Download" },
+            onClick: () => {
+                // const csv = Utility.formatAsDelim(columns, selection, ",");
+                // Utility.downloadText(csv, filename);
+            }
+        }], [rawData, selection.length]);
 
     //  Timeline ---
     const timeline = useConst(() => new WUTimelinePatched()
