@@ -17,6 +17,7 @@ import { pushUrl } from "../util/history";
 import { debounce } from "../util/throttle";
 import { ShortVerticalDivider } from "./Common";
 import { MetricsOptions } from "./MetricsOptions";
+import { RawData } from "./RawData";
 
 // Disable until ESP supports hotspot
 // const logger = scopedLogger("src-react/components/Metrics.tsx");
@@ -96,7 +97,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         {
             key: "rawData", text: nlsHPCC.RawData, iconOnly: true, iconProps: { iconName: "Table" }, canCheck: true, checked: rawData,
             onClick: () => {
-                setRawData(!rawData)
+                setRawData(!rawData);
             }
         },
         {
@@ -442,6 +443,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             <>
                 <DockPanel items={items} layout={options?.layout} layoutChanged={layoutChanged} onDockPanelCreate={setDockpanel} />
                 <MetricsOptions show={showMetricOptions} setShow={setShowMetricOptions} />
+                <RawData show={rawData} dismissPanel={() => setRawData(false)} />
             </>}
     />;
 };
