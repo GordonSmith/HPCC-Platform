@@ -49,7 +49,7 @@ install ( TARGETS azurefile DESTINATION filehooks )
 
 target_link_libraries ( azurefile
         jlib
-        curl
+        CURL::libcurl
         Azure::azure-storage-common
         Azure::azure-storage-blobs
         Azure::azure-storage-files-shares

@@ -23,8 +23,8 @@
         "h3",
         "hiredis",
         "icu",
-        "jwt-cpp",
         "jsoncpp",
+        "jwt-cpp",
         {
             "name": "libarchive",
             "default-features": false,
@@ -32,11 +32,16 @@
                 "bzip2"
             ]
         },
+        "libevent",
+        "libgit2",
         {
             "name": "libiconv",
             "platform": "osx"
         },
-        "libgit2",
+        {
+            "name": "libmysql",
+            "platform": "!(windows & x86)"
+        },
         "librdkafka",
         "libuv",
         "libxml2",
@@ -49,6 +54,7 @@
         "lz4",
         "mongo-cxx-driver",
         "nlohmann-json",
+        "numactl",
         {
             "name": "openblas",
             "features": [
@@ -67,6 +73,7 @@
             "platform": "windows"
         },
         "rapidjson",
+        "sqlite3",
         "tbb",
         {
             "name": "winflexbison",
