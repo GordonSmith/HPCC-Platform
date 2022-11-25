@@ -65,6 +65,7 @@ ADD_DEFINITIONS( -D_USRDLL -Dws_logaccess_API_LOCAL )
 HPCC_ADD_LIBRARY( ws_logaccess SHARED ${SRCS}  )
 add_dependencies (ws_logaccess espscm )
 install ( TARGETS ws_logaccess RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:ws_logaccess>)
 target_link_libraries ( ws_logaccess
          jlib
          xmllib

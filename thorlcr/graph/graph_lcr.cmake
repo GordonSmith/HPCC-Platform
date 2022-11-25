@@ -63,6 +63,7 @@ set_target_properties(graph_lcr PROPERTIES
     COMPILE_FLAGS -D_USRDLL
     DEFINE_SYMBOL GRAPH_EXPORTS )
 install ( TARGETS graph_lcr RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:graph_lcr>)
 target_link_libraries ( graph_lcr 
          jlib
          jhtree 

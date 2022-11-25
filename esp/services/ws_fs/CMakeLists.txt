@@ -71,6 +71,7 @@ ADD_DEFINITIONS( -D_USRDLL -DFileSpray_API_LOCAL )
 HPCC_ADD_LIBRARY( ws_fs SHARED ${SRCS} )
 add_dependencies ( ws_fs espscm )
 install ( TARGETS ws_fs RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:ws_fs>)
 target_link_libraries ( ws_fs
          jlib
          esphttp 

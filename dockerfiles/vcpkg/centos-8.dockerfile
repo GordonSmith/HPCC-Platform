@@ -15,8 +15,9 @@ RUN yum install -y \
 
 WORKDIR /hpcc-dev
 
+ENV OS=centos-8
 ENV SOURCE_FOLDER=/hpcc-dev/HPCC-Platform
-ENV BUILD_FOLDER=$SOURCE_FOLDER/build-centos-8
+ENV BUILD_FOLDER=$SOURCE_FOLDER/build-$OS
 ENV CMAKEOPTS="\
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DCONTAINERIZED=OFF \
@@ -27,5 +28,9 @@ ENV CMAKEOPTS="\
     -DINCLUDE_PLUGINS=OFF \
     "
 
-# COPY ./startup.sh ./startup.sh
-ENTRYPOINT ["/bin/bash", "--login", "-c", "cmake -S ${SOURCE_FOLDER} -B ${BUILD_FOLDER} ${CMAKEOPTS} && cmake --build ${BUILD_FOLDER} --target package -- -j"]
+ENTRYPOINT ["/bin/bash", "--login", "-c", \
+    "mkdir -p ${BUILD_FOLDER} && \
+    cp -R /hpcc-dev/build/* $BUILD_FOLDER && \
+    cmake -S ${SOURCE_FOLDER} -B ${BUILD_FOLDER} ${CMAKEOPTS} && \
+    cmake --build ${BUILD_FOLDER} --target package -- -j"\
+    ]

@@ -114,6 +114,7 @@ endif()
 
 HPCC_ADD_LIBRARY( ccd SHARED ${SRCS} )
 install ( TARGETS ccd RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION componentfiles/cl/lib )
+install_deps($<TARGET_FILE:ccd>)
 
 target_link_libraries ( ccd 
          dafsclient 

@@ -52,6 +52,7 @@ endif()
 
 HPCC_ADD_EXECUTABLE ( toposerver ${SRCS} )
 install ( TARGETS toposerver RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:toposerver>)
 
 target_link_libraries ( toposerver
          jlib 

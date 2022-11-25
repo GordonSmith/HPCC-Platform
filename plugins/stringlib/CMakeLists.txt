@@ -43,6 +43,7 @@ ADD_DEFINITIONS( -D_USRDLL -DSTRINGLIB_EXPORTS )
 
 HPCC_ADD_LIBRARY( stringlib SHARED ${SRCS} )
 install ( TARGETS stringlib DESTINATION plugins )
+install_deps($<TARGET_FILE:stringlib>)
 target_link_libraries ( stringlib
          eclrtl
     )

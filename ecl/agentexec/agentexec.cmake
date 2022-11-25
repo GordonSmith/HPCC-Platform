@@ -45,6 +45,7 @@ ADD_DEFINITIONS ( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( agentexec ${SRCS} )
 install ( TARGETS agentexec RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:agentexec>)
 
 target_link_libraries ( agentexec
          jlib 

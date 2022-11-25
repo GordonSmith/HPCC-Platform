@@ -136,4 +136,5 @@ ENDIF()
         LIBRARY DESTINATION ${LIB_DIR}
         COMPONENT Runtime
         )
+        install_deps($<TARGET_FILE:ws_sql>)
 endif()

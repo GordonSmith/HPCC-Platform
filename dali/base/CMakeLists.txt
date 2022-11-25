@@ -82,6 +82,7 @@ if(NOT PLUGIN)
         RUNTIME DESTINATION ${EXEC_DIR}
         LIBRARY DESTINATION ${LIB_DIR}
     )
+    install_deps($<TARGET_FILE:dalibase>)
     target_link_libraries(
         dalibase 
         jlib

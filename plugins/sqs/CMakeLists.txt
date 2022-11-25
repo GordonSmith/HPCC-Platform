@@ -36,6 +36,7 @@ if(SQS AND USE_AWS)
     install(
         TARGETS sqs
         DESTINATION plugins)
+    install_deps($<TARGET_FILE:sqs>)
 
     target_link_libraries(
         sqs

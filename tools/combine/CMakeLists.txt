@@ -39,6 +39,7 @@ ADD_DEFINITIONS( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( combine ${SRCS} )
 install ( TARGETS combine RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:combine>)
 target_link_libraries ( combine
          jlib
     )

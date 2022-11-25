@@ -69,7 +69,8 @@ if(NOT PLUGIN)
         TARGETS workunit
         RUNTIME DESTINATION ${EXEC_DIR}
         LIBRARY DESTINATION ${LIB_DIR})
-    target_link_libraries(
+    install_deps($<TARGET_FILE:workunit>)
+        target_link_libraries(
         workunit 
         jlib 
         dalibase 

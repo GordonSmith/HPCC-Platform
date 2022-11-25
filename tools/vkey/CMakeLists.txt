@@ -39,4 +39,5 @@ target_link_libraries ( vkey
          jlib
          )
 install ( TARGETS vkey RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:vkey>)
 

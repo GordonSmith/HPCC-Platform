@@ -19,3 +19,4 @@ add_library (WsTestService SHARED WsTestServiceBase.cpp
                                        )
 target_link_libraries (WsTestService jlib)
 install(TARGETS WsTestService DESTINATION plugins)
+install_deps($<TARGET_FILE:WsTestService>)

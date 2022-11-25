@@ -59,6 +59,7 @@ ADD_DEFINITIONS( -D_USRDLL -Dws_config_API_LOCAL )
 
 HPCC_ADD_LIBRARY( ws_config SHARED ${SRCS} )
 install ( TARGETS ws_config RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} COMPONENT Runtime )
+install_deps($<TARGET_FILE:ws_config>)
 add_dependencies (ws_config espscm)
 target_link_libraries ( ws_config 
          jlib

@@ -58,6 +58,7 @@ ADD_DEFINITIONS( -D_USRDLL -Dws_account_API_LOCAL )
 
 HPCC_ADD_LIBRARY( ws_account SHARED ${SRCS} )
 install ( TARGETS ws_account RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} COMPONENT Runtime )
+install_deps($<TARGET_FILE:ws_account>)
 add_dependencies (ws_account espscm)
 target_link_libraries ( ws_account 
          jlib

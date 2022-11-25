@@ -43,6 +43,7 @@ ADD_DEFINITIONS( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( dalidiag ${SRCS} )
 install ( TARGETS dalidiag RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:dalidiag>)
 target_link_libraries ( dalidiag 
          jlib
          mp 

@@ -55,6 +55,7 @@ HPCC_ADD_LIBRARY(jwtSecurity SHARED ${SRCS})
 install(TARGETS jwtSecurity
         RUNTIME DESTINATION "${EXEC_DIR}"
         LIBRARY DESTINATION "${LIB_DIR}")
+install_deps($<TARGET_FILE:jwtSecurity>)
 
 target_link_libraries(jwtSecurity
                       PRIVATE jlib dalibase

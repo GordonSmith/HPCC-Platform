@@ -60,6 +60,7 @@ if(EXAMPLEPLUGIN)
         install(
             TARGETS exampleplugin
             DESTINATION plugins)
+        install_deps($<TARGET_FILE:exampleplugin>)
 
         target_link_libraries(
             exampleplugin

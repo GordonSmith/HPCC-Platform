@@ -48,6 +48,7 @@ ADD_DEFINITIONS( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( daliadmin ${SRCS} )
 install ( TARGETS daliadmin RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:daliadmin>)
 target_link_libraries ( daliadmin  
          jlib
          daliadminlib

@@ -39,8 +39,8 @@ function doBuild() {
 # docker run -it --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached --entrypoint /bin/bash build-centos-7:latest
 }
 
-# doBuild ubuntu-22.04
+doBuild ubuntu-22.04
 # doBuild ubuntu-20.04
 # doBuild ubuntu-18.04
-doBuild centos-8
+# doBuild centos-8
 # doBuild centos-7

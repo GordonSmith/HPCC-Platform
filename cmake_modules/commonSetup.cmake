@@ -1175,4 +1175,21 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
     endif()
   ENDMACRO()
 
+  macro(install_deps macro_arg1)
+    install(CODE [[
+      file(GET_RUNTIME_DEPENDENCIES
+          LIBRARIES  ${macro_arg1}
+          RESOLVED_DEPENDENCIES_VAR _r_deps
+          UNRESOLVED_DEPENDENCIES_VAR _u_deps
+      )
+      foreach(_file ${_r_deps})
+        string(FIND "${_file}" "${CMAKE_BINARY_DIR}/vcpkg_installed" found)
+        if ("${found}" EQUAL 0)
+          file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE SHARED_LIBRARY FOLLOW_SYMLINK_CHAIN FILES "${_file}")
+        endif()
+      endforeach()
+    ]])
+  endmacro()
+
+
 endif ("${COMMONSETUP_DONE}" STREQUAL "")

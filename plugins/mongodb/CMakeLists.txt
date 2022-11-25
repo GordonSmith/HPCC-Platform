@@ -52,6 +52,7 @@ IF(MONGODBEMBED)
         install(
             TARGETS mongodbembed
             DESTINATION plugins)
+        install_deps($<TARGET_FILE:mongodbembed>)
 
         install(
             FILES ${LIBMONGOCXX_LIB_REAL}

@@ -52,6 +52,7 @@ if(SQLITE3EMBED)
         install(
             TARGETS sqlite3embed
             DESTINATION plugins)
+        install_deps($<TARGET_FILE:sqlite3embed>)
         target_link_libraries(
             sqlite3embed
             ${SQLITE3_LIBRARIES})

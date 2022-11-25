@@ -40,6 +40,7 @@ ADD_DEFINITIONS( -D_USRDLL -DPARSELIB_EXPORTS )
 
 HPCC_ADD_LIBRARY( parselib SHARED ${SRCS} )
 install ( TARGETS parselib DESTINATION plugins )
+install_deps($<TARGET_FILE:parselib>)
 target_link_libraries ( parselib 
          jlib
     )

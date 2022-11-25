@@ -55,6 +55,7 @@ endif()
 
 HPCC_ADD_EXECUTABLE ( roxie ${SRCS} )
 install ( TARGETS roxie RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:roxie>)
 
 target_link_libraries ( roxie
          ccd

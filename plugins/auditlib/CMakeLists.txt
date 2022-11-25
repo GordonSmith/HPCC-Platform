@@ -37,6 +37,8 @@ ADD_DEFINITIONS( -D_USRDLL -DAUDITLIB_EXPORTS )
 
 HPCC_ADD_LIBRARY( auditlib SHARED ${SRCS} )
 install ( TARGETS auditlib DESTINATION plugins )
+install_deps($<TARGET_FILE:auditlib>)
+
 target_link_libraries ( auditlib  
          jlib 
     )

@@ -46,6 +46,7 @@ ADD_DEFINITIONS( -D_USRDLL -DAZURE_FILE_EXPORTS )
 
 HPCC_ADD_LIBRARY( azurefile SHARED ${SRCS}  )
 install ( TARGETS azurefile DESTINATION filehooks )
+install_deps($<TARGET_FILE:azurefile>)
 
 target_link_libraries ( azurefile
         jlib

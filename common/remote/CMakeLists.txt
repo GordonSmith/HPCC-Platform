@@ -63,6 +63,7 @@ ADD_DEFINITIONS( -D_USRDLL -DREMOTE_EXPORTS )
 
 HPCC_ADD_LIBRARY( remote SHARED ${SRCS}  )
 install ( TARGETS remote RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:remote>)
 
 target_link_libraries ( remote 
     eclrtl

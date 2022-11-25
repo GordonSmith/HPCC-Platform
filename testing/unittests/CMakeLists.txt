@@ -97,6 +97,7 @@ ADD_DEFINITIONS( -D_CONSOLE )
 HPCC_ADD_EXECUTABLE ( unittests ${SRCS} )
 
 install ( TARGETS unittests RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:unittests>)
 target_link_libraries ( unittests
          jlib
          dafsclient

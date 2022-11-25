@@ -54,6 +54,7 @@ ADD_DEFINITIONS( -D_CONSOLE -DWSDecoupledLog_API_LOCAL )
 HPCC_ADD_EXECUTABLE ( tankfile ${SRCS} )
 add_dependencies ( tankfile espscm )
 install ( TARGETS tankfile RUNTIME DESTINATION ${EXEC_DIR} COMPONENT Runtime)
+install_deps($<TARGET_FILE:tankfile>)
 
 target_link_libraries ( tankfile
          jlib

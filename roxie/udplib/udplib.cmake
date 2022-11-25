@@ -51,6 +51,7 @@ set_target_properties( udplib PROPERTIES
     COMPILE_FLAGS -D_USRDLL
     DEFINE_SYMBOL UDPLIB_EXPORTS )
 install ( TARGETS udplib RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+install_deps($<TARGET_FILE:udplib>)
 
 target_link_libraries ( udplib 
          jlib
@@ -64,5 +65,6 @@ if (USE_AERON)
     )
 
   install( TARGETS aeron_driver RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
+  install_deps($<TARGET_FILE:aeron_driver>)
 endif()    
 

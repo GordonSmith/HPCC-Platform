@@ -40,4 +40,5 @@ target_link_libraries ( wuget
          workunit
          )
 install ( TARGETS wuget RUNTIME DESTINATION ${EXEC_DIR} )
+install_deps($<TARGET_FILE:wuget>)
 

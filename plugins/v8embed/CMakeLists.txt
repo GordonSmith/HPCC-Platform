@@ -53,6 +53,7 @@ if(V8EMBED)
         install(
             TARGETS v8embed
             DESTINATION plugins)
+        install_deps($<TARGET_FILE:v8embed>)
         target_link_libraries(
             v8embed
             ${V8_LIBRARIES}

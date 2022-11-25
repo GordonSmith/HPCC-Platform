@@ -55,7 +55,8 @@ if(NOT PLUGIN)
         TARGETS pkgfiles
         RUNTIME DESTINATION ${EXEC_DIR}
         LIBRARY DESTINATION ${LIB_DIR})
-    target_link_libraries(
+    install_deps($<TARGET_FILE:pkgfiles>)
+        target_link_libraries(
         pkgfiles
         dfuwu
         )

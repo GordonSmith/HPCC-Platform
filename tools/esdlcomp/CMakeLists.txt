@@ -58,6 +58,7 @@ HPCC_ADD_LIBRARY ( esdlcomp SHARED ${SRCS} )
 
 MESSAGE("----INSTALLING esdlcomp")
 install ( TARGETS esdlcomp RUNTIME DESTINATION bin LIBRARY DESTINATION lib )
+install_deps($<TARGET_FILE:esdlcomp>)
 
 target_link_libraries ( esdlcomp
                    jlib )

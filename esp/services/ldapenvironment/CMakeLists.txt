@@ -61,6 +61,7 @@ install(
     LIBRARY DESTINATION ${LIB_DIR}
     COMPONENT Runtime
     )
+install_deps($<TARGET_FILE:ldapenvironment>)
 
 if (NOT CONTAINERIZED)
     target_link_libraries ( ldapenvironment environment )
