@@ -1,5 +1,5 @@
 ARG VCPKG_REF=latest
-FROM hpccbuilds/vcpkg-ubuntu-22.04:$VCPKG_REF
+FROM hpccbuilds/vcpkg-ubuntu-18.04:$VCPKG_REF
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     libmemcached-dev \
