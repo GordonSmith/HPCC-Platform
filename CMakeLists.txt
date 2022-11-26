@@ -77,12 +77,11 @@ set(VCPKG_OVERLAY_PORTS ${HPCC_SOURCE_DIR}/vcpkg/overlays)
 set(VCPKG_INSTALL_OPTIONS "--clean-after-build;--downloads-root=${CMAKE_BINARY_DIR}/vcpkg_downloads;--x-buildtrees-root=${CMAKE_BINARY_DIR}/vcpkg_buildtrees;--x-packages-root=${CMAKE_BINARY_DIR}/vcpkg_packages")
 set(VCPKG_VERBOSE OFF)
 if(APPLE OR WIN32)
-    option(X_VCPKG_APPLOCAL_DEPS_INSTALL "(experimental) Automatically copy dependencies into the install target directory for executables. Requires CMake 3.14." ON)
 elseif(UNIX)
-    option(X_VCPKG_APPLOCAL_DEPS_INSTALL "(experimental) Automatically copy dependencies into the install target directory for executables. Requires CMake 3.14." ON)
-    set(X_VCPKG_APPLOCAL_DEPS_INSTALL ON)
     set(VCPKG_TARGET_TRIPLET "x64-linux-dynamic" CACHE STRING "target triplet" FORCE)
 endif()
+# option(X_VCPKG_APPLOCAL_DEPS_INSTALL "(experimental) Automatically copy dependencies into the install target directory for executables. Requires CMake 3.14." ON)
+# set(X_VCPKG_APPLOCAL_DEPS_INSTALL ON)
 
 project(hpccsystems-platform LANGUAGES C CXX
     VERSION ${HPCC_MAJOR}.${HPCC_MINOR}.${HPCC_POINT}.${HPCC_SEQUENCE}

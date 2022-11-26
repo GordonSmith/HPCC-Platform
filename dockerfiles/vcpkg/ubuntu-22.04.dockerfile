@@ -22,6 +22,8 @@ ENV CMAKEOPTS="\
     -DUSE_LIBMEMCACHED=OFF \
     -DUSE_AWS=OFF\
     -DINCLUDE_PLUGINS=OFF \
+    -DCPACK_THREADS=0 \
+    -DCPACK_STRIP_FILES=ON\
     "
 
 ENTRYPOINT ["/bin/bash", "--login", "-c", \
