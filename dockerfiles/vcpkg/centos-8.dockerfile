@@ -26,11 +26,13 @@ ENV CMAKEOPTS="\
     -DUSE_LIBMEMCACHED=OFF \
     -DUSE_AWS=OFF\
     -DINCLUDE_PLUGINS=OFF \
+    -DCPACK_THREADS=0 \
+    -DCPACK_STRIP_FILES=ON\
     "
 
 ENTRYPOINT ["/bin/bash", "--login", "-c", \
     "mkdir -p ${BUILD_FOLDER} && \
     cp -R /hpcc-dev/build/* $BUILD_FOLDER && \
     cmake -S ${SOURCE_FOLDER} -B ${BUILD_FOLDER} ${CMAKEOPTS} && \
-    cmake --build ${BUILD_FOLDER} --target package -- -j"\
+    cmake --build ${BUILD_FOLDER} --target package -- -j" \
     ]

@@ -26,11 +26,11 @@ docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
 
 function doBuild() {
     docker build --progress plain --pull --rm -f "$SCRIPT_DIR/$1.dockerfile" \
-    -t build-$1:$GITHUB_REF \
-    -t build-$1:latest \
-    --build-arg VCPKG_REF=$VCPKG_REF \
-    --build-arg BUILD_FOLDER=$1 \
-    "$SCRIPT_DIR/." 
+        -t build-$1:$GITHUB_REF \
+        -t build-$1:latest \
+        --build-arg VCPKG_REF=$VCPKG_REF \
+        --build-arg BUILD_FOLDER=$1 \
+        "$SCRIPT_DIR/." 
     docker run -it \
         --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached \
         --env OS=$1 \
@@ -44,3 +44,13 @@ doBuild ubuntu-22.04
 # doBuild ubuntu-18.04
 # doBuild centos-8
 # doBuild centos-7
+
+docker build --progress plain --pull --rm -f "$SCRIPT_DIR/core.dockerfile" \
+    -t $DOCKER_USERNAME/core:$GITHUB_REF \
+    -t $DOCKER_USERNAME/core:latest \
+    "build-ubuntu-22.04" 
+docker push $DOCKER_USERNAME/core:$GITHUB_REF
+docker push $DOCKER_USERNAME/core:latest
+
+# docker run -it -d -p 8010:8010 core:latest touch /var/log/HPCCSystems/myesp/esp.log && /etc/init.d/hpcc-init start && tail -f /var/log/HPCCSystems/myesp/esp.log
+
