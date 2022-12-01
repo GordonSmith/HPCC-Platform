@@ -36,21 +36,20 @@ function doBuild() {
         --env OS=$1 \
         build-$1:$GITHUB_REF
 
-# docker run -it --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached --entrypoint /bin/bash build-centos-7:latest
+# docker run -it --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached --entrypoint /bin/bash build-ubuntu-22.04:latest
 }
 
-doBuild ubuntu-22.04
+# doBuild ubuntu-22.04
 # doBuild ubuntu-20.04
 # doBuild ubuntu-18.04
-# doBuild centos-8
+doBuild centos-8
 # doBuild centos-7
 
-docker build --progress plain --pull --rm -f "$SCRIPT_DIR/core.dockerfile" \
-    -t $DOCKER_USERNAME/core:$GITHUB_REF \
-    -t $DOCKER_USERNAME/core:latest \
-    "build-ubuntu-22.04" 
-docker push $DOCKER_USERNAME/core:$GITHUB_REF
-docker push $DOCKER_USERNAME/core:latest
+# docker build --progress plain --pull --rm -f "$SCRIPT_DIR/core.dockerfile" \
+#     -t $DOCKER_USERNAME/core:$GITHUB_REF \
+#     -t $DOCKER_USERNAME/core:latest \
+#     "build-ubuntu-22.04" 
+# docker push $DOCKER_USERNAME/core:$GITHUB_REF
+# docker push $DOCKER_USERNAME/core:latest
 
 # docker run -it -d -p 8010:8010 core:latest touch /var/log/HPCCSystems/myesp/esp.log && /etc/init.d/hpcc-init start && tail -f /var/log/HPCCSystems/myesp/esp.log
-

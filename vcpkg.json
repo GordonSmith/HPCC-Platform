@@ -20,6 +20,10 @@
         "cpp-driver",
         "cpr",
         "curl",
+        {
+            "name": "elasticlient",
+            "platform": "!windows"
+        },
         "h3",
         "hiredis",
         "icu",
@@ -38,6 +42,7 @@
             "name": "libiconv",
             "platform": "osx"
         },
+        "libmemcached",
         {
             "name": "libmysql",
             "platform": "!(windows & x86)"
@@ -62,6 +67,13 @@
                 "threads"
             ],
             "platform": "!windows"
+        },
+        {
+            "name": "openblas",
+            "features": [
+                "threads"
+            ],
+            "platform": "windows"
         },
         {
             "name": "openldap",
