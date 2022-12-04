@@ -5,8 +5,10 @@ PROJECT(sqs
 if(SQS AND USE_AWS)
     ADD_PLUGIN(sqs)
 
-    find_package(aws-cpp-sdk-core REQUIRED)
-    find_package(aws-cpp-sdk-sqs REQUIRED)
+    set(LibCrypto_INCLUDE_DIR "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
+    set(LibCrypto_LIBRARY "${OPENSSL_CRYPTO_LIBRARY}")
+    set(AWSSDK_ROOT_DIR "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+    find_package(AWSSDK CONFIG COMPONENTS core sqs REQUIRED)
     
     set(AWS_SDK_CPP_SOURCE_DIR ${HPCC_SOURCE_DIR}/system/aws/aws-sdk-cpp)
 
