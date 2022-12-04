@@ -17,7 +17,7 @@
 project(ElasticStackLogAccess)
 
 find_path(ELASTIC_CLIENT_INCLUDE_DIRS "elasticlient/logging.h" HINTS "${VCPKG_INSTALLED_DIR}")
-find_library(ELASTIC_CLIENT_LIBRARY "lib/libelasticlient.so" HINTS "${VCPKG_INSTALLED_DIR}")
+find_library(ELASTIC_CLIENT_LIBRARY NAMES "elasticlient")
 find_package(jsoncpp CONFIG REQUIRED)
 find_package(cpr CONFIG REQUIRED)
 
