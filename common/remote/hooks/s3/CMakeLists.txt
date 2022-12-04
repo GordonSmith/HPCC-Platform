@@ -24,8 +24,10 @@
 
 project( s3file )
 
-find_package(aws-cpp-sdk-core REQUIRED)
-find_package(aws-cpp-sdk-s3 REQUIRED)
+set(LibCrypto_INCLUDE_DIR "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
+set(LibCrypto_LIBRARY "${OPENSSL_CRYPTO_LIBRARY}")
+set(AWSSDK_ROOT_DIR "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+find_package(AWSSDK CONFIG COMPONENTS s3 sqs REQUIRED)
 
 set (    SRCS
          s3file.cpp
