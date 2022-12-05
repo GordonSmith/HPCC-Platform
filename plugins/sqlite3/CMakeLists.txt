@@ -51,11 +51,12 @@ if(SQLITE3EMBED)
 
         install(
             TARGETS sqlite3embed
-            DESTINATION plugins)
-        install_deps($<TARGET_FILE:sqlite3embed>)
+            DESTINATION plugins
+            CALC_DEPS)
         target_link_libraries(
             sqlite3embed
-            ${SQLITE3_LIBRARIES})
+            ${SQLITE3_LIBRARIES}
+            )
         target_link_libraries(
             sqlite3embed
             eclrtl

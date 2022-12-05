@@ -70,7 +70,6 @@ ADD_DEFINITIONS( -D_USRDLL -DESDL_ENGINE_EXPORTS )
 
 HPCC_ADD_LIBRARY( esdl_svc_engine SHARED ${SRCS} )
 install ( TARGETS esdl_svc_engine RUNTIME DESTINATION bin LIBRARY DESTINATION lib )
-install_deps($<TARGET_FILE:esdl_svc_engine>)
 add_dependencies (esdl_svc_engine espscm)
 target_link_libraries ( esdl_svc_engine
          jlib

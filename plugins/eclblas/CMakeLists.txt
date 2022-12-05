@@ -58,8 +58,7 @@ if(ECLBLAS)
 
         HPCC_ADD_LIBRARY(eclblas SHARED ${SRCS})
         install ( TARGETS eclblas RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )  # No need to put in plugins dir
-        install_deps($<TARGET_FILE:eclblas>)
-
+        
         target_link_libraries(eclblas
             eclrtl
             OpenBLAS::OpenBLAS)

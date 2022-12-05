@@ -104,7 +104,6 @@ set_target_properties(activitymasters_lcr PROPERTIES
     COMPILE_FLAGS -D_USRDLL
     DEFINE_SYMBOL ACTIVITYMASTERS_EXPORTS )
 install ( TARGETS activitymasters_lcr RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:activitymasters_lcr>)
 target_link_libraries ( activitymasters_lcr
          jlib
          dafsclient 

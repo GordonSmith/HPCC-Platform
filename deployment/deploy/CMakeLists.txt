@@ -59,7 +59,6 @@ ADD_DEFINITIONS ( -D_USRDLL -DDEPLOY_EXPORTS )
 
 HPCC_ADD_LIBRARY( deploy SHARED ${SRCS} )
 install ( TARGETS deploy RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:deploy>)
 target_link_libraries ( deploy 
          jlib 
          environment 

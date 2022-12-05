@@ -42,6 +42,5 @@ target_link_libraries ( genht
         jlib 
     )
 install ( TARGETS genht RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:genht>)
 
 

@@ -63,8 +63,7 @@ if(REMBED)
         install(
             TARGETS Rembed
             DESTINATION plugins)
-        install_deps($<TARGET_FILE:Rembed>)
-        install(
+                install(
             FILES ${RINSIDE_LIBRARY}
             DESTINATION ${LIB_DIR}
             PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE

@@ -40,8 +40,7 @@ if (USE_ICU)
 
     HPCC_ADD_LIBRARY( unicodelib SHARED ${SRCS} )
     install ( TARGETS unicodelib DESTINATION plugins )
-    install_deps($<TARGET_FILE:unicodelib>)
-    target_link_libraries ( unicodelib
+        target_link_libraries ( unicodelib
         jlib
         ${ICU_LIBRARIES}
         )

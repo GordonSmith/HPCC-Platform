@@ -117,7 +117,6 @@ set_target_properties(activityslaves_lcr PROPERTIES
     COMPILE_FLAGS -D_USRDLL
     DEFINE_SYMBOL ACTIVITYSLAVES_EXPORTS )
 install ( TARGETS activityslaves_lcr RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:activityslaves_lcr>)
 target_link_libraries ( activityslaves_lcr 
          jlib
          thorsort_lcr 

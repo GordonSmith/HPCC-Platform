@@ -52,8 +52,7 @@ if(REDIS)
     install(
         TARGETS redis
         DESTINATION plugins)
-    install_deps($<TARGET_FILE:redis>)
-
+    
     target_link_libraries(
         redis
         eclrtl

@@ -66,7 +66,6 @@ ADD_DEFINITIONS( -D_USRDLL -DFILESERVICES_EXPORTS -DWSDFU_API_LOCAL -DFileSpray_
 HPCC_ADD_LIBRARY( fileservices SHARED ${SRCS} )  
 add_dependencies ( fileservices espscm )
 install ( TARGETS fileservices DESTINATION plugins )
-install_deps($<TARGET_FILE:fileservices>)
 target_link_libraries ( fileservices
          jlib
          remote 

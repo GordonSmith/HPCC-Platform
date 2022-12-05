@@ -25,7 +25,6 @@ ADD_DEFINITIONS( -D_USRDLL -DDMETAPHONE_EXPORTS )
 
 HPCC_ADD_LIBRARY( dmetaphone SHARED ${SRCS} )
 install ( TARGETS dmetaphone DESTINATION plugins )
-install_deps($<TARGET_FILE:dmetaphone>)
 target_link_libraries ( dmetaphone
          jlib
     )

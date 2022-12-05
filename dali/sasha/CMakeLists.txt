@@ -70,7 +70,6 @@ endif()
 
 HPCC_ADD_EXECUTABLE ( saserver ${SRCS} )
 install ( TARGETS saserver RUNTIME DESTINATION ${EXEC_DIR})
-install_deps($<TARGET_FILE:saserver>)
 
 
 if ( ${HAVE_LIBCRYPT} )
@@ -109,7 +108,6 @@ ADD_DEFINITIONS ( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( sasha ${SRCS} )
 install ( TARGETS sasha RUNTIME DESTINATION ${EXEC_DIR})
-install_deps($<TARGET_FILE:sasha>)
 
 target_link_libraries ( sasha 
          ${XALAN_LIBRARIES} ${XERCES_LIBRARIES}

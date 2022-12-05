@@ -65,7 +65,6 @@ endif()
 
 HPCC_ADD_EXECUTABLE ( thorslave_lcr ${SRCS} )
 install ( TARGETS thorslave_lcr RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:thorslave_lcr>)
 target_link_libraries (  thorslave_lcr 
          jlib
          dafsclient 

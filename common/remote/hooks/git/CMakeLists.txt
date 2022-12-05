@@ -41,7 +41,6 @@ ADD_DEFINITIONS( -D_USRDLL -DGITFILE_EXPORTS )
 
 HPCC_ADD_LIBRARY( gitfile SHARED ${SRCS}  )
 install ( TARGETS gitfile DESTINATION filehooks )
-install_deps($<TARGET_FILE:gitfile>)
 
 target_link_libraries ( gitfile
     jlib

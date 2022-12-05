@@ -56,7 +56,6 @@ ADD_DEFINITIONS( -D_USRDLL -DDLLSERVER_EXPORTS )
 
 HPCC_ADD_LIBRARY( dllserver SHARED ${SRCS} )
 install ( TARGETS dllserver RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:dllserver>)
 target_link_libraries ( dllserver
          ${ZLIB_LIBRARIES}
          jlib 

@@ -44,7 +44,6 @@ set_target_properties(wuwebview PROPERTIES
     COMPILE_FLAGS -D_USRDLL
     DEFINE_SYMBOL WUWEBVIEW_EXPORTS )
 install ( TARGETS wuwebview RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:wuwebview>)
 target_link_libraries ( wuwebview
          jlib
          workunit

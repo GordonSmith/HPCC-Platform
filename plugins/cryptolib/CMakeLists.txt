@@ -44,7 +44,6 @@ ADD_DEFINITIONS( -D_USRDLL -DCRYPTOLIB_EXPORTS )
 
 HPCC_ADD_LIBRARY( cryptolib SHARED ${SRCS} )
 install ( TARGETS cryptolib DESTINATION plugins )
-install_deps($<TARGET_FILE:cryptolib>)
 
 target_link_libraries ( 
         cryptolib

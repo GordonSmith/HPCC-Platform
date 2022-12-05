@@ -42,7 +42,6 @@ ADD_DEFINITIONS ( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( configgen ${SRCS} )
 install ( TARGETS configgen DESTINATION sbin )
-install_deps($<TARGET_FILE:configgen>)
 target_link_libraries ( configgen 
         deploy 
         jlib 

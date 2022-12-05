@@ -63,7 +63,6 @@ HPCC_ADD_LIBRARY( loggingmanager SHARED ${SRCS} )
 add_dependencies( loggingmanager espscm )
 
 install ( TARGETS loggingmanager RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:loggingmanager>)
 
 target_link_libraries ( loggingmanager
     ${XALAN_LIBRARIES} ${XERCES_LIBRARIES}

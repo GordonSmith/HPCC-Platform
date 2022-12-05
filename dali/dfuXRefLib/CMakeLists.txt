@@ -52,7 +52,6 @@ ADD_DEFINITIONS( -D_USRDLL -DDFUXREFLIB_EXPORTS )
 
 HPCC_ADD_LIBRARY( dfuXRefLib SHARED ${SRCS} )
 install ( TARGETS dfuXRefLib RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:dfuXRefLib>)
 target_link_libraries ( dfuXRefLib
          jlib
          mp 

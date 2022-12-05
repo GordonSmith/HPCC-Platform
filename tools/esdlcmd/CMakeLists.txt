@@ -77,7 +77,6 @@ add_dependencies ( esdl
                  )
 
 install ( TARGETS esdl RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:esdl>)
 target_link_libraries ( esdl
         jlib
         esphttp

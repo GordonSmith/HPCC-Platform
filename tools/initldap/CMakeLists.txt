@@ -47,7 +47,6 @@ ADD_DEFINITIONS( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( initldap ${SRCS} )
 install ( TARGETS initldap RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:initldap>)
 
 
 

@@ -53,7 +53,6 @@ set ( SRCS
 HPCC_ADD_LIBRARY( ws_loggingservice SHARED ${SRCS} )
 
 install ( TARGETS ws_loggingservice RUNTIME DESTINATION bin LIBRARY DESTINATION lib )
-install_deps($<TARGET_FILE:ws_loggingservice>)
 add_dependencies (ws_loggingservice espscm)
 target_link_libraries ( ws_loggingservice
     esphttp

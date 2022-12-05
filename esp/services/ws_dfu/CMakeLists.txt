@@ -86,7 +86,6 @@ ADD_DEFINITIONS( -D_USRDLL -DWS_DFU_EXPORTS -DWSDFU_API_LOCAL -DWSDFUXREF_API_LO
 HPCC_ADD_LIBRARY( ws_dfu SHARED ${SRCS} )
 add_dependencies ( ws_dfu espscm )
 install ( TARGETS ws_dfu RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:ws_dfu>)
 target_link_libraries ( ws_dfu
          jlib
          mp 

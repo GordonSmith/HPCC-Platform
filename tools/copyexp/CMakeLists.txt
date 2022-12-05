@@ -38,7 +38,6 @@ ADD_DEFINITIONS( -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( copyexp ${SRCS} )
 install ( TARGETS copyexp RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:copyexp>)
 target_link_libraries ( copyexp
          jlib 
     )

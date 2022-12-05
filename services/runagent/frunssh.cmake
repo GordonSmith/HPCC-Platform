@@ -40,7 +40,6 @@ ADD_DEFINITIONS ( -D_CONSOLE -DRMTSSH_LOCAL)
 
 HPCC_ADD_EXECUTABLE ( frunssh ${SRCS} )
 install ( TARGETS frunssh RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:frunssh>)
 target_link_libraries ( frunssh 
          jlib 
     )

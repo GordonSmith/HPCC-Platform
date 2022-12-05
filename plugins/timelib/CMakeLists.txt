@@ -43,7 +43,6 @@ ADD_DEFINITIONS( -D_USRDLL -DTIMELIB_EXPORTS )
 
 HPCC_ADD_LIBRARY( timelib SHARED ${SRCS} )
 install ( TARGETS timelib DESTINATION plugins )
-install_deps($<TARGET_FILE:timelib>)
 target_link_libraries ( timelib
          eclrtl
     )

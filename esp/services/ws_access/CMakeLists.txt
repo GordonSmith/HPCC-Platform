@@ -60,7 +60,6 @@ ADD_DEFINITIONS( -D_USRDLL -Dws_access_API_LOCAL )
 
 HPCC_ADD_LIBRARY( ws_access SHARED ${SRCS} )
 install ( TARGETS ws_access RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} COMPONENT Runtime)
-install_deps($<TARGET_FILE:ws_access>)
 add_dependencies (ws_access espscm)
 target_link_libraries ( ws_access 
          jlib

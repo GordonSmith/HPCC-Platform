@@ -37,7 +37,6 @@ set ( SRCS
 HPCC_ADD_LIBRARY( dalistorelib SHARED ${SRCS} )
 
 install ( TARGETS dalistorelib RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:dalistorelib>)
 
 add_dependencies ( dalistorelib jlib espscm)
 

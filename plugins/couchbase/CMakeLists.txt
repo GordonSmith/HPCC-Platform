@@ -52,8 +52,7 @@ IF ( COUCHBASEEMBED )
     install(
         TARGETS couchbaseembed
         DESTINATION plugins)
-    install_deps($<TARGET_FILE:couchbaseembed>)
-
+    
     target_link_libraries(
         couchbaseembed
         ${LIBCOUCHBASE_LIB}

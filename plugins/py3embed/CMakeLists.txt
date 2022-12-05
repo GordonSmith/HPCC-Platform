@@ -57,13 +57,11 @@ if (CONTAINERIZED)
 install(
     TARGETS py3embed
     DESTINATION plugins)
-    install_deps($<TARGET_FILE:py3embed>)
-else()
+    else()
 install(
     TARGETS py3embed
     DESTINATION versioned/python3)
-    install_deps($<TARGET_FILE:py3embed>)
-endif()
+    endif()
 
 target_link_libraries(
     py3embed

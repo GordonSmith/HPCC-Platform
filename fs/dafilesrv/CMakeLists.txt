@@ -50,7 +50,6 @@ endif()
 HPCC_ADD_EXECUTABLE ( dafilesrv ${SRCS} )
 set_target_properties (dafilesrv PROPERTIES COMPILE_FLAGS -D_CONSOLE)
 install ( TARGETS dafilesrv RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:dafilesrv>)
 target_link_libraries ( dafilesrv
          jlib
          remote

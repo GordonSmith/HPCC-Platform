@@ -58,7 +58,6 @@ ADD_DEFINITIONS( -D_USRDLL -DWS_DFSCLIENT_EXPORTS -DWsDfs_API_LOCAL )
 
 HPCC_ADD_LIBRARY( ws_dfsclient SHARED ${SRCS} )
 install ( TARGETS ws_dfsclient RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:ws_dfsclient>)
 target_link_libraries ( ws_dfsclient
          jlib
          xmllib

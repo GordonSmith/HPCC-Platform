@@ -51,7 +51,6 @@ ADD_DEFINITIONS( -D_USRDLL -DWS_ECL_CLIENT_EXPORTS )
 
 HPCC_ADD_LIBRARY( ws_ecl_client SHARED ${SRCS} )
 install ( TARGETS ws_ecl_client RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:ws_ecl_client>)
 target_link_libraries (  ws_ecl_client 
          ${XALAN_LIBRARIES} ${XERCES_LIBRARIES}
          jlib

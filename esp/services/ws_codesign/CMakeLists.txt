@@ -66,7 +66,6 @@ ADD_DEFINITIONS( -D_USRDLL -Dws_codesign_API_LOCAL )
 HPCC_ADD_LIBRARY( ws_codesign SHARED ${SRCS}  )
 add_dependencies (ws_codesign espscm )
 install ( TARGETS ws_codesign RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:ws_codesign>)
 target_link_libraries ( ws_codesign
          jlib
          xmllib

@@ -49,8 +49,7 @@ if(USE_CASSANDRA)
   HPCC_ADD_LIBRARY( cassandralogagent SHARED ${SRCS} )
 
   install ( TARGETS cassandralogagent RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-  install_deps($<TARGET_FILE:cassandralogagent>)
-  add_dependencies (cassandralogagent espscm)
+    add_dependencies (cassandralogagent espscm)
   target_link_libraries ( cassandralogagent
     cassandraembed
     eclrtl

@@ -52,7 +52,6 @@ ADD_DEFINITIONS( -D_CONSOLE -DESPCFG_EXPORTS)
 
 HPCC_ADD_EXECUTABLE ( esp ${SRCS} )
 install ( TARGETS esp RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:esp>)
 target_link_libraries ( esp 
          jlib
          mp 

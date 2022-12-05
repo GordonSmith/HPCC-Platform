@@ -61,7 +61,6 @@ HPCC_ADD_LIBRARY( espserverloggingagent SHARED ${SRCS} )
 add_dependencies( espserverloggingagent espscm )
 
 install ( TARGETS espserverloggingagent RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:espserverloggingagent>)
 
 target_link_libraries ( espserverloggingagent
     ${XALAN_LIBRARIES} ${XERCES_LIBRARIES}

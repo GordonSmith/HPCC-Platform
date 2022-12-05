@@ -152,6 +152,5 @@ set (    SRCS
 # OBJS = 
 HPCC_ADD_EXECUTABLE ( esp_compile_scm ${SRCS} )
 install ( TARGETS esp_compile_scm RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:esp_compile_scm>)
 
 

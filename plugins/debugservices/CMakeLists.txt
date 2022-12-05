@@ -36,6 +36,5 @@ ADD_DEFINITIONS ( -DDEBUGSERVICES_EXPORTS -D_USRDLL )
 
 HPCC_ADD_LIBRARY( debugservices SHARED ${SRCS} )
 install ( TARGETS debugservices DESTINATION plugins )
-install_deps($<TARGET_FILE:debugservices>)
 
 

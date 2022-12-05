@@ -43,7 +43,6 @@ set_target_properties(swapnodelib PROPERTIES
     COMPILE_FLAGS -D_USRDLL
     DEFINE_SYMBOL SWAPNODELIB_EXPORTS )
 install ( TARGETS swapnodelib RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:swapnodelib>)
 target_link_libraries ( swapnodelib
          jlib
          remote

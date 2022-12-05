@@ -47,7 +47,6 @@ include_directories (
 
 HPCC_ADD_EXECUTABLE ( eclscheduler ${SRCS} ${INCLUDES} )
 install ( TARGETS eclscheduler RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:eclscheduler>)
 
 target_link_libraries ( eclscheduler 
          jlib

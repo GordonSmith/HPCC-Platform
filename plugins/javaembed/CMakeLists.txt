@@ -80,8 +80,7 @@ if(JAVAEMBED AND USE_JAVA)
         install(
             TARGETS javaembed
             DESTINATION plugins)
-        install_deps($<TARGET_FILE:javaembed>)
-        install(
+                install(
             FILES ${java_classes}
             DESTINATION classes/com/HPCCSystems
             COMPONENT Runtime)

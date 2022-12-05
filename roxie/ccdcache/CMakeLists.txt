@@ -66,7 +66,6 @@ endif()
 
 HPCC_ADD_EXECUTABLE ( ccdcache ${SRCS} )
 install ( TARGETS ccdcache RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:ccdcache>)
 
 target_link_libraries ( ccdcache
          jlib

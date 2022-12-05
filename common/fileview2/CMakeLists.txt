@@ -83,7 +83,6 @@ set_target_properties(fileview2 PROPERTIES
     COMPILE_FLAGS -D_USRDLL
     DEFINE_SYMBOL FILEVIEW2_EXPORTS )
 install ( TARGETS fileview2 RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:fileview2>)
 target_link_libraries ( fileview2 
          jlib 
          mp 

@@ -40,7 +40,6 @@ ADD_DEFINITIONS ( -DNO_SYBASE -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( keydiff ${SRCS} )
 install ( TARGETS keydiff RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:keydiff>)
 target_link_libraries ( keydiff 
          jlib
          jhtree 

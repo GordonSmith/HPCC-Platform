@@ -63,12 +63,10 @@ if(USE_CASSANDRA)
     DESTINATION plugins
     COMPONENT Runtime )
 
-  install(
-    TARGETS cassandraembed
+  install(TARGETS cassandraembed
     DESTINATION ${LIB_DIR}
-    COMPONENT Runtime )
-  install_deps($<TARGET_FILE:cassandraembed>)
-
+    COMPONENT Runtime)
+  
   target_link_libraries(
     cassandraembed
     eclrtl

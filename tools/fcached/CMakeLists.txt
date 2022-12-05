@@ -39,6 +39,5 @@ set ( SRCS fcached.cpp )
 
 HPCC_ADD_EXECUTABLE ( fcached ${SRCS} )
 install ( TARGETS fcached RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:fcached>)
 
 

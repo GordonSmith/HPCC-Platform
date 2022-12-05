@@ -135,6 +135,6 @@ ENDIF()
         RUNTIME DESTINATION ${EXEC_DIR}
         LIBRARY DESTINATION ${LIB_DIR}
         COMPONENT Runtime
+        CALC_DEPS
         )
-        install_deps($<TARGET_FILE:ws_sql>)
 endif()

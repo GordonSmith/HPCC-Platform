@@ -68,7 +68,6 @@ endif()
 
 HPCC_ADD_EXECUTABLE ( thormaster_lcr ${SRCS} )
 install ( TARGETS thormaster_lcr RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:thormaster_lcr>)
 target_link_libraries (  thormaster_lcr 
          jlib
          jhtree 

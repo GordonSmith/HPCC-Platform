@@ -40,8 +40,7 @@ HPCC_ADD_EXECUTABLE ( udpsim ${SRCS} )
 
 #We don't currently ship this - it's for developer use only
 #install ( TARGETS udpsim RUNTIME DESTINATION ${EXEC_DIR} )  
-#install_deps($<TARGET_FILE:udpsim>)
-
+#
 target_link_libraries ( udpsim
          jlib
          roxiemem

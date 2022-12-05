@@ -63,13 +63,11 @@ if (CONTAINERIZED)
 install(
     TARGETS py2embed
     DESTINATION plugins)
-    install_deps($<TARGET_FILE:py2embed>)
-else()
+    else()
 install(
     TARGETS py2embed
     DESTINATION versioned/python2)
-    install_deps($<TARGET_FILE:py2embed>)
-endif()
+    endif()
 
 if(debug_python)
     target_link_libraries(py2embed ${DEBUG_PYTHON2_LIBRARY})

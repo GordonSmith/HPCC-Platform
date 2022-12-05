@@ -30,5 +30,4 @@ set (    SRCS
 
 HPCC_ADD_EXECUTABLE ( prosysinfo ${SRCS} )
 install ( TARGETS prosysinfo RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:prosysinfo>)
 

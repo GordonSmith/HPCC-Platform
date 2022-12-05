@@ -60,8 +60,7 @@ if(EXAMPLEPLUGIN)
         install(
             TARGETS exampleplugin
             DESTINATION plugins)
-        install_deps($<TARGET_FILE:exampleplugin>)
-
+        
         target_link_libraries(
             exampleplugin
             #Add any required HPCC libraries to be linked against here. EXAMPLE_PLUGIN_DEP_LIBRARIES contains any and all external (non HPCC) libraries.

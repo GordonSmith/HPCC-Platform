@@ -47,7 +47,6 @@ ADD_DEFINITIONS( -DNO_SYBASE -D_CONSOLE )
 
 HPCC_ADD_EXECUTABLE ( hthor ${SRCS} )
 install ( TARGETS hthor RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:hthor>)
 target_link_libraries ( hthor
       hthorlib
       wuanalysis

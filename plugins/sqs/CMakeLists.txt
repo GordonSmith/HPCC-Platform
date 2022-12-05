@@ -36,9 +36,10 @@ if(SQS AND USE_AWS)
 
     install(
         TARGETS sqs
-        DESTINATION plugins)
-    install_deps($<TARGET_FILE:sqs>)
-
+        DESTINATION plugins
+        CALC_DEPS
+    )
+    
     target_link_libraries(
         sqs
         aws-cpp-sdk-sqs

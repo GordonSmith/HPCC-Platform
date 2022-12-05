@@ -49,4 +49,3 @@ install(TARGETS elasticstacklogaccess
   RUNTIME DESTINATION ${EXEC_DIR}
   LIBRARY DESTINATION ${LIB_DIR}
 )
-install_deps($<TARGET_FILE:elasticstacklogaccess>)

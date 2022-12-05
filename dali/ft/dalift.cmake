@@ -50,7 +50,6 @@ set_target_properties (dalift PROPERTIES
     DEFINE_SYMBOL DALIFT_EXPORTS
     )
 install ( TARGETS dalift RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-install_deps($<TARGET_FILE:dalift>)
 target_link_libraries ( dalift 
          jlib
          mp 

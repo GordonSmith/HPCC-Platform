@@ -61,7 +61,6 @@ HPCC_ADD_EXECUTABLE ( ecl-packagemap ${SRCS} )
 
 add_dependencies ( ecl-packagemap espscm )
 install ( TARGETS ecl-packagemap RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:ecl-packagemap>)
 target_link_libraries ( ecl-packagemap
         jlib
         esphttp

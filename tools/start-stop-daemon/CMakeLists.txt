@@ -25,5 +25,4 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
 
 HPCC_ADD_EXECUTABLE( start-stop-daemon ${SRC} ${HEADER})
 install ( TARGETS start-stop-daemon RUNTIME DESTINATION ${EXEC_DIR} )
-install_deps($<TARGET_FILE:start-stop-daemon>)
 
