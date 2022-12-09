@@ -28,12 +28,15 @@ project(parquetembed)
 if(PARQUETEMBED)
     ADD_PLUGIN(parquetembed)
     if(MAKE_PARQUETEMBED)
-        find_package(Arrow CONFIG REQUIRED)
         find_package(Parquet CONFIG REQUIRED)
+        find_package(Arrow CONFIG REQUIRED)
+        find_package(unofficial-brotli CONFIG REQUIRED)
+        find_package(Threads REQUIRED)
 
         set(
             SRCS
             parquetembed.cpp
+            parquethelper.cpp
         )
 
         INCLUDE_DIRECTORIES(
@@ -56,10 +59,12 @@ if(PARQUETEMBED)
 
         target_link_libraries(
             parquetembed
-            PRIVATE ${ARROW_LIBRARIES}
-            PRIVATE ${PARQUET_LIBRARIES}
             eclrtl
             jlib
+            ${PARQUET_LIBRARIES}
+            ${ARROW_LIBRARIES}
+            unofficial::brotli::brotlidec-static unofficial::brotli::brotlienc-static unofficial::brotli::brotlicommon-static
+            Threads::Threads
         )
     endif()
 endif()

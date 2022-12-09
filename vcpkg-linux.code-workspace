@@ -12,7 +12,7 @@
 			"-DINCLUDE_PARQUETEMBED=ON",
 			"-DUSE_LIBMEMCACHED=OFF",
 			"-DUSE_NUMA=OFF",
-			"-DUSE_ICU=OFF"
+			"-DUSE_ICU=ON"
 		],
 		"editor.formatOnSave": false
 	},
