@@ -30,9 +30,6 @@ if(PARQUETEMBED)
     if(MAKE_PARQUETEMBED)
         find_package(Parquet CONFIG REQUIRED)
         find_package(Arrow CONFIG REQUIRED)
-        find_package(unofficial-brotli CONFIG REQUIRED)
-        find_package(Threads REQUIRED)
-
         set(
             SRCS
             parquetembed.cpp
@@ -61,10 +58,8 @@ if(PARQUETEMBED)
             parquetembed
             eclrtl
             jlib
-            ${PARQUET_LIBRARIES}
-            ${ARROW_LIBRARIES}
-            unofficial::brotli::brotlidec-static unofficial::brotli::brotlienc-static unofficial::brotli::brotlicommon-static
-            Threads::Threads
+            Parquet::parquet_shared
+            Arrow::arrow_shared
         )
     endif()
 endif()

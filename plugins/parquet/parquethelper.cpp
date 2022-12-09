@@ -135,10 +135,10 @@ struct TestData {
     if (i % 2 == 0) return {};
     return "Str #" + std::to_string(i);
   }
-  static arrow::util::string_view GetStringView(const int i) {
+  static std::string_view GetStringView(const int i) {
     static std::string string;
     string = "StringView #" + std::to_string(i);
-    return arrow::util::string_view(string);
+    return std::string_view(string);
   }
   static const char* GetCharPtr(const int i) {
     static std::string string;

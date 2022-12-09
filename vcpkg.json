@@ -89,6 +89,7 @@
             "platform": "!windows"
         },
         "openssl",
+        "parquet",
         {
             "name": "python3",
             "platform": "windows"

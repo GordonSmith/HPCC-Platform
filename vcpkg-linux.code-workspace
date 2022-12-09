@@ -14,7 +14,13 @@
 			"-DUSE_NUMA=OFF",
 			"-DUSE_ICU=ON"
 		],
-		"editor.formatOnSave": false
+		"editor.formatOnSave": false,
+		"files.associations": {
+			"*.json": "json",
+			"*.mod": "ecl",
+			"string_view": "cpp",
+			"iosfwd": "cpp"
+		}
 	},
 	"extensions": {
 		"recommendations": [
