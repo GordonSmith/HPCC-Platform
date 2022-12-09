@@ -174,6 +174,7 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
     SPARK
     ECLBLAS
     MONGODBEMBED
+    PARQUETEMBED
     EXAMPLEPLUGIN)
     foreach(plugin ${PLUGINS_LIST})
         option(${plugin} "Create a package with ONLY the ${plugin} plugin" OFF)

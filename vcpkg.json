@@ -13,6 +13,7 @@
                 "sqs"
             ]
         },
+        "arrow",
         "azure-storage-blobs-cpp",
         "azure-storage-files-shares-cpp",
         "boost-property-tree",
@@ -91,6 +92,7 @@
             "name": "python3",
             "platform": "windows"
         },
+        "parquet",
         "rapidjson",
         "sqlite3",
         "tbb",
