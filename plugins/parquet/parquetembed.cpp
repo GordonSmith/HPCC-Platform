@@ -30,6 +30,12 @@
 #include <time.h>
 #include <vector>
 
+#include "arrow/api.h"
+#include "arrow/io/api.h"
+#include "parquet/arrow/reader.h"
+#include "parquet/arrow/writer.h"
+#include "parquet/exception.h"
+
 static constexpr const char *MODULE_NAME = "parquet";
 static constexpr const char *MODULE_DESCRIPTION = "Parquet Embed Helper";
 static constexpr const char *VERSION = "Parquet Embed Helper 1.0.0";
@@ -102,7 +108,7 @@ namespace parquetembed
         msg.appendf("%s: ", MODULE_NAME).append(message);
         rtlFail(0, msg.str());
     }
-    
+
     /**
      * @brief Construct a new ParquetEmbedFunctionContext object
      * 
@@ -113,26 +119,26 @@ namespace parquetembed
     ParquetEmbedFunctionContext::ParquetEmbedFunctionContext(const IContextLogger &_logctx, const char *options, unsigned _flags)
     : logctx(_logctx), m_NextRow(), m_nextParam(0), m_numParams(0), m_scriptFlags(_flags)
     {
-        // Option Variables
-        const char *option = "";
-        // Iterate through user options and save them
-        StringArray inputOptions;
-        inputOptions.appendList(options, ",");
-        ForEachItemIn(idx, inputOptions) 
-        {
-            const char *opt = inputOptions.item(idx);
-            const char *val = strchr(opt, '=');
-            if (val)
-            {
-                StringBuffer optName(val-opt, opt);
-                val++;
-                if (stricmp(optName, "option")==0)
-                    // Store in option variables
-                    option = val;
-                else
-                    failx("Unknown option %s", optName.str());
-            }
-        }
+        // // Option Variables
+        // const char *option = "";
+        // // Iterate through user options and save them
+        // StringArray inputOptions;
+        // inputOptions.appendList(options, ",");
+        // ForEachItemIn(idx, inputOptions) 
+        // {
+        //     const char *opt = inputOptions.item(idx);
+        //     const char *val = strchr(opt, '=');
+        //     if (val)
+        //     {
+        //         StringBuffer optName(val-opt, opt);
+        //         val++;
+        //         if (stricmp(optName, "option")==0)
+        //             // Store in option variables
+        //             option = val;
+        //         else
+        //             failx("Unknown option %s", optName.str());
+        //     }
+        // }
     }
 
     /**

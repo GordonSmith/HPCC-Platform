@@ -54,19 +54,6 @@ if(PARQUETEMBED)
             DESTINATION plugins
         )
 
-        install(
-            FILES ${LIBARROW_LIB_REAL}
-            DESTINATION ${LIB_DIR}
-            PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-            COMPONENT Runtime)
-
-        install(
-            FILES ${LIBARROW_LIB} ${LIBARROW_LIB_ABI}
-            DESTINATION ${LIB_DIR}
-            COMPONENT Runtime)
-
-        # install the packages here look at mongodb CMake file
-
         target_link_libraries(
             parquetembed
             PRIVATE ${ARROW_LIBRARIES}
