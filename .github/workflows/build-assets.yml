@@ -21,15 +21,14 @@ jobs:
   release:
     name: Publish Release
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
+          name: Release ${{ github.ref }}
+          generateReleaseNotes: true
           prerelease: ${{ contains(github.ref, 'rc') }}
 
   build-platform:
@@ -112,7 +111,7 @@ jobs:
           docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached ${{ secrets.DOCKER_USERNAME }}/build-${{ matrix.os }}:${{ steps.vars.outputs.branch_name }} "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build ${{ steps.vars.outputs.cmake_options }} -DPLATFORM=ON -DCONTAINERIZED=OFF -DCPACK_STRIP_FILES=ON"
           docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached ${{ secrets.DOCKER_USERNAME }}/build-${{ matrix.os }}:${{ steps.vars.outputs.branch_name }} "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package"
 
-      - uses: AButler/upload-release-assets@v2.0.2
+      - uses: AButler/upload-release-assets@v2
         with:
           files: "build/*.deb;build/*.rpm"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -176,7 +175,7 @@ jobs:
           docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached ${{ secrets.DOCKER_USERNAME }}/build-${{ matrix.os }}:${{ steps.vars.outputs.branch_name }} "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build ${{ steps.vars.outputs.cmake_options }} -D${{ matrix.package }}=ON -DCONTAINERIZED=OFF -DCPACK_STRIP_FILES=ON"
           docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached ${{ secrets.DOCKER_USERNAME }}/build-${{ matrix.os }}:${{ steps.vars.outputs.branch_name }} "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package"
 
-      - uses: AButler/upload-release-assets@v2.0.2
+      - uses: AButler/upload-release-assets@v2
         with:
           files: "build/*.deb;build/*.rpm"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -213,7 +212,7 @@ jobs:
           docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached ${{ secrets.DOCKER_USERNAME }}/build-ubuntu-22.04:${{ steps.vars.outputs.branch_name }} "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build ${{ steps.vars.outputs.cmake_options }} -DCONTAINERIZED=ON -DINCLUDE_PLUGINS=ON -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=ON"
           docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached ${{ secrets.DOCKER_USERNAME }}/build-ubuntu-22.04:${{ steps.vars.outputs.branch_name }} "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package"
 
-      - uses: AButler/upload-release-assets@v2.0.2
+      - uses: AButler/upload-release-assets@v2
         with:
           files: "build/*.deb;build/*.rpm"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -303,7 +302,7 @@ jobs:
         run: |
           cmake --build . ${{ matrix.cmake_build_options }} --target package
 
-      - uses: AButler/upload-release-assets@v2.0.2
+      - uses: AButler/upload-release-assets@v2
         with:
           files: "build/*.exe;build/*.msi;build/*.dmg;build/*.pkg;build/*.tar.gz"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
