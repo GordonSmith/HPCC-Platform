@@ -24,9 +24,9 @@
 
 project( memcachedplugin )
 
-if (MEMCACHED)
+if (MEMCACHED OR USE_MEMCACHED)
     ADD_PLUGIN(memcached)
-    if(MAKE_MEMCACHED)
+    if(MAKE_MEMCACHED OR USE_MEMCACHED)
 
         find_package(LIBMEMCACHED ${LIBMEMCACHED_MINVERSION} REQUIRED)
 
