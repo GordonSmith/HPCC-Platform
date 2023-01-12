@@ -108,8 +108,7 @@ jobs:
         run: |
           plugins=("CASSANDRAEMBED" "COUCHBASEEMBED" "ECLBLAS" "H3" "JAVAEMBED" "KAFKA" "MEMCACHED" "MYSQLEMBED" "NLP" "REDIS" "SQLITE3EMBED" "SQS" "PLATFORM")
           for plugin in "${plugins[@]}"; do
-            sudo rm -f ./build/CMakeCache.txt
-            sudo rm -rf ./build/CMakeFiles
+            echo "---  Building $plugin  ---"
             docker_label=${{ secrets.DOCKER_USERNAME }}/build-${{ matrix.os }}:${{ steps.vars.outputs.branch_name }}
             docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} $docker_label "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build ${{ steps.vars.outputs.cmake_options }} -D$plugin=ON -DCONTAINERIZED=OFF -DCPACK_STRIP_FILES=OFF" 
             docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} $docker_label "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package" 
@@ -120,8 +119,6 @@ jobs:
       - name: CMake Containerized Packages
         if: ${{ matrix.container }}
         run: |
-          sudo rm -f ./build/CMakeCache.txt
-          sudo rm -rf ./build/CMakeFiles
           docker_label=${{ secrets.DOCKER_USERNAME }}/build-${{ matrix.os }}:${{ steps.vars.outputs.branch_name }}
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} $docker_label "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build ${{ steps.vars.outputs.cmake_options }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=ON -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=OFF"
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} $docker_label "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package" 
@@ -147,8 +144,6 @@ jobs:
       - name: CMake LN Packages
         if: ${{ matrix.ln }}
         run: |
-          sudo rm -f ./build/CMakeCache.txt
-          sudo rm -rf ./build/CMakeFiles
           docker_label=${{ secrets.DOCKER_USERNAME }}/build-${{ matrix.os }}:${{ steps.vars.outputs.branch_name }}
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} --mount ${{ steps.vars.outputs.mount_ln }} $docker_label "cmake -S /hpcc-dev/LN -B /hpcc-dev/HPCC-Platform/build -DHPCC_SOURCE_DIR=/hpcc-dev/HPCC-Platform ${{ steps.vars.outputs.cmake_options }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=OFF -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=OFF"
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} --mount ${{ steps.vars.outputs.mount_ln }} $docker_label "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package" 
