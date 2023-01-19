@@ -73,7 +73,7 @@ jobs:
           echo 'mount_ln=source="${{ github.workspace }}/LN",target=/hpcc-dev/LN,type=bind,consistency=cached' >> $GITHUB_OUTPUT
           community_tag=$(echo ${{ github.ref }} | cut -d'/' -f3)
           echo "community_tag=$community_tag" >> $GITHUB_OUTPUT
-          echo "internal_tag=$($community_tag | sed 's/community/internal/')" >> $GITHUB_OUTPUT
+          echo "internal_tag=`echo $community_tag | sed 's/community/internal/'` >> $GITHUB_OUTPUT
           cd vcpkg
           echo "vcpkg_sha_short=$(git rev-parse --short=8 HEAD)" >> $GITHUB_OUTPUT
           echo "cmake_options=-DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_FILES_DIR=/hpcc-dev -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF" >> $GITHUB_OUTPUT
