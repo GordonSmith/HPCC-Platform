@@ -78,7 +78,7 @@ jobs:
 
       - name: Print vars
         run: |
-          echo "$(jq -M . ${{ steps.vars.outputs }})"
+          echo "${{ toJSON(steps.vars.outputs) }})"
 
       - name: Set up Docker Buildx
         id: buildx
