@@ -155,7 +155,7 @@ jobs:
         run: |
           sudo rm -f ./build/CMakeCache.txt
           sudo rm -rf ./build/CMakeFiles
-          docker_label=${{ secrets.DOCKER_USERNAME }}/build-${{ matrix.os }}:${{ steps.vars.outputs.community_tag }}
+          docker_label=${{ secrets.DOCKER_USERNAME }}/build-${{ matrix.os }}:${{ steps.vars.outputs.internal_tag }}
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} --mount ${{ steps.vars.outputs.mount_ln }} $docker_label "cmake -S /hpcc-dev/LN -B /hpcc-dev/HPCC-Platform/build -DHPCC_SOURCE_DIR=/hpcc-dev/HPCC-Platform ${{ steps.vars.outputs.cmake_options }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=OFF -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=OFF"
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} --mount ${{ steps.vars.outputs.mount_ln }} $docker_label "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package" 
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} --mount ${{ steps.vars.outputs.mount_ln }} $docker_label "cmake -S /hpcc-dev/LN -B /hpcc-dev/HPCC-Platform/build -DHPCC_SOURCE_DIR=/hpcc-dev/HPCC-Platform ${{ steps.vars.outputs.cmake_options }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=OFF -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=ON" 
