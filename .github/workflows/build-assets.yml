@@ -206,17 +206,14 @@ jobs:
 
       - name: Calculate vars
         id: vars
+        shell: "bash"
         run: |
-          echo 'mount_platform=source="${{ github.workspace }}",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached' >> $GITHUB_OUTPUT
-          echo 'mount_ln=source="${{ github.workspace }}/LN",target=/hpcc-dev/LN,type=bind,consistency=cached' >> $GITHUB_OUTPUT
           community_ref=${{ github.ref }}
           echo "community_ref=$community_ref" >> $GITHUB_OUTPUT
           echo "internal_ref=$(echo $community_ref | sed 's/community/internal/')" >> $GITHUB_OUTPUT
-          community_tag=$(echo $community_ref | cut -d'/' -f3)
-          echo "community_tag=$community_tag" >> $GITHUB_OUTPUT
-          echo "internal_tag=$(echo $community_tag | sed 's/community/internal/')" >> $GITHUB_OUTPUT
 
       - name: Print vars
+        shell: "bash"
         run: |
           echo "${{ toJSON(steps.vars.outputs) }})"
 
