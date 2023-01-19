@@ -76,6 +76,11 @@ jobs:
           echo "vcpkg_sha_short=$(git rev-parse --short=8 HEAD)" >> $GITHUB_OUTPUT
           echo "cmake_options=-DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_FILES_DIR=/hpcc-dev -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF" >> $GITHUB_OUTPUT
 
+      - name: Print vars
+        id: vars
+        run: |
+          echo "${{ steps.vars.outputs }}"
+
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v2
