@@ -44,16 +44,10 @@ jobs:
     needs: release
     strategy:
       matrix:
+        os: [ubuntu-22.04, ubuntu-22.10, ubuntu-20.04, ubuntu-18.04, centos-8, centos-7, amazonlinux]
         include:
           - os: ubuntu-22.04
             container: true
-          - os: ubuntu-22.10
-          - os: ubuntu-22.04
-          - os: ubuntu-20.04
-          - os: ubuntu-18.04
-          - os: centos-8
-          - os: centos-7
-          - os: amazonlinux
           - os: centos-7
             ln: true
       fail-fast: false
@@ -212,9 +206,19 @@ jobs:
 
       - name: Calculate vars
         id: vars
-        shell: "bash"
         run: |
-          echo "community_tag=$(echo ${{ github.ref }} | cut -d'/' -f3)" >> $GITHUB_OUTPUT
+          echo 'mount_platform=source="${{ github.workspace }}",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached' >> $GITHUB_OUTPUT
+          echo 'mount_ln=source="${{ github.workspace }}/LN",target=/hpcc-dev/LN,type=bind,consistency=cached' >> $GITHUB_OUTPUT
+          community_ref=${{ github.ref }}
+          echo "community_ref=$community_ref" >> $GITHUB_OUTPUT
+          echo "internal_ref=$(echo $community_ref | sed 's/community/internal/')" >> $GITHUB_OUTPUT
+          community_tag=$(echo $community_ref | cut -d'/' -f3)
+          echo "community_tag=$community_tag" >> $GITHUB_OUTPUT
+          echo "internal_tag=$(echo $community_tag | sed 's/community/internal/')" >> $GITHUB_OUTPUT
+
+      - name: Print vars
+        run: |
+          echo "${{ toJSON(steps.vars.outputs) }})"
 
       - name: OSX Dependencies
         if: ${{ contains(matrix.os, 'macos') }}
@@ -251,18 +255,13 @@ jobs:
         run: |
           ./vcpkg/bootstrap-vcpkg.sh
 
-      - name: "Generate HPCC-Platform Build Files"
+      - name: CMake Packages
         working-directory: .
         shell: "bash"
         run: |
           mkdir build
           cd build
           cmake .. ${{ matrix.cmake_config_options }}
-
-      - name: Bundle
-        working-directory: ./build
-        shell: "bash"
-        run: |
           cmake --build . ${{ matrix.cmake_build_options }} --target package
 
       - name: Upload Assets
@@ -270,3 +269,36 @@ jobs:
         with:
           allowUpdates: true
           artifacts: "build/*.exe,build/*.msi,build/*.dmg,build/*.pkg,build/*.tar.gz"
+
+      - name: Checkout LN
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ github.repository_owner }}/LN
+          ref: ${{ steps.vars.outputs.internal_ref }}
+          path: ${{ github.workspace }}/LN
+          token: ${{ secrets.LNB_TOKEN }}
+
+      - name: CMake LN Packages
+        working-directory: ./build
+        shell: "bash"
+        run: |
+          sudo rm -f ./CMakeCache.txt
+          sudo rm -rf ./CMakeFiles
+          cmake -S ${{ github.workspace }}/LN ${{ matrix.cmake_config_options }}
+          cmake --build . ${{ matrix.cmake_build_options }} --target package
+
+      - name: Upload LN Assets
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          owner: ${{ secrets.LNB_ACTOR }}
+          repo: LN
+          token: ${{ secrets.LNB_TOKEN }}
+          allowUpdates: true
+          artifacts: "build/*.exe,build/*.msi,build/*.dmg,build/*.pkg,build/*.tar.gz"
+
+      - name: Upload error logs
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }}-${{ matrix.package }}-logs
+          path: build/CMakeCache.txt
