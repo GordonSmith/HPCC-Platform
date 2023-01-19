@@ -279,8 +279,8 @@ jobs:
         working-directory: ./build
         shell: "bash"
         run: |
-          sudo rm -f ./CMakeCache.txt
-          sudo rm -rf ./CMakeFiles
+          ${{ matrix.sudo }} rm -f ./CMakeCache.txt
+          ${{ matrix.sudo }} rm -rf ./CMakeFiles
           cmake -S ${{ github.workspace }}/LN ${{ matrix.cmake_config_options }} -DHPCC_SOURCE_DIR=${{ github.workspace }}
           cmake --build . ${{ matrix.cmake_build_options }} --target package
 
