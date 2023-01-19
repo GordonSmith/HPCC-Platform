@@ -259,7 +259,7 @@ jobs:
           mkdir build
           cd build
           cmake .. ${{ matrix.cmake_config_options }}
-          echo "cmake --build . ${{ matrix.cmake_build_options }} --target package"
+          cmake --build . ${{ matrix.cmake_build_options }} --target package
 
       - name: Upload Assets
         uses: ncipollo/release-action@v1.12.0
