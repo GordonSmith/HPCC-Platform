@@ -281,7 +281,7 @@ jobs:
         run: |
           ${{ matrix.sudo }} rm -f ./CMakeCache.txt
           ${{ matrix.sudo }} rm -rf ./CMakeFiles
-          cmake -S ${{ github.workspace }}/LN ${{ matrix.cmake_config_options }} -DHPCC_SOURCE_DIR=${{ github.workspace }}
+          cmake -S ../LN ${{ matrix.cmake_config_options }} -DHPCC_SOURCE_DIR=..
           cmake --build . ${{ matrix.cmake_build_options }} --target package
 
       - name: Upload LN Assets
