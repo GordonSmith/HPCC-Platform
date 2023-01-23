@@ -38,13 +38,21 @@ jobs:
           generateReleaseNotes: false
           prerelease: ${{ contains(github.ref, '-rc') }}
 
-
   build-platform:
     name: Build Platform
     needs: release
     strategy:
       matrix:
-        os: [ubuntu-22.04, ubuntu-22.10, ubuntu-20.04, ubuntu-18.04, centos-8, centos-7, amazonlinux]
+        os:
+          [
+            ubuntu-22.04,
+            ubuntu-22.10,
+            ubuntu-20.04,
+            ubuntu-18.04,
+            centos-8,
+            centos-7,
+            amazonlinux
+          ]
         include:
           - os: ubuntu-22.04
             container: true
@@ -129,7 +137,7 @@ jobs:
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} $docker_label "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build ${{ steps.vars.outputs.cmake_options }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=ON -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=OFF"
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} $docker_label "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package" 
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} $docker_label "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build ${{ steps.vars.outputs.cmake_options }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=ON -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=ON" 
-          docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} $docker_label "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package" 
+          docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} $docker_label "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package"
 
       - name: Upload Assets
         uses: ncipollo/release-action@v1.12.0
@@ -156,7 +164,7 @@ jobs:
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} --mount ${{ steps.vars.outputs.mount_ln }} $docker_label "cmake -S /hpcc-dev/LN -B /hpcc-dev/HPCC-Platform/build -DHPCC_SOURCE_DIR=/hpcc-dev/HPCC-Platform ${{ steps.vars.outputs.cmake_options }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=OFF -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=OFF"
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} --mount ${{ steps.vars.outputs.mount_ln }} $docker_label "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package" 
           docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} --mount ${{ steps.vars.outputs.mount_ln }} $docker_label "cmake -S /hpcc-dev/LN -B /hpcc-dev/HPCC-Platform/build -DHPCC_SOURCE_DIR=/hpcc-dev/HPCC-Platform ${{ steps.vars.outputs.cmake_options }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=OFF -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=ON" 
-          docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} --mount ${{ steps.vars.outputs.mount_ln }} $docker_label "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package" 
+          docker run --rm --mount ${{ steps.vars.outputs.mount_platform }} --mount ${{ steps.vars.outputs.mount_ln }} $docker_label "cmake --build /hpcc-dev/HPCC-Platform/build --parallel $(nproc) --target package"
 
       - name: Upload LN Assets
         if: ${{ matrix.ln }}
