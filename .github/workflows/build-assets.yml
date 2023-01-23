@@ -43,23 +43,16 @@ jobs:
     needs: release
     strategy:
       matrix:
-        os:
-          [
-            ubuntu-22.04,
-            ubuntu-22.10,
-            ubuntu-20.04,
-            ubuntu-18.04,
-            centos-8,
-            centos-7,
-            amazonlinux
-          ]
         include:
           - os: ubuntu-22.04
-            container: false
-          - os: ubuntu-22.04
             container: true
+          - os: ubuntu-22.10
+          - os: ubuntu-22.04
+          - os: ubuntu-20.04
+          - os: ubuntu-18.04
+          - os: centos-8
           - os: centos-7
-            ln: false
+          - os: amazonlinux
           - os: centos-7
             ln: true
       fail-fast: false
