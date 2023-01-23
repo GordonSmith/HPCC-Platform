@@ -55,7 +55,11 @@ jobs:
           ]
         include:
           - os: ubuntu-22.04
+            container: false
+          - os: ubuntu-22.04
             container: true
+          - os: centos-7
+            ln: false
           - os: centos-7
             ln: true
       fail-fast: false
