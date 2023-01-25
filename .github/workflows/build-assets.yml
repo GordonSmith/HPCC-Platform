@@ -46,7 +46,7 @@ jobs:
           folder_ln=${{ github.workspace }}/LN
           echo "folder_ln=$folder_ln" >> $GITHUB_OUTPUT
           echo 'mount_ln=source="$folder_ln",target=/hpcc-dev/LN,type=bind,consistency=cached' >> $GITHUB_OUTPUT
-          folder_build=${{ github.workspace }}/build" >> $GITHUB_OUTPUT
+          folder_build=${{ github.workspace }}/build
           echo "folder_build=$folder_build" >> $GITHUB_OUTPUT
           echo 'mount_build=source="$folder_build",target=/hpcc-dev/build,type=bind,consistency=cached' >> $GITHUB_OUTPUT
           community_ref=${{ github.ref }}
