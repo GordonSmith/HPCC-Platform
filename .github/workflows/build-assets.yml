@@ -152,6 +152,7 @@ jobs:
       - name: CMake Packages
         if: ${{ !matrix.container && !matrix.ln }}
         run: |
+          mkdir -p ${{ needs.release.outputs.folder_build }}
           plugins=("CASSANDRAEMBED" "COUCHBASEEMBED" "ECLBLAS" "H3" "JAVAEMBED" "KAFKA" "MEMCACHED" "MYSQLEMBED" "NLP" "REDIS" "SQLITE3EMBED" "SQS" "PLATFORM")
           for plugin in "${plugins[@]}"; do
             sudo rm -f ${{ needs.release.outputs.folder_build }}/CMakeCache.txt
@@ -166,6 +167,7 @@ jobs:
       - name: CMake Containerized Packages
         if: ${{ matrix.container }}
         run: |
+          mkdir -p ${{ needs.release.outputs.folder_build }}
           sudo rm -f ${{ needs.release.outputs.folder_build }}/CMakeCache.txt
           sudo rm -rf ${{ needs.release.outputs.folder_build }}/CMakeFiles
           docker_label=hpccsystems/platform-build-${{ matrix.os }}:${{ needs.release.outputs.community_branch }}
@@ -184,6 +186,7 @@ jobs:
       - name: CMake LN Packages
         if: ${{ matrix.ln }}
         run: |
+          mkdir -p ${{ needs.release.outputs.folder_build }}
           sudo rm -f ${{ needs.release.outputs.folder_build }}/CMakeCache.txt
           sudo rm -rf ${{ needs.release.outputs.folder_build }}/CMakeFiles
           docker_label=hpccsystems/platform-build-${{ matrix.os }}:${{ needs.release.outputs.community_branch }}
@@ -254,7 +257,7 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.community_ref }}
           submodules: recursive
-          path: ${{ needs.release.outputs.folder_platform }}
+          path: ./HPCC-Platform
 
       - name: Checkout LN
         uses: actions/checkout@v3
@@ -263,17 +266,17 @@ jobs:
           token: ${{ secrets.LNB_TOKEN }}
           ref: ${{ needs.release.outputs.internal_ref }}
           submodules: recursive
-          path: ${{ needs.release.outputs.folder_ln }}
+          path: ./LN
 
       - name: "vcpkg Bootstrap"
         shell: "bash"
         run: |
-          ${{ needs.release.outputs.folder_platform }}/vcpkg/bootstrap-vcpkg.sh
+          ./HPCC-Platform/vcpkg/bootstrap-vcpkg.sh
 
       - name: "Setup NuGet credentials"
         shell: "bash"
         run: |
-          ${{ matrix.mono }} `${{ needs.release.outputs.folder_platform }}/vcpkg/vcpkg fetch nuget | tail -n 1` \
+          ${{ matrix.mono }} `./HPCC-Platform/vcpkg/vcpkg fetch nuget | tail -n 1` \
             sources add \
             -source "https://nuget.pkg.github.com/hpcc-systems/index.json" \
             -storepasswordincleartext \
@@ -284,23 +287,23 @@ jobs:
       - name: CMake Packages
         shell: "bash"
         run: |
-          mkdir -p ${{ needs.release.outputs.folder_build }}
-          cmake -S ${{ needs.release.outputs.folder_platform }} -B ${{ needs.release.outputs.folder_build }} ${{ matrix.cmake_config_options }}
-          cmake --build ${{ needs.release.outputs.folder_build }} ${{ matrix.cmake_build_options }} --target package
+          mkdir -p ./build
+          cmake -S ./HPCC-Platform -B ./build ${{ matrix.cmake_config_options }}
+          cmake --build ./build ${{ matrix.cmake_build_options }} --target package
 
       - name: Upload Assets
         uses: ncipollo/release-action@v1.12.0
         with:
           allowUpdates: true
-          artifacts: "${{ needs.release.outputs.folder_build }}/*.exe,${{ needs.release.outputs.folder_build }}/*.msi,${{ needs.release.outputs.folder_build }}/*.dmg,${{ needs.release.outputs.folder_build }}/*.pkg,${{ needs.release.outputs.folder_build }}/*.tar.gz"
+          artifacts: "./build/*.exe,./build/*.msi,./build/*.dmg,./build/*.pkg,./build/*.tar.gz"
 
       - name: CMake LN Packages
         shell: "bash"
         run: |
-          ${{ matrix.sudo }} rm -f ${{ needs.release.outputs.folder_build }}/CMakeCache.txt
-          ${{ matrix.sudo }} rm -rf ${{ needs.release.outputs.folder_build }}/CMakeFiles
-          cmake -S ${{ needs.release.outputs.folder_ln }} -B ${{ needs.release.outputs.folder_build }} ${{ matrix.cmake_config_options }}
-          cmake --build ${{ needs.release.outputs.folder_build }} ${{ matrix.cmake_build_options }} --target package
+          ${{ matrix.sudo }} rm -f ./build/CMakeCache.txt
+          ${{ matrix.sudo }} rm -rf ./build/CMakeFiles
+          cmake -S ./LN -B ./build ${{ matrix.cmake_config_options }}
+          cmake --build ./build ${{ matrix.cmake_build_options }} --target package
 
       - name: Upload LN Assets
         uses: ncipollo/release-action@v1.12.0
@@ -309,11 +312,11 @@ jobs:
           repo: LN
           token: ${{ secrets.LNB_TOKEN }}
           allowUpdates: true
-          artifacts: "${{ needs.release.outputs.folder_build }}/*.exe,${{ needs.release.outputs.folder_build }}/*.msi,${{ needs.release.outputs.folder_build }}/*.dmg,${{ needs.release.outputs.folder_build }}/*.pkg,${{ needs.release.outputs.folder_build }}/*.tar.gz"
+          artifacts: "./build/*.exe,./build/*.msi,./build/*.dmg,./build/*.pkg,./build/*.tar.gz"
 
       - name: Upload error logs
         if: ${{ failure() || cancelled() }}
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-${{ matrix.package }}-logs
-          path: ${{ needs.release.outputs.folder_build }}/**/*.log
+          path: ./build/**/*.log
