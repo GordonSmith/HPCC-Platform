@@ -40,15 +40,12 @@ jobs:
       - name: Calculate vars
         id: vars
         run: |
-          folder_platform="${{ github.workspace }}/HPCC-Platform"
-          echo "folder_platform=$folder_platform" >> $GITHUB_OUTPUT
-          echo 'mount_platform=source="$folder_platform",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached' >> $GITHUB_OUTPUT
-          folder_ln="${{ github.workspace }}/LN"
-          echo "folder_ln=$folder_ln" >> $GITHUB_OUTPUT
-          echo 'mount_ln=source="$folder_ln",target=/hpcc-dev/LN,type=bind,consistency=cached' >> $GITHUB_OUTPUT
-          folder_build="${{ github.workspace }}/build"
-          echo "folder_build=$folder_build" >> $GITHUB_OUTPUT
-          echo 'mount_build=source="$folder_build",target=/hpcc-dev/build,type=bind,consistency=cached' >> $GITHUB_OUTPUT
+          echo "folder_platform=${{ github.workspace }}/HPCC-Platform" >> $GITHUB_OUTPUT
+          echo 'mount_platform=source="${{ github.workspace }}/HPCC-Platform",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached' >> $GITHUB_OUTPUT
+          echo "folder_ln=${{ github.workspace }}/LN" >> $GITHUB_OUTPUT
+          echo 'mount_ln=source="${{ github.workspace }}/LN",target=/hpcc-dev/LN,type=bind,consistency=cached' >> $GITHUB_OUTPUT
+          echo "folder_build=${{ github.workspace }}/build" >> $GITHUB_OUTPUT
+          echo 'mount_build=source="${{ github.workspace }}/build",target=/hpcc-dev/build,type=bind,consistency=cached' >> $GITHUB_OUTPUT
           community_ref=${{ github.ref }}
           echo "community_ref=$community_ref" >> $GITHUB_OUTPUT
           echo "internal_ref=$(echo $community_ref | sed 's/community/internal/')" >> $GITHUB_OUTPUT
