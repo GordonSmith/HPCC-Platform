@@ -30,7 +30,7 @@ jobs:
 
   build-images:
     needs: check-skip
-    if: ${{ needs.check-skip.outputs.changed }}
+    # if: ${{ needs.check-skip.outputs.changed }}
     runs-on: ubuntu-20.04
     steps:
       - name: vars
