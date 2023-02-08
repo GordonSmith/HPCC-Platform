@@ -34,9 +34,8 @@ RUN apt-get install -y \
   git \
   git-lfs \
   openssh-client \
-  libpython3.8 \
   locales \
-  python3 \ 
+  python3-dev \ 
   psmisc \
   r-base-core \
   zip \
