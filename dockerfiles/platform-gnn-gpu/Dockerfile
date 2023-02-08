@@ -39,7 +39,7 @@ RUN  apt-get update && apt-get install -y --no-install-recommends gnupg2 wget cu
 
 ENV CUDA_VERSION=11.8.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
-   cuda-cudart-11-4=${NV_CUDA_CUDART_VERSION}     ${NV_CUDA_COMPAT_PACKAGE}  \
+   cuda-cudart-11-8=${NV_CUDA_CUDART_VERSION}     ${NV_CUDA_COMPAT_PACKAGE}  \
    && ln -s cuda-11.8 /usr/local/cuda &&     rm -rf /var/lib/apt/lists/* # buildkit
 
 RUN echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf \
