@@ -91,9 +91,8 @@ RUN python3 -m pip --no-cache-dir install --upgrade "pip<20.3" \
 # Some TF tools expect a "python" binary
 RUN ln -s $(which python3) /usr/local/bin/python
 
-RUN pip3 install       \
-    scikit-learn       \
-    statsmodels        \
+RUN pip3 install -U scikit-learn \
+    statsmodels \
     networkx
 
 # Reference: https://github.com/tensorflow/tensorflow/blob/master/tensorflow/tools/dockerfiles/dockerfiles/gpu.Dockerfile
