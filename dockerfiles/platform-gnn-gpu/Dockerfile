@@ -86,12 +86,12 @@ RUN apt clean && \
     apt-get update
 
 RUN apt-get install -y python3-pip --fix-missing
-RUN python3 -m pip --no-cache-dir install --upgrade "pip<20.3" \
+RUN python3 -m pip --no-cache-dir install \
     setuptools
 # Some TF tools expect a "python" binary
 RUN ln -s $(which python3) /usr/local/bin/python
 
-RUN pip3 install -U scikit-learn \
+RUN pip3 install scikit-learn \
     statsmodels \
     networkx
 
