@@ -35,6 +35,7 @@ RUN apt-get install -y \
   git-lfs \
   openssh-client \
   locales \
+  python3 \ 
   python3-dev \ 
   psmisc \
   r-base-core \
