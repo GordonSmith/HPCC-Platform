@@ -17,7 +17,7 @@ bool Cws_logaccessEx::onGetLogAccessInfo(IEspContext &context, IEspGetLogAccessI
         if (!logColumnDefinitions)
         {
             success = false;
-            OERRLOG("WsLogaccess: NULL col defintions - check logaccess logmap config!");
+            OERRLOG("WsLogaccess: NULL col definitions - check logaccess logmap config!");
         }
         else
         {
@@ -77,7 +77,7 @@ bool Cws_logaccessEx::onGetLogAccessInfo(IEspContext &context, IEspGetLogAccessI
                     else
                     {
                         DBGLOG("Encountered Column definition without NAME!");
-                        OERRLOG("WsLogaccess: col defintions without @searchColumn - check logaccess logmap config!");
+                        OERRLOG("WsLogaccess: col definitions without @searchColumn - check logaccess logmap config!");
                     }
                 }
                 resp.setColumns(logColumns);
