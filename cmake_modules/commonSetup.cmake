@@ -743,7 +743,7 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
       ENDIF(CONTAINERIZED)
 
       IF (USE_ICU)
-        find_package(ICU COMPONENTS data i18n io tu uc)
+        find_package(ICU COMPONENTS data i18n io uc)
         IF (ICU_FOUND)
           add_definitions (-D_USE_ICU)
           IF (NOT WIN32)
