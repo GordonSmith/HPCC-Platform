@@ -84,4 +84,3 @@ option(INCLUDE_CONFIG_MANAGER "Build config manager" ON)
 option(USE_ELASTICSTACK_CLIENT "Configure use of Elastic Stack client" ON)
 option(SKIP_ECLWATCH "Skip building ECL Watch" OFF)
 option(USE_ADDRESS_SANITIZER "Use address sanitizer to spot leaks" OFF)
-
