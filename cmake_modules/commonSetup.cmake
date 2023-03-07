@@ -149,13 +149,6 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
 
   # common compiler/linker flags
 
-  if ("${CMAKE_BUILD_TYPE}" STREQUAL "")
-    set ( CMAKE_BUILD_TYPE "Release" )
-  elseif (NOT "${CMAKE_BUILD_TYPE}" MATCHES "^Debug$|^Release$|^RelWithDebInfo$")
-    message (FATAL_ERROR "Unknown build type ${CMAKE_BUILD_TYPE}")
-  endif ()
-  message ("-- Making ${CMAKE_BUILD_TYPE} system")
-
   if (CMAKE_SIZEOF_VOID_P EQUAL 8)
     set ( ARCH64BIT 1 )
   else ()
@@ -813,6 +806,7 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
         endif()
       endif(USE_URIPARSER)
 
+      set(Boost_NO_WARN_NEW_VERSIONS ON)
       if(USE_BOOST_REGEX)
         find_package(Boost COMPONENTS regex)
         if (Boost_REGEX_FOUND)
