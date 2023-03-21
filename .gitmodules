@@ -16,3 +16,5 @@
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/hpcc-systems/vcpkg.git
+	shallow = true
+	branch = hpcc-platform-8.12.x
