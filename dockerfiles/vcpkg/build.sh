@@ -42,11 +42,11 @@ function doBuild() {
 
 CMAKE_OPTIONS="-DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_FILES_DIR=/hpcc-dev -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON"
 
-doBuild amazonlinux
+# doBuild amazonlinux
 doBuild ubuntu-22.04 
-doBuild ubuntu-20.04
-doBuild centos-8
-doBuild centos-7
+# doBuild ubuntu-20.04
+# doBuild centos-8
+# doBuild centos-7
 
 # docker build --progress plain --pull --rm -f "$SCRIPT_DIR/core.dockerfile" \
 #     -t $DOCKER_USERNAME/core:$GITHUB_REF \
