@@ -1,0 +1,4 @@
+ARG DOCKER_REPO=hpccsystems
+ARG IMAGE_NAME=platform-core
+ARG IMAGE_TAG=9.0.0-rc3-Debug
+FROM ${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG} 
