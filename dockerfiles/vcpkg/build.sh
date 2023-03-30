@@ -31,11 +31,17 @@ done
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]:-$0}"; )" &> /dev/null && pwd 2> /dev/null; )";
 ROOT_DIR=$(git rev-parse --show-toplevel)
 
-export $(grep -v '^#' $ROOT_DIR/.env | xargs -d '\r' | xargs -d '\n') > /dev/null
+export $(grep -v '^#' $ROOT_DIR/.env | sed -e 's/\r$//' | xargs) > /dev/null
+
 
 GITHUB_ACTOR="${GITHUB_ACTOR:-hpcc-systems}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-none}"
 GITHUB_REF=$(git rev-parse --short=8 HEAD)
+GITHUB_BRANCH=${git branch --show-current}
+if ! git diff-index --quiet HEAD --; then
+    GITHUB_BRANCH="$GITHUB_BRANCH_$(date +"%Y-%m-%d-%H-%M-%S")"
+fi
+
 cd vcpkg
 VCPKG_REF=$(git rev-parse --short=8 HEAD)
 cd ..
@@ -47,6 +53,7 @@ echo "ROOT_DIR: $ROOT_DIR"
 echo "GITHUB_ACTOR: $GITHUB_ACTOR"
 echo "GITHUB_TOKEN: $GITHUB_TOKEN"
 echo "GITHUB_REF: $GITHUB_REF"
+echo "GITHUB_BRANCH: $GITHUB_BRANCH"
 echo "VCPKG_REF: $VCPKG_REF"
 echo "DOCKER_USERNAME: $DOCKER_USERNAME"
 echo "DOCKER_PASSWORD: $DOCKER_PASSWORD"
