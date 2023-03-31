@@ -174,17 +174,20 @@ function doBuild() {
             "cd /hpcc-dev/HPCC-Platform && cmake --build /hpcc-dev/build --parallel --target install"
 
     echo "  --- Update opt contents ---"
-    docker run --name temp-${PLATFORM_CORE}-$GITHUB_BRANCH \
+    CONTAINER=$(docker run -d \
         --mount source=hpcc_opt,target=/ext,type=volume \
-        --user root \
-        ${PLATFORM_CORE}:$GITHUB_REF \
-            /bin/bash --login -c "ls -l -a /ext/HPCCSystems && \
-            cp -r /ext/* /opt/HPCCSystems && \
-            ls -l -a /opt/HPCCSystems && \
-            eclcc -pch || true"
-
-    docker commit temp-${PLATFORM_CORE}-$GITHUB_BRANCH hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH
-    docker rm temp-${PLATFORM_CORE}-$GITHUB_BRANCH
+        ${PLATFORM_CORE}:$GITHUB_REF /bin/bash -c "tail -f /dev/null")
+        
+        #  \
+        #     /bin/bash --login -c "ls -l -a /ext/HPCCSystems && \
+        #     cp -r /ext/* /opt/HPCCSystems && \
+        #     ls -l -a /opt/HPCCSystems && \
+        #     eclcc -pch || true"
+    docker exec --user root $CONTAINER /bin/bash -c "cp -r /ext/* /opt/HPCCSystems"
+    docker exec --user root $CONTAINER /bin/bash -c "eclcc -pch"
+    docker commit $CONTAINER hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH
+    docker stop $CONTAINER
+    docker rm $CONTAINER
     echo "docker run --entrypoint /bin/bash -it hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH"
     echo "hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH"
 }

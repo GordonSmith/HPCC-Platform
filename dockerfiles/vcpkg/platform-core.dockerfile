@@ -75,3 +75,5 @@ USER hpcc
 ENV PATH="/opt/HPCCSystems/bin:${PATH}"
 ENV HPCC_containerized=1
 WORKDIR /var/lib/HPCCSystems
+
+ENTRYPOINT []
