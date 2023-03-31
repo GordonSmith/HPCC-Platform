@@ -17,7 +17,8 @@
 
 # Create base container image to be used by all HPCC processes 
 
-FROM ubuntu:22.04
+ARG BASE_IMAGE=ubuntu:22.04
+FROM ${BASE_IMAGE}
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -25,7 +26,7 @@ RUN apt-get clean -y && \
     apt-get autoclean -y && \
     apt-get install -y -f && \
     apt-get autoremove -y && \
-    apt-get update && \
+    apt-get update -y && \
     apt-get install --no-install-recommends -y \
     default-jdk \
     g++ \

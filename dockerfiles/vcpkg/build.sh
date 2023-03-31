@@ -2,6 +2,7 @@
 set -e
 
 # Default values
+debug_image=false
 force_config=false
 full_reset=false
 
@@ -9,6 +10,7 @@ full_reset=false
 function show_help {
   echo "Usage: $0 [options]"
   echo "Options:"
+  echo "  -d, --debug        Include source and build tools in image"
   echo "  -f, --force        Force CMake configuration"
   echo "  -r, --reset        Full reset of build environment"
   echo "  --help             Display this help message"
@@ -18,6 +20,9 @@ function show_help {
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
   case $1 in
+    -d|--debug)
+      debug_image=true
+      shift ;;
     -f|--force)
       force_config=true
       shift ;;
@@ -75,9 +80,17 @@ function doBuild() {
             "$SCRIPT_DIR/." 
 
     echo "  --- Create Platform Core ---"
+    if [ "$debug_image" = true ]; then
+        PLATFORM_CORE="platform-core-debug"
+        BASE_IMAGE="build-$1:$GITHUB_REF"
+    else
+        PLATFORM_CORE="platform-core"
+        BASE_IMAGE="ubuntu:20.04"
+    fi
     docker build --rm -f "$SCRIPT_DIR/platform-core.dockerfile" \
-        -t platform-core:$GITHUB_REF \
-        -t platform-core:latest \
+        -t ${PLATFORM_CORE}:$GITHUB_REF \
+        -t ${PLATFORM_CORE}:latest \
+        --build-arg BASE_IMAGE=$BASE_IMAGE \
             "$SCRIPT_DIR/." 
 
     if [ "$full_reset" = true ]; then
@@ -115,11 +128,11 @@ function doBuild() {
     echo "GITHUB_BRANCH: $GITHUB_BRANCH"
     popd
 
-    image_count=$(docker images --quiet hpccsystems/platform-core:$GITHUB_BRANCH | wc -l)
+    image_count=$(docker images --quiet hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH | wc -l)
     if [ $image_count -gt 0 ]; then
-        echo "--- Image already exists  ---"
-        echo "docker run --entrypoint /bin/bash -it hpccsystems/platform-core:$GITHUB_BRANCH"
-        echo "hpccsystems/platform-core:$GITHUB_BRANCH"
+        echo "--- Image already exists  --- "
+        echo "docker run --entrypoint /bin/bash -it hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH"
+        echo "hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH"
         exit 0
     fi
 
@@ -161,18 +174,19 @@ function doBuild() {
             "cd /hpcc-dev/HPCC-Platform && cmake --build /hpcc-dev/build --parallel --target install"
 
     echo "  --- Update opt contents ---"
-    docker run --name temp-$GITHUB_BRANCH \
+    docker run --name temp-${PLATFORM_CORE}-$GITHUB_BRANCH \
         --mount source=hpcc_opt,target=/ext,type=volume \
         --user root \
-        platform-core:$GITHUB_REF /bin/bash -c "\
+        ${PLATFORM_CORE}:$GITHUB_REF \
+            /bin/bash --login -c "ls -l -a /ext/HPCCSystems && \
             cp -r /ext/* /opt/HPCCSystems && \
-            eclcc -pch \
-            "
+            ls -l -a /opt/HPCCSystems && \
+            eclcc -pch || true"
 
-    docker commit temp-$GITHUB_BRANCH hpccsystems/platform-core:$GITHUB_BRANCH
-    docker rm temp-$GITHUB_BRANCH
-    echo "docker run --entrypoint /bin/bash -it hpccsystems/platform-core:$GITHUB_BRANCH"
-    echo "hpccsystems/platform-core:$GITHUB_BRANCH"
+    docker commit temp-${PLATFORM_CORE}-$GITHUB_BRANCH hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH
+    docker rm temp-${PLATFORM_CORE}-$GITHUB_BRANCH
+    echo "docker run --entrypoint /bin/bash -it hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH"
+    echo "hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH"
 }
 
 # doBuild amazonlinux
