@@ -1113,7 +1113,7 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
         endif (WIN32)
         install(CODE [[
             set(MY_VAR_VALUE $ENV{MY_VAR})
-           
+
             file(GET_RUNTIME_DEPENDENCIES
                 LIBRARIES ${_arg1}
                 RESOLVED_DEPENDENCIES_VAR _r_deps
