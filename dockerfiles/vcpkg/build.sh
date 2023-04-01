@@ -176,7 +176,7 @@ function doBuild() {
         --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
         --mount source=hpcc_opt,target=/opt,type=volume \
         build-$1:$GITHUB_REF \
-            "cd /hpcc-dev/HPCC-Platform && cmake --build /hpcc-dev/build --parallel"
+            "cd /hpcc-dev/HPCC-Platform && cmake --build /hpcc-dev/build --parallel --target install"
 
     echo "  --- Update opt contents ---"
     CONTAINER=$(docker run -d \
