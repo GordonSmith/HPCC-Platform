@@ -76,4 +76,4 @@ ENV PATH="/opt/HPCCSystems/bin:${PATH}"
 ENV HPCC_containerized=1
 WORKDIR /var/lib/HPCCSystems
 
-ENTRYPOINT []
+ENTRYPOINT ["/bin/bash", "--login", "-c"]

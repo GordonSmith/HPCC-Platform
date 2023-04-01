@@ -66,10 +66,19 @@ echo "DOCKER_PASSWORD: $DOCKER_PASSWORD"
 
 # docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
 
-CMAKE_OPTIONS="-G Ninja -DCMAKE_BUILD_TYPE=Debug -DVCPKG_FILES_DIR=/hpcc-dev -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF -DCONTAINERIZED=ON -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON"
-CMAKE_CONFIGURE="cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${CMAKE_OPTIONS}"
-
 function doBuild() {
+
+    if [ "$debug_image" = true ]; then
+        PLATFORM_CORE="platform-core-debug"
+        BASE_IMAGE="build-$1:$GITHUB_REF"
+        CMAKE_BUILD_TYPE="-DCMAKE_BUILD_TYPE=Debug"
+    else
+        PLATFORM_CORE="platform-core"
+        BASE_IMAGE="ubuntu:jammy-20230308"
+        CMAKE_BUILD_TYPE="-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCPACK_STRIP_FILES=ON"
+    fi
+    CMAKE_OPTIONS="-G Ninja $CMAKE_BUILD_TYPE -DVCPKG_FILES_DIR=/hpcc-dev -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF -DCONTAINERIZED=ON -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON"
+    CMAKE_CONFIGURE="cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build $CMAKE_OPTIONS"
 
     echo "  --- Create Build Image: $1 ---"
     docker build --rm -f "$SCRIPT_DIR/$1.dockerfile" \
@@ -80,14 +89,8 @@ function doBuild() {
             "$SCRIPT_DIR/." 
 
     echo "  --- Create Platform Core ---"
-    if [ "$debug_image" = true ]; then
-        PLATFORM_CORE="platform-core-debug"
-        BASE_IMAGE="build-$1:$GITHUB_REF"
-    else
-        PLATFORM_CORE="platform-core"
-        BASE_IMAGE="ubuntu:20.04"
-    fi
-    docker build --rm -f "$SCRIPT_DIR/platform-core.dockerfile" \
+    DOCKER_BUILDKIT=1 docker build --rm -f "$SCRIPT_DIR/platform-core.dockerfile" \
+        --cache-from=build-$1:$GITHUB_REF \
         -t ${PLATFORM_CORE}:$GITHUB_REF \
         -t ${PLATFORM_CORE}:latest \
         --build-arg BASE_IMAGE=$BASE_IMAGE \
@@ -117,6 +120,7 @@ function doBuild() {
 
     pushd $ROOT_DIR
     git ls-files --modified --exclude-standard >> rsync_include.txt
+    touch tmp.txt
     while read file; do 
         if [ -f "$file" ]; then
             md5sum "$file" | cut -d ' ' -f 1 >> tmp.txt
@@ -129,7 +133,7 @@ function doBuild() {
     popd
 
     image_count=$(docker images --quiet hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH | wc -l)
-    if [ $image_count -gt 0 ]; then
+    if [ "$force_config" = false ] && [ $image_count -gt 0 ]; then
         echo "--- Image already exists  --- "
         echo "docker run --entrypoint /bin/bash -it hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH"
         echo "hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH"
@@ -147,6 +151,7 @@ function doBuild() {
      
     if [ "$force_config" = true ]; then
         echo "  --- clean cmake config ---"
+        docker volume rm hpcc_opt || true
         docker run --rm \
             --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
             --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
@@ -171,23 +176,27 @@ function doBuild() {
         --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
         --mount source=hpcc_opt,target=/opt,type=volume \
         build-$1:$GITHUB_REF \
-            "cd /hpcc-dev/HPCC-Platform && cmake --build /hpcc-dev/build --parallel --target install"
+            "cd /hpcc-dev/HPCC-Platform && cmake --build /hpcc-dev/build --parallel"
 
     echo "  --- Update opt contents ---"
     CONTAINER=$(docker run -d \
         --mount source=hpcc_opt,target=/ext,type=volume \
-        ${PLATFORM_CORE}:$GITHUB_REF /bin/bash -c "tail -f /dev/null")
-        
-        #  \
-        #     /bin/bash --login -c "ls -l -a /ext/HPCCSystems && \
-        #     cp -r /ext/* /opt/HPCCSystems && \
-        #     ls -l -a /opt/HPCCSystems && \
-        #     eclcc -pch || true"
+        ${PLATFORM_CORE}:$GITHUB_REF "tail -f /dev/null")
     docker exec --user root $CONTAINER /bin/bash -c "cp -r /ext/* /opt/HPCCSystems"
     docker exec --user root $CONTAINER /bin/bash -c "eclcc -pch"
     docker commit $CONTAINER hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH
     docker stop $CONTAINER
     docker rm $CONTAINER
+    # CONTAINER=$(docker run -d \
+    #     --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
+    #     --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
+    #     ${PLATFORM_CORE}:$GITHUB_REF "tail -f /dev/null")
+    # docker exec --user root $CONTAINER /bin/bash -c "apt install ninja-build -y"
+    # docker exec --user root $CONTAINER /bin/bash -c "cd /hpcc-dev/build && ninja install"
+    # docker exec --user root $CONTAINER /bin/bash -c "eclcc -pch"
+    # docker commit $CONTAINER hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH
+    # docker stop $CONTAINER
+    # docker rm $CONTAINER
     echo "docker run --entrypoint /bin/bash -it hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH"
     echo "hpccsystems/${PLATFORM_CORE}:$GITHUB_BRANCH"
 }
