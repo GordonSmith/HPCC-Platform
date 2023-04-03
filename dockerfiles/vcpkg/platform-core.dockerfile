@@ -29,15 +29,21 @@ RUN apt-get clean -y && \
     apt-get update -y && \
     apt-get install --no-install-recommends -y \
     default-jdk \
+    expect \
     g++ \
     git \
     git-lfs \
-    openssh-client \
     locales \
+    jq \
+    openssh-client \
+    openssh-server \
     python3 \ 
     python3-dev \ 
     psmisc \
     r-base-core \
+    r-cran-rcpp \
+    r-cran-inline \
+    rsync \
     zip \
     curl \
     clang

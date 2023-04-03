@@ -44,16 +44,34 @@ create_platform_core_image() {
             "$SCRIPT_DIR/vcpkg/." 
 }
 
+finalize_platform_core_image() {
+    local label=$1
+    local crc=$2
+    local cmd=$3
+    echo "  --- Finalize '$label:$GITHUB_REF' image ---"
+    CONTAINER=$(docker run -d \
+        --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
+        --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
+        $label:$GITHUB_REF "tail -f /dev/null")
+    docker exec --user root $CONTAINER /bin/bash -c "$cmd"
+    docker exec --user root $CONTAINER /bin/bash -c "eclcc -pch"
+    docker commit $CONTAINER hpccsystems/$label:$GITHUB_BRANCH-$crc
+    docker stop $CONTAINER
+    docker rm $CONTAINER
+}
+
 clean() {
     echo "  --- Clean  ---"
-    docker volume rm hpcc_src hpcc_build hpcc_opt 2>/dev/null || true
+    docker volume rm hpcc_src hpcc_build 2>/dev/null || true
 }
 
 run() {
     local cmd=$1
     docker run --rm \
+        --mount source=$ROOT_DIR,target=/hpcc-dev/HPCC-Platform-local,type=bind,readonly \
         --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
         --mount source="$ROOT_DIR/.git",target=/hpcc-dev/HPCC-Platform/.git,type=bind \
+        --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
         build-$BUILD_OS:$GITHUB_REF \
             "cd /hpcc-dev/HPCC-Platform && \
             $cmd"
@@ -70,44 +88,25 @@ init_hpcc_src() {
 
 reconfigure() {
     echo "  --- Clean cmake cache ---"
-    docker volume rm hpcc_opt 2>/dev/null || true
     init_hpcc_src
-    docker run --rm \
-        --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
-        --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
-        build-$BUILD_OS:$GITHUB_REF \
-            "cd /hpcc-dev/HPCC-Platform && \
-            rm -rf /hpcc-dev/HPCC-Platform/vcpkg/vcpkg && \
-            rm -rf /hpcc-dev/build/CMakeCache.txt CMakeFiles"
+    run "rm -rf /hpcc-dev/HPCC-Platform/vcpkg/vcpkg && \
+        rm -rf /hpcc-dev/build/CMakeCache.txt CMakeFiles"
 }
 
 configure() {
     local options=$1
     echo "  --- cmake config $options ---"
-    docker run --rm \
-        --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
-        --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
-        build-$BUILD_OS:$GITHUB_REF \
-            "cd /hpcc-dev/HPCC-Platform && \
-            cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build $options"
+    run "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build $options"
 }
 
 fetch_build_type() {
-    echo $(docker run --rm \
-        --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
-        build-$BUILD_OS:$GITHUB_REF \
-            "grep 'CMAKE_BUILD_TYPE:' /hpcc-dev/build/CMakeCache.txt | cut -d '=' -f 2")
+    echo $(run "grep 'CMAKE_BUILD_TYPE:' /hpcc-dev/build/CMakeCache.txt | cut -d '=' -f 2")
 }
 
 calc_diffs() {
     init_hpcc_src
     echo "  --- Calc diff ---"
-    docker run --rm \
-        --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
-        --mount source="$ROOT_DIR/.git",target=/hpcc-dev/HPCC-Platform/.git,type=bind \
-        build-$BUILD_OS:$GITHUB_REF \
-            "cd /hpcc-dev/HPCC-Platform && \
-            git ls-files --modified --exclude-standard" > rsync_include.txt
+    run "git ls-files --modified --exclude-standard" > rsync_include.txt
 
     pushd $ROOT_DIR >/dev/null
     git ls-files --modified --exclude-standard >> rsync_include.txt
@@ -125,24 +124,19 @@ calc_diffs() {
 
 sync_files() {
     echo "  --- Sync files ---"
-    docker run --rm \
-        --mount source=$ROOT_DIR,target=/hpcc-dev/HPCC-Platform-local,type=bind,readonly \
-        --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
-        --mount source="$ROOT_DIR/.git",target=/hpcc-dev/HPCC-Platform/.git,type=bind \
-        build-$BUILD_OS:$GITHUB_REF "\
-            cd /hpcc-dev/HPCC-Platform && \
-            rsync -av --files-from=/hpcc-dev/HPCC-Platform-local/rsync_include.txt /hpcc-dev/HPCC-Platform-local/ /hpcc-dev/HPCC-Platform/ && 
-            git submodule update --init --recursive"
+    run "rsync -av --files-from=/hpcc-dev/HPCC-Platform-local/rsync_include.txt /hpcc-dev/HPCC-Platform-local/ /hpcc-dev/HPCC-Platform/ && 
+        git submodule update --init --recursive"
 }
 
 check_cache() {
     local label=$1
     local crc=$2
     echo "  --- Check cache ---"
-    if docker image ls -q $label:$crc | grep -q $label; then
+    image_count=$(docker images --quiet hpccsystems/$label:$GITHUB_BRANCH-$crc | wc -l)
+    if [ $image_count -gt 0 ]; then
         echo "--- Image already exists  --- "
-        echo "docker run --entrypoint /bin/bash -it hpccsystems/$label:$crc"
-        echo "hpccsystems/$label:$crc"
+        echo "docker run --entrypoint /bin/bash -it hpccsystems/$label:$GITHUB_BRANCH-$crc"
+        echo "hpccsystems/$label:$GITHUB_BRANCH-$crc"
         exit 0
     fi
 }
@@ -185,16 +179,19 @@ build() {
         configure "$CMAKE_OPTIONS $cmake_options"
     fi
 
-    docker run --rm \
-        --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
-        --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
-        --mount source=hpcc_opt,target=/opt,type=volume \
-        build-$BUILD_OS:$GITHUB_REF \
-            "cd /hpcc-dev/HPCC-Platform && cmake --build /hpcc-dev/build --parallel"
+    if [ "$MODE" = "release" ]; then
+        run "cmake --build /hpcc-dev/build --parallel --target package"
+        finalize_platform_core_image $label $crc \
+            "dpkg -i /hpcc-dev/build/hpccsystems-platform*.deb || true &&
+            apt-get install -f -y"
+    elif [ "$MODE" = "debug" ]; then
+        run "cmake --build /hpcc-dev/build --parallel"
+        finalize_platform_core_image $label $crc \
+            "cmake --build /hpcc-dev/build --parallel --target install"
+    fi
 
-    # if [ "$MODE" = "release" ]; then
-    # elif [ "$MODE" = "debug" ]; then
-    # fi
+    echo "docker run --entrypoint /bin/bash -it hpccsystems/$label:$GITHUB_BRANCH-$crc"
+    echo "hpccsystems/$label:$GITHUB_BRANCH-$crc"
 }
 
 incr() {
