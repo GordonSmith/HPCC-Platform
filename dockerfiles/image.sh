@@ -20,6 +20,8 @@ globals() {
 
     CMAKE_OPTIONS="-G Ninja -DVCPKG_FILES_DIR=/hpcc-dev -DCPACK_THREADS=$(nproc) -DUSE_OPTIONAL=OFF -DCONTAINERIZED=ON -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON"
 
+    HPCC_BUILD="hpcc_build_$MODE"
+
     create_build_image
 }
 
@@ -48,21 +50,27 @@ finalize_platform_core_image() {
     local label=$1
     local crc=$2
     local cmd=$3
-    echo "  --- Finalize '$label:$GITHUB_REF' image ---"
+    local image_name=$label:$GITHUB_REF
+    echo "  --- Finalize '$image_name' image ---"
+    if [ "$ACTION" == "incr" ] && [[ $(docker images -q hpccsystems/$label:latest 2> /dev/null) ]]; then
+        local image_name=hpccsystems/$label:latest
+        echo "  --- Incremental '$image_name' image ---"
+    fi
     CONTAINER=$(docker run -d \
         --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
-        --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
-        $label:$GITHUB_REF "tail -f /dev/null")
+        --mount source=$HPCC_BUILD,target=/hpcc-dev/build,type=volume \
+        $image_name "tail -f /dev/null")
     docker exec --user root $CONTAINER /bin/bash -c "$cmd"
     docker exec --user root $CONTAINER /bin/bash -c "eclcc -pch"
     docker commit $CONTAINER hpccsystems/$label:$GITHUB_BRANCH-$crc
+    docker commit $CONTAINER hpccsystems/$label:latest
     docker stop $CONTAINER
     docker rm $CONTAINER
 }
 
 clean() {
     echo "  --- Clean  ---"
-    docker volume rm hpcc_src hpcc_build 2>/dev/null || true
+    docker volume rm hpcc_src hpcc_build hpcc_build_debug hpcc_build_release hpcc_opt 2>/dev/null || true
 }
 
 run() {
@@ -71,11 +79,10 @@ run() {
         --mount source=$ROOT_DIR,target=/hpcc-dev/HPCC-Platform-local,type=bind,readonly \
         --mount source=hpcc_src,target=/hpcc-dev/HPCC-Platform,type=volume \
         --mount source="$ROOT_DIR/.git",target=/hpcc-dev/HPCC-Platform/.git,type=bind \
-        --mount source=hpcc_build,target=/hpcc-dev/build,type=volume \
+        --mount source=$HPCC_BUILD,target=/hpcc-dev/build,type=volume \
         build-$BUILD_OS:$GITHUB_REF \
             "cd /hpcc-dev/HPCC-Platform && \
             $cmd"
-
 }
 
 init_hpcc_src() {
@@ -131,7 +138,7 @@ sync_files() {
 check_cache() {
     local label=$1
     local crc=$2
-    echo "  --- Check cache ---"
+    echo "  --- Check cache hpccsystems/$label:$GITHUB_BRANCH-$crc ---"
     image_count=$(docker images --quiet hpccsystems/$label:$GITHUB_BRANCH-$crc | wc -l)
     if [ $image_count -gt 0 ]; then
         echo "--- Image already exists  --- "
@@ -157,10 +164,6 @@ build() {
         usage
         exit 1
     fi
-    local prev_build_type=$(fetch_build_type | tail -1)
-    if [ "$prev_build_type" != "$build_type" ]; then
-        RECONFIGURE=1
-    fi
 
     if [ "$RECONFIGURE" -eq 1 ]; then
         reconfigure
@@ -169,21 +172,21 @@ build() {
     create_platform_core_image $label $base
 
     local crc=$(calc_diffs | tail -1)
-    echo "crc: $crc"
 
     check_cache $label $crc
 
     sync_files
 
-    if [ "$RECONFIGURE" -eq 1 ] || ! docker volume ls | awk '{print $2}' | grep -q "^hpcc_build$"; then
+    local cmakecache_exists=$(run "test -e /hpcc-dev/build/CMakeCache.txt && echo '1' || echo '0'")
+
+    if [ "$RECONFIGURE" -eq 1 ] || [ "$cmakecache_exists" = "0" ]; then
         configure "$CMAKE_OPTIONS $cmake_options"
     fi
 
     if [ "$MODE" = "release" ]; then
         run "cmake --build /hpcc-dev/build --parallel --target package"
         finalize_platform_core_image $label $crc \
-            "dpkg -i /hpcc-dev/build/hpccsystems-platform*.deb || true &&
-            apt-get install -f -y"
+            "dpkg -i /hpcc-dev/build/hpccsystems-platform*.deb"
     elif [ "$MODE" = "debug" ]; then
         run "cmake --build /hpcc-dev/build --parallel"
         finalize_platform_core_image $label $crc \
@@ -195,8 +198,8 @@ build() {
 }
 
 incr() {
-    # Add code to perform incremental build here
-    echo "Incremental build completed"
+    MODE=debug
+    build
 }
 
 status() {
@@ -213,6 +216,7 @@ status() {
     echo "MODE: $MODE"
     echo "RECONFIGURE: $RECONFIGURE"
     echo "BUILD_OS: $BUILD_OS"
+    echo "HPCC_BUILD: $HPCC_BUILD"
 }
 
 # Print usage information
@@ -233,7 +237,6 @@ ACTION=
 MODE=release
 RECONFIGURE=0
 BUILD_OS="ubuntu-22.04"
-globals
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]
@@ -277,6 +280,8 @@ case $key in
     ;;
 esac
 done
+
+globals
 
 # Call the appropriate function based on the selected action
 case $ACTION in
