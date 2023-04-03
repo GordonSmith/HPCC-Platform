@@ -179,7 +179,7 @@ build() {
 
     local cmakecache_exists=$(run "test -e /hpcc-dev/build/CMakeCache.txt && echo '1' || echo '0'")
 
-    if [ "$RECONFIGURE" -eq 1 ] || [ "$cmakecache_exists" = "0" ]; then
+    if [ "$RECONFIGURE" -eq 1 ] || [ "$cmakecache_exists" == "0" ]; then
         configure "$CMAKE_OPTIONS $cmake_options"
     fi
 
