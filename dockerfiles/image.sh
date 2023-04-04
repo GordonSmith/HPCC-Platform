@@ -63,9 +63,9 @@ finalize_platform_core_image() {
     docker exec --user root $CONTAINER /bin/bash -c "$cmd"
     docker exec --user root $CONTAINER /bin/bash -c "eclcc -pch"
     docker commit $CONTAINER hpccsystems/$label:$GITHUB_BRANCH-$crc
-    docker commit $CONTAINER hpccsystems/$label:latest
     docker stop $CONTAINER
     docker rm $CONTAINER
+    docker tag hpccsystems/$label:$GITHUB_BRANCH-$crc hpccsystems/$label:latest
 }
 
 clean() {
@@ -112,27 +112,29 @@ fetch_build_type() {
 
 calc_diffs() {
     init_hpcc_src
-    echo "  --- Calc diff ---"
-    run "git ls-files --modified --exclude-standard" > rsync_include.txt
-    run "rsync -av --delete --delete-after --files-from=/hpcc-dev/HPCC-Platform-local/rsync_include.txt /hpcc-dev/HPCC-Platform-local/ /hpcc-dev/HPCC-Platform/"
+    local rsync_tmp_basename=$(basename "$RSYNC_TMP_FILE")
+    run "git ls-files --modified --exclude-standard" > $rsync_tmp_basename
+    run "rsync -av --delete --delete-after --files-from=/hpcc-dev/HPCC-Platform-local/$rsync_tmp_basename /hpcc-dev/HPCC-Platform-local/ /hpcc-dev/HPCC-Platform/"
 
     pushd $ROOT_DIR >/dev/null
-    git status --short | grep '^ M' | cut -c4- > rsync_include.txt
-    echo "$GITHUB_REF" > tmp.txt
+    git status --short | grep '^ M' | cut -c4- >> $rsync_tmp_basename
+    local tmp=$(mktemp)
+    echo "$GITHUB_REF" > $tmp
     while read file; do
         if [ -f "$file" ]; then
-            md5sum "$file" | cut -d ' ' -f 1 >> tmp.txt
+            md5sum "$file" | cut -d ' ' -f 1 >> $tmp
         fi
-    done < rsync_include.txt
-    local crc=$(md5sum tmp.txt | cut -d ' ' -f 1)
-    rm tmp.txt
+    done < $rsync_tmp_basename
+    local crc=$(md5sum $tmp | cut -d ' ' -f 1)
+    rm $tmp
     popd >/dev/null
     echo $crc
 }
 
 sync_files() {
     echo "  --- Sync files ---"
-    run "rsync -av --delete --files-from=/hpcc-dev/HPCC-Platform-local/rsync_include.txt /hpcc-dev/HPCC-Platform-local/ /hpcc-dev/HPCC-Platform/ && 
+    local rsync_tmp_basename=$(basename "$RSYNC_TMP_FILE")
+    run "rsync -av --delete --files-from=/hpcc-dev/HPCC-Platform-local/$rsync_tmp_basename /hpcc-dev/HPCC-Platform-local/ /hpcc-dev/HPCC-Platform/ && 
         git submodule update --init --recursive"
 }
 
@@ -145,6 +147,7 @@ check_cache() {
         echo "--- Image already exists  --- "
         echo "docker run --entrypoint /bin/bash -it hpccsystems/$label:$GITHUB_BRANCH-$crc"
         echo "hpccsystems/$label:$GITHUB_BRANCH-$crc"
+        rm $RSYNC_TMP_FILE
         exit 0
     fi
 }
@@ -172,11 +175,15 @@ build() {
 
     create_platform_core_image $label $base
 
+    RSYNC_TMP_FILE=$(mktemp -p $ROOT_DIR)
+
     local crc=$(calc_diffs | tail -1)
 
     check_cache $label $crc
 
     sync_files
+
+    rm $RSYNC_TMP_FILE
 
     local cmakecache_exists=$(run "test -e /hpcc-dev/build/CMakeCache.txt && echo '1' || echo '0'")
 
@@ -185,6 +192,7 @@ build() {
     fi
 
     if [ "$MODE" = "release" ]; then
+        run "rm -rf /hpcc-dev/build/*.deb || true"
         run "cmake --build /hpcc-dev/build --parallel --target package"
         finalize_platform_core_image $label $crc \
             "dpkg -i /hpcc-dev/build/hpccsystems-platform*.deb"
@@ -196,12 +204,19 @@ build() {
 
     echo "docker run --entrypoint /bin/bash -it hpccsystems/$label:$GITHUB_BRANCH-$crc"
     echo "hpccsystems/$label:$GITHUB_BRANCH-$crc"
+    exit 0
 }
 
 incr() {
     MODE=debug
     build
 }
+
+function cleanup() {
+    rm $RSYNC_TMP_FILE 2> /dev/null || true
+}
+
+trap cleanup EXIT
 
 status() {
     echo "SCRIPT_DIR: $SCRIPT_DIR"

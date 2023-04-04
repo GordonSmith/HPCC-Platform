@@ -18,4 +18,3 @@ eclcc.log
 ./dockerfiles/platform-build-incremental/hpcc.gitpatch
 .env
 vcpkg.json
-rsync_include.txt
