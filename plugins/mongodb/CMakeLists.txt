@@ -51,7 +51,12 @@ IF(MONGODBEMBED)
 
         install(
             TARGETS mongodbembed
-            DESTINATION plugins CALC_DEPS)
+            DESTINATION plugins
+            RUNTIME_DEPENDENCY_SET mongodbembed_deps
+        )
+        install(RUNTIME_DEPENDENCY_SET mongodbembed_deps
+            DESTINATION ${LIB_DIR}
+        )
 
         install(
             FILES ${LIBMONGOCXX_LIB_REAL}

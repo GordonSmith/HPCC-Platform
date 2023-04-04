@@ -53,7 +53,11 @@ if(V8EMBED)
         install(
             TARGETS v8embed
             DESTINATION plugins
-            CALC_DEPS)
+            RUNTIME_DEPENDENCY_SET v8embed_deps
+        )
+        install(RUNTIME_DEPENDENCY_SET v8embed_deps
+            DESTINATION ${LIB_DIR}
+        )
         target_link_libraries(
             v8embed
             ${V8_LIBRARIES}

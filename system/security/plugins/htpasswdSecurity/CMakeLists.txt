@@ -44,7 +44,15 @@ include_directories (
 ADD_DEFINITIONS( -DHTPASSWDSECURITY_EXPORTS -D_USRDLL )
 
 HPCC_ADD_LIBRARY( htpasswdSecurity SHARED ${SRCS} )
-install ( TARGETS htpasswdSecurity RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} CALC_DEPS)
+install ( TARGETS htpasswdSecurity 
+     RUNTIME_DEPENDENCY_SET htpasswdSecurity_deps
+     RUNTIME DESTINATION ${EXEC_DIR} 
+     LIBRARY DESTINATION ${LIB_DIR} 
+)
+install(RUNTIME_DEPENDENCY_SET htpasswdSecurity_deps
+     DESTINATION ${LIB_DIR}
+)
+
 target_link_libraries ( htpasswdSecurity
          jlib
          dalibase

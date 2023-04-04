@@ -42,7 +42,14 @@ if ( WIN32 )
 endif ( WIN32 )
 
 HPCC_ADD_LIBRARY( archivefile SHARED ${SRCS}  )
-install ( TARGETS archivefile RUNTIME DESTINATION filehooks LIBRARY DESTINATION filehooks CALC_DEPS )
+install ( TARGETS archivefile 
+    RUNTIME_DEPENDENCY_SET archivefile_deps
+    RUNTIME DESTINATION filehooks 
+    LIBRARY DESTINATION filehooks 
+)
+install(RUNTIME_DEPENDENCY_SET archivefile_deps
+    DESTINATION ${LIB_DIR}
+)
 
 target_link_libraries ( archivefile
     jlib

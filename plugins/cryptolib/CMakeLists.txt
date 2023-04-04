@@ -43,7 +43,13 @@ include_directories (
 ADD_DEFINITIONS( -D_USRDLL -DCRYPTOLIB_EXPORTS )
 
 HPCC_ADD_LIBRARY( cryptolib SHARED ${SRCS} )
-install ( TARGETS cryptolib DESTINATION plugins CALC_DEPS)
+install ( TARGETS cryptolib DESTINATION plugins 
+    RUNTIME_DEPENDENCY_SET cryptolib_deps
+)
+install(RUNTIME_DEPENDENCY_SET cryptolib_deps
+    DESTINATION ${LIB_DIR}
+)
+
 target_link_libraries ( 
         cryptolib
         dalibase

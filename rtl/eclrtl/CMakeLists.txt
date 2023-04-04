@@ -118,7 +118,16 @@ endif()
 
 
 if (NOT PLUGIN)
-  install ( TARGETS eclrtl RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} ARCHIVE DESTINATION componentfiles/cl/lib CALC_DEPS)
+  install ( TARGETS eclrtl 
+    RUNTIME_DEPENDENCY_SET eclrtl_deps
+    RUNTIME DESTINATION ${EXEC_DIR} 
+    LIBRARY DESTINATION ${LIB_DIR} 
+    ARCHIVE DESTINATION componentfiles/cl/lib 
+  )
+  install(RUNTIME_DEPENDENCY_SET eclrtl_deps
+      DESTINATION ${LIB_DIR}
+  )
+
   FOREACH( iFILES
     ${CMAKE_CURRENT_SOURCE_DIR}/eclinclude4.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eclrtl.hpp

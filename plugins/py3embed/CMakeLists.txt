@@ -57,12 +57,20 @@ if (CONTAINERIZED)
 install(
     TARGETS py3embed
     DESTINATION plugins
-    CALC_DEPS)
+    RUNTIME_DEPENDENCY_SET py3embed_deps
+)
+install(RUNTIME_DEPENDENCY_SET py3embed_deps
+    DESTINATION ${LIB_DIR}
+)
 else()
 install(
     TARGETS py3embed
     DESTINATION versioned/python3
-    CALC_DEPS)
+    RUNTIME_DEPENDENCY_SET py3embed_deps
+)
+install(RUNTIME_DEPENDENCY_SET py3embed_deps
+    DESTINATION ${LIB_DIR}
+)
 endif()
 
 target_link_libraries(

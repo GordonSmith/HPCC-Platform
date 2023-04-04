@@ -53,7 +53,11 @@ IF ( COUCHBASEEMBED )
         install(
             TARGETS couchbaseembed
             DESTINATION plugins
-            CALC_DEPS)
+            RUNTIME_DEPENDENCY_SET couchbaseembed_deps
+        )
+        install(RUNTIME_DEPENDENCY_SET couchbaseembed_deps
+            DESTINATION ${LIB_DIR}
+        )
 
         target_link_libraries(
             couchbaseembed

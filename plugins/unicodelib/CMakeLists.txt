@@ -39,11 +39,16 @@ if (USE_ICU)
     ADD_DEFINITIONS( -D_USRDLL -DUNICODELIB_EXPORTS )
 
     HPCC_ADD_LIBRARY( unicodelib SHARED ${SRCS} )
-    install ( TARGETS unicodelib DESTINATION plugins CALC_DEPS)
+    install ( TARGETS unicodelib DESTINATION plugins 
+        RUNTIME_DEPENDENCY_SET unicodelib_deps
+    )
+    install(RUNTIME_DEPENDENCY_SET unicodelib_deps
+        DESTINATION ${LIB_DIR}
+    )
     target_link_libraries ( unicodelib
         jlib
         ${ICU_LIBRARIES}
-        )
+    )
 
 endif (USE_ICU)
 

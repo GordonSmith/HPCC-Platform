@@ -53,7 +53,10 @@ if(SQLITE3EMBED)
         install(
             TARGETS sqlite3embed
             DESTINATION plugins
-            CALC_DEPS
+            RUNTIME_DEPENDENCY_SET sqlite3embed_deps
+        )
+        install(RUNTIME_DEPENDENCY_SET sqlite3embed_deps
+            DESTINATION ${LIB_DIR}
         )
         target_link_libraries(
             sqlite3embed

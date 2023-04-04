@@ -37,7 +37,10 @@ if(SQS AND USE_AWS)
         install(
             TARGETS sqs
             DESTINATION plugins
-            CALC_DEPS
+            RUNTIME_DEPENDENCY_SET sqs_deps
+        )
+        install(RUNTIME_DEPENDENCY_SET sqs_deps
+            DESTINATION ${LIB_DIR}
         )
 
         target_link_libraries(

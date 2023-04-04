@@ -56,7 +56,11 @@ if(H3)
         install(
             TARGETS h3
             DESTINATION plugins
-            CALC_DEPS)
+            RUNTIME_DEPENDENCY_SET h3_deps
+        )
+        install(RUNTIME_DEPENDENCY_SET h3_deps
+            DESTINATION ${LIB_DIR}
+        )
 
         target_link_libraries(h3
             eclrtl

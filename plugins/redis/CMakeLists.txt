@@ -54,7 +54,11 @@ if(REDIS)
         install(
             TARGETS redis
             DESTINATION plugins
-            CALC_DEPS)
+            RUNTIME_DEPENDENCY_SET redis_deps
+        )
+        install(RUNTIME_DEPENDENCY_SET redis_deps
+            DESTINATION ${LIB_DIR}
+        )
 
         target_link_libraries(
             redis

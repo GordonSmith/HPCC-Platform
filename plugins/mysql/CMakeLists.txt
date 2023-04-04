@@ -55,7 +55,12 @@ if(MYSQLEMBED)
         install(
             TARGETS mysqlembed
             DESTINATION plugins
-            CALC_DEPS)
+            RUNTIME_DEPENDENCY_SET mysqlembed_deps
+        )
+        install(RUNTIME_DEPENDENCY_SET mysqlembed_deps
+            DESTINATION ${LIB_DIR}
+        )
+
         target_link_libraries(
             mysqlembed
             ${MYSQL_LIBRARIES}

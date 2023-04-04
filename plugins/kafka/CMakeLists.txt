@@ -55,8 +55,12 @@ if(KAFKA)
 
         install(
             TARGETS kafka
-            DESTINATION plugins CALC_DEPS)
-
+            DESTINATION plugins 
+            RUNTIME_DEPENDENCY_SET kafka_deps
+        )
+        install(RUNTIME_DEPENDENCY_SET kafka_deps
+            DESTINATION ${LIB_DIR}
+        )
         install(
             FILES ${LIBRDKAFKA_LIB_REAL} ${LIBRDKAFKACPP_LIB_REAL}
             DESTINATION ${LIB_DIR}

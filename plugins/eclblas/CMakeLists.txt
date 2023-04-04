@@ -57,7 +57,14 @@ if(ECLBLAS)
         ADD_DEFINITIONS(-D_USRDLL -DECLBLAS_EXPORTS)
 
         HPCC_ADD_LIBRARY(eclblas SHARED ${SRCS})
-        install ( TARGETS eclblas RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} CALC_DEPS)  # No need to put in plugins dir
+        install ( TARGETS eclblas 
+            RUNTIME_DEPENDENCY_SET eclblas_deps
+            RUNTIME DESTINATION ${EXEC_DIR} 
+            LIBRARY DESTINATION ${LIB_DIR} 
+        )
+        install(RUNTIME_DEPENDENCY_SET eclblas_deps
+            DESTINATION ${LIB_DIR}
+        )
         target_link_libraries(eclblas
             eclrtl
             OpenBLAS::OpenBLAS)

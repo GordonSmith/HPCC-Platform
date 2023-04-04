@@ -53,7 +53,15 @@ include_directories (
 ADD_DEFINITIONS( -DLDAPSECURITY_EXPORTS -D_USRDLL )
 
 HPCC_ADD_LIBRARY( LdapSecurity SHARED ${SRCS} )
-install ( TARGETS LdapSecurity RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} CALC_DEPS)
+install ( TARGETS LdapSecurity 
+     RUNTIME_DEPENDENCY_SET LdapSecurity_deps
+     RUNTIME DESTINATION ${EXEC_DIR} 
+     LIBRARY DESTINATION ${LIB_DIR} 
+)
+install(RUNTIME_DEPENDENCY_SET LdapSecurity_deps
+    DESTINATION ${LIB_DIR}
+)
+
 target_link_libraries ( LdapSecurity
          jlib
          dalibase
