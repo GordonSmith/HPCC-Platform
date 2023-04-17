@@ -1,6 +1,6 @@
-======================
-Guide for Contributors
-======================
+# Guide for Contributors
+
+## Submitting Contributions
 
 Our preferred method for accepting contributions is via GitHub pull requests. We
 might in the future (when we are more expert on Git) be able to accept patch
@@ -15,18 +15,18 @@ http://help.github.com/ . A quick summary is below:
 
 3. Clone the github repo to the machine you will be working on, using a command like
 
-    git clone https://github.com/<your-github-name>/HPCC-Platform.git
-   
-   or
-   
-    git clone git@github.com/<your-github-name>/HPCC-Platform.git
-   
-   depending on whether you have set up a shared-key login to github or not.
+```sh
+git clone https://github.com/<your-github-name>/HPCC-Platform.git
+```
+or
+```sh
+git clone git@github.com/<your-github-name>/HPCC-Platform.git
+```
+depending on whether you have set up a shared-key login to github or not.
 
-Issues
-======
+## Issues
 
-Current open issues can be found at  https://track.hpccsystems.com/secure/Dashboard.jspa.
+Current open issues can be found at [track.hpccsystems.com](https://track.hpccsystems.com/secure/Dashboard.jspa).
 If you want to work on one that is currently unassigned, add a comment to the issue to
 indicate that you intend to do so (to help avoid duplicated effort). If the issue is
 already assigned but you think you could help, drop a note to the assignee.
@@ -34,8 +34,7 @@ already assigned but you think you could help, drop a note to the assignee.
 If you think you have found a new issue or have a suggestion for an enhancement, you can
 open a new issue on this page.
 
-Topic branches and pull requests
-================================
+## Topic branches and pull requests
 
 If you want to submit code for a fix or a new feature to the project, the changes should
 be pushed to a topic branch in your GitHub fork, so that a pull request referring to
@@ -58,8 +57,10 @@ topic branches from.
 
 To create a topic branch, use git checkout with the -b argument:
 
-    git checkout -b fix-broken-thing master
-    Switched to a new branch 'fix-broken-thing'
+```sh
+git checkout -b fix-broken-thing master
+Switched to a new branch 'fix-broken-thing'
+```
 
 Branch names should be kept reasonable short but long enough to describe what they are
 for. Some branch names are used for special purposes in the HPCC-Platform repository and
@@ -74,7 +75,9 @@ different branch). You can push changes to your github repository periodically i
 to have a backup or if you want to discuss the work in progress with other developers.
 This can be done using git push:
 
-    git push origin fix-broken-thing
+```sh
+git push origin fix-broken-thing
+```
 
 The branch will now show up on your GitHub page, and in the HPCC-Platform network graph.
 When you are ready to submit a pull request, switch to the branch in question (from the
@@ -96,8 +99,7 @@ branch on the upstream repository. If it is fixing a bug that cannot wait for th
 feature release, it should be based from the merge-base of the master and current stable
 branches.
 
-Pull upstream changes into your fork regularly
-==============================================
+## Pull upstream changes into your fork regularly
 
 If a new feature in a branch is in development for a while, you should regularly merge
 in the upstream master, rather than waiting until you are ready to issue the pull-request
@@ -107,14 +109,15 @@ is likely to be rejected by the maintainers.
 
 To pull in upstream changes:
 
-    git remote add upstream https://github.com/hpcc-systems/HPCC-Platform.git
-    git fetch upstream
-    git merge upstream/master
+```sh
+git remote add upstream https://github.com/hpcc-systems/HPCC-Platform.git
+git fetch upstream
+git merge upstream/master
+```
 
 For more information, see http://help.github.com/fork-a-repo/
 
-Commit guidelines
-=================
+## Commit guidelines
 
 In order for your pull-request to be accepted into the upstream repository, it will need
 to fulfill the following requirements:
@@ -156,8 +159,7 @@ to address them without starting from scratch. We are fairly strict about most o
 above rules (and extremely strict about some of them) so it's not unusual for a new
 contributor to have a few pull-requests rejected the first time they are submitted.
 
-Commit messages
-===============
+## Commit messages
 
 We follow the same guidelines that many other git projects have adopted for git comments.
 

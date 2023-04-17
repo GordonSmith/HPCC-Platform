@@ -1,16 +1,37 @@
 # Development Guide
 
-##  HPCC Source
+##  Supported Operating Systems
 
-The most upto date details of building the system are found on the HPCC
-[Wiki](https://github.com/hpcc-systems/HPCC-Platform/wiki/Building-HPCC).
+In general the HPCC-Platform can be built on a wide selection of operating systems, however the following are the only ones that are actively tested on each pull request:
+* Ubuntu 22.04 LTS
+* Ubuntu 20.04 LTS
+* CentOS 8
+* CentOS 7
+* Amazon Linux
+* Mac OS 11
+* Mac OS 12
+* Windows Server 2019
+* Windows Server 2022
+
+:::warning
+While the HPCC Platform can be built on all the platforms above, the support scripts and configuration files may not be available for all the platforms, specifically the Windows Server OS.
+:::
+
+##  Target Packages
+
+The contents of this repository are used to build the following packages:
+* HPCC Platform (bare metal)
+* HPCC Platform (cloud)
+* HPCC-Platform Plugiins
+* ECL Client Tools
+* Documentation (PDF, HTML, CHM)
 
 ## Getting the sources
 
 The HPCC Platform sources are hosted on [GitHub](https://github.com/hpcc-systems/HPCC-Platform). 
 You can download a snapshot of any branch using the download button there, or you can set
 up a git clone of the repository. If you are planning to contribute
-changes to the system, see the [CONTRIBUTORS](https://github.com/hpcc-systems/HPCC-Platform/blob/master/CONTRIBUTORS) document 
+changes to the system, see the [CONTRIBUTORS](/CONTRIBUTORS) document 
 for information about how to set up a GitHub fork of the project through
 which pull-requests can be made.
 
@@ -18,8 +39,18 @@ which pull-requests can be made.
 
 ### Requirements
 
-The HPCC platform requires a number of third party tools and libraries
-in order to build. The [HPCC
+HPCC-Platform is built using the cross-platform build tool cmake, which is available for Windows, virtually all flavors of Linux, FreeBSD, and other platforms. You should install a cmake version which matches or is newer than the one specified in the root CMakeLists.txt file.  The current version of cmake required is:
+
+<<< @/CMakeLists.txt#cmake_minimum_required{cmake}
+
+In addition, you can find the list of required packages in the following dockerfiles:
+
+
+
+
+Since 8.8.x 
+
+The HPCC platform requires a number of third party tools and libraries in order to build.  The [HPCC
 Wiki](https://github.com/hpcc-systems/HPCC-Platform/wiki/Building-HPCC)
 contains the details of the dependencies that are required for different
 distributions.
@@ -31,8 +62,10 @@ sudo apt-get install xsltproc
 sudo apt-get install fop
 ```
 
-**NOTE:**  Installing the above via alternative methods (i.e. from
+:::warning
+Installing the above via alternative methods (i.e. from
 source) may place installations outside of searched paths.
+:::
 
 ### Building the system
 

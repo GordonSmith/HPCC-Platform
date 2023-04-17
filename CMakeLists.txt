@@ -67,7 +67,9 @@
 #
 #########################################################
 
+#region cmake_minimum_required
 cmake_minimum_required(VERSION 3.22.1)
+#endregion cmake_minimum_required
 
 set(HPCC_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 include(${HPCC_SOURCE_DIR}/version.cmake)
