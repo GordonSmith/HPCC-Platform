@@ -33,7 +33,18 @@ define([
     const store = KeyValStore.userKeyValStore();
     store.getEx(BuildInfo.ModernMode, { defaultValue: String(true) }).then(modernMode => {
         if (modernMode === String(true) && hpccWidget !== "IFrameWidget") {
-            window.location.replace("/esp/files/index.html");
+            const searchParams = new URLSearchParams(window.location.search);
+            const wuid = searchParams.get("Wuid");
+            switch (hpccWidget) {
+                case "WUDetailsWidget":
+                    //  TODO - May need to bump CEF version to support newer JS
+                    //  if (wuid) {
+                    //      window.location.replace(`/esp/files/index.html#/workunits/${wuid}`);
+                    //  }
+                    break;
+                default:
+                    window.location.replace("/esp/files/index.html");
+            }
         } else {
             ready(function () {
                 parseUrl();
