@@ -41,6 +41,10 @@ define([
                     //  if (wuid) {
                     //      window.location.replace(`/esp/files/index.html#/workunits/${wuid}`);
                     //  }
+                    ready(function () {
+                        parseUrl();
+                        initUI();
+                    });
                     break;
                 default:
                     window.location.replace("/esp/files/index.html");
