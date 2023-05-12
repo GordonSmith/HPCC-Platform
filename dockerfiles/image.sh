@@ -91,8 +91,10 @@ finalize_platform_core_image_from_deb() {
         $image_name "tail -f /dev/null")
     docker exec --user root $CONTAINER /bin/bash -c "dpkg -i /tmp/hpcc.deb && apt-get install -f -y"
     docker exec --user root $CONTAINER /bin/bash -c "eclcc -pch"
-    docker commit $CONTAINER hpccsystems/platform-core:$filename
+    docker commit $CONTAINER platform-core:latest
     docker stop $CONTAINER
+    docker rm $CONTAINER
+    docker tag platform-core:latest hpccsystems/platform-core:$filename
 }
 
 clean() {
