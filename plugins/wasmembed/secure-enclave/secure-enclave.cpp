@@ -219,7 +219,8 @@ public:
     virtual void compileEmbeddedScript(size32_t lenChars, const char *_utf)
     {
         dbglog("compileEmbeddedScript %s");
-        std::string utf = "(module\n" + std::string(_utf) + "\n)\n";
+        // std::string utf = "(module\n" + std::string(_utf) + "\n)\n";
+        std::string utf = _utf;
 
         auto module = Module::compile(engine, utf).unwrap();
 
