@@ -208,9 +208,9 @@ namespace wasmLanguageHelper
         }
         virtual void compileEmbeddedScript(size32_t lenChars, const char *utf)
         {
-            auto dbglog = [](const char *value)
+            auto dbglog = [](const std::string &value)
             {
-                DBGLOG("%s", value);
+                DBGLOG("%s", value.c_str());
             };
             createISecureEnclave(dbglog);
         }
