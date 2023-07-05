@@ -45,12 +45,14 @@ std::string load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t
     }
     else if (global_encoding.compare("utf16") == 0)
     {
+        throw std::runtime_error("utf16 not supported");
         alignment = 2;
         byte_length = 2 * tagged_code_units;
         encoding = "utf-16-le";
     }
     else if (global_encoding.compare("latin1+utf16") == 0)
     {
+        throw std::runtime_error("latin1+utf16 not supported");
         alignment = 2;
         if (tagged_code_units & UTF16_TAG)
         {
@@ -89,10 +91,10 @@ std::string load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t
     return s;
 }
 
-std::string load_string(const wasmtime::Span<uint8_t> &data, int32_t ptr)
+std::string load_string(const wasmtime::Span<uint8_t> &data, uint32_t ptr)
 {
-    uint32_t begin = load_int(data, (int32_t)ptr, 4);
-    uint32_t tagged_code_units = load_int(data, (int32_t)ptr + 4, 4);
+    uint32_t begin = load_int(data, ptr, 4);
+    uint32_t tagged_code_units = load_int(data, ptr + 4, 4);
     return load_string_from_range(data, begin, tagged_code_units);
 }
 

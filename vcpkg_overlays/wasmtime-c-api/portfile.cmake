@@ -1,7 +1,7 @@
 vcpkg_download_distfile(ARCHIVE
     URLS "https://github.com/bytecodealliance/wasmtime/releases/download/v${VERSION}/wasmtime-v${VERSION}-x86_64-linux-c-api.tar.xz"
     FILENAME "wasmtime-v${VERSION}-x86_64-linux-c-api.tar.xz"
-    SHA512 cbbd9c950a60850d553e98e5ca8363cbb7d9c0b5b9d1e42756f48e6b8b86bf3263495a62c78b211390e9c322d81dea6930afa4269c82015c4dc6d9c1effd48c6
+    SHA512 ad590bceeb6b20520275f96a8cdb737792502f581d4ae3c152f9a6c2602090e5d6aa80f27c77b707e31169d12f6daf176cb7260d16af31b4a83afa7ed6991ded
 )
 
 vcpkg_extract_source_archive_ex(

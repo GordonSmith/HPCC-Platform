@@ -270,34 +270,14 @@ public:
     virtual void getStringResult(size32_t &__chars, char *&__result)
     {
         embedContext.dbglog("getStringResult " + std::to_string(results.size()));
-        auto memRef = wasmMems.find(joinQualifiedName(wasmName, "memory"));
-        embedContext.dbglog("getStringResult2");
-        if (memRef == wasmMems.end())
-        {
-            embedContext.dbglog("getStringResult (memRef) not found");
-            return;
-        }
-        embedContext.dbglog("getStringResult3");
-        auto mem = memRef->second.data(store.context());
-        embedContext.dbglog("getStringResult4");
-        auto offset = results[0].i32();
-        embedContext.dbglog("getStringResult (offset) " + std::to_string(offset));
-        std::string s = load_string(mem, offset);
+        auto ptr = results[0].i32();
+        embedContext.dbglog("getStringResult (ptr) " + std::to_string(ptr));
+        std::string s = load_string(data(), ptr);
         embedContext.dbglog("getStringResult (std::string) " + s);
         __chars = s.length();
         embedContext.dbglog("getStringResult (__chars) " + std::to_string(__chars));
         __result = (char *)rtlMalloc(__chars + 1);
         memcpy(__result, s.c_str(), __chars);
-
-        // embedContext.dbglog("getStringResult " + std::to_string(results.size()));
-        // auto ptr = results[0].i32();
-        // embedContext.dbglog("getStringResult (ptr) " + std::to_string(ptr));
-        // std::string s = load_string(data(), ptr);
-        // embedContext.dbglog("getStringResult (std::string) " + s);
-        // __chars = s.length();
-        // embedContext.dbglog("getStringResult (__chars) " + std::to_string(__chars));
-        // __result = (char *)rtlMalloc(__chars + 1);
-        // memcpy(__result, s.c_str(), __chars);
     }
     virtual void getUTF8Result(size32_t &__chars, char *&__result)
     {
@@ -366,6 +346,16 @@ public:
             Linker linker(engine);
             linker.define_wasi().unwrap();
             embedContext.dbglog("resolveModule4 " + wasmName);
+
+            auto callback = [this](Caller caller, uint32_t msg, uint32_t msg_len)
+            {
+                auto memory = std::get<Memory>(*caller.get_export("memory"));
+                auto data = memory.data(caller.context());
+                auto msg_ptr = (char *)&data[msg];
+                std::string str(msg_ptr, msg_len);
+                this->embedContext.dbglog("from wasm: " + str);
+            };
+            auto host_func = linker.func_wrap("$root", "dbglog", callback).unwrap();
 
             auto newInstance = linker.instantiate(store, module).unwrap();
             linker.define_instance(store, "linking2", newInstance).unwrap();

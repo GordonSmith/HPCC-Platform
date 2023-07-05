@@ -12,6 +12,7 @@ interface iterator {
 package wasmembed:test
 
 world test {
+  import dbglog: func(msg: string)
   export add: func(a: u32, b:u32) -> u32
   export add3: func(a: u32) -> u32
   export sub: func(a: u32, b:u32) -> u32

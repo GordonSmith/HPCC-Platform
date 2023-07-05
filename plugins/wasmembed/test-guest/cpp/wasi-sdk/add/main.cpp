@@ -26,11 +26,10 @@ uint32_t test_sub(uint32_t a, uint32_t b)
     return a - b;
 }
 
-void test_echo(test_string_t *msg, test_string_t *ret)
+void test_echo(test_string_t *str, test_string_t *ret)
 {
-    std::string s(msg->ptr, msg->len);
-    s += ":echo:" + std::to_string(msg->len) + ":" + std::to_string(strlen(msg->ptr));
-
-    test_string_set(ret, s.c_str());
-    // global_print(ret);
+    ret->len = str->len;
+    ret->ptr = (char *)malloc(ret->len * 2);
+    memcpy(ret->ptr, str->ptr, 2 * ret->len);
+    test_string_free(str);
 }

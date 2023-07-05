@@ -1,7 +1,7 @@
 vcpkg_download_distfile(ARCHIVE
     URLS "https://github.com/bytecodealliance/wasmtime-cpp/archive/refs/tags/v${VERSION}.tar.gz"
     FILENAME "v${VERSION}.tar.gz"
-    SHA512 884d6c885d2e4860fb4775467cbe42e38a5b047f54a91bc2b4232be68045a33e747bc7a7bca8629c262b438168d1dbd796d50232b74272f14a4d8a25acb15c6a
+    SHA512 6440472084198572b2f00f455e100c9cc0f8a6c76f5f6278432756335f4a340e1af347d6a88ad2e06e0d22a5b84f240a210a9ecfcab1699c1b0fa21cedb8574d
 )
 
 vcpkg_extract_source_archive_ex(
