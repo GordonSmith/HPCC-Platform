@@ -300,6 +300,7 @@ export = {
         ExecuteCost: "Execution Cost",
         Exception: "Exception",
         ExcludeIndexes: "Exclude Indexes",
+        Explore: "Explore",
         ExpireDays: "Expire in (days)",
         ExpirationDate: "Expiration Date",
         FailIfNoSourceFile: "Fail If No Source File",

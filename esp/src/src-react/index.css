@@ -1,33 +1,37 @@
 @import "./themes.css";
 
 .flat .dojo-component a:link {
-    color:var(--themePrimary)  
+    color: var(--themePrimary)
 }
 
 .flat .dojo-component a:visited {
-    color:var(--themePrimary)  
+    color: var(--themePrimary)
 }
 
 .flat .dojo-component a:hover {
-    color:var(--themeDarker)  
+    color: var(--themeDarker)
 }
 
 .flat .dojo-component a:active {
-    color:var(--themeDarker)  
+    color: var(--themeDarker)
 }
 
 .flat-dark .dojo-component a:link {
-    color:var(--dark-themePrimary)  
+    color: var(--dark-themePrimary)
 }
 
 .flat-dark .dojo-component a:visited {
-    color:var(--dark-themePrimary)  
+    color: var(--dark-themePrimary)
 }
 
 .flat-dark .dojo-component a:hover {
-    color:var(--dark-themeDarker)  
+    color: var(--dark-themeDarker)
 }
 
 .flat-dark .dojo-component a:active {
-    color:var(--dark-themeDarker)  
+    color: var(--dark-themeDarker)
+}
+
+.sanddance-explorer {
+    height: 100%;
 }

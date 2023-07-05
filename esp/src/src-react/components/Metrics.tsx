@@ -1,4 +1,8 @@
+import * as fluentui from "@fluentui/react";
+import * as vega from "vega";
 import * as React from "react";
+import * as ReactDOM from "react-dom";
+import { SandDance, Explorer, use, Props } from "@msrvida/sanddance-explorer";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, IIconProps, SearchBox } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
 import { WorkunitsServiceEx } from "@hpcc-js/comms";
@@ -19,7 +23,11 @@ import { ErrorBoundary } from "../util/errorBoundary";
 import { ShortVerticalDivider } from "./Common";
 import { MetricsOptions } from "./MetricsOptions";
 
+import "@msrvida/sanddance-explorer/dist/css/sanddance-explorer.css";
+
 const logger = scopedLogger("src-react/components/Metrics.tsx");
+
+use(fluentui, React, ReactDOM, vega);
 
 const filterIcon: IIconProps = { iconName: "Filter" };
 
@@ -123,6 +131,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const [options, setOptions, saveOptions] = useMetricsOptions();
     const [dockpanel, setDockpanel] = React.useState<ResetableDockPanel>();
     const [showTimeline, setShowTimeline] = React.useState<boolean>(true);
+    const [showSandDance, setShowSandDance] = React.useState<boolean>(false);
     const [trackSelection, setTrackSelection] = React.useState<boolean>(true);
     const [fullscreen, setFullscreen] = React.useState<boolean>(false);
     const [hotspots, setHotspots] = React.useState<string>("");
@@ -172,13 +181,34 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             }
         },
         {
+            key: "explore", text: nlsHPCC.Explore, canCheck: true, checked: showSandDance, iconProps: { iconName: "BarChartVerticalFilter" },
+            onClick: () => {
+                setShowSandDance(!showSandDance);
+            }
+        },
+        {
             key: "options", text: nlsHPCC.Options, iconProps: { iconName: "Settings" },
             onClick: () => {
                 setOptions({ ...options, layout: dockpanel.layout() });
                 setShowMetricOptions(true);
             }
         }
-    ], [dockpanel, hotspots, onHotspot, options, refresh, setOptions, showTimeline]);
+    ], [dockpanel, hotspots, onHotspot, options, refresh, setOptions, showSandDance, showTimeline]);
+
+    const formatColumns = React.useMemo((): Utility.ColumnMap => {
+        const copyColumns: Utility.ColumnMap = {};
+        for (const key in columns) {
+            copyColumns[key] = {
+                field: key,
+                label: key
+            };
+        }
+        return copyColumns;
+    }, [columns]);
+
+    const json = React.useMemo((): any[] => {
+        return Utility.formatAsJson(formatColumns, metrics);
+    }, [formatColumns, metrics]);
 
     const formatColumns = React.useMemo((): Utility.ColumnMap => {
         const copyColumns: Utility.ColumnMap = {};
@@ -548,16 +578,43 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         saveOptions();
     }, [options, saveOptions, setOptions]);
 
+    const explorerProps = React.useMemo((): Props => {
+        return {
+            logoClickUrl: "https://microsoft.github.io/SandDance/",
+            mounted: explorer => {
+                explorer.load(json, (): SandDance.specs.Insight => {
+                    return {
+                        // facetStyle: "",
+                        columns: {
+                            x: "a",
+                            color: "b",
+                        },
+                        scheme: "set1",
+                        chart: "barchartV",
+                        view: "2d",
+                        size: {
+                            height: 800,
+                            width: 800
+                        }
+                    };
+                });
+            },
+            bingSearchDisabled: true,
+            compactUI: true
+        };
+    }, [json]);
+
     return <HolyGrail fullscreen={fullscreen}
         header={<>
             <CommandBar items={buttons} farItems={rightButtons} />
-            <AutosizeHpccJSComponent widget={timeline} fixedHeight={"160px"} padding={4} hidden={!showTimeline} />
+            <AutosizeHpccJSComponent widget={timeline} fixedHeight={"160px"} padding={4} hidden={!showTimeline || showSandDance} />
         </>}
         main={
-            <ErrorBoundary>
+            !showSandDance ? <ErrorBoundary>
                 <DockPanel items={items} layout={options?.layout} layoutChanged={layoutChanged} onDockPanelCreate={setDockpanel} />
                 <MetricsOptions show={showMetricOptions} setShow={setShowMetricOptions} />
-            </ErrorBoundary>
+            </ErrorBoundary> :
+                <Explorer {...explorerProps}></Explorer>
         }
     />;
 };

@@ -270,6 +270,21 @@ export function formatAsDelim(columns: ColumnMap, rows: any, delim = ",") {
     return container.join("\n");
 }
 
+export function formatAsJson(columns: ColumnMap, rows: any) {
+    const retVal = [];
+    rows.forEach(row => {
+        const newRow = {};
+        for (const key in columns) {
+            if (key !== columns[key].id && columns[key].selectorType !== "checkbox") {
+                newRow[key] = row[columns[key].field] ?? row[key] ?? undefined;
+            }
+        }
+        retVal.push(newRow);
+    });
+
+    return retVal;
+}
+
 export function downloadToCSV(grid, rows, fileName) {
     let csvContent = "";
     const headers = grid.columns;
