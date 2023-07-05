@@ -1,20 +1,3 @@
-#ifdef _MSC_VER
-#define DECL_EXPORT __declspec(dllexport)
-#define DECL_IMPORT __declspec(dllimport)
-#define DECL_LOCAL
-#define DECL_EXCEPTION
-#elif __GNUC__ >= 4
-#define DECL_EXPORT __attribute__((visibility("default")))
-#define DECL_IMPORT __attribute__((visibility("default")))
-#define DECL_LOCAL __attribute__((visibility("hidden")))
-#define DECL_EXCEPTION DECL_EXPORT
-#else
-#define DECL_EXPORT
-#define DECL_IMPORT
-#define DECL_LOCAL
-#define DECL_EXCEPTION
-#endif
-
 #include "secure-enclave.hpp"
 
 #include <wasmtime.hh>
@@ -46,6 +29,183 @@ std::vector<uint8_t> read_wasm_binary_to_buffer(const std::string &filename)
     return buffer;
 }
 
+class SecureFunction : public IEmbedFunctionContext
+{
+    Engine &engine;
+    Store &store;
+    Linker &linker;
+
+    SecureFunction(Engine &engine, Store &store, Linker &linker) : engine(engine), store(store), linker(linker)
+    {
+    }
+
+    //  IEmbedFunctionContext ---
+    virtual void Link() const
+    {
+    }
+    virtual bool Release() const
+    {
+        return false;
+    };
+
+    virtual IInterface *bindParamWriter(IInterface *esdl, const char *esdlservice, const char *esdltype, const char *name)
+    {
+        // DBGLOG("paramWriterCommit");
+        return NULL;
+    }
+    virtual void paramWriterCommit(IInterface *writer)
+    {
+        // DBGLOG("paramWriterCommit");
+    }
+    virtual void writeResult(IInterface *esdl, const char *esdlservice, const char *esdltype, IInterface *writer)
+    {
+        // DBGLOG("writeResult");
+    }
+    virtual void bindBooleanParam(const char *name, bool val)
+    {
+        // DBGLOG("bindBooleanParam %s %i", name, val);
+    }
+    virtual void bindDataParam(const char *name, size32_t len, const void *val)
+    {
+        // DBGLOG("bindDataParam %s %i", name, len);
+    }
+    virtual void bindFloatParam(const char *name, float val)
+    {
+        // DBGLOG("bindFloatParam %s %f", name, val);
+    }
+    virtual void bindRealParam(const char *name, double val)
+    {
+        // DBGLOG("bindRealParam %s %f", name, val);
+    }
+    virtual void bindSignedSizeParam(const char *name, int size, __int64 val)
+    {
+        // DBGLOG("bindSignedSizeParam %s %i %lld", name, size, val);
+    }
+    virtual void bindSignedParam(const char *name, __int64 val)
+    {
+        // DBGLOG("bindSignedParam %s %lld", name, val);
+    }
+    virtual void bindUnsignedSizeParam(const char *name, int size, unsigned __int64 val)
+    {
+        // DBGLOG("bindUnsignedSizeParam %s %i %llu", name, size, val);
+    }
+    virtual void bindUnsignedParam(const char *name, unsigned __int64 val)
+    {
+        // DBGLOG("bindUnsignedParam %s %llu", name, val);
+    }
+    virtual void bindStringParam(const char *name, size32_t len, const char *val)
+    {
+        // DBGLOG("bindStringParam %s %i %s", name, len, val);
+    }
+    virtual void bindVStringParam(const char *name, const char *val)
+    {
+        // DBGLOG("bindVStringParam %s %s", name, val);
+    }
+    virtual void bindUTF8Param(const char *name, size32_t chars, const char *val)
+    {
+        // DBGLOG("bindUTF8Param %s %i %s", name, chars, val);
+    }
+    virtual void bindUnicodeParam(const char *name, size32_t chars, const UChar *val)
+    {
+        // DBGLOG("bindUnicodeParam %s %i", name, chars);
+    }
+    virtual void bindSetParam(const char *name, int elemType, size32_t elemSize, bool isAll, size32_t totalBytes, const void *setData)
+    {
+        // DBGLOG("bindSetParam %s %i %i %i %i %p", name, elemType, elemSize, isAll, totalBytes, setData);
+    }
+    virtual void bindRowParam(const char *name, IOutputMetaData &metaVal, const byte *val) override
+    {
+        // DBGLOG("bindRowParam %s %p", name, static_cast<const void *>(val));
+    }
+    virtual void bindDatasetParam(const char *name, IOutputMetaData &metaVal, IRowStream *val)
+    {
+        // DBGLOG("bindDatasetParam %s %p", name, static_cast<void *>(val));
+    }
+    virtual bool getBooleanResult()
+    {
+        // DBGLOG("getBooleanResult");
+        return false;
+    }
+    virtual void getDataResult(size32_t &__len, void *&__result)
+    {
+        // DBGLOG("getDataResult");
+    }
+    virtual double getRealResult()
+    {
+        // DBGLOG("getRealResult");
+        return 0;
+    }
+    virtual __int64 getSignedResult()
+    {
+        // DBGLOG("getSignedResult");
+        return 0;
+    }
+    virtual unsigned __int64 getUnsignedResult()
+    {
+        // DBGLOG("getUnsignedResult");
+        return 0;
+    }
+    virtual void getStringResult(size32_t &__chars, char *&__result)
+    {
+        // DBGLOG("getStringResult");
+    }
+    virtual void getUTF8Result(size32_t &__chars, char *&__result)
+    {
+        // DBGLOG("getUTF8Result");
+    }
+    virtual void getUnicodeResult(size32_t &__chars, UChar *&__result)
+    {
+        // DBGLOG("getUnicodeResult");
+    }
+    virtual void getSetResult(bool &__isAllResult, size32_t &__resultBytes, void *&__result, int elemType, size32_t elemSize)
+    {
+        // DBGLOG("getSetResult");
+    }
+    virtual IRowStream *getDatasetResult(IEngineRowAllocator *_resultAllocator)
+    {
+        // DBGLOG("getDatasetResult");
+        return NULL;
+    }
+    virtual byte *getRowResult(IEngineRowAllocator *_resultAllocator)
+    {
+        // DBGLOG("getRowResult");
+        return NULL;
+    }
+    virtual size32_t getTransformResult(ARowBuilder &builder)
+    {
+        // DBGLOG("getTransformResult");
+        return 0;
+    }
+    virtual void compileEmbeddedScript(size32_t lenChars, const char *utf)
+    {
+        // DBGLOG("compileEmbeddedScript %s", utf);
+    }
+    virtual void loadCompiledScript(size32_t chars, const void *_script) override
+    {
+        // DBGLOG("loadCompiledScript %p", _script);
+    }
+    virtual void enter() override
+    {
+        // DBGLOG("enter");
+    }
+    virtual void reenter(ICodeContext *codeCtx) override
+    {
+        // DBGLOG("reenter");
+    }
+    virtual void exit() override
+    {
+        // DBGLOG("exit");
+    }
+    virtual void importFunction(size32_t lenChars, const char *utf)
+    {
+        // DBGLOG("importFunction %s", utf);
+    }
+    virtual void callFunction()
+    {
+        // DBGLOG("callFunction");
+    }
+};
+
 std::shared_ptr<ISecureEnclave> instance;
 std::once_flag initFlag;
 
@@ -55,6 +215,7 @@ protected:
     Engine engine;
     Store store;
     Linker linker;
+    std::optional<Instance> wasmInstance;
     std::vector<wasmtime::Val> results;
     std::function<void(const char *)> dbglog;
 
@@ -62,7 +223,8 @@ protected:
                                                                linker(engine),
                                                                dbglog(_dbglog)
     {
-        dbglog("Create wasi");
+        dbglog("se:constructor");
+        dbglog("se:Create wasi");
         WasiConfig wasi;
         // wasi.inherit_argv();
         // wasi.inherit_env();
@@ -80,6 +242,7 @@ public:
     SecureEnclave &operator=(const SecureEnclave &) = delete;
     ~SecureEnclave()
     {
+        dbglog("se:destructor");
     }
 
     static std::shared_ptr<ISecureEnclave> getInstance(std::function<void(const char *)> dbglog)
@@ -91,7 +254,7 @@ public:
     }
 
     //  ISecureEnclave  ---
-    virtual void appendWatModule(const char *wat, Values values)
+    virtual void appendWatModule(const char *wat)
     {
         dbglog("Compiling module");
         auto module = Module::compile(engine, wat).unwrap();
@@ -127,15 +290,19 @@ public:
         // Once we've got that all set up we can then move to the instantiation
         // phase, pairing together a compiled module as well as a set of imports.
         // Note that this is where the wasm `start` function, if any, would run.
-        dbglog("Instantiating module...");
-        Instance wasmInstance = linker.instantiate(store, module).unwrap();
-        linker.define_instance(store, "linking", wasmInstance).unwrap();
+        dbglog("se:Instantiating module...");
+        wasmInstance = linker.instantiate(store, module).unwrap();
+        dbglog("se:Link module...");
+        linker.define_instance(store, "linking", wasmInstance.value()).unwrap();
 
-        // std::cout << "Extracting memory...\n";
-        // auto memory = std::get<Memory>(*wasmInstance.get(store, "memory"));
-
+        dbglog("se:Extract memory...");
+        auto memory = std::get<Memory>(*(wasmInstance.value()).get(store, "memory"));
+    }
+    virtual void callFunction(const char *funcName, Values values)
+    {
         dbglog("Extracting myfunc...");
-        auto myFunc = std::get<Func>(*wasmInstance.get(store, "myFunc"));
+        auto tmp = wasmInstance.value();
+        auto myFunc = std::get<Func>(*tmp.get(store, funcName));
 
         // And last but not least we can call it!
         dbglog("Calling myFunc...");
@@ -163,7 +330,8 @@ public:
         dbglog("Done");
     }
 
-    virtual int32_t i32Result()
+    virtual int32_t
+    i32Result()
     {
         if (results[0].kind() == wasmtime::ValKind::I64)
             return (int32_t)results[0].i64();

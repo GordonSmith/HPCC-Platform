@@ -39,7 +39,8 @@ if(WASMEMBED)
             ./../../rtl/include
             ./../../common/deftype
             ./../../roxie/roxiemem
-            ./../../system/jlib)
+            ./../../system/jlib
+        )
 
         add_definitions(-D_USRDLL -DWASMEMBED_EXPORTS)
 

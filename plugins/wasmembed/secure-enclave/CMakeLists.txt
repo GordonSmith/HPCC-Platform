@@ -8,6 +8,9 @@ find_library(WASMTIME_LIB NAMES wasmtime)
 include_directories(
     ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-c-api
     ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-cpp-api
+    ./../../../system/include
+    ./../../../rtl/eclrtl
+    ./../../../system/jlib
 )
 
 add_definitions(-D_USRDLL -DSECUREENCLAVE_EXPORTS)

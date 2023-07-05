@@ -1,3 +1,6 @@
+#include "platform.h"
+#include "eclrtl.hpp"
+
 #include <memory>
 #include <functional>
 #include <variant>
@@ -18,16 +21,12 @@ typedef std::vector<std::pair<DataType, Value>> Values;
 class ISecureEnclave
 {
 public:
-    virtual void appendWatModule(const char *wat, Values values) = 0;
+    virtual void appendWatModule(const char *wat) = 0;
+    virtual void callFunction(const char *funcName, Values values) = 0;
     virtual int32_t i32Result() = 0;
     virtual int64_t i64Result() = 0;
     virtual float32_t f32Result() = 0;
     virtual float64_t f64Result() = 0;
-};
-
-class IModule
-{
-public:
 };
 
 std::shared_ptr<ISecureEnclave> createISecureEnclave(std::function<void(const char *)> dbglog);

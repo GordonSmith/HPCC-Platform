@@ -32,6 +32,8 @@
 
 #include "secure-enclave/secure-enclave.hpp"
 
+size32_t xxx;
+
 static const char *compatibleVersions[] = {
     "WASM Embed Helper 1.0.0",
     NULL};
@@ -130,7 +132,7 @@ namespace watLanguageHelper
     public:
         WATEmbedFunctionContext()
         {
-            DBGLOG("WATEmbedFunctionContext created");
+            DBGLOG("WATEmbedFunctionContext constuctor");
             auto dbglog = [](const char *value)
             {
                 DBGLOG("%s", value);
@@ -139,7 +141,7 @@ namespace watLanguageHelper
         }
         ~WATEmbedFunctionContext()
         {
-            DBGLOG("WATEmbedFunctionContext destroyed");
+            DBGLOG("WATEmbedFunctionContext destructor");
         }
         //  Params  ---
         virtual void appendI32Param(const char *name, int32_t val)
@@ -326,19 +328,11 @@ namespace watLanguageHelper
             DBGLOG("getTransformResult");
             return 0;
         }
-        virtual void compileEmbeddedScript(size32_t lenChars, const char *_utf)
+        virtual void compileEmbeddedScript(size32_t lenChars, const char *utf)
         {
-            DBGLOG("compileEmbeddedScript %s", _utf);
-            std::string wat =
-                "(module\n"
-                "  (func $myFunc " +
-                declaration() + "(result i32)\n" +
-                std::string(utf) + "\n" +
-                "  )\n" +
-                "  (export \"myFunc\" (func $myFunc))\n" +
-                ")\n";
-
-            enclave->appendWatModule(wat.c_str(), values());
+            DBGLOG("compileEmbeddedScript %s", utf);
+            std::string wat = "(module\n" + std::string(utf) + "\n)\n";
+            enclave->appendWatModule(wat.c_str());
         }
         virtual void loadCompiledScript(size32_t chars, const void *_script) override
         {
@@ -347,8 +341,6 @@ namespace watLanguageHelper
         virtual void enter() override
         {
             DBGLOG("enter");
-            params.clear();
-            utf.clear();
         }
         virtual void reenter(ICodeContext *codeCtx) override
         {
@@ -357,6 +349,8 @@ namespace watLanguageHelper
         virtual void exit() override
         {
             DBGLOG("exit");
+            params.clear();
+            utf.clear();
         }
         virtual void importFunction(size32_t lenChars, const char *utf)
         {
@@ -365,16 +359,16 @@ namespace watLanguageHelper
         virtual void callFunction()
         {
             DBGLOG("callFunction");
-            std::string wat =
-                "(module\n"
-                "  (func $myFunc " +
-                declaration() + "(result i32)\n" +
-                std::string(utf) + "\n" +
-                "  )\n" +
-                "  (export \"myFunc\" (func $myFunc))\n" +
-                ")\n";
+            // std::string wat =
+            //     "(module\n"
+            //     "  (func $myFunc " +
+            //     declaration() + "(result i32)\n" +
+            //     std::string(utf) + "\n" +
+            //     "  )\n" +
+            //     "  (export \"myFunc\" (func $myFunc))\n" +
+            //     ")\n";
 
-            enclave->appendWatModule(wat.c_str(), values());
+            enclave->callFunction("gcd", values());
         }
 
     protected:
@@ -418,7 +412,7 @@ namespace watLanguageHelper
             if (!theFunctionContext)
             {
                 DBGLOG("NEW createFunctionContextEx %s", options);
-                theFunctionContext = new WATEmbedFunctionContext();
+                theFunctionContext = new WATEmbedFunctionContext;
                 addThreadTermFunc(releaseContext);
             }
             theFunctionContext->setActivityContext(activityContext);
