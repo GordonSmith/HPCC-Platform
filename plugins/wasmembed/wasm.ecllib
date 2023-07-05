@@ -15,9 +15,9 @@
     limitations under the License.
 ############################################################################## */
 
-EXPORT Language := SERVICE : plugin('v8embed')
-  integer getEmbedContext():cpp,pure,namespace='javascriptLanguageHelper',fold,entrypoint='getEmbedContext',prototype='IEmbedContext* getEmbedContext()';
-  STRING syntaxCheck(const varstring funcname, UTF8 body, const varstring argnames, const varstring compileOptions, const varstring persistOptions):cpp,pure,namespace='javascriptLanguageHelper',entrypoint='syntaxCheck',fold;
+EXPORT Language := SERVICE : plugin('wasmembed')
+  integer getEmbedContext():cpp,pure,namespace='wasmLanguageHelper',fold,entrypoint='getEmbedContext',prototype='IEmbedContext* getEmbedContext()';
+  STRING syntaxCheck(const varstring funcname, UTF8 body, const varstring argnames, const varstring compileOptions, const varstring persistOptions):cpp,pure,namespace='wasmLanguageHelper',entrypoint='syntaxCheck',fold;
 END;
 EXPORT getEmbedContext := Language.getEmbedContext;
 EXPORT syntaxCheck := Language.syntaxCheck;

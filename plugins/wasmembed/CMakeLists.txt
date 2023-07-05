@@ -27,12 +27,14 @@ project(wasmembed)
 if(WASMEMBED)
     ADD_PLUGIN(wasmembed)
     if(MAKE_WASMEMBED)
+        set(CMAKE_CXX_STANDARD 17)
+
         find_path(WASMTIME_CPP_API_INCLUDE_DIRS "wasmtime-cpp-api/wasmtime.hh")
         find_library(LIBWASMTIME_LIB NAMES wasmtime)
 
-        set(
-            SRCS
-            wasmembed.cpp)
+        set(SRCS
+            wasmembed.cpp
+        )
 
         include_directories(
             ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-c-api
@@ -48,6 +50,7 @@ if(WASMEMBED)
         add_definitions(-D_USRDLL -DWASMEMBED_EXPORTS)
 
         HPCC_ADD_LIBRARY(wasmembed SHARED ${SRCS})
+
         if(${CMAKE_VERSION} VERSION_LESS "2.8.9")
             message(WARNING "Cannot set NO_SONAME. shlibdeps will give warnings when package is installed")
         elseif(NOT APPLE)
@@ -58,6 +61,7 @@ if(WASMEMBED)
             TARGETS wasmembed
             DESTINATION plugins
             CALC_DEPS)
+
         target_link_libraries(
             wasmembed
             ${LIBWASMTIME_LIB}
