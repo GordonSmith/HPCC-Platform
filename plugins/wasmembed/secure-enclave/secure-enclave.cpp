@@ -1,5 +1,61 @@
 #include "secure-enclave.hpp"
 
+// Define a function pointer type for the original fprintf function
+typedef int (*fprintf_t)(FILE *, const char *, ...);
+
+// Custom exception class for fprintf errors
+class FprintfException : public std::exception
+{
+public:
+    FprintfException(const char *message) : message_(message) {}
+
+    const char *what() const noexcept override
+    {
+        return message_.c_str();
+    }
+
+private:
+    std::string message_;
+};
+
+// Custom fprintf function
+int my_fprintf(FILE *stream, const char *format, ...)
+{
+    // Create a temporary buffer
+    const int buffer_size = 256;
+    char buffer[buffer_size];
+
+    // Create a memory stream using the buffer
+    FILE *mem_stream = fmemopen(buffer, buffer_size, "w");
+    if (mem_stream == nullptr)
+    {
+        throw std::runtime_error("Failed to create memory stream.");
+    }
+
+    // Format the text into the memory stream
+    va_list args;
+    va_start(args, format);
+    int result = vfprintf(mem_stream, format, args);
+    va_end(args);
+
+    // Close the memory stream
+    fclose(mem_stream);
+
+    // Check for fprintf errors and throw an exception
+    if (result < 0)
+    {
+        throw FprintfException("fprintf error occurred.");
+    }
+
+    // Throw an exception with the text that would have been sent to the file
+    throw FprintfException(buffer);
+
+    // Return the number of characters that would have been written to the file
+    // return result;
+}
+// Macro to replace fprintf calls with my_fprintf
+#define fprintf my_fprintf
+
 #include <wasmtime.hh>
 
 #include <fstream>
@@ -32,7 +88,7 @@ std::vector<uint8_t> read_wasm_binary_to_buffer(const std::string &filename)
 
 std::string extractContentInDoubleQuotes(const std::string &input)
 {
-    std::regex pattern("\"([^\"]*)\"");
+    std::regex pattern("export \"([^\"]*)\"");
     std::smatch match;
 
     if (std::regex_search(input, match, pattern) && match.size() > 1)
@@ -43,20 +99,26 @@ std::string extractContentInDoubleQuotes(const std::string &input)
     return "";
 }
 
-Engine engine;
-Store store(engine);
+wasmtime::Engine engine;
+wasmtime::Store store(engine);
+wasmtime::WasiConfig wasi;
 
-class WasmFunc
+class Test
 {
-    wasmtime::Instance instance;
-    wasmtime::Func func;
-
-    WasmFunc(wasmtime::Instance instance, wasmtime::Func func) : instance(instance), func(func)
+public:
+    Test()
     {
+        wasi.inherit_argv();
+        wasi.inherit_env();
+        wasi.inherit_stdin();
+        wasi.inherit_stdout();
+        wasi.inherit_stderr();
     }
-};
+
+} test;
 
 std::map<std::string, wasmtime::Instance> wasmInstances;
+std::map<std::string, wasmtime::Memory> wasmMems;
 std::map<std::string, wasmtime::Func> wasmFuncs;
 
 class SecureFunction : public ISecureEnclave
@@ -157,6 +219,7 @@ public:
     virtual void bindStringParam(const char *name, size32_t len, const char *val)
     {
         embedContext.dbglog("bindStringParam %s %i %s");
+        args.push_back(wasmtime::Val(ExternRef(std::string(val))));
     }
     virtual void bindVStringParam(const char *name, const char *val)
     {
@@ -269,10 +332,31 @@ public:
             embedContext.dbglog("resolveModule" + wasmName);
             auto module = std::holds_alternative<std::string_view>(wasm) ? Module::compile(engine, std::get<std::string_view>(wasm)).unwrap() : Module::compile(engine, std::get<Span<uint8_t>>(wasm)).unwrap();
             embedContext.dbglog("resolveModule2" + wasmName);
-            auto newInstance = Instance::create(store, module, {}).unwrap();
+
+            WasiConfig wasi;
+            wasi.inherit_argv();
+            wasi.inherit_env();
+            wasi.inherit_stdin();
+            wasi.inherit_stdout();
+            wasi.inherit_stderr();
+            store.context().set_wasi(std::move(wasi)).unwrap();
             embedContext.dbglog("resolveModule3" + wasmName);
-            wasmInstances.insert(std::make_pair(wasmName, newInstance));
+
+            Linker linker(engine);
+            linker.define_wasi().unwrap();
             embedContext.dbglog("resolveModule4" + wasmName);
+
+            auto newInstance = linker.instantiate(store, module).unwrap();
+            linker.define_instance(store, "linking2", newInstance).unwrap();
+
+            embedContext.dbglog("resolveModule5" + wasmName);
+
+            wasmInstances.insert(std::make_pair(wasmName, newInstance));
+            embedContext.dbglog("resolveModule6" + wasmName);
+
+            auto memory = std::get<Memory>(*newInstance.get(store, "memory"));
+            wasmMems.insert(std::make_pair(wasmName, memory));
+
             return newInstance;
         }
         return instanceItr->second;
@@ -347,7 +431,7 @@ public:
         {
             throw std::runtime_error("Invalid function name");
         }
-        embedContext.dbglog("do call " + qualifiedID);
+        embedContext.dbglog("do call " + qualifiedID + " " + std::to_string(args.size()));
         results = myFunc->second.call(store, args).unwrap();
 
         embedContext.dbglog("result count " + std::to_string(results.size()));
