@@ -2,17 +2,16 @@
 #include "eclrtl.hpp"
 
 #include <memory>
-#include <functional>
 
-interface IWasmFunctionContext : extends IEmbedFunctionContext
+interface IWasmEmbedCallback
 {
-    virtual void setActivityContext(const IThorActivityContext *_activityCtx) = 0;
+    virtual void dbglog(const std::string &msg) = 0;
+    virtual const char *resolvePath(const char *leafName) = 0;
 };
 
-interface ISecureEnclave
+interface ISecureEnclave : extends IEmbedFunctionContext
 {
-    virtual std::shared_ptr<IWasmFunctionContext> createFunctionContext() = 0;
+    virtual ~ISecureEnclave() = default;
 };
 
-std::shared_ptr<ISecureEnclave> createISecureEnclave(std::function<void(const std::string &)> dbglog);
-// std::shared_ptr<IModule> createIModule(const char *wat, std::function<void(const std::string &)> dbglog);
+std::unique_ptr<ISecureEnclave> createISecureEnclave(IWasmEmbedCallback &embedContext);

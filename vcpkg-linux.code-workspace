@@ -100,9 +100,15 @@
 			"typeinfo": "cpp",
 			"valarray": "cpp",
 			"variant": "cpp",
-			"*.ipp": "cpp"
+			"*.ipp": "cpp",
+			"barrier": "cpp",
+			"coroutine": "cpp",
+			"slist": "cpp",
+			"latch": "cpp",
+			"scoped_allocator": "cpp",
+			"syncstream": "cpp"
 		},
-		"ecl.launchConfiguration": "not found",
+		"ecl.launchConfiguration": "localhost",
 		"ecl.targetCluster": {}
 	},
 	"extensions": {

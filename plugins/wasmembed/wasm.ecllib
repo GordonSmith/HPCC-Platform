@@ -21,5 +21,7 @@ EXPORT Language := SERVICE : plugin('wasmembed')
 END;
 EXPORT getEmbedContext := Language.getEmbedContext;
 EXPORT syntaxCheck := Language.syntaxCheck;
-EXPORT boolean supportsImport := false;
+EXPORT boolean supportsImport := true;
 EXPORT boolean supportsScript := true;
+EXPORT boolean prebind := false;
+EXPORT boolean singletonEmbedContext := false;

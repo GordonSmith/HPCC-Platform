@@ -33,23 +33,20 @@ if(WASMEMBED)
         add_subdirectory(secure-enclave)
 
         include_directories(
-            ./../../system/include
+            ./../../common/thorhelper
+            ./../../dali/base
             ./../../rtl/eclrtl
-            ./../../rtl/nbcd
             ./../../rtl/include
-            ./../../common/deftype
-            ./../../roxie/roxiemem
+            ./../../rtl/nbcd
+            ./../../system/include
             ./../../system/jlib
+            ./../../system/mp
         )
 
         add_definitions(-D_USRDLL -DWASMEMBED_EXPORTS)
 
         add_library(wasmembed SHARED 
             wasmembed.cpp
-        )
-
-        add_library(watembed SHARED 
-            watembed.cpp
         )
 
         target_link_libraries(wasmembed
@@ -64,18 +61,6 @@ if(WASMEMBED)
             DESTINATION plugins
         )
 
-        target_link_libraries(watembed
-            roxiemem
-            eclrtl
-            jlib
-            secure-enclave
-        )
-
-        install(
-            TARGETS watembed
-            DESTINATION plugins
-        )
-
     else()
         message(WARNING "Cannot build wasmembed plugin")
     endif()
@@ -83,7 +68,7 @@ endif()
 
 # if(PLATFORM OR CLIENTTOOLS_ONLY)
     install(
-        FILES ${CMAKE_CURRENT_SOURCE_DIR}/wasm.ecllib ${CMAKE_CURRENT_SOURCE_DIR}/wat.ecllib
+        FILES ${CMAKE_CURRENT_SOURCE_DIR}/wasm.ecllib
         DESTINATION plugins
         COMPONENT Runtime)
 # endif()
