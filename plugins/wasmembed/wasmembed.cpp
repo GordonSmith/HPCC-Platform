@@ -22,8 +22,6 @@
 
 #include "secure-enclave/secure-enclave.hpp"
 
-#include <mutex>
-
 static const char *compatibleVersions[] = {
     "WASM Embed Helper 1.0.0",
     NULL};
@@ -118,16 +116,15 @@ namespace wasmLanguageHelper
 
     } callbacks;
 
-    std::once_flag initFlag;
-    std::unique_ptr<ISecureEnclave> enclave;
     class WasmEmbedContext : public CInterfaceOf<IEmbedContext>
     {
+        std::unique_ptr<ISecureEnclave> enclave;
+
     public:
         WasmEmbedContext()
         {
             DBGLOG("WasmEmbedContext constructor");
-            std::call_once(initFlag, []()
-                           { enclave = createISecureEnclave(callbacks); });
+            enclave = createISecureEnclave(callbacks);
         }
         virtual ~WasmEmbedContext() override
         {
@@ -178,5 +175,4 @@ MODULE_INIT(INIT_PRIORITY_STANDARD)
 
 MODULE_EXIT()
 {
-    wasmLanguageHelper::enclave.reset();
 }

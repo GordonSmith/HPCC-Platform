@@ -43,24 +43,22 @@ std::string extractContentInDoubleQuotes(const std::string &input)
     return "";
 }
 
+Engine engine;
+Store store(engine);
+std::map<std::string, std::optional<wasmtime::Instance>> wasmInstances;
+
 class SecureFunction : public ISecureEnclave
 {
-    Engine engine;
-    Store store;
-    Linker linker;
     IWasmEmbedCallback &embedContext;
     const IThorActivityContext *activityCtx = nullptr;
     std::vector<wasmtime::Val> args;
     std::vector<wasmtime::Val> results;
-    std::map<std::string, std::optional<wasmtime::Instance>> wasmInstances;
     uint32_t crcValue;
     std::string wasmName;
-    std::string funcName2;
+    std::string funcName;
 
 public:
-    SecureFunction(IWasmEmbedCallback &embedContext) : store(engine),
-                                                       linker(engine),
-                                                       embedContext(embedContext)
+    SecureFunction(IWasmEmbedCallback &embedContext) : embedContext(embedContext)
     {
         embedContext.dbglog("se:constructor");
         embedContext.dbglog("se:Create wasi");
@@ -255,20 +253,18 @@ public:
     {
         embedContext.dbglog("compileEmbeddedScript %s");
 
-        funcName2 = extractContentInDoubleQuotes(utf);
-        wasmName = "embed." + funcName2;
+        funcName = extractContentInDoubleQuotes(utf);
+        wasmName = "embed." + funcName;
         if (wasmInstances.find(wasmName) == wasmInstances.end())
         {
-            embedContext.dbglog("se:Instantiate module " + funcName2);
+            embedContext.dbglog("se:Instantiate module " + wasmName);
             auto module = Module::compile(engine, utf).unwrap();
-            auto instance = linker.instantiate(store, module).unwrap();
+            auto instance = Instance::create(store, module, {}).unwrap();
             wasmInstances[wasmName] = instance;
-            embedContext.dbglog("se:Link module...");
-            linker.define_instance(store, "linking", instance).unwrap();
         }
         else
         {
-            embedContext.dbglog("se:Skip Instantiate module " + funcName2);
+            embedContext.dbglog("se:Skip Instantiate module " + funcName);
         }
     }
     virtual void importFunction(size32_t lenChars, const char *qualifiedName)
@@ -287,35 +283,33 @@ public:
             throw std::runtime_error("Invalid import function string, expected format: <module>.<function>");
         }
         wasmName = tokens[0];
-        funcName2 = tokens[1];
+        funcName = tokens[1];
         if (wasmInstances.find(wasmName) == wasmInstances.end())
         {
             std::string fullPath = embedContext.resolvePath((wasmName + ".wasm").c_str());
             embedContext.dbglog("importFunction:  fullPath " + fullPath);
-            embedContext.dbglog(std::string("se:Instantiate module ") + qualifiedName);
+            embedContext.dbglog(std::string("se:Instantiate module ") + wasmName);
             auto wasmFile = read_wasm_binary_to_buffer(fullPath);
             auto module = Module::compile(engine, wasmFile).unwrap();
-            auto instance = linker.instantiate(store, module).unwrap();
+            auto instance = Instance::create(store, module, {}).unwrap();
             wasmInstances[wasmName] = instance;
-            embedContext.dbglog("se:Link module...");
-            linker.define_instance(store, "linking", instance).unwrap();
         }
         else
         {
-            embedContext.dbglog(std::string("se:Skip Instantiate module ") + qualifiedName);
+            embedContext.dbglog(std::string("se:Skip Instantiate module ") + wasmName);
         }
     }
     virtual void callFunction()
     {
-        embedContext.dbglog("callFunction " + funcName2);
+        embedContext.dbglog("callFunction " + funcName);
 
-        embedContext.dbglog("resolve instance " + funcName2);
+        embedContext.dbglog("resolve instance " + wasmName + " " + std::to_string(wasmInstances[wasmName].has_value()));
         auto tmp = wasmInstances[wasmName].value();
 
-        embedContext.dbglog("resolve function " + funcName2);
-        auto myFunc = std::get<Func>(*tmp.get(store, funcName2));
+        embedContext.dbglog("resolve function " + funcName);
+        auto myFunc = std::get<Func>(*tmp.get(store, funcName));
 
-        embedContext.dbglog("call function " + funcName2);
+        embedContext.dbglog("call function " + funcName);
         results = myFunc.call(store, args).unwrap();
 
         embedContext.dbglog("result count " + std::to_string(results.size()));
