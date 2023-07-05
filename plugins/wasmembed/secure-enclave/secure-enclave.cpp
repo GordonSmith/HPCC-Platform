@@ -1,67 +1,9 @@
 #include "secure-enclave.hpp"
 
-// Define a function pointer type for the original fprintf function
-typedef int (*fprintf_t)(FILE *, const char *, ...);
-
-// Custom exception class for fprintf errors
-class FprintfException : public std::exception
-{
-public:
-    FprintfException(const char *message) : message_(message) {}
-
-    const char *what() const noexcept override
-    {
-        return message_.c_str();
-    }
-
-private:
-    std::string message_;
-};
-
-// Custom fprintf function
-int my_fprintf(FILE *stream, const char *format, ...)
-{
-    // Create a temporary buffer
-    const int buffer_size = 256;
-    char buffer[buffer_size];
-
-    // Create a memory stream using the buffer
-    FILE *mem_stream = fmemopen(buffer, buffer_size, "w");
-    if (mem_stream == nullptr)
-    {
-        throw std::runtime_error("Failed to create memory stream.");
-    }
-
-    // Format the text into the memory stream
-    va_list args;
-    va_start(args, format);
-    int result = vfprintf(mem_stream, format, args);
-    va_end(args);
-
-    // Close the memory stream
-    fclose(mem_stream);
-
-    // Check for fprintf errors and throw an exception
-    if (result < 0)
-    {
-        throw FprintfException("fprintf error occurred.");
-    }
-
-    // Throw an exception with the text that would have been sent to the file
-    throw FprintfException(buffer);
-
-    // Return the number of characters that would have been written to the file
-    // return result;
-}
-// Macro to replace fprintf calls with my_fprintf
-#define fprintf my_fprintf
-
 #include "abi.hpp"
 
 #include <map>
 #include <functional>
-
-using namespace wasmtime;
 
 wasmtime::Engine engine;
 wasmtime::Store store(engine);
@@ -83,18 +25,14 @@ class SecureFunction : public ISecureEnclave
     std::vector<std::pair<int32_t, size32_t>> garbage;
 
 public:
+    static SecureFunction *self;
+
     SecureFunction(IWasmEmbedCallback &embedContext) : embedContext(embedContext)
     {
         embedContext.dbglog("se:constructor");
-        // embedContext.dbglog("se:Create wasi");
-        // WasiConfig wasi;
-        // // wasi.inherit_argv();
-        // // wasi.inherit_env();
-        // // wasi.inherit_stdin();
-        // // wasi.inherit_stdout();
-        // // wasi.inherit_stderr();
-        // store.context().set_wasi(std::move(wasi)).unwrap();
-        // linker.define_wasi().unwrap();
+
+        //  Needed for callbacks  ---
+        self = this;
     }
 
     virtual ~SecureFunction() override
@@ -102,19 +40,31 @@ public:
         embedContext.dbglog("se:destructor");
 
         //  Garbage Collection  ---
-        // auto itr = wasmFuncs.find(joinQualifiedName(wasmName, "cabi_post_" + funcName));
-        // if (itr != wasmFuncs.end())
-        // {
-        //     for (auto &result : results)
-        //     {
-        //         auto results = itr->second.call(store, {result});
-        //     }
-        // }
+        //    Function results  ---
+        auto found = wasmFuncs.find(createQualifiedID(wasmName, "cabi_post_" + funcName));
+        if (found != wasmFuncs.end())
+        {
+            for (auto &result : results)
+            {
+                auto results = found->second.call(store, {result});
+            }
+        }
+
+        //    Function params  ---
+        if (garbage.size() > 0)
+        {
+            auto realloc = this->realloc();
+            for (auto &pair : garbage)
+            {
+                realloc.call(store, {pair.first, (int32_t)pair.second, 1, 0}).unwrap();
+            }
+        }
     }
 
     wasmtime::Span<uint8_t> data()
     {
-        auto found = wasmMems.find(joinQualifiedName(wasmName, "memory"));
+        //  TODO - Confirm if memory / data can be periodically relocated?
+        auto found = wasmMems.find(createQualifiedID(wasmName, "memory"));
         if (found == wasmMems.end())
         {
             throw std::runtime_error("memory not found");
@@ -124,7 +74,7 @@ public:
 
     wasmtime::Func realloc()
     {
-        auto found = wasmFuncs.find(joinQualifiedName(wasmName, "cabi_realloc"));
+        auto found = wasmFuncs.find(createQualifiedID(wasmName, "cabi_realloc"));
         if (found == wasmFuncs.end())
         {
             throw std::runtime_error("cabi_realloc not found");
@@ -171,20 +121,20 @@ public:
     virtual void bindFloatParam(const char *name, float val)
     {
         embedContext.dbglog("bindFloatParam %s %f");
-        args.push_back(wasmtime::Val(val));
+        args.push_back(val);
     }
     virtual void bindRealParam(const char *name, double val)
     {
         embedContext.dbglog("bindRealParam %s %f");
-        args.push_back(wasmtime::Val(val));
+        args.push_back(val);
     }
     virtual void bindSignedSizeParam(const char *name, int size, __int64 val)
     {
         embedContext.dbglog("bindSignedSizeParam %s %i %lld");
         if (size <= 4)
-            args.push_back(wasmtime::Val((int32_t)val));
+            args.push_back((int32_t)val);
         else
-            args.push_back(wasmtime::Val((int64_t)val));
+            args.push_back((int64_t)val);
     }
     virtual void bindSignedParam(const char *name, __int64 val)
     {
@@ -198,9 +148,10 @@ public:
     {
         embedContext.dbglog("bindUnsignedParam %s %llu");
     }
-    virtual void bindStringParam(const char *qualifiedName, size32_t len, const char *val)
+    virtual void bindStringParam(const char *qualifiedName, size32_t len, const char *_val)
     {
-        embedContext.dbglog("bindStringParam " + std::string(qualifiedName) + " " + std::string(val) + " " + std::to_string(len));
+        std::string val(_val, len);
+        embedContext.dbglog("bindStringParam " + std::string(qualifiedName) + " " + val + " " + std::to_string(len));
         auto memIdxVar = realloc().call(store, {0, 0, 1, (int32_t)len}).unwrap();
         auto memIdx = memIdxVar[0].i32();
         auto mem = data();
@@ -272,7 +223,13 @@ public:
         embedContext.dbglog("getStringResult " + std::to_string(results.size()));
         auto ptr = results[0].i32();
         embedContext.dbglog("getStringResult (ptr) " + std::to_string(ptr));
-        std::string s = load_string(data(), ptr);
+        auto data = this->data();
+
+        uint32_t begin = load_int(data, ptr, 4);
+        embedContext.dbglog("begin " + std::to_string(begin));
+        uint32_t tagged_code_units = load_int(data, ptr + 4, 4);
+        embedContext.dbglog("tagged_code_units " + std::to_string(tagged_code_units));
+        std::string s = load_string(data, ptr);
         embedContext.dbglog("getStringResult (std::string) " + s);
         __chars = s.length();
         embedContext.dbglog("getStringResult (__chars) " + std::to_string(__chars));
@@ -321,9 +278,8 @@ public:
     virtual void exit() override
     {
         embedContext.dbglog("exit");
-        args.clear();
     }
-    void registerInstance(const std::string &_wasmName, const std::variant<std::string_view, Span<uint8_t>> &wasm)
+    void registerInstance(const std::string &_wasmName, const std::variant<std::string_view, wasmtime::Span<uint8_t>> &wasm)
     {
         embedContext.dbglog("registerInstance " + _wasmName);
         auto instanceItr = wasmInstances.find(_wasmName);
@@ -331,10 +287,10 @@ public:
         {
             wasmName = _wasmName;
             embedContext.dbglog("resolveModule " + wasmName);
-            auto module = std::holds_alternative<std::string_view>(wasm) ? Module::compile(engine, std::get<std::string_view>(wasm)).unwrap() : Module::compile(engine, std::get<Span<uint8_t>>(wasm)).unwrap();
+            auto module = std::holds_alternative<std::string_view>(wasm) ? wasmtime::Module::compile(engine, std::get<std::string_view>(wasm)).unwrap() : wasmtime::Module::compile(engine, std::get<wasmtime::Span<uint8_t>>(wasm)).unwrap();
             embedContext.dbglog("resolveModule2 " + wasmName);
 
-            WasiConfig wasi;
+            wasmtime::WasiConfig wasi;
             wasi.inherit_argv();
             wasi.inherit_env();
             wasi.inherit_stdin();
@@ -343,17 +299,17 @@ public:
             store.context().set_wasi(std::move(wasi)).unwrap();
             embedContext.dbglog("resolveModule3 " + wasmName);
 
-            Linker linker(engine);
+            wasmtime::Linker linker(engine);
             linker.define_wasi().unwrap();
             embedContext.dbglog("resolveModule4 " + wasmName);
 
-            auto callback = [this](Caller caller, uint32_t msg, uint32_t msg_len)
+            auto callback = [](wasmtime::Caller caller, uint32_t msg, uint32_t msg_len)
             {
-                auto memory = std::get<Memory>(*caller.get_export("memory"));
-                auto data = memory.data(caller.context());
+                self->embedContext.dbglog("callback: " + std::to_string(msg) + ", " + std::to_string(msg_len));
+                auto data = self->data();
                 auto msg_ptr = (char *)&data[msg];
                 std::string str(msg_ptr, msg_len);
-                this->embedContext.dbglog("from wasm: " + str);
+                self->embedContext.dbglog("from wasm: " + str);
             };
             auto host_func = linker.func_wrap("$root", "dbglog", callback).unwrap();
 
@@ -366,18 +322,18 @@ public:
 
             for (auto exportItem : module.exports())
             {
-                auto externType = ExternType::from_export(exportItem);
+                auto externType = wasmtime::ExternType::from_export(exportItem);
                 std::string name(exportItem.name());
                 if (std::holds_alternative<wasmtime::FuncType::Ref>(externType))
                 {
                     embedContext.dbglog(std::string("Exported function: ") + name);
-                    auto func = std::get<Func>(*newInstance.get(store, name));
+                    auto func = std::get<wasmtime::Func>(*newInstance.get(store, name));
                     wasmFuncs.insert(std::make_pair(wasmName + "." + name, func));
                 }
                 else if (std::holds_alternative<wasmtime::MemoryType::Ref>(externType))
                 {
                     embedContext.dbglog(std::string("Exported memory: ") + name);
-                    auto memory = std::get<Memory>(*newInstance.get(store, name));
+                    auto memory = std::get<wasmtime::Memory>(*newInstance.get(store, name));
                     wasmMems.insert(std::make_pair(wasmName + "." + name, memory));
                 }
                 else if (std::holds_alternative<wasmtime::TableType::Ref>(externType))
@@ -395,20 +351,23 @@ public:
             }
         }
     }
-    virtual void compileEmbeddedScript(size32_t lenChars, const char *utf)
+    virtual void compileEmbeddedScript(size32_t lenChars, const char *_utf)
     {
-        embedContext.dbglog("compileEmbeddedScript %s");
+        std::string utf(_utf, lenChars);
+        embedContext.dbglog("compileEmbeddedScript");
         funcName = extractContentInDoubleQuotes(utf);
         registerInstance("embed_" + funcName, utf);
-        qualifiedID = joinQualifiedName("embed_" + funcName, funcName);
+        qualifiedID = createQualifiedID("embed_" + funcName, funcName);
     }
     virtual void importFunction(size32_t lenChars, const char *qualifiedName)
     {
-        embedContext.dbglog(std::string("importFunction:  ") + qualifiedName);
-        auto [_wasmName, _funcName] = splitQualifiedName(qualifiedName);
+        qualifiedID = std::string(qualifiedName, lenChars);
+        embedContext.dbglog(std::string("importFunction:  ") + qualifiedID);
+        auto [_wasmName, _funcName] = splitQualifiedID(qualifiedID);
         wasmName = _wasmName;
         funcName = _funcName;
-        qualifiedID = joinQualifiedName(wasmName, funcName);
+        embedContext.dbglog(std::string("importFunction2:  ") + wasmName + ", " + funcName);
+
         auto instanceItr = wasmInstances.find(wasmName);
         if (instanceItr == wasmInstances.end())
         {
@@ -433,6 +392,7 @@ public:
         embedContext.dbglog("result count " + std::to_string(results.size()));
     }
 };
+SecureFunction *SecureFunction::self = nullptr;
 
 std::unique_ptr<ISecureEnclave> createISecureEnclave(IWasmEmbedCallback &embedContext)
 {

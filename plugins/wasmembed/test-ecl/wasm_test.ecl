@@ -44,26 +44,43 @@ integer4 add (integer4 val1, integer4 val2) := IMPORT( wasm, 'add.add' );
 integer4 sub (integer4 val1, integer4 val2) := IMPORT( wasm, 'add.sub' );
 string echo (string val1) := IMPORT( wasm, 'add.echo' );
 
+r := { integer8 id, string val };
+d := dataset('~w20230619-085451::someflatfile2', r, THOR);
+
+r2 := { integer8 id, string val, integer4 val2, string val3, real4 inlineTest };
+
+r2 myTransform(r l) := TRANSFORM
+  self.val2 := add3(11);
+  self.val3 := echo((string)l.id);
+  self.inlineTest := inlineAdd(l.id, self.val2);
+  SELF := l;
+end;
+
+d2 := project(d, myTransform(LEFT));
+choosen(d2, ALL);
+
 sub(44, 3);
 add3(10);
 add(10, 2); 
 echo('hello');
 echo('123hello123');
-// inlineAdd(10.12, 21.22);
-// inlineAdd(10.22, 22.222);
-// add(10,2);
-// inlineAdd(10.12, 21.22);
-// add(10,2);
-// add(10,3);
-// inlineAdd(10, 22);
-// add(12, 16);
-// gcd(10, 15);
-// add(10, 15);
-// add(12, 16);
-// gcd(12, 9);
-// add(12, 9);
-// sub(44, 2);
-// sub(44, 4);
-// sub(44, 5);
-// sub(44, 6);
-// inlineAdd(10.12, 21.22);
+
+
+inlineAdd(10.12, 21.22);
+inlineAdd(10.22, 22.222);
+add(10,2);
+inlineAdd(10.12, 21.22);
+add(10,2);
+add(10,3);
+inlineAdd(10, 22);
+add(12, 16);
+gcd(10, 15);
+add(10, 15);
+add(12, 16);
+gcd(12, 9);
+add(12, 9);
+sub(44, 2);
+sub(44, 4);
+sub(44, 5);
+sub(44, 6);
+inlineAdd(10.12, 21.22);

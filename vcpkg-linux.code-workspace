@@ -119,7 +119,12 @@
 			"__bit_reference": "cpp",
 			"__hash_table": "cpp",
 			"__split_buffer": "cpp",
-			"__config": "cpp"
+			"__config": "cpp",
+			"__debug": "cpp",
+			"__node_handle": "cpp",
+			"__verbose_abort": "cpp",
+			"ios": "cpp",
+			"locale": "cpp"
 		},
 		"ecl.launchConfiguration": "localhost",
 		"ecl.targetCluster": {

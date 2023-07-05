@@ -31,12 +31,12 @@ int load_int(const wasmtime::Span<uint8_t> &data, int32_t ptr, int32_t nbytes, b
     return result;
 }
 
+std::string global_encoding = "utf8";
 std::string load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t ptr, uint32_t tagged_code_units)
 {
-    std::string global_encoding = "utf8";
-    std::string encoding;
-    uint32_t byte_length;
-    uint32_t alignment;
+    std::string encoding = "utf-8";
+    uint32_t byte_length = tagged_code_units;
+    uint32_t alignment = 1;
     if (global_encoding.compare("utf8") == 0)
     {
         alignment = 1;
@@ -45,14 +45,12 @@ std::string load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t
     }
     else if (global_encoding.compare("utf16") == 0)
     {
-        throw std::runtime_error("utf16 not supported");
         alignment = 2;
         byte_length = 2 * tagged_code_units;
         encoding = "utf-16-le";
     }
     else if (global_encoding.compare("latin1+utf16") == 0)
     {
-        throw std::runtime_error("latin1+utf16 not supported");
         alignment = 2;
         if (tagged_code_units & UTF16_TAG)
         {
@@ -76,17 +74,10 @@ std::string load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t
     }
 
     std::string s;
-    try
+    s.reserve(byte_length);
+    for (const char *p = (const char *)data.begin() + ptr; p < (const char *)data.begin() + ptr + byte_length; p++)
     {
-        s.resize(byte_length);
-        for (const char *p = (const char *)data.begin() + ptr; p < (const char *)data.begin() + ptr + byte_length; p++)
-        {
-            s += *p;
-        }
-    }
-    catch (const std::exception &unicodeError)
-    {
-        // trap();
+        s += *p;
     }
     return s;
 }
@@ -144,7 +135,7 @@ std::string extractContentInDoubleQuotes(const std::string &input)
     return "";
 }
 
-std::pair<std::string, std::string> splitQualifiedName(const std::string &qualifiedName)
+std::pair<std::string, std::string> splitQualifiedID(const std::string &qualifiedName)
 {
     std::istringstream iss(qualifiedName);
     std::vector<std::string> tokens;
@@ -161,7 +152,7 @@ std::pair<std::string, std::string> splitQualifiedName(const std::string &qualif
     return std::make_pair(tokens[0], tokens[1]);
 }
 
-std::string joinQualifiedName(const std::string &wasmName, const std::string &funcName)
+std::string createQualifiedID(const std::string &wasmName, const std::string &funcName)
 {
     return wasmName + "." + funcName;
 }

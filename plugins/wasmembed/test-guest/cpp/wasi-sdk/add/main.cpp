@@ -2,6 +2,13 @@
 
 #include <string>
 
+void dbglog(const std::string str)
+{
+    test_string_t msg;
+    test_string_set(&msg, str.c_str());
+    test_dbglog(&msg);
+}
+
 uint32_t test_add3(uint32_t a)
 {
     // test_string_t msg;
@@ -28,8 +35,7 @@ uint32_t test_sub(uint32_t a, uint32_t b)
 
 void test_echo(test_string_t *str, test_string_t *ret)
 {
-    ret->len = str->len;
-    ret->ptr = (char *)malloc(ret->len * 2);
-    memcpy(ret->ptr, str->ptr, 2 * ret->len);
-    test_string_free(str);
+    std::string s(str->ptr, str->len);
+    std::string r = s + s;
+    test_string_set(ret, r.c_str());
 }
