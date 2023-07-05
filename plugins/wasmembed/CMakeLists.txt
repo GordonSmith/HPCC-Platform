@@ -24,17 +24,14 @@
 
 project(wasmembed)
 
+# set(CMAKE_CXX_STANDARD 20)
+
 if(WASMEMBED)
     ADD_PLUGIN(wasmembed)
     if(MAKE_WASMEMBED)
-        set(CMAKE_CXX_STANDARD 17)
 
         find_path(WASMTIME_CPP_API_INCLUDE_DIRS "wasmtime-cpp-api/wasmtime.hh")
-        find_library(LIBWASMTIME_LIB NAMES wasmtime)
-
-        set(SRCS
-            wasmembed.cpp
-        )
+        find_library(WASMTIME_LIB NAMES wasmtime)
 
         include_directories(
             ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-c-api
@@ -49,33 +46,41 @@ if(WASMEMBED)
 
         add_definitions(-D_USRDLL -DWASMEMBED_EXPORTS)
 
-        HPCC_ADD_LIBRARY(wasmembed SHARED ${SRCS})
+        add_library(wasmembed SHARED 
+            wasmembed.cpp
+        )
 
-        if(${CMAKE_VERSION} VERSION_LESS "2.8.9")
-            message(WARNING "Cannot set NO_SONAME. shlibdeps will give warnings when package is installed")
-        elseif(NOT APPLE)
-            set_target_properties(wasmembed PROPERTIES NO_SONAME 1)
-        endif()
+        add_library(host OBJECT
+            host.cpp
+        )
 
-        install(
-            TARGETS wasmembed
-            DESTINATION plugins
-            CALC_DEPS)
+        target_link_libraries(host
+            ${WASMTIME_LIB}
+        )
 
-        target_link_libraries(
-            wasmembed
-            ${LIBWASMTIME_LIB}
+        target_compile_features(host PRIVATE cxx_std_20)
+
+        target_link_libraries(wasmembed
             roxiemem
             eclrtl
-            jlib)
+            jlib
+            host
+        )
+
+    install(
+        TARGETS wasmembed
+        DESTINATION plugins
+        CALC_DEPS
+    )
+
     else()
         message(WARNING "Cannot build wasmembed plugin")
     endif()
 endif()
 
-if(PLATFORM OR CLIENTTOOLS_ONLY)
+# if(PLATFORM OR CLIENTTOOLS_ONLY)
     install(
         FILES ${CMAKE_CURRENT_SOURCE_DIR}/wasm.ecllib
         DESTINATION plugins
         COMPONENT Runtime)
-endif()
+# endif()

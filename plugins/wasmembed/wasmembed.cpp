@@ -16,7 +16,6 @@
 ############################################################################## */
 
 #include "platform.h"
-#include "wasmtime.hh"
 #include "jexcept.hpp"
 #include "jthread.hpp"
 #include "hqlplugins.hpp"
@@ -28,6 +27,8 @@
 #include "nbcd.hpp"
 #include "roxiemem.hpp"
 #include <vector>
+
+#include "host.hpp"
 
 static const char * compatibleVersions[] = {
     "WASM Embed Helper 1.0.0",
@@ -57,14 +58,14 @@ __declspec(noreturn) static void UNSUPPORTED(const char *feature) __attribute__(
 
 static void UNSUPPORTED(const char *feature)
 {
-    throw MakeStringException(-1, "UNSUPPORTED feature: %s not supported in v8embed plugin", feature);
+    throw MakeStringException(-1, "UNSUPPORTED feature: %s not supported in wasm plugin", feature);
 }
 
 __declspec(noreturn) static void typeError(const char *expected, const RtlFieldInfo *field) __attribute__((noreturn));
 
 static void typeError(const char *expected, const RtlFieldInfo *field)
 {
-    VStringBuffer msg("v8embed: type mismatch - %s expected", expected);
+    VStringBuffer msg("wasm: type mismatch - %s expected", expected);
     if (field)
         msg.appendf(" for field %s", field->name);
     rtlFail(0, msg.str());
@@ -79,9 +80,15 @@ class WASMEmbedFunctionContext : public CInterfaceOf<IEmbedFunctionContext>
 public:
     WASMEmbedFunctionContext()
     {
+        DBGLOG("WASMEmbedFunctionContext created");
+        auto dbglog = [](const char * value) {
+            DBGLOG("%s", value);
+        };        
+        createIHost(dbglog);
     }
     ~WASMEmbedFunctionContext()
     {
+        DBGLOG("WASMEmbedFunctionContext destroyed");
     }
     void setActivityContext(const IThorActivityContext *_activityCtx)
     {
@@ -202,7 +209,6 @@ public:
     virtual void exit() override {}
     virtual void importFunction(size32_t lenChars, const char *utf)
     {
-        UNIMPLEMENTED; // Not sure if meaningful for js
     }
     virtual void callFunction()
     {
@@ -229,18 +235,25 @@ class WASMEmbedContext : public CInterfaceOf<IEmbedContext>
 public:
     WASMEmbedContext()
     {
+        DBGLOG("WASMEmbedContext created");
+    }
+    ~WASMEmbedContext()
+    {
+        DBGLOG("WASMEmbedContext destroyed");
     }
     virtual IEmbedFunctionContext *createFunctionContext(unsigned flags, const char *options) override
     {
+        DBGLOG("createFunctionContext");
         return createFunctionContextEx(nullptr, nullptr, flags, options);
     }
     virtual IEmbedFunctionContext *createFunctionContextEx(ICodeContext * ctx, const IThorActivityContext *activityContext, unsigned flags, const char *options) override
     {
+        DBGLOG("createFunctionContextEx");
         if (flags & EFimport)
             UNSUPPORTED("IMPORT");
         if (!theFunctionContext)
         {
-            theFunctionContext = new WASMEmbedFunctionContext;
+            theFunctionContext = new WASMEmbedFunctionContext();
             addThreadTermFunc(releaseContext);
         }
         theFunctionContext->setActivityContext(activityContext);
@@ -248,6 +261,7 @@ public:
     }
     virtual IEmbedServiceContext *createServiceContext(const char *service, unsigned flags, const char *options) override
     {
+        DBGLOG("createServiceContext");
         throwUnexpected();
     }
 } theEmbedContext;
@@ -255,12 +269,15 @@ public:
 
 extern DECL_EXPORT IEmbedContext* getEmbedContext()
 {
+    DBGLOG("getEmbedContext");
     return LINK(&theEmbedContext);
 }
 
 extern DECL_EXPORT void syntaxCheck(size32_t & __lenResult, char * & __result, const char *funcname, size32_t charsBody, const char * body, const char *argNames, const char *compilerOptions, const char *persistOptions)
 {
+    DBGLOG("syntaxCheck");
     StringBuffer result;
+    // result.set("syntaxCheck: XXX");
     // MORE
     __lenResult = result.length();
     __result = result.detach();
