@@ -1,21 +1,21 @@
 #ifdef _MSC_VER
- #define DECL_EXPORT __declspec(dllexport)
- #define DECL_IMPORT __declspec(dllimport)
- #define DECL_LOCAL
- #define DECL_EXCEPTION
+#define DECL_EXPORT __declspec(dllexport)
+#define DECL_IMPORT __declspec(dllimport)
+#define DECL_LOCAL
+#define DECL_EXCEPTION
 #elif __GNUC__ >= 4
- #define DECL_EXPORT __attribute__ ((visibility ("default")))
- #define DECL_IMPORT __attribute__ ((visibility ("default")))
- #define DECL_LOCAL  __attribute__ ((visibility ("hidden")))
- #define DECL_EXCEPTION DECL_EXPORT
+#define DECL_EXPORT __attribute__((visibility("default")))
+#define DECL_IMPORT __attribute__((visibility("default")))
+#define DECL_LOCAL __attribute__((visibility("hidden")))
+#define DECL_EXCEPTION DECL_EXPORT
 #else
- #define DECL_EXPORT
- #define DECL_IMPORT
- #define DECL_LOCAL
- #define DECL_EXCEPTION
+#define DECL_EXPORT
+#define DECL_IMPORT
+#define DECL_LOCAL
+#define DECL_EXCEPTION
 #endif
 
-#include "secureenclave.hpp"
+#include "secure-enclave.hpp"
 
 #include <wasmtime.hh>
 
@@ -52,16 +52,16 @@ std::once_flag initFlag;
 class SecureEnclave : public ISecureEnclave
 {
 protected:
-    SecureEnclave(const char * _wat, std::function<void(const char *)> dbglog)
+    Engine engine;
+    Store store;
+    Linker linker;
+    std::vector<wasmtime::Val> results;
+    std::function<void(const char *)> dbglog;
+
+    SecureEnclave(std::function<void(const char *)> _dbglog) : store(engine),
+                                                               linker(engine),
+                                                               dbglog(_dbglog)
     {
-        Engine engine;
-        Store store(engine);
-
-        dbglog("Compiling module");
-        std::string wat = "(module\n" + std::string(_wat) + "\n)\n";
-
-        auto module = Module::compile(engine, wat).unwrap();
-
         dbglog("Create wasi");
         WasiConfig wasi;
         // wasi.inherit_argv();
@@ -72,8 +72,29 @@ protected:
         store.context().set_wasi(std::move(wasi)).unwrap();
 
         dbglog("Linking");
-        Linker linker(engine);
         linker.define_wasi().unwrap();
+    }
+
+public:
+    SecureEnclave(const SecureEnclave &) = delete;
+    SecureEnclave &operator=(const SecureEnclave &) = delete;
+    ~SecureEnclave()
+    {
+    }
+
+    static std::shared_ptr<ISecureEnclave> getInstance(std::function<void(const char *)> dbglog)
+    {
+        std::call_once(initFlag, [dbglog]()
+                       { instance = std::shared_ptr<SecureEnclave>(new SecureEnclave(dbglog)); });
+        instance = std::shared_ptr<SecureEnclave>(new SecureEnclave(dbglog));
+        return instance;
+    }
+
+    //  ISecureEnclave  ---
+    virtual void appendWatModule(const char *wat, Values values)
+    {
+        dbglog("Compiling module");
+        auto module = Module::compile(engine, wat).unwrap();
 
         // std::cout << "Creating callback...\n";
         // auto secureEnclave_func = linker.func_wrap("global", "print",
@@ -113,32 +134,63 @@ protected:
         // std::cout << "Extracting memory...\n";
         // auto memory = std::get<Memory>(*wasmInstance.get(store, "memory"));
 
-        dbglog("Extracting add...");
-        auto gcd = std::get<Func>(*wasmInstance.get(store, "gcd"));
+        dbglog("Extracting myfunc...");
+        auto myFunc = std::get<Func>(*wasmInstance.get(store, "myFunc"));
 
         // And last but not least we can call it!
-        dbglog("Calling gcd(22, 11)...");
-        dbglog(std::to_string(gcd.call(store, {22, 11}).unwrap()[0].i32()).c_str());
-
+        dbglog("Calling myFunc...");
+        std::vector<wasmtime::Val> args;
+        for (auto value : values)
+        {
+            switch (value.first)
+            {
+            case DataType::INT32:
+                args.push_back(wasmtime::Val(std::get<int32_t>(value.second)));
+                break;
+            case DataType::INT64:
+                args.push_back(wasmtime::Val(std::get<int64_t>(value.second)));
+                break;
+            case DataType::FLOAT32:
+                args.push_back(wasmtime::Val(std::get<float32_t>(value.second)));
+                break;
+            case DataType::FLOAT64:
+                args.push_back(wasmtime::Val(std::get<float64_t>(value.second)));
+                break;
+            }
+        }
+        results = myFunc.call(store, args).unwrap();
+        dbglog(std::to_string(results[0].i32()).c_str());
         dbglog("Done");
     }
 
-public:
-    SecureEnclave(const SecureEnclave &) = delete;
-    SecureEnclave &operator=(const SecureEnclave &) = delete;
-    ~SecureEnclave()
+    virtual int32_t i32Result()
     {
-    }
+        if (results[0].kind() == wasmtime::ValKind::I64)
+            return (int32_t)results[0].i64();
+        return results[0].i32();
+    };
 
-    static std::shared_ptr<ISecureEnclave> getInstance(const char * wat, std::function<void(const char *)> dbglog)
+    virtual int64_t i64Result()
     {
-        std::call_once(initFlag, [wat, dbglog]()
-                       { instance = std::shared_ptr<SecureEnclave>(new SecureEnclave(wat, dbglog)); });
-        return instance;
+        if (results[0].kind() == wasmtime::ValKind::I32)
+            return (int64_t)results[0].i32();
+        return results[0].i64();
+    }
+    virtual float32_t f32Result()
+    {
+        if (results[0].kind() == wasmtime::ValKind::F64)
+            return (float32_t)results[0].f64();
+        return results[0].f32();
+    }
+    virtual float64_t f64Result()
+    {
+        if (results[0].kind() == wasmtime::ValKind::F32)
+            return (float64_t)results[0].f32();
+        return results[0].f64();
     }
 };
 
-std::shared_ptr<ISecureEnclave> createISecureEnclave(const char * wat, std::function<void(const char *)> dbglog)
+std::shared_ptr<ISecureEnclave> createISecureEnclave(std::function<void(const char *)> dbglog)
 {
-    return SecureEnclave::getInstance(wat, dbglog);
+    return SecureEnclave::getInstance(dbglog);
 }

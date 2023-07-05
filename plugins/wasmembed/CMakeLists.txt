@@ -30,12 +30,9 @@ if(WASMEMBED)
     ADD_PLUGIN(wasmembed)
     if(MAKE_WASMEMBED)
 
-        find_path(WASMTIME_CPP_API_INCLUDE_DIRS "wasmtime-cpp-api/wasmtime.hh")
-        find_library(WASMTIME_LIB NAMES wasmtime)
+        add_subdirectory(secure-enclave)
 
         include_directories(
-            ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-c-api
-            ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-cpp-api
             ./../../system/include
             ./../../rtl/eclrtl
             ./../../rtl/nbcd
@@ -46,19 +43,6 @@ if(WASMEMBED)
 
         add_definitions(-D_USRDLL -DWASMEMBED_EXPORTS)
 
-        add_library(secureenclave SHARED
-            secureenclave.cpp
-        )
-
-        target_link_libraries(secureenclave
-            ${WASMTIME_LIB}
-        )
-
-        install(
-            TARGETS secureenclave 
-            DESTINATION plugins
-        )
-
         add_library(wasmembed SHARED 
             wasmembed.cpp
         )
@@ -67,13 +51,11 @@ if(WASMEMBED)
             watembed.cpp
         )
 
-        target_compile_features(secureenclave PRIVATE cxx_std_20)
-
         target_link_libraries(wasmembed
             roxiemem
             eclrtl
             jlib
-            secureenclave
+            secure-enclave
         )
 
         install(
@@ -85,7 +67,7 @@ if(WASMEMBED)
             roxiemem
             eclrtl
             jlib
-            secureenclave
+            secure-enclave
         )
 
         install(
