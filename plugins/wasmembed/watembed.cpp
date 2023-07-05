@@ -71,7 +71,7 @@ static void typeError(const char *expected, const RtlFieldInfo *field)
     rtlFail(0, msg.str());
 }
 
-namespace wasmLanguageHelper {
+namespace watLanguageHelper {
 
 // A JSRowBuilder object is used to construct an ECL row from a wasm object
 

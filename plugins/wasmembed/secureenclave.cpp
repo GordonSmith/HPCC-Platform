@@ -1,4 +1,21 @@
-#include "host.hpp"
+#ifdef _MSC_VER
+ #define DECL_EXPORT __declspec(dllexport)
+ #define DECL_IMPORT __declspec(dllimport)
+ #define DECL_LOCAL
+ #define DECL_EXCEPTION
+#elif __GNUC__ >= 4
+ #define DECL_EXPORT __attribute__ ((visibility ("default")))
+ #define DECL_IMPORT __attribute__ ((visibility ("default")))
+ #define DECL_LOCAL  __attribute__ ((visibility ("hidden")))
+ #define DECL_EXCEPTION DECL_EXPORT
+#else
+ #define DECL_EXPORT
+ #define DECL_IMPORT
+ #define DECL_LOCAL
+ #define DECL_EXCEPTION
+#endif
+
+#include "secureenclave.hpp"
 
 #include <wasmtime.hh>
 
@@ -29,47 +46,20 @@ std::vector<uint8_t> read_wasm_binary_to_buffer(const std::string &filename)
     return buffer;
 }
 
-std::string wat =
-    "(module\n"
-    "  (func $gcd (param i32 i32) (result i32)\n"
-    "    (local i32)\n"
-    "    block  ;; label = @1\n"
-    "      block  ;; label = @2\n"
-    "        local.get 0\n"
-    "        br_if 0 (;@2;)\n"
-    "        local.get 1\n"
-    "        local.set 2\n"
-    "        br 1 (;@1;)\n"
-    "      end\n"
-    "      loop ;; label = @2\n"
-    "        local.get 1\n"
-    "        local.get 0\n"
-    "        local.tee 2\n"
-    "        i32.rem_u\n"
-    "        local.set 0\n"
-    "        local.get 2\n"
-    "        local.set 1\n"
-    "        local.get 0\n"
-    "        br_if 0 (;@2;)\n"
-    "      end\n"
-    "    end\n"
-    "    local.get 2\n"
-    "  )\n"
-    "  (export \"gcd\" (func $gcd))\n"
-    ")\n";
-
-std::shared_ptr<IHost> instance;
+std::shared_ptr<ISecureEnclave> instance;
 std::once_flag initFlag;
 
-class Host : public IHost
+class SecureEnclave : public ISecureEnclave
 {
 protected:
-    Host(std::function<void(const char *)> dbglog)
+    SecureEnclave(const char * _wat, std::function<void(const char *)> dbglog)
     {
         Engine engine;
         Store store(engine);
 
         dbglog("Compiling module");
+        std::string wat = "(module\n" + std::string(_wat) + "\n)\n";
+
         auto module = Module::compile(engine, wat).unwrap();
 
         dbglog("Create wasi");
@@ -86,7 +76,7 @@ protected:
         linker.define_wasi().unwrap();
 
         // std::cout << "Creating callback...\n";
-        // auto host_func = linker.func_wrap("global", "print",
+        // auto secureEnclave_func = linker.func_wrap("global", "print",
         //                                   [](Caller caller, uint32_t msg, uint32_t msg_len)
         //                                   {
 
@@ -134,21 +124,21 @@ protected:
     }
 
 public:
-    Host(const Host &) = delete;
-    Host &operator=(const Host &) = delete;
-    ~Host()
+    SecureEnclave(const SecureEnclave &) = delete;
+    SecureEnclave &operator=(const SecureEnclave &) = delete;
+    ~SecureEnclave()
     {
     }
 
-    static std::shared_ptr<IHost> getInstance(std::function<void(const char *)> dbglog)
+    static std::shared_ptr<ISecureEnclave> getInstance(const char * wat, std::function<void(const char *)> dbglog)
     {
-        std::call_once(initFlag, [dbglog]()
-                       { instance = std::shared_ptr<Host>(new Host(dbglog)); });
+        std::call_once(initFlag, [wat, dbglog]()
+                       { instance = std::shared_ptr<SecureEnclave>(new SecureEnclave(wat, dbglog)); });
         return instance;
     }
 };
 
-std::shared_ptr<IHost> createIHost(std::function<void(const char *)> dbglog)
+std::shared_ptr<ISecureEnclave> createISecureEnclave(const char * wat, std::function<void(const char *)> dbglog)
 {
-    return Host::getInstance(dbglog);
+    return SecureEnclave::getInstance(wat, dbglog);
 }

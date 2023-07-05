@@ -21,7 +21,8 @@
 			"*.json": "json",
 			"*.mod": "ecl",
 			"*.ipp": "cpp",
-			"functional": "cpp"
+			"functional": "cpp",
+			"*.esp": "cpp"
 		}
 	},
 	"extensions": {

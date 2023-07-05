@@ -46,32 +46,52 @@ if(WASMEMBED)
 
         add_definitions(-D_USRDLL -DWASMEMBED_EXPORTS)
 
+        add_library(secureenclave SHARED
+            secureenclave.cpp
+        )
+
+        target_link_libraries(secureenclave
+            ${WASMTIME_LIB}
+        )
+
+        install(
+            TARGETS secureenclave 
+            DESTINATION plugins
+        )
+
         add_library(wasmembed SHARED 
             wasmembed.cpp
         )
 
-        add_library(host OBJECT
-            host.cpp
+        add_library(watembed SHARED 
+            watembed.cpp
         )
 
-        target_link_libraries(host
-            ${WASMTIME_LIB}
-        )
-
-        target_compile_features(host PRIVATE cxx_std_20)
+        target_compile_features(secureenclave PRIVATE cxx_std_20)
 
         target_link_libraries(wasmembed
             roxiemem
             eclrtl
             jlib
-            host
+            secureenclave
         )
 
-    install(
-        TARGETS wasmembed
-        DESTINATION plugins
-        CALC_DEPS
-    )
+        install(
+            TARGETS wasmembed 
+            DESTINATION plugins
+        )
+
+        target_link_libraries(watembed
+            roxiemem
+            eclrtl
+            jlib
+            secureenclave
+        )
+
+        install(
+            TARGETS watembed
+            DESTINATION plugins
+        )
 
     else()
         message(WARNING "Cannot build wasmembed plugin")
@@ -80,7 +100,7 @@ endif()
 
 # if(PLATFORM OR CLIENTTOOLS_ONLY)
     install(
-        FILES ${CMAKE_CURRENT_SOURCE_DIR}/wasm.ecllib
+        FILES ${CMAKE_CURRENT_SOURCE_DIR}/wasm.ecllib ${CMAKE_CURRENT_SOURCE_DIR}/wat.ecllib
         DESTINATION plugins
         COMPONENT Runtime)
 # endif()
