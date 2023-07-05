@@ -48,6 +48,7 @@ sub(44, 3);
 add3(10);
 add(10, 2); 
 echo('hello');
+echo('123hello123');
 // inlineAdd(10.12, 21.22);
 // strLength('hello');
 // inlineAdd(10.22, 22.222);

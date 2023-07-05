@@ -2,26 +2,6 @@
 
 #include <string>
 
-uint32_t test_new_buffer(uint32_t size)
-{
-    return (uint32_t)malloc(size);
-}
-
-void test_delete_buffer(uint32_t buff)
-{
-    free((void *)buff);
-}
-
-void test_echo(test_string_t *msg, test_string_t *ret)
-{
-    std::string s;
-    s = msg->ptr;
-    s += ":echo";
-
-    test_string_set(ret, s.c_str());
-    // global_print(ret);
-}
-
 uint32_t test_add3(uint32_t a)
 {
     // test_string_t msg;
@@ -44,4 +24,13 @@ uint32_t test_sub(uint32_t a, uint32_t b)
     // test_string_set(&msg, "test_sub");
     // global_print(&msg);
     return a - b;
+}
+
+void test_echo(test_string_t *msg, test_string_t *ret)
+{
+    std::string s(msg->ptr, msg->len);
+    s += ":echo:" + std::to_string(msg->len) + ":" + std::to_string(strlen(msg->ptr));
+
+    test_string_set(ret, s.c_str());
+    // global_print(ret);
 }
