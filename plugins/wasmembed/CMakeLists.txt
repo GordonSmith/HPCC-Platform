@@ -31,6 +31,7 @@ if(WASMEMBED)
     if(MAKE_WASMEMBED)
 
         add_subdirectory(secure-enclave)
+        add_subdirectory(test-guest)
 
         include_directories(
             ./../../common/thorhelper

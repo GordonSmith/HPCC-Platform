@@ -1,0 +1,1 @@
+See:  https://www.assemblyscript.org/getting-started.html#setting-up-a-new-project

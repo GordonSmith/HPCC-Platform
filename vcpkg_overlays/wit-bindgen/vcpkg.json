@@ -1,0 +1,8 @@
+{
+  "name": "wit-bindgen",
+  "version-string": "0.8.0",
+  "description": "This project is a suite of bindings generators for languages that are compiled to WebAssembly and use the component model. Bindings are described with *.wit files which specify imports, exports, and facilitate reuse between bindings definitions.",
+  "homepage": "https://github.com/bytecodealliance/wit-bindgen",
+  "supports": "linux",
+  "license": "Apache-2.0"
+}

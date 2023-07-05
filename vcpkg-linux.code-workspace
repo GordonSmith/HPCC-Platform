@@ -11,6 +11,7 @@
 			"-DUSE_OPTIONAL=OFF",
 			"-DUSE_CPPUNIT=ON",
 			"-DWASMEMBED=ON"
+			// "-DINCLUDE_PLUGINS=ON",
 			// "-DSUPPRESS_V8EMBED=ON",
 			// "-DSUPPRESS_REMBED=ON"
 		],
@@ -106,7 +107,15 @@
 			"slist": "cpp",
 			"latch": "cpp",
 			"scoped_allocator": "cpp",
-			"syncstream": "cpp"
+			"syncstream": "cpp",
+			"__tree": "cpp",
+			"*.tpp": "cpp",
+			"__errc": "cpp",
+			"__locale": "cpp",
+			"__mutex_base": "cpp",
+			"__threading_support": "cpp",
+			"queue": "cpp",
+			"stack": "cpp"
 		},
 		"ecl.launchConfiguration": "localhost",
 		"ecl.targetCluster": {}

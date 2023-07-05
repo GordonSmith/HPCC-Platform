@@ -171,12 +171,20 @@
             "platform": "@VCPKG_TBB@"
         },
         {
+            "name": "wasi-sdk",
+            "platform": "linux"
+        },
+        {
             "name": "wasmtime-cpp-api",
             "platform": "linux"
         },
         {
             "name": "winflexbison",
             "platform": "windows"
+        },
+        {
+            "name": "wit-bindgen",
+            "platform": "linux"
         },
         {
             "name": "zlib",

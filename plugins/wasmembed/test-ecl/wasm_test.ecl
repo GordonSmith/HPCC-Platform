@@ -39,16 +39,17 @@ real4 inlineAdd(real4 val1, real4 val2) := EMBED(wasm)
 
 ENDEMBED;
 
-integer4 add3 (integer4 val1) := IMPORT( wasm, 'test.add3' );
-integer4 add (integer4 val1, integer4 val2) := IMPORT( wasm, 'test.add' );
-integer4 sub (integer4 val1, integer4 val2) := IMPORT( wasm, 'test.sub' );
-integer4 strLength (string val1) := IMPORT( wasm, 'test.strLength' );
+integer4 add3 (integer4 val1) := IMPORT( wasm, 'add.add3' );
+integer4 add (integer4 val1, integer4 val2) := IMPORT( wasm, 'add.add' );
+integer4 sub (integer4 val1, integer4 val2) := IMPORT( wasm, 'add.sub' );
+string echo (string val1) := IMPORT( wasm, 'add.echo' );
 
-add(10,2); 
-// inlineAdd(10.12, 21.22);
 sub(44, 3);
 add3(10);
-strLength('hello');
+add(10, 2); 
+echo('hello');
+// inlineAdd(10.12, 21.22);
+// strLength('hello');
 // inlineAdd(10.22, 22.222);
 // add(10,2);
 // inlineAdd(10.12, 21.22);

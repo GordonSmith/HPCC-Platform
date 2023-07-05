@@ -56,6 +56,7 @@ int my_fprintf(FILE *stream, const char *format, ...)
 // Macro to replace fprintf calls with my_fprintf
 #define fprintf my_fprintf
 
+#include "abi.hpp"
 #include <wasmtime.hh>
 
 #include <fstream>
@@ -99,27 +100,43 @@ std::string extractContentInDoubleQuotes(const std::string &input)
     return "";
 }
 
+std::pair<std::string, std::string> splitQualifiedName(const std::string &qualifiedName)
+{
+    std::istringstream iss(qualifiedName);
+    std::vector<std::string> tokens;
+    std::string token;
+
+    while (std::getline(iss, token, '.'))
+    {
+        tokens.push_back(token);
+    }
+    if (tokens.size() != 2)
+    {
+        throw std::runtime_error("Invalid import function " + qualifiedName + ", expected format: <module>.<function>");
+    }
+    return std::make_pair(tokens[0], tokens[1]);
+}
+
+std::string joinQualifiedName(const std::string &wasmName, const std::string &funcName)
+{
+    return wasmName + "." + funcName;
+}
+
 wasmtime::Engine engine;
 wasmtime::Store store(engine);
-wasmtime::WasiConfig wasi;
-
-class Test
-{
-public:
-    Test()
-    {
-        wasi.inherit_argv();
-        wasi.inherit_env();
-        wasi.inherit_stdin();
-        wasi.inherit_stdout();
-        wasi.inherit_stderr();
-    }
-
-} test;
 
 std::map<std::string, wasmtime::Instance> wasmInstances;
 std::map<std::string, wasmtime::Memory> wasmMems;
 std::map<std::string, wasmtime::Func> wasmFuncs;
+
+class Val
+{
+    Val()
+    {
+    }
+
+public:
+};
 
 class SecureFunction : public ISecureEnclave
 {
@@ -128,7 +145,8 @@ class SecureFunction : public ISecureEnclave
     std::vector<wasmtime::Val> args;
     std::vector<wasmtime::Val> results;
     uint32_t crcValue;
-    std::string qualifiedID;
+    std::string wasmName;
+    std::string funcName;
 
 public:
     SecureFunction(IWasmEmbedCallback &embedContext) : embedContext(embedContext)
@@ -216,10 +234,41 @@ public:
     {
         embedContext.dbglog("bindUnsignedParam %s %llu");
     }
-    virtual void bindStringParam(const char *name, size32_t len, const char *val)
+    virtual void bindStringParam(const char *qualifiedName, size32_t len, const char *val)
     {
-        embedContext.dbglog("bindStringParam %s %i %s");
-        args.push_back(wasmtime::Val(ExternRef(std::string(val))));
+        embedContext.dbglog("bindStringParam " + std::string(qualifiedName) + " " + std::string(val) + " " + std::to_string(len));
+        auto newBuffer = wasmFuncs.find(joinQualifiedName(wasmName, "new-buffer"));
+        if (newBuffer == wasmFuncs.end())
+        {
+            throw std::runtime_error("Missing:  new-buffer");
+        }
+        auto memIdxVar = newBuffer->second.call(store, {wasmtime::Val((int32_t)len)}).unwrap();
+        auto memIdx = memIdxVar[0].i32();
+        auto mem = wasmMems.find(wasmName);
+        auto memXXX = mem->second.data(store.context());
+        for (int i = 0; i < len; i++)
+        {
+            memXXX[memIdx + i] = val[i];
+        }
+        args.push_back(wasmtime::Val(memIdx));
+        args.push_back(wasmtime::Val((int32_t)len));
+
+        // std::string tmp(val, len);
+        // wasmtime::ExternRef externRef(tmp);
+
+        // auto [wasmName, funcName] = splitQualifiedName(qualifiedName);
+        // auto itr = wasmMems.find(wasmName);
+        // if (itr == wasmMems.end())
+        // {
+        //     throw std::runtime_error("Memory not found");
+        // }
+
+        // auto memory = itr->second;
+        // Table table = std::get<Table>(*instance.get(store, "table"));
+        // table.set(store, 3, externRef).unwrap();
+        // ExternRef extRefVal = *table.get(store, 3)->externref();
+        // args.push_back(wasmtime::Val((int32_t)externRef.raw()));
+        // args.push_back(wasmtime::Val((int32_t)len));
     }
     virtual void bindVStringParam(const char *name, const char *val)
     {
@@ -275,9 +324,38 @@ public:
             return (int32_t)results[0].i64();
         return results[0].i32();
     }
+
     virtual void getStringResult(size32_t &__chars, char *&__result)
     {
-        embedContext.dbglog("getStringResult");
+        embedContext.dbglog("getStringResult " + std::to_string(results.size()));
+        auto memRef = wasmMems.find(wasmName);
+        auto mem = memRef->second.data(store.context());
+        auto offset = results[0].i32();
+        embedContext.dbglog("getStringResult (offset) " + std::to_string(offset));
+        std::string s = load_string(mem, offset);
+        embedContext.dbglog("getStringResult (std::string) " + s);
+        __chars = s.length();
+        embedContext.dbglog("getStringResult (__chars) " + std::to_string(__chars));
+        __result = (char *)rtlMalloc(__chars + 1);
+        memcpy(__result, s.c_str(), __chars);
+
+        // size32_t ptr = load_int(mem, offset, 4);
+        // embedContext.dbglog("getStringResult (ptr) " + std::to_string(ptr));
+        // __chars = (size32_t)mem[offset + 4];
+        // embedContext.dbglog("getStringResult (__chars) " + std::to_string(__chars));
+        // std::string s = load_string(mem, ptr);
+
+        // embedContext.dbglog("getStringResult (__chars) " + std::to_string(mem[offset]));
+        // embedContext.dbglog("getStringResult (__chars) " + std::to_string(mem[offset + 1]));
+        // embedContext.dbglog("getStringResult (__chars) " + std::to_string(mem[offset + 2]));
+        // embedContext.dbglog("getStringResult (__chars) " + std::to_string(mem[offset + 3]));
+        // embedContext.dbglog("getStringResult (__chars) " + std::to_string(mem[offset + 4]));
+        // embedContext.dbglog("getStringResult (__chars) " + std::to_string(mem[offset + 5]));
+        // embedContext.dbglog("getStringResult (__chars) " + std::to_string(mem[offset + 6]));
+        // for (int i = 0; i < __chars; i++)
+        // {
+        //     __result[i] = mem[ptr + i];
+        // }
     }
     virtual void getUTF8Result(size32_t &__chars, char *&__result)
     {
@@ -329,9 +407,9 @@ public:
         auto instanceItr = wasmInstances.find(wasmName);
         if (instanceItr == wasmInstances.end())
         {
-            embedContext.dbglog("resolveModule" + wasmName);
+            embedContext.dbglog("resolveModule " + wasmName);
             auto module = std::holds_alternative<std::string_view>(wasm) ? Module::compile(engine, std::get<std::string_view>(wasm)).unwrap() : Module::compile(engine, std::get<Span<uint8_t>>(wasm)).unwrap();
-            embedContext.dbglog("resolveModule2" + wasmName);
+            embedContext.dbglog("resolveModule2 " + wasmName);
 
             WasiConfig wasi;
             wasi.inherit_argv();
@@ -340,74 +418,50 @@ public:
             wasi.inherit_stdout();
             wasi.inherit_stderr();
             store.context().set_wasi(std::move(wasi)).unwrap();
-            embedContext.dbglog("resolveModule3" + wasmName);
+            embedContext.dbglog("resolveModule3 " + wasmName);
 
             Linker linker(engine);
             linker.define_wasi().unwrap();
-            embedContext.dbglog("resolveModule4" + wasmName);
+            embedContext.dbglog("resolveModule4 " + wasmName);
 
             auto newInstance = linker.instantiate(store, module).unwrap();
             linker.define_instance(store, "linking2", newInstance).unwrap();
 
-            embedContext.dbglog("resolveModule5" + wasmName);
+            embedContext.dbglog("resolveModule5 " + wasmName);
 
             wasmInstances.insert(std::make_pair(wasmName, newInstance));
-            embedContext.dbglog("resolveModule6" + wasmName);
+            embedContext.dbglog("resolveModule6 " + wasmName);
 
             auto memory = std::get<Memory>(*newInstance.get(store, "memory"));
             wasmMems.insert(std::make_pair(wasmName, memory));
+
+            for (auto exportItem : module.exports())
+            {
+                auto externType = ExternType::from_export(exportItem);
+                if (std::holds_alternative<wasmtime::FuncType::Ref>(externType))
+                {
+                    std::string name(exportItem.name());
+                    embedContext.dbglog(std::string("Exported function: ") + name);
+                    auto func = std::get<Func>(*newInstance.get(store, name));
+                    wasmFuncs.insert(std::make_pair(wasmName + "." + name, func));
+                }
+            }
 
             return newInstance;
         }
         return instanceItr->second;
     }
-    wasmtime::Func registerFunction(const std::string &wasmName, const std::string &funcName, wasmtime::Instance &instance)
-    {
-        qualifiedID = wasmName + "." + funcName;
-        embedContext.dbglog("registerFunction:  " + qualifiedID);
-        auto funcItr = wasmFuncs.find(qualifiedID);
-        if (funcItr == wasmFuncs.end())
-        {
-            embedContext.dbglog("resolveFuncRef2:  " + qualifiedID);
-            auto myFunc = std::get<Func>(*instance.get(store, funcName));
-            embedContext.dbglog("resolveFuncRef3:  " + qualifiedID);
-            wasmFuncs.insert(std::make_pair(qualifiedID, myFunc));
-            embedContext.dbglog("resolveFuncRef4:  " + qualifiedID);
-            return myFunc;
-        }
-        return funcItr->second;
-    }
-    wasmtime::Func registerFunction(const std::string &wasmName, const std::string &funcName, const std::variant<std::string_view, Span<uint8_t>> &wasm)
-    {
-        embedContext.dbglog("resolveFuncRef:  " + qualifiedID);
-        auto instance = registerInstance(wasmName, wasm);
-        return registerFunction(wasmName, funcName, instance);
-    }
     virtual void compileEmbeddedScript(size32_t lenChars, const char *utf)
     {
         embedContext.dbglog("compileEmbeddedScript %s");
-
-        std::string funcName = extractContentInDoubleQuotes(utf);
-        std::string wasmName = "embed_" + funcName;
-        registerFunction(wasmName, funcName, utf);
+        funcName = extractContentInDoubleQuotes(utf);
+        wasmName = "embed_" + funcName;
+        auto instance = registerInstance(wasmName, utf);
     }
     virtual void importFunction(size32_t lenChars, const char *qualifiedName)
     {
         embedContext.dbglog(std::string("importFunction:  ") + qualifiedName);
-        std::istringstream iss(qualifiedName);
-        std::vector<std::string> tokens;
-        std::string token;
-
-        while (std::getline(iss, token, '.'))
-        {
-            tokens.push_back(token);
-        }
-        if (tokens.size() != 2)
-        {
-            throw std::runtime_error("Invalid import function string, expected format: <module>.<function>");
-        }
-        std::string wasmName = tokens[0];
-        std::string funcName = tokens[1];
+        auto [wasmName, funcName] = splitQualifiedName(qualifiedName);
         auto instanceItr = wasmInstances.find(wasmName);
         if (instanceItr == wasmInstances.end())
         {
@@ -415,15 +469,12 @@ public:
             embedContext.dbglog("importFunction:  fullPath " + fullPath);
             embedContext.dbglog(std::string("se:Instantiate module ") + wasmName);
             auto wasmFile = read_wasm_binary_to_buffer(fullPath);
-            registerFunction(wasmName, funcName, wasmFile);
-        }
-        else
-        {
-            registerFunction(wasmName, funcName, instanceItr->second);
+            registerInstance(wasmName, wasmFile);
         }
     }
     virtual void callFunction()
     {
+        auto qualifiedID = joinQualifiedName(wasmName, funcName);
         embedContext.dbglog("callFunction " + qualifiedID);
 
         auto myFunc = wasmFuncs.find(qualifiedID);

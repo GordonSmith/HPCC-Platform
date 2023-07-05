@@ -1,3 +1,0 @@
-<Manifest>
-    <Resource filename="test.wasm" type="wasm" />
-</Manifest>

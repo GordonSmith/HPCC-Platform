@@ -1,0 +1,20 @@
+{
+  "name": "javascript",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rimraf build",
+    "build-full": "../../../../javy/javy compile -o ./build/index.wasm ./src/index.js",
+    "build-shared": "../../../../javy/javy compile -d -o ./build/index-shared.wasm ./src/index.js && ../../../../javy/javy emit-provider -o ./build/provider.wasm",
+    "build": "mkdir -p ./build && npm run build-full && npm run build-shared",
+    "test-full": "echo '{ \"n\": 2, \"bar\": \"baz\" }' | wasmtime ./build/index.wasm",
+    "test-shared": "echo '{ \"n\": 2, \"bar\": \"baz\" }' | wasmtime --preload javy_quickjs_provider_v1=./build/provider.wasm ./build/index-shared.wasm",
+    "test": "npm run test-full && npm run test-shared"
+  },
+  "devDependencies": {
+    "rimraf": "5.0.0"
+  },
+  "author": "",
+  "license": "Apache-2.0"
+}

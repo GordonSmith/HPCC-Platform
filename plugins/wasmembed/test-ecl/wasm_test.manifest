@@ -1,0 +1,3 @@
+<Manifest>
+    <Resource filename="/home/gordon/HPCC-Platform/build/plugins/wasmembed/test-guest/cpp/bin/add.wasm" type="wasm" />
+</Manifest>
