@@ -30,7 +30,7 @@ integer4 gcd(integer4 val1, integer4 val2) := EMBED(wasm)
 ENDEMBED;
 
 real4 inlineAdd(real4 val1, real4 val2) := EMBED(wasm)  
-  
+
   (func (export "add") (param f32 f32) (result f32)
     get_local 0
     get_local 1
@@ -43,23 +43,24 @@ integer4 add3 (integer4 val1) := IMPORT( wasm, 'test.add3' );
 integer4 add (integer4 val1, integer4 val2) := IMPORT( wasm, 'test.add' );
 integer4 sub (integer4 val1, integer4 val2) := IMPORT( wasm, 'test.sub' );
 
+add(10,2); 
 inlineAdd(10.12, 21.22);
+sub(44, 3);
 add3(10);
-inlineAdd(10.22, 22.22);
-add(10,2);
+inlineAdd(10.22, 22.222);
 add(10,2);
 inlineAdd(10.12, 21.22);
 add(10,2);
 add(10,3);
-// inlineAdd(10, 22);
-// addB(12, 16);
+inlineAdd(10, 22);
+add(12, 16);
 gcd(10, 15);
-// addB(10, 15);
-// add(12, 16);
-// gcd(12, 9);
-// addB(12, 9);
-// sub(44, 2);
-// sub(44, 3);
-// sub(44, 4);
-// sub(44, 5);
-// sub(44, 6);
+add(10, 15);
+add(12, 16);
+gcd(12, 9);
+add(12, 9);
+sub(44, 2);
+sub(44, 4);
+sub(44, 5);
+sub(44, 6);
+inlineAdd(10.12, 21.22);

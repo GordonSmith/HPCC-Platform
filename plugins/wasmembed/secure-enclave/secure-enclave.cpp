@@ -45,7 +45,19 @@ std::string extractContentInDoubleQuotes(const std::string &input)
 
 Engine engine;
 Store store(engine);
-std::map<std::string, std::optional<wasmtime::Instance>> wasmInstances;
+
+class WasmFunc
+{
+    wasmtime::Instance instance;
+    wasmtime::Func func;
+
+    WasmFunc(wasmtime::Instance instance, wasmtime::Func func) : instance(instance), func(func)
+    {
+    }
+};
+
+std::map<std::string, wasmtime::Instance> wasmInstances;
+std::map<std::string, wasmtime::Func> wasmFuncs;
 
 class SecureFunction : public ISecureEnclave
 {
@@ -54,14 +66,13 @@ class SecureFunction : public ISecureEnclave
     std::vector<wasmtime::Val> args;
     std::vector<wasmtime::Val> results;
     uint32_t crcValue;
-    std::string wasmName;
-    std::string funcName;
+    std::string qualifiedID;
 
 public:
     SecureFunction(IWasmEmbedCallback &embedContext) : embedContext(embedContext)
     {
         embedContext.dbglog("se:constructor");
-        embedContext.dbglog("se:Create wasi");
+        // embedContext.dbglog("se:Create wasi");
         // WasiConfig wasi;
         // // wasi.inherit_argv();
         // // wasi.inherit_env();
@@ -249,23 +260,52 @@ public:
         embedContext.dbglog("exit");
         args.clear();
     }
+    wasmtime::Instance registerInstance(const std::string &wasmName, const std::variant<std::string_view, Span<uint8_t>> &wasm)
+    {
+        embedContext.dbglog("registerInstance " + wasmName);
+        auto instanceItr = wasmInstances.find(wasmName);
+        if (instanceItr == wasmInstances.end())
+        {
+            embedContext.dbglog("resolveModule" + wasmName);
+            auto module = std::holds_alternative<std::string_view>(wasm) ? Module::compile(engine, std::get<std::string_view>(wasm)).unwrap() : Module::compile(engine, std::get<Span<uint8_t>>(wasm)).unwrap();
+            embedContext.dbglog("resolveModule2" + wasmName);
+            auto newInstance = Instance::create(store, module, {}).unwrap();
+            embedContext.dbglog("resolveModule3" + wasmName);
+            wasmInstances.insert(std::make_pair(wasmName, newInstance));
+            embedContext.dbglog("resolveModule4" + wasmName);
+            return newInstance;
+        }
+        return instanceItr->second;
+    }
+    wasmtime::Func registerFunction(const std::string &wasmName, const std::string &funcName, wasmtime::Instance &instance)
+    {
+        qualifiedID = wasmName + "." + funcName;
+        embedContext.dbglog("registerFunction:  " + qualifiedID);
+        auto funcItr = wasmFuncs.find(qualifiedID);
+        if (funcItr == wasmFuncs.end())
+        {
+            embedContext.dbglog("resolveFuncRef2:  " + qualifiedID);
+            auto myFunc = std::get<Func>(*instance.get(store, funcName));
+            embedContext.dbglog("resolveFuncRef3:  " + qualifiedID);
+            wasmFuncs.insert(std::make_pair(qualifiedID, myFunc));
+            embedContext.dbglog("resolveFuncRef4:  " + qualifiedID);
+            return myFunc;
+        }
+        return funcItr->second;
+    }
+    wasmtime::Func registerFunction(const std::string &wasmName, const std::string &funcName, const std::variant<std::string_view, Span<uint8_t>> &wasm)
+    {
+        embedContext.dbglog("resolveFuncRef:  " + qualifiedID);
+        auto instance = registerInstance(wasmName, wasm);
+        return registerFunction(wasmName, funcName, instance);
+    }
     virtual void compileEmbeddedScript(size32_t lenChars, const char *utf)
     {
         embedContext.dbglog("compileEmbeddedScript %s");
 
-        funcName = extractContentInDoubleQuotes(utf);
-        wasmName = "embed." + funcName;
-        if (wasmInstances.find(wasmName) == wasmInstances.end())
-        {
-            embedContext.dbglog("se:Instantiate module " + wasmName);
-            auto module = Module::compile(engine, utf).unwrap();
-            auto instance = Instance::create(store, module, {}).unwrap();
-            wasmInstances[wasmName] = instance;
-        }
-        else
-        {
-            embedContext.dbglog("se:Skip Instantiate module " + funcName);
-        }
+        std::string funcName = extractContentInDoubleQuotes(utf);
+        std::string wasmName = "embed_" + funcName;
+        registerFunction(wasmName, funcName, utf);
     }
     virtual void importFunction(size32_t lenChars, const char *qualifiedName)
     {
@@ -282,38 +322,35 @@ public:
         {
             throw std::runtime_error("Invalid import function string, expected format: <module>.<function>");
         }
-        wasmName = tokens[0];
-        funcName = tokens[1];
-        if (wasmInstances.find(wasmName) == wasmInstances.end())
+        std::string wasmName = tokens[0];
+        std::string funcName = tokens[1];
+        auto instanceItr = wasmInstances.find(wasmName);
+        if (instanceItr == wasmInstances.end())
         {
             std::string fullPath = embedContext.resolvePath((wasmName + ".wasm").c_str());
             embedContext.dbglog("importFunction:  fullPath " + fullPath);
             embedContext.dbglog(std::string("se:Instantiate module ") + wasmName);
             auto wasmFile = read_wasm_binary_to_buffer(fullPath);
-            auto module = Module::compile(engine, wasmFile).unwrap();
-            auto instance = Instance::create(store, module, {}).unwrap();
-            wasmInstances[wasmName] = instance;
+            registerFunction(wasmName, funcName, wasmFile);
         }
         else
         {
-            embedContext.dbglog(std::string("se:Skip Instantiate module ") + wasmName);
+            registerFunction(wasmName, funcName, instanceItr->second);
         }
     }
     virtual void callFunction()
     {
-        embedContext.dbglog("callFunction " + funcName);
+        embedContext.dbglog("callFunction " + qualifiedID);
 
-        embedContext.dbglog("resolve instance " + wasmName + " " + std::to_string(wasmInstances[wasmName].has_value()));
-        auto tmp = wasmInstances[wasmName].value();
-
-        embedContext.dbglog("resolve function " + funcName);
-        auto myFunc = std::get<Func>(*tmp.get(store, funcName));
-
-        embedContext.dbglog("call function " + funcName);
-        results = myFunc.call(store, args).unwrap();
+        auto myFunc = wasmFuncs.find(qualifiedID);
+        if (myFunc == wasmFuncs.end())
+        {
+            throw std::runtime_error("Invalid function name");
+        }
+        embedContext.dbglog("do call " + qualifiedID);
+        results = myFunc->second.call(store, args).unwrap();
 
         embedContext.dbglog("result count " + std::to_string(results.size()));
-        // embedContext.dbglog("result type " + std::to_string(results[0].kind()));
     }
 };
 
