@@ -5,8 +5,8 @@
 
 interface IWasmEmbedCallback
 {
-    virtual void dbglog(const std::string &msg) = 0;
-    virtual const char *resolvePath(const char *leafName) = 0;
+    virtual inline void DBGLOG(char const *format, ...) __attribute__((format(printf, 2, 3))) = 0;
+    virtual const char *resolveManifestPath(const char *leafName) = 0;
 };
 
 interface ISecureEnclave : extends IEmbedFunctionContext
@@ -14,4 +14,6 @@ interface ISecureEnclave : extends IEmbedFunctionContext
     virtual ~ISecureEnclave() = default;
 };
 
-std::unique_ptr<ISecureEnclave> createISecureEnclave(IWasmEmbedCallback &embedContext);
+void init(std::shared_ptr<IWasmEmbedCallback> embedContext);
+void kill();
+std::unique_ptr<ISecureEnclave> createISecureEnclave();

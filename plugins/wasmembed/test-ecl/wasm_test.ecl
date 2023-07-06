@@ -51,13 +51,33 @@ r2 := { integer8 id, string val, integer4 val2, string val3, real4 inlineTest };
 
 r2 myTransform(r l) := TRANSFORM
   self.val2 := add3(11);
-  self.val3 := echo((string)l.id);
+  self.val3 := echo((string)l.id + ':' + l.val);
   self.inlineTest := inlineAdd(l.id, self.val2);
   SELF := l;
 end;
 
 d2 := project(d, myTransform(LEFT));
 choosen(d2, ALL);
+
+r2 myTransform2(r l) := TRANSFORM
+  self.val2 := add3(11);
+  self.val3 := (string)l.id + ':' + l.val;
+  self.inlineTest := add(l.id, self.val2);
+  SELF := l;
+end;
+
+d3 := project(d, myTransform2(LEFT));
+choosen(d3, ALL);
+
+r2 myTransform3(r l) := TRANSFORM
+  self.val2 := 11;
+  self.val3 := (string)l.id + ':' + l.val;
+  self.inlineTest := l.id + self.val2;
+  SELF := l;
+end;
+
+d4 := project(d, myTransform3(LEFT));
+choosen(d4, ALL);
 
 sub(44, 3);
 add3(10);

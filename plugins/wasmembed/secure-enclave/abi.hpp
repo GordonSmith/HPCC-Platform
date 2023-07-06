@@ -1,7 +1,9 @@
-//  See:  https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md
+/*
+  See:  https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md
+        https://github.com/WebAssembly/component-model/blob/main/design/mvp/canonical-abi/definitions.py
+*/
 
 #include <wasmtime.hh>
-#include <regex>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -74,11 +76,8 @@ std::string load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t
     }
 
     std::string s;
-    s.reserve(byte_length);
-    for (const char *p = (const char *)data.begin() + ptr; p < (const char *)data.begin() + ptr + byte_length; p++)
-    {
-        s += *p;
-    }
+    s.resize(byte_length);
+    memcpy(&s[0], &data[ptr], byte_length);
     return s;
 }
 
@@ -101,6 +100,7 @@ void store_int(const wasmtime::Span<uint8_t> &data, int64_t v, size_t ptr, size_
     // copy bytes to memory
     memcpy(&data[ptr], bytes, nbytes);
 }
+
 //  Other  ---
 std::vector<uint8_t> read_wasm_binary_to_buffer(const std::string &filename)
 {
@@ -124,15 +124,14 @@ std::vector<uint8_t> read_wasm_binary_to_buffer(const std::string &filename)
 
 std::string extractContentInDoubleQuotes(const std::string &input)
 {
-    std::regex pattern("export \"([^\"]*)\"");
-    std::smatch match;
 
-    if (std::regex_search(input, match, pattern) && match.size() > 1)
+    int firstQuote = input.find_first_of('"');
+    int secondQuote = input.find('"', firstQuote + 1);
+    if (firstQuote == std::string::npos || secondQuote == std::string::npos)
     {
-        return match.str(1);
+        return "";
     }
-
-    return "";
+    return input.substr(firstQuote + 1, secondQuote - firstQuote - 1);
 }
 
 std::pair<std::string, std::string> splitQualifiedID(const std::string &qualifiedName)
