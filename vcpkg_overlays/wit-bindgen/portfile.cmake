@@ -13,16 +13,16 @@ vcpkg_execute_required_process(
 
 vcpkg_download_distfile(
     COMMAND_PATH
-    URLS "https://github.com/bytecodealliance/preview2-prototyping/releases/download/latest/wasi_preview1_component_adapter.command.wasm"
+    URLS "https://github.com/bytecodealliance/wasmtime/releases/download/v10.0.1/wasi_snapshot_preview1.command.wasm"
     FILENAME "wasi_preview1_component_adapter.command.wasm"
-    SHA512 7f6145ab60066d0ad5927cf190c4411b0354a94e4580c7a0fa26b39241341aa312b802a654029eb15aa696ebb1cf93ad5bff029313481fb6950dafa126351d70
+    SHA512 57d9cdc62d1f51e807585ad1dbc43930c986f9a041c7dc00b7cafe15c07b953e88740704b43f11b16f1600db0df823adcfc66a0034f34e132b02589b0e0c9fb0
 )
 
 vcpkg_download_distfile(
     REACTOR_PATH
-    URLS "https://github.com/bytecodealliance/preview2-prototyping/releases/download/latest/wasi_preview1_component_adapter.reactor.wasm"
+    URLS "https://github.com/bytecodealliance/wasmtime/releases/download/v10.0.1/wasi_snapshot_preview1.reactor.wasm"
     FILENAME "wasi_preview1_component_adapter.reactor.wasm"
-    SHA512 6c53c720b2851e6bd6646ee81216ae78404abb4619f1af05f2c6b0ef51ed29580133f7ea3fc31ce6085b4086b02f9dda6824d42b3280549a4ff76efbb6161f89
+    SHA512 3e5a3f36c32b63a68ead463aa18963153125a9e36ca682ded144913cbb4d01698fc943fe705c0699b61c1ba308cd7d202b087b66da3788d469c746ca7156220a
 )
 
 file(COPY ${COMMAND_PATH} DESTINATION ${CURRENT_PACKAGES_DIR}/share/wit-bindgen)

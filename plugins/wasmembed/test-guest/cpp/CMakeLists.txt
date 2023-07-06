@@ -15,4 +15,5 @@ ExternalProject_Add(wasi-sdk
         -DCMAKE_TOOLCHAIN_FILE=${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake
         -DCMAKE_SYSROOT=${WASI_SDK_PREFIX}/share/wasi-sysroot
         -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}
+        -DCMAKE_BUILD_TYPE=MinSizeRel
 )
