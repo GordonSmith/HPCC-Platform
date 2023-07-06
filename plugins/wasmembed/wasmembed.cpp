@@ -40,15 +40,10 @@ namespace wasmLanguageHelper
     public:
         Callbacks()
         {
-            std::shared_ptr<IWasmEmbedCallback> self(this);
-            init(self);
         }
-
         ~Callbacks()
         {
-            kill();
         }
-
         void manifestPaths(ICodeContext *codeCtx)
         {
             if (codeCtx && !manifestAdded)
@@ -84,7 +79,8 @@ namespace wasmLanguageHelper
             }
             return nullptr;
         }
-    } callbacks;
+    };
+    std::shared_ptr<Callbacks> callbacks;
 
     class WasmEmbedContext : public CInterfaceOf<IEmbedContext>
     {
@@ -105,7 +101,7 @@ namespace wasmLanguageHelper
         }
         virtual IEmbedFunctionContext *createFunctionContextEx(ICodeContext *ctx, const IThorActivityContext *activityContext, unsigned flags, const char *options) override
         {
-            callbacks.manifestPaths(ctx);
+            callbacks->manifestPaths(ctx);
             return enclave.get();
         }
         virtual IEmbedServiceContext *createServiceContext(const char *service, unsigned flags, const char *options) override
@@ -123,10 +119,21 @@ namespace wasmLanguageHelper
     extern DECL_EXPORT void syntaxCheck(size32_t &__lenResult, char *&__result, const char *funcname, size32_t charsBody, const char *body, const char *argNames, const char *compilerOptions, const char *persistOptions)
     {
         StringBuffer result;
-        // result.set("syntaxCheck: XXX");
-        // MORE
         __lenResult = result.length();
         __result = result.detach();
     }
 
 } // namespace
+
+MODULE_INIT(INIT_PRIORITY_STANDARD)
+{
+    wasmLanguageHelper::callbacks = std::make_shared<wasmLanguageHelper::Callbacks>();
+    init(wasmLanguageHelper::callbacks);
+    return true;
+}
+
+MODULE_EXIT()
+{
+    kill();
+    wasmLanguageHelper::callbacks.reset();
+}
