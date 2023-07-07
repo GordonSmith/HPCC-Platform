@@ -12,6 +12,7 @@
 			"-DUSE_CPPUNIT=ON",
 			"-DWASMEMBED=ON"
 			// "-DINCLUDE_PLUGINS=ON",
+			// "-DSUPPRESS_JAVAEMBED=ON",
 			// "-DSUPPRESS_V8EMBED=ON",
 			// "-DSUPPRESS_REMBED=ON"
 		],
@@ -124,7 +125,8 @@
 			"__node_handle": "cpp",
 			"__verbose_abort": "cpp",
 			"ios": "cpp",
-			"locale": "cpp"
+			"locale": "cpp",
+			"*.esp": "cpp"
 		},
 		"ecl.launchConfiguration": "localhost",
 		"ecl.targetCluster": {

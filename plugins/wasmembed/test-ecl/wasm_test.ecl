@@ -2,7 +2,7 @@ import wasm;
 
 integer4 gcd(integer4 val1, integer4 val2) := EMBED(wasm)  
 
-  (func ('gcd') (param $val1 i32) (param $val2 i32) (result i32)
+  (func ("gcd") (param $val1 i32) (param $val2 i32) (result i32)
     (local i32)
     block ;; label = $val1
       block ;; label = $val2
@@ -29,9 +29,11 @@ integer4 gcd(integer4 val1, integer4 val2) := EMBED(wasm)
 
 ENDEMBED;
 
+// gcd(10, 5);
+
 real4 inlineAdd(real4 val1, real4 val2) := EMBED(wasm)  
 
-  (func ('add') (param f32 f32) (result f32)
+  (func ("add") (param f32 f32) (result f32)
     get_local 0
     get_local 1
     f32.add
@@ -53,7 +55,10 @@ integer8 s64Test (integer8 a, integer8 b) := IMPORT(wasm, 'test.s64-test');
 string stringTest (string a, string b) := IMPORT(wasm, 'test.string-test');
 string7 string5Test (string5 a, string5 b) := IMPORT(wasm, 'test.string-test');
 varstring varstringTest (varstring a, varstring b) := IMPORT(wasm, 'test.string-test');
+varstring varstringTest2 (varstring a, varstring b) := IMPORT(wasm, 'test.string-test' : FOLD);
 
+stringTest('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb') = ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' + 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+varstringTest('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb') = ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' + 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 boolTest(false, false) = (false AND false);
 boolTest(false, true) = (false AND true);
 boolTest(true, false) = (true AND false);
@@ -69,5 +74,9 @@ s16Test(1, 2) = (1 + 2);
 s32Test(1, 2) = (1 + 2);
 s64Test(1, 2) = (1 + 2);
 stringTest('aaa', 'bbbb') = ('aaa' + 'bbbb');
-varstringTest('aaa', 'bbbb') = ('aaa' + 'bbbb');
 string5Test('aaa', 'bbbb') = (string7)((string5)'aaa' + (string5)'bbbb');
+varstringTest('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb') = ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' + 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+varstringTest2('OUTPUT(Hello ', 'World)');
+stringTest('Hello ', 'World');
+stringTest('Hello XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'World XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+stringTest('Hello ', 'World');

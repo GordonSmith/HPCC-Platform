@@ -57,6 +57,7 @@ uint32_t test_char_test(uint32_t a, uint32_t b)
 {
     return a + b;
 }
+uint32_t tally = 0;
 void test_string_test(test_string_t *a, test_string_t *b, test_string_t *ret)
 {
     std::string s1(a->ptr, a->len);
@@ -64,5 +65,6 @@ void test_string_test(test_string_t *a, test_string_t *b, test_string_t *ret)
     std::string s2(b->ptr, b->len);
     test_string_free(b);
     std::string r = s1 + s2;
-    test_string_set(ret, r.c_str());
+    dbglog(std::to_string(++tally) + ":  " + r);
+    test_string_dup(ret, r.c_str());
 }

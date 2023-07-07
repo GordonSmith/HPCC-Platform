@@ -66,6 +66,11 @@ namespace wasmLanguageHelper
             va_end(args);
         }
 
+        virtual void *rtlMalloc(size32_t size) override
+        {
+            return ::rtlMalloc(size);
+        }
+
         virtual const char *resolveManifestPath(const char *leafName) override
         {
             if (leafName && *leafName)

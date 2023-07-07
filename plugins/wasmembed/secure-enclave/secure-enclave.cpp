@@ -7,7 +7,7 @@
 
 std::shared_ptr<IWasmEmbedCallback> embedContextCallbacks;
 
-#define NENABLE_TRACE
+#define ENABLE_TRACE
 
 #ifdef ENABLE_TRACE
 #define TRACE(format, ...) embedContextCallbacks->DBGLOG(format, ##__VA_ARGS__)
@@ -41,6 +41,14 @@ public:
     bool hasInstance(const std::string &wasmName)
     {
         return wasmInstances.find(wasmName) != wasmInstances.end();
+    }
+
+    wasmtime::Instance getInstance(const std::string &wasmName)
+    {
+        auto instanceItr = wasmInstances.find(wasmName);
+        if (instanceItr == wasmInstances.end())
+            throw std::runtime_error("Wasm instance not found: " + wasmName);
+        return instanceItr->second;
     }
 
     void registerInstance(const std::string &wasmName, const std::variant<std::string_view, wasmtime::Span<uint8_t>> &wasm)
@@ -174,14 +182,9 @@ class SecureFunction : public ISecureEnclave
     std::vector<wasmtime::Val> results;
 
 public:
-    static SecureFunction *self;
-
     SecureFunction()
     {
         TRACE("se:constructor");
-
-        //  Needed for callbacks  ---
-        self = this;
     }
 
     virtual ~SecureFunction() override
@@ -377,11 +380,14 @@ public:
         auto data = wasmEngine->getData(wasmName);
 
         uint32_t begin = load_int(data, ptr, 4);
+        TRACE("begin %u", begin);
         uint32_t tagged_code_units = load_int(data, ptr + 4, 4);
+        TRACE("tagged_code_units %u", tagged_code_units);
         std::string s = load_string(data, ptr);
+        TRACE("load_string %s", s.c_str());
         __chars = s.length();
-        __result = (char *)rtlMalloc(__chars + 1);
-        memcpy(__result, s.c_str(), __chars);
+        __result = reinterpret_cast<char *>(embedContextCallbacks->rtlMalloc(__chars));
+        s.copy(__result, __chars);
     }
     virtual void getUTF8Result(size32_t &__chars, char *&__result)
     {
@@ -457,7 +463,6 @@ public:
         results = wasmEngine->call(qualifiedID, args);
     }
 };
-SecureFunction *SecureFunction::self = nullptr;
 
 void init(std::shared_ptr<IWasmEmbedCallback> embedContext)
 {

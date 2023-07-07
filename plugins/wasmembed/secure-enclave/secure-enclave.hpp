@@ -6,6 +6,8 @@
 interface IWasmEmbedCallback
 {
     virtual inline void DBGLOG(char const *format, ...) __attribute__((format(printf, 2, 3))) = 0;
+    virtual void *rtlMalloc(size32_t size) = 0;
+
     virtual const char *resolveManifestPath(const char *leafName) = 0;
 };
 

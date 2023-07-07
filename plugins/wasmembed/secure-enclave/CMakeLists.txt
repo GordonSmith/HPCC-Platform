@@ -17,15 +17,10 @@ include_directories(
 
 add_definitions(-D_USRDLL -DSECUREENCLAVE_EXPORTS)
 
-add_library(secure-enclave SHARED
+add_library(secure-enclave STATIC
     secure-enclave.cpp
 )
 
 target_link_libraries(secure-enclave
     ${WASMTIME_LIB}
-)
-
-install(
-    TARGETS secure-enclave 
-    DESTINATION plugins
 )
