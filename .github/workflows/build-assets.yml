@@ -164,7 +164,7 @@ jobs:
             --mount ${{ needs.preamble.outputs.mount_build }} \
             $docker_label \
             "tail -f /dev/null")
-          docker exec $CONTAINER /bin/bash -c "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_REMBED=ON" 
+          docker exec $CONTAINER /bin/bash -c "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DSIGN_MODULES=OFF -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_REMBED=ON" 
           docker commit $CONTAINER $docker_label
           docker rm -f $CONTAINER
 
