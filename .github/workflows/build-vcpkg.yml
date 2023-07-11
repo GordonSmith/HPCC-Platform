@@ -147,6 +147,16 @@ jobs:
           tags: |
             build-${{ matrix.os }}:latest
 
+      - name: Build Docker Image
+        if: ${{ !matrix.container && !matrix.ln && contains(matrix.event_name, github.event_name) && needs.preamble.outputs.platform }}
+        run: |
+          CONTAINER=docker run -d \
+            --mount ${{ needs.preamble.outputs.mount_platform }} \
+            --mount ${{ needs.preamble.outputs.mount_build }} \
+            $docker_label \
+            "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DINCLUDE_PLUGINS=ON" 
+          docker commit $CONTAINER $docker_label
+
       - name: CMake Packages
         if: ${{ !matrix.container && !matrix.ln && contains(matrix.event_name, github.event_name) && needs.preamble.outputs.platform }}
         run: |
