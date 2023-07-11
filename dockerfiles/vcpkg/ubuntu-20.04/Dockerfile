@@ -9,8 +9,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     wget \
     r-base \
     r-cran-rcpp
+
 RUN wget https://cran.r-project.org/src/contrib/Archive/RInside/${RInside_package}
+
 RUN R CMD INSTALL ${RInside_package}
+
 RUN rm -f ${RInside_package}
 
 WORKDIR /hpcc-dev

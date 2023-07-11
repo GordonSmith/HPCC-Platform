@@ -134,23 +134,36 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Create Build Image  
+      - name: Create Build Image
         if: ${{ contains(matrix.event_name, github.event_name) && needs.preamble.outputs.platform }}
         uses: docker/build-push-action@v3
         with:
           builder: ${{ steps.buildx.outputs.name }}
-          file: ${{ needs.preamble.outputs.folder_platform }}/dockerfiles/vcpkg/${{ matrix.os }}.dockerfile
-          context: ${{ needs.preamble.outputs.folder_platform }}/dockerfiles/vcpkg
+          file: ${{ needs.preamble.outputs.folder_platform }}/dockerfiles/vcpkg/${{ matrix.os }}/Dockerfile
+          context: ${{ needs.preamble.outputs.folder_platform }}/dockerfiles/vcpkg/${{ matrix.os }}
           load: true
           build-args: |
             VCPKG_REF=${{ steps.vars.outputs.vcpkg_sha_short }}
           tags: |
-            build-${{ matrix.os }}:latest
+            build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
+
+      - name: Update Docker Image (vcpkg_overlays)
+        if: ${{ contains(matrix.event_name, github.event_name) && needs.preamble.outputs.platform }}
+        run: |
+          mkdir -p ${{ needs.preamble.outputs.folder_build }}
+          docker_label=build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
+          CONTAINER=$(docker run -d \
+            --mount ${{ needs.preamble.outputs.mount_platform }} \
+            --mount ${{ needs.preamble.outputs.mount_build }} \
+            $docker_label \
+            "tail -f /dev/null")
+          docker exec $CONTAINER /bin/bash -c "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_REMBED=ON" 
+          docker commit $CONTAINER build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
+          docker rm -f $CONTAINER
 
       - name: CMake Packages
         if: ${{ !matrix.container && !matrix.ln && contains(matrix.event_name, github.event_name) && needs.preamble.outputs.platform }}
         run: |
-          mkdir -p ${{ needs.preamble.outputs.folder_build }}
           declare -a plugins
           if [ ${{ needs.preamble.outputs.include_plugins }} == "ON" ]; then
               plugins=("CASSANDRAEMBED" "COUCHBASEEMBED" "ECLBLAS" "H3" "JAVAEMBED" "KAFKA" "MEMCACHED" "MONGODBEMBED" "MYSQLEMBED" "NLP" "REDIS" "REMBED" "SQLITE3EMBED" "SQS" "PLATFORM")
@@ -160,7 +173,7 @@ jobs:
           for plugin in "${plugins[@]}"; do
             sudo rm -f ${{ needs.preamble.outputs.folder_build }}/CMakeCache.txt
             sudo rm -rf ${{ needs.preamble.outputs.folder_build }}/CMakeFiles
-            docker_label=build-${{ matrix.os }}:latest
+            docker_label=build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
             docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -D$plugin=ON -DCONTAINERIZED=OFF -DCPACK_STRIP_FILES=OFF" 
             docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "cmake --build /hpcc-dev/build --parallel $(nproc) --target package" 
             # Disabled as not currently needed ---
@@ -171,10 +184,9 @@ jobs:
       - name: CMake Containerized Packages
         if: ${{ matrix.container && contains(matrix.event_name, github.event_name) && needs.preamble.outputs.platform }}
         run: |
-          mkdir -p ${{ needs.preamble.outputs.folder_build }}
           sudo rm -f ${{ needs.preamble.outputs.folder_build }}/CMakeCache.txt
           sudo rm -rf ${{ needs.preamble.outputs.folder_build }}/CMakeFiles
-          docker_label=build-${{ matrix.os }}:latest
+          docker_label=build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DINCLUDE_PLUGINS=${{ needs.preamble.outputs.include_plugins }} -DCONTAINERIZED=ON -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=OFF"
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "cmake --build /hpcc-dev/build --parallel $(nproc) --target package" 
 
@@ -182,10 +194,9 @@ jobs:
       - name: CMake LN Packages
         if: ${{ matrix.ln && contains(matrix.event_name, github.event_name) && needs.preamble.outputs.platform }}
         run: |
-          mkdir -p ${{ needs.preamble.outputs.folder_build }}
           sudo rm -f ${{ needs.preamble.outputs.folder_build }}/CMakeCache.txt
           sudo rm -rf ${{ needs.preamble.outputs.folder_build }}/CMakeFiles
-          docker_label=build-${{ matrix.os }}:latest
+          docker_label=build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_ln }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "cmake -S /hpcc-dev/LN -B /hpcc-dev/build -DHPCC_SOURCE_DIR=/hpcc-dev/HPCC-Platform ${{ needs.preamble.outputs.cmake_docker_config }} -DINCLUDE_PLUGINS=${{ needs.preamble.outputs.include_plugins }} -DCONTAINERIZED=OFF -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=OFF"
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_ln }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "cmake --build /hpcc-dev/build --parallel $(nproc) --target package" 
           # Disabled as not currently needed ---
