@@ -58,7 +58,7 @@ jobs:
           echo "internal_tag=$(echo $community_tag | sed 's/community/internal/')" >> $GITHUB_OUTPUT
           community_base_ref=${{ github.event.base_ref || github.ref }}
           echo "community_branch=$(echo $community_base_ref | cut -d'/' -f3)" >> $GITHUB_OUTPUT
-          echo "cmake_docker_config=-DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_FILES_DIR=/hpcc-dev -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF" >> $GITHUB_OUTPUT
+          echo "cmake_docker_config=-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF" >> $GITHUB_OUTPUT
 
       - id: skip_check
         uses: hpcc-systems/github-actions/changed-modules@main
@@ -160,10 +160,9 @@ jobs:
       - name: CMake Packages
         if: ${{ !matrix.container && !matrix.ln && contains(matrix.event_name, github.event_name) && needs.preamble.outputs.platform }}
         run: |
-          mkdir -p ${{ needs.preamble.outputs.folder_build }}
           declare -a plugins
           if [ ${{ needs.preamble.outputs.include_plugins }} == "ON" ]; then
-              plugins=("CASSANDRAEMBED" "COUCHBASEEMBED" "ECLBLAS" "H3" "JAVAEMBED" "KAFKA" "MEMCACHED" "MONGODBEMBED" "MYSQLEMBED" "NLP" "REDIS" "REMBED" "SQLITE3EMBED" "SQS" "PLATFORM")
+              plugins=("CASSANDRAEMBED" "COUCHBASEEMBED" "ECLBLAS" "H3" "JAVAEMBED" "KAFKA" "MEMCACHED" "MONGODBEMBED" "MYSQLEMBED" "NLP" "REDIS" "REMBED" "SQLITE3EMBED" "SQS" "WASMEMBED" "PLATFORM")
           else
               plugins=("PLATFORM")
           fi
@@ -181,7 +180,6 @@ jobs:
       - name: CMake Containerized Packages
         if: ${{ matrix.container && contains(matrix.event_name, github.event_name) && needs.preamble.outputs.platform }}
         run: |
-          mkdir -p ${{ needs.preamble.outputs.folder_build }}
           sudo rm -f ${{ needs.preamble.outputs.folder_build }}/CMakeCache.txt
           sudo rm -rf ${{ needs.preamble.outputs.folder_build }}/CMakeFiles
           docker_label=build-${{ matrix.os }}:latest
@@ -192,7 +190,6 @@ jobs:
       - name: CMake LN Packages
         if: ${{ matrix.ln && contains(matrix.event_name, github.event_name) && needs.preamble.outputs.platform }}
         run: |
-          mkdir -p ${{ needs.preamble.outputs.folder_build }}
           sudo rm -f ${{ needs.preamble.outputs.folder_build }}/CMakeCache.txt
           sudo rm -rf ${{ needs.preamble.outputs.folder_build }}/CMakeFiles
           docker_label=build-${{ matrix.os }}:latest
