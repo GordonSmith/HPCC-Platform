@@ -153,19 +153,19 @@ jobs:
           build-args: |
             VCPKG_REF=${{ steps.vars.outputs.vcpkg_sha_short }}
           tags: |
-            build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
+            hpccsystems/platform-build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
 
       - name: Update Docker Image (vcpkg_overlays)
         run: |
           mkdir -p ${{ needs.preamble.outputs.folder_build }}
-          docker_label=build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
+          docker_label=hpccsystems/platform-build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
           CONTAINER=$(docker run -d \
             --mount ${{ needs.preamble.outputs.mount_platform }} \
             --mount ${{ needs.preamble.outputs.mount_build }} \
             $docker_label \
             "tail -f /dev/null")
           docker exec $CONTAINER /bin/bash -c "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_REMBED=ON" 
-          docker commit $CONTAINER build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
+          docker commit $CONTAINER $docker_label
           docker rm -f $CONTAINER
 
       - name: CMake Packages
@@ -176,7 +176,7 @@ jobs:
           for plugin in "${plugins[@]}"; do
             sudo rm -f ${{ needs.preamble.outputs.folder_build }}/CMakeCache.txt
             sudo rm -rf ${{ needs.preamble.outputs.folder_build }}/CMakeFiles
-            docker_label=build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
+            docker_label=hpccsystems/platform-build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
             docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "${{ needs.preamble.outputs.gpg_import }} && cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DSIGN_MODULES_PASSPHRASE=${{ secrets.SIGN_MODULES_PASSPHRASE }} -DSIGN_MODULES_KEYID=${{ secrets.SIGN_MODULES_KEYID }} -D$plugin=ON -DCONTAINERIZED=OFF -DCPACK_STRIP_FILES=OFF" 
             docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "${{ needs.preamble.outputs.gpg_import }} && cmake --build /hpcc-dev/build --parallel $(nproc) --target package" 
             # Disabled as not currently needed ---
@@ -191,7 +191,7 @@ jobs:
           echo "${{ secrets.SIGNING_SECRET }}" > ${{ needs.preamble.outputs.folder_build }}/private.key
           sudo rm -f ${{ needs.preamble.outputs.folder_build }}/CMakeCache.txt
           sudo rm -rf ${{ needs.preamble.outputs.folder_build }}/CMakeFiles
-          docker_label=build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
+          docker_label=hpccsystems/platform-build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "${{ needs.preamble.outputs.gpg_import }} && cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DSIGN_MODULES_PASSPHRASE=${{ secrets.SIGN_MODULES_PASSPHRASE }} -DSIGN_MODULES_KEYID=${{ secrets.SIGN_MODULES_KEYID }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=ON -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=OFF"
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "${{ needs.preamble.outputs.gpg_import }} && cmake --build /hpcc-dev/build --parallel $(nproc) --target package" 
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "${{ needs.preamble.outputs.gpg_import }} && cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DSIGN_MODULES_PASSPHRASE=${{ secrets.SIGN_MODULES_PASSPHRASE }} -DSIGN_MODULES_KEYID=${{ secrets.SIGN_MODULES_KEYID }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=ON -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=ON" 
@@ -203,7 +203,7 @@ jobs:
           mkdir -p {${{needs.preamble.outputs.folder_build }},EN_US,PT_BR}
           sudo rm -f ${{ needs.preamble.outputs.folder_build }}/CMakeCache.txt
           sudo rm -rf ${{ needs.preamble.outputs.folder_build }}/CMakeFiles
-          docker_label=build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
+          docker_label=hpccsystems/platform-build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build -DMAKE_DOCS_ONLY=ON -DUSE_NATIVE_LIBRARIES=ON -DDOCS_AUTO=ON -DDOC_LANGS=ALL"
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "cmake --build /hpcc-dev/build --parallel $(nproc) --target all"
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "cd /hpcc-dev/build/Release/docs/EN_US && zip ALL_HPCC_DOCS_EN_US-${{ needs.preamble.outputs.community_tag }}.zip *.pdf"
@@ -225,7 +225,7 @@ jobs:
           echo "${{ secrets.SIGNING_SECRET }}" > ${{ needs.preamble.outputs.folder_build }}/private.key
           sudo rm -f ${{ needs.preamble.outputs.folder_build }}/CMakeCache.txt
           sudo rm -rf ${{ needs.preamble.outputs.folder_build }}/CMakeFiles
-          docker_label=build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
+          docker_label=hpccsystems/platform-build-${{ matrix.os }}:${{ steps.vars.outputs.vcpkg_sha_short }}
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_ln }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "${{ needs.preamble.outputs.gpg_import }} && cmake -S /hpcc-dev/LN -B /hpcc-dev/build -DHPCC_SOURCE_DIR=/hpcc-dev/HPCC-Platform ${{ needs.preamble.outputs.cmake_docker_config }} -DSIGN_MODULES_PASSPHRASE=${{ secrets.SIGN_MODULES_PASSPHRASE }} -DSIGN_MODULES_KEYID=${{ secrets.SIGN_MODULES_KEYID }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=OFF -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=OFF"
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_ln }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "${{ needs.preamble.outputs.gpg_import }} && cmake --build /hpcc-dev/build --parallel $(nproc) --target package" 
           # docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_ln }} --mount ${{ needs.preamble.outputs.mount_build }} $docker_label "cmake -S /hpcc-dev/LN -B /hpcc-dev/build -DHPCC_SOURCE_DIR=/hpcc-dev/HPCC-Platform ${{ needs.preamble.outputs.cmake_docker_config }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=OFF -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=ON" 
