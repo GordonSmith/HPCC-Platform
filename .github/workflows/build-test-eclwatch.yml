@@ -1,4 +1,4 @@
-name: Build Test ECL Watch
+name: Build ECL Watch
 
 on:
   pull_request:
