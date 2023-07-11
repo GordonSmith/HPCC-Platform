@@ -1,11 +1,12 @@
 ARG VCPKG_REF=latest
-FROM hpccsystems/platform-build-base-centos-7:$VCPKG_REF
+FROM hpccsystems/platform-build-base-centos-7:$VCPKG_REF 
 
 RUN yum install -y \
     java-11-openjdk-devel \
     python3-devel \
     wget \
     epel-release
+
 RUN yum update -y && yum install -y R-core-devel
 
 ENV Rcpp_package=Rcpp_0.12.19.tar.gz
