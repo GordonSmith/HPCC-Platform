@@ -25,16 +25,12 @@ echo "DOCKER_PASSWORD: $DOCKER_PASSWORD"
 # docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
 
 function doBuild() {
-    docker build --progress plain --pull -f "$SCRIPT_DIR/$1/Dockerfile" \
+    docker build --progress plain -f "$SCRIPT_DIR/$1/Dockerfile" \
         -t hpccsystems/platform-build-$1:$VCPKG_REF \
-        -t hpccsystems/platform-build-$1:latest \
         --build-arg VCPKG_REF=$VCPKG_REF \
-        "$SCRIPT_DIR/$1/." 
+        "$SCRIPT_DIR/$1" 
 
     mkdir -p build-$1
-
-    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached hpccsystems/platform-build-$1:$VCPKG_REF \
-        "mkdir -p /hpcc-dev/HPCC-Platform/build-$1 && cp -r /hpcc-dev/vcpkg_installed /hpcc-dev/HPCC-Platform/build-$1/vcpkg_installed"
 
     docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached hpccsystems/platform-build-$1:$VCPKG_REF \
         "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build-$1 ${CMAKE_OPTIONS}"
@@ -47,12 +43,14 @@ function doBuild() {
 
 CMAKE_OPTIONS="-G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON"
 
-doBuild centos-7
-doBuild centos-8
-doBuild amazonlinux
-doBuild ubuntu-22.10 
-doBuild ubuntu-22.04 
-doBuild ubuntu-20.04
+doBuild centos-7 &
+doBuild centos-8 &
+doBuild amazonlinux &
+doBuild ubuntu-22.10 & 
+doBuild ubuntu-22.04 &
+doBuild ubuntu-20.04 &
+
+wait
 
 # docker build --progress plain --pull --rm -f "$SCRIPT_DIR/core.dockerfile" \
 #     -t $DOCKER_USERNAME/core:$GITHUB_REF \
