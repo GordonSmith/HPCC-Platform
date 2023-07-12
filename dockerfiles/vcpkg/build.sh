@@ -25,22 +25,21 @@ echo "DOCKER_PASSWORD: $DOCKER_PASSWORD"
 # docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
 
 function doBuild() {
-    docker build --progress plain -f "$SCRIPT_DIR/$1/Dockerfile" \
-        -t build-$1:$GITHUB_REF \
-        -t build-$1:latest \
-        --build-arg DOCKER_NAMESPACE=$DOCKER_USERNAME \
+    docker build --progress plain --pull -f "$SCRIPT_DIR/$1/Dockerfile" \
+        -t hpccsystems/platform-build-$1:$VCPKG_REF \
+        -t hpccsystems/platform-build-$1:latest \
         --build-arg VCPKG_REF=$VCPKG_REF \
         "$SCRIPT_DIR/$1/." 
 
     mkdir -p build-$1
 
-    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached build-$1:$GITHUB_REF \
+    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached hpccsystems/platform-build-$1:$VCPKG_REF \
         "mkdir -p /hpcc-dev/HPCC-Platform/build-$1 && cp -r /hpcc-dev/vcpkg_installed /hpcc-dev/HPCC-Platform/build-$1/vcpkg_installed"
 
-    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached build-$1:$GITHUB_REF \
+    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached hpccsystems/platform-build-$1:$VCPKG_REF \
         "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build-$1 ${CMAKE_OPTIONS}"
 
-    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached build-$1:$GITHUB_REF \
+    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached hpccsystems/platform-build-$1:$VCPKG_REF \
         "cmake --build /hpcc-dev/HPCC-Platform/build-$1 --parallel $(nproc)"
 
 # docker run -it --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached build-ubuntu-22.04:latest bash
