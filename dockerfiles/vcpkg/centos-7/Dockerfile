@@ -7,7 +7,7 @@ RUN yum install -y \
     wget \
     epel-release
 
-RUN yum update -y && yum install -y R-core-devel
+RUN yum install -y R-core-devel
 
 ENV Rcpp_package=Rcpp_0.12.19.tar.gz
 ENV RInside_package=RInside_0.2.12.tar.gz
