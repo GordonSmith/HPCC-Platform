@@ -27,10 +27,17 @@ add_definitions(-D_USRDLL -DSECUREENCLAVE_EXPORTS)
 
 add_library(secure-enclave SHARED
     secure-enclave.cpp
+    secure-enclave.hpp
+    abi.cpp
+    abi.hpp
+    util.cpp
+    util.hpp
 )
 
 target_link_libraries(secure-enclave PRIVATE
     ${WASMTIME_LIB}
+    eclrtl
+    jlib
 )
 
 install(

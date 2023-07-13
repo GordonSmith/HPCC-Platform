@@ -1,18 +1,19 @@
 #include "platform.h"
 #include "eclrtl.hpp"
+#include "eclrtl_imp.hpp"
 
 #ifdef SECUREENCLAVE_EXPORTS
- #define SECUREENCLAVE_API DECL_EXPORT
+#define SECUREENCLAVE_API DECL_EXPORT
 #else
- #define SECUREENCLAVE_API DECL_IMPORT
+#define SECUREENCLAVE_API DECL_IMPORT
 #endif
 
 #include <memory>
 
 interface IWasmEmbedCallback
 {
-    virtual inline void DBGLOG(char const *format, ...) __attribute__((format(printf, 2, 3))) = 0;
-    virtual void *rtlMalloc(size32_t size) = 0;
+    virtual inline void DBGLOG(const char *format, ...) __attribute__((format(printf, 2, 3))) = 0;
+    virtual void throwStringException(int code, const char *format, ...) __attribute__((format(printf, 3, 4))) = 0;
 
     virtual const char *resolveManifestPath(const char *leafName) = 0;
 };
