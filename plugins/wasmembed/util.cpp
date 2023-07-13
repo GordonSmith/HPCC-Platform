@@ -1,14 +1,15 @@
 #include "util.hpp"
+#include <jexcept.hpp>
 
 #include <fstream>
 #include <sstream>
 
-std::vector<uint8_t> read_wasm_binary_to_buffer(const std::string &filename)
+std::vector<uint8_t> readWasmBinaryToBuffer(const std::string &filename)
 {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
     if (!file)
     {
-        throw std::runtime_error("Failed to open file");
+        throw makeStringException(0, "Failed to open file");
     }
 
     std::streamsize size = file.tellg();
@@ -17,7 +18,7 @@ std::vector<uint8_t> read_wasm_binary_to_buffer(const std::string &filename)
     std::vector<uint8_t> buffer(size);
     if (!file.read(reinterpret_cast<char *>(buffer.data()), size))
     {
-        throw std::runtime_error("Failed to read file");
+        throw makeStringException(1, "Failed to read file");
     }
 
     return buffer;
@@ -26,12 +27,14 @@ std::vector<uint8_t> read_wasm_binary_to_buffer(const std::string &filename)
 std::string extractContentInDoubleQuotes(const std::string &input)
 {
 
-    auto firstQuote = input.find_first_of('"');
-    auto secondQuote = input.find('"', firstQuote + 1);
-    if (firstQuote == std::string::npos || secondQuote == std::string::npos)
-    {
+    std::size_t firstQuote = input.find_first_of('"');
+    if (firstQuote == std::string::npos)
         return "";
-    }
+
+    std::size_t secondQuote = input.find('"', firstQuote + 1);
+    if (firstQuote == secondQuote == std::string::npos)
+        return "";
+
     return input.substr(firstQuote + 1, secondQuote - firstQuote - 1);
 }
 
@@ -47,7 +50,7 @@ std::pair<std::string, std::string> splitQualifiedID(const std::string &qualifie
     }
     if (tokens.size() != 2)
     {
-        throw std::runtime_error("Invalid import function " + qualifiedName + ", expected format: <module>.<function>");
+        throw makeStringExceptionV(3, "Invalid import function %s, expected format: <module>.<function>", qualifiedName.c_str());
     }
     return std::make_pair(tokens[0], tokens[1]);
 }
