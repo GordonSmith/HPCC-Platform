@@ -378,10 +378,12 @@ public:
         auto ptr = results[0].i32();
         auto data = wasmEngine->getData(wasmName);
 
-        uint32_t begin = load_int(data, ptr, 4);
-        TRACE("begin %u", begin);
-        uint32_t tagged_code_units = load_int(data, ptr + 4, 4);
-        TRACE("tagged_code_units %u", tagged_code_units);
+        // uint32_t begin;
+        // load_int<uint32_t>(data, ptr, begin);
+        // TRACE("begin %u", begin);
+        // uint32_t tagged_code_units;
+        // load_int<uint32_t>(data, ptr + 4, tagged_code_units);
+        // TRACE("tagged_code_units %u", tagged_code_units);
         std::string s = load_string(data, ptr);
         TRACE("load_string %s", s.c_str());
         __chars = s.length();
