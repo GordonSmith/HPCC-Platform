@@ -1,9 +1,10 @@
 #include "platform.h"
 #include "hqlplugins.hpp"
+#include "rtlconst.hpp"
 #include "rtlfield.hpp"
 #include "enginecontext.hpp"
 
-#include "secure-enclave/secure-enclave.hpp"
+#include "secure-enclave.hpp"
 
 static const char *compatibleVersions[] = {
     "WASM Embed Helper 1.0.0",
@@ -31,94 +32,35 @@ extern "C" DECL_EXPORT bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
 
 namespace wasmLanguageHelper
 {
-    class Callbacks : public IWasmEmbedCallback
-    {
-    protected:
-        bool manifestAdded = false;
-        StringArray manifestModules;
-
-    public:
-        Callbacks()
-        {
-        }
-        ~Callbacks()
-        {
-        }
-        void manifestPaths(ICodeContext *codeCtx)
-        {
-            if (codeCtx && !manifestAdded)
-            {
-                manifestAdded = true;
-                IEngineContext *engine = codeCtx->queryEngineContext();
-                if (engine)
-                {
-                    engine->getManifestFiles("wasm", manifestModules);
-                }
-            }
-        }
-
-        //  IWasmEmbedCallback  ---
-        virtual inline void DBGLOG(char const *format, ...) override
-        {
-            va_list args;
-            va_start(args, format);
-            VALOG(MCdebugInfo, unknownJob, format, args);
-            va_end(args);
-        }
-
-        virtual void *rtlMalloc(size32_t size) override
-        {
-            return ::rtlMalloc(size);
-        }
-
-        virtual const char *resolveManifestPath(const char *leafName) override
-        {
-            if (leafName && *leafName)
-            {
-                ForEachItemIn(idx, manifestModules)
-                {
-                    const char *path = manifestModules.item(idx);
-                    if (endsWith(path, leafName))
-                        return path;
-                }
-            }
-            return nullptr;
-        }
-    };
-    std::shared_ptr<Callbacks> callbacks;
-
     class WasmEmbedContext : public CInterfaceOf<IEmbedContext>
     {
-        std::unique_ptr<ISecureEnclave> enclave;
-
     public:
-        WasmEmbedContext()
-        {
-            enclave = createISecureEnclave();
-        }
-        virtual ~WasmEmbedContext() override
-        {
-        }
-        //  IEmbedContext  ---
         virtual IEmbedFunctionContext *createFunctionContext(unsigned flags, const char *options) override
         {
             return createFunctionContextEx(nullptr, nullptr, flags, options);
         }
-        virtual IEmbedFunctionContext *createFunctionContextEx(ICodeContext *ctx, const IThorActivityContext *activityContext, unsigned flags, const char *options) override
+        virtual IEmbedFunctionContext *createFunctionContextEx(ICodeContext *codeCtx, const IThorActivityContext *activityContext, unsigned flags, const char *options) override
         {
-            callbacks->manifestPaths(ctx);
-            return enclave.get();
+            StringArray manifestModules;
+            if (codeCtx)
+            {
+                auto engine = codeCtx->queryEngineContext();
+                if (engine)
+                    engine->getManifestFiles("wasm", manifestModules);
+            }
+            return createISecureEnclave(manifestModules);
         }
+
         virtual IEmbedServiceContext *createServiceContext(const char *service, unsigned flags, const char *options) override
         {
             throwUnexpected();
             return nullptr;
         }
-    };
+    } theEmbedContext;
 
     extern DECL_EXPORT IEmbedContext *getEmbedContext()
     {
-        return new WasmEmbedContext();
+        return LINK(&theEmbedContext);
     }
 
     extern DECL_EXPORT void syntaxCheck(size32_t &__lenResult, char *&__result, const char *funcname, size32_t charsBody, const char *body, const char *argNames, const char *compilerOptions, const char *persistOptions)
@@ -130,16 +72,3 @@ namespace wasmLanguageHelper
     }
 
 } // namespace
-
-MODULE_INIT(INIT_PRIORITY_STANDARD)
-{
-    wasmLanguageHelper::callbacks = std::make_shared<wasmLanguageHelper::Callbacks>();
-    init(wasmLanguageHelper::callbacks);
-    return true;
-}
-
-MODULE_EXIT()
-{
-    kill();
-    wasmLanguageHelper::callbacks.reset();
-}

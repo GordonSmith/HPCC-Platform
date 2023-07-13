@@ -1,12 +1,27 @@
 project(wasmembed)
 
+set(CMAKE_CXX_STANDARD 20)
+
 if(WASMEMBED)
     ADD_PLUGIN(wasmembed)
     if(MAKE_WASMEMBED)
 
-        add_subdirectory(secure-enclave)
+        find_path(WASMTIME_CPP_API_INCLUDE_DIRS "wasmtime-cpp-api/wasmtime.hh"
+            PATHS ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}
+        )
+        if (WIN32)
+            find_library(WASMTIME_LIB NAMES wasmtime.dll
+                PATHS ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}
+            )
+        else()
+            find_library(WASMTIME_LIB NAMES wasmtime
+                PATHS ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}
+            )
+        endif()
 
         include_directories(
+            ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-c-api
+            ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-cpp-api
             ./../../common/thorhelper
             ./../../dali/base
             ./../../rtl/eclrtl
@@ -21,13 +36,16 @@ if(WASMEMBED)
 
         add_library(wasmembed SHARED 
             wasmembed.cpp
+            secure-enclave.cpp
+            abi.cpp
+            util.cpp
         )
 
         target_link_libraries(wasmembed
+            ${WASMTIME_LIB}
             roxiemem
             eclrtl
             jlib
-            secure-enclave
         )
 
         install(
