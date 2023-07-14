@@ -7,8 +7,7 @@
 
 std::shared_ptr<IWasmEmbedCallback> embedContextCallbacks;
 
-#define NENABLE_TRACE
-
+// #define ENABLE_TRACE
 #ifdef ENABLE_TRACE
 #define TRACE(format, ...) embedContextCallbacks->DBGLOG(format, ##__VA_ARGS__)
 #else
@@ -47,7 +46,7 @@ public:
     {
         auto instanceItr = wasmInstances.find(wasmName);
         if (instanceItr == wasmInstances.end())
-            throw std::runtime_error("Wasm instance not found: " + wasmName);
+            embedContextCallbacks->throwStringException(-1, "Wasm instance not found: %s", wasmName.c_str());
         return instanceItr->second;
     }
 
@@ -133,7 +132,7 @@ public:
     {
         auto found = wasmFuncs.find(qualifiedID);
         if (found == wasmFuncs.end())
-            throw std::runtime_error("Wasm function not found: " + qualifiedID);
+            embedContextCallbacks->throwStringException(-1, "Wasm function not found: %s", qualifiedID.c_str());
         return found->second;
     }
 
@@ -165,7 +164,7 @@ public:
     {
         auto found = wasmMems.find(createQualifiedID(wasmName, "memory"));
         if (found == wasmMems.end())
-            throw std::runtime_error("Wasm memory not found: " + wasmName);
+            embedContextCallbacks->throwStringException(-1, "Wasm memory not found: %s", wasmName.c_str());
         return found->second.data(store.context());
     }
 };
@@ -304,18 +303,19 @@ public:
         args.push_back(memIdx);
         args.push_back((int32_t)len);
     }
-    virtual void bindUTF8Param(const char *name, size32_t chars, const char *val)
+    virtual void bindUTF8Param(const char *name, size32_t code_points, const char *val)
     {
         TRACE("bindUTF8Param %s %d %s", name, chars, val);
-        auto memIdxVar = wasmEngine->callRealloc(wasmName, {0, 0, 1, (int32_t)chars});
+        auto code_units = embedContextCallbacks->rtlUtf8Size(code_points, val);
+        auto memIdxVar = wasmEngine->callRealloc(wasmName, {0, 0, 1, (int32_t)code_units});
         auto memIdx = memIdxVar[0].i32();
         auto mem = wasmEngine->getData(wasmName);
-        for (int i = 0; i < chars; i++)
+        for (int i = 0; i < code_units; i++)
         {
             mem[memIdx + i] = val[i];
         }
         args.push_back(memIdx);
-        args.push_back((int32_t)chars);
+        args.push_back((int32_t)code_units);
     }
     virtual void bindUnicodeParam(const char *name, size32_t chars, const UChar *val)
     {

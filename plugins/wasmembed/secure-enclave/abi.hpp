@@ -10,6 +10,7 @@ T load_int(const wasmtime::Span<uint8_t> &data, int32_t ptr);
 std::string load_string(const wasmtime::Span<uint8_t> &data, uint32_t ptr);
 
 //  ABI Storing  ---
+// void store_string(const wasmtime::Span<uint8_t> &data, uint32_t ptr);
 
 //  Other Helpers ---
 std::vector<uint8_t> read_wasm_binary_to_buffer(const std::string &filename);

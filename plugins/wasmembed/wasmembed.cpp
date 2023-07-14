@@ -58,7 +58,7 @@ namespace wasmLanguageHelper
         }
 
         //  IWasmEmbedCallback  ---
-        virtual inline void DBGLOG(char const *format, ...) override
+        virtual inline void DBGLOG(const char *format, ...) override
         {
             va_list args;
             va_start(args, format);
@@ -66,9 +66,23 @@ namespace wasmLanguageHelper
             va_end(args);
         }
 
+        virtual void throwStringException(int code, const char *format, ...) override
+        {
+            va_list args;
+            va_start(args, format);
+            IException *ret = makeStringExceptionVA(code, format, args);
+            va_end(args);
+            throw ret;
+        }
+
         virtual void *rtlMalloc(size32_t size) override
         {
             return ::rtlMalloc(size);
+        }
+
+        virtual unsigned rtlUtf8Size(unsigned len, const void *data) override
+        {
+            return ::rtlUtf8Size(len, data);
         }
 
         virtual const char *resolveManifestPath(const char *leafName) override
