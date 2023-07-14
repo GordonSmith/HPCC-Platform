@@ -24,30 +24,32 @@ echo "DOCKER_PASSWORD: $DOCKER_PASSWORD"
 
 # docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
 
+CMAKE_OPTIONS="-G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_FILES_DIR=/hpcc-dev -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON"
+
 function doBuild() {
-    docker build --progress plain --pull --rm -f "$SCRIPT_DIR/$1.dockerfile" \
-        -t build-$1:$GITHUB_REF \
-        -t build-$1:latest \
+    docker build --progress plain -f "$SCRIPT_DIR/$1.dockerfile" \
+        -t hpccsystems/platform-build-$1:$VCPKG_REF \
         --build-arg DOCKER_NAMESPACE=$DOCKER_USERNAME \
         --build-arg VCPKG_REF=$VCPKG_REF \
         "$SCRIPT_DIR/." 
 
-    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached build-$1:$GITHUB_REF \
+    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached hpccsystems/platform-build-$1:$VCPKG_REF \
         "cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build-$1 ${CMAKE_OPTIONS}"
-    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached build-$1:$GITHUB_REF \
+
+    docker run --rm --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached hpccsystems/platform-build-$1:$VCPKG_REF \
         "cmake --build /hpcc-dev/HPCC-Platform/build-$1 --parallel $(nproc)"
 
+echo "docker run -it --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached hpccsystems/platform-build-$1:$VCPKG_REF bash"
 # docker run -it --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached build-ubuntu-22.04:latest bash
 }
 
-CMAKE_OPTIONS="-G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_FILES_DIR=/hpcc-dev -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF -DINCLUDE_PLUGINS=ON -DSUPPRESS_V8EMBED=ON"
+# doBuild centos-7 &
+doBuild centos-8 &
+# doBuild amazonlinux &
+# doBuild ubuntu-22.10 &
+# doBuild ubuntu-22.04 &
+# doBuild ubuntu-20.04 &
 
-doBuild centos-7
-doBuild centos-8
-doBuild amazonlinux
-doBuild ubuntu-22.10 
-doBuild ubuntu-22.04 
-doBuild ubuntu-20.04
 
 # docker build --progress plain --pull --rm -f "$SCRIPT_DIR/core.dockerfile" \
 #     -t $DOCKER_USERNAME/core:$GITHUB_REF \
