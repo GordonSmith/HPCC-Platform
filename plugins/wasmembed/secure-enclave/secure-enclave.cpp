@@ -1,13 +1,14 @@
 #include "secure-enclave.hpp"
 
 #include "abi.hpp"
+#include "util.hpp"
 
 #include <map>
 #include <functional>
 
 std::shared_ptr<IWasmEmbedCallback> embedContextCallbacks;
 
-// #define ENABLE_TRACE
+#define ENABLE_TRACE
 #ifdef ENABLE_TRACE
 #define TRACE(format, ...) embedContextCallbacks->DBGLOG(format, ##__VA_ARGS__)
 #else
@@ -279,56 +280,38 @@ public:
     virtual void bindStringParam(const char *paramName, size32_t len, const char *val)
     {
         TRACE("bindStringParam %s %d %s", paramName, len, val);
-        auto memIdxVar = wasmEngine->callRealloc(wasmName, {0, 0, 1, (int32_t)len});
-        auto memIdx = memIdxVar[0].i32();
-        auto mem = wasmEngine->getData(wasmName);
-        for (int i = 0; i < len; i++)
-        {
-            mem[memIdx + i] = val[i];
-        }
-        args.push_back(memIdx);
-        args.push_back((int32_t)len);
+        size32_t utfCharCount;
+        rtlDataAttr utfText;
+        rtlStrToUtf8X(utfCharCount, utfText.refstr(), len, val);
+        bindUTF8Param(paramName, utfCharCount, utfText.getstr());
     }
     virtual void bindVStringParam(const char *name, const char *val)
     {
         TRACE("bindVStringParam %s %s", name, val);
-        auto len = strlen(val);
-        auto memIdxVar = wasmEngine->callRealloc(wasmName, {0, 0, 1, (int32_t)len});
-        auto memIdx = memIdxVar[0].i32();
-        auto mem = wasmEngine->getData(wasmName);
-        for (int i = 0; i < len; i++)
-        {
-            mem[memIdx + i] = val[i];
-        }
-        args.push_back(memIdx);
-        args.push_back((int32_t)len);
+        bindStringParam(name, strlen(val), val);
     }
     virtual void bindUTF8Param(const char *name, size32_t code_points, const char *val)
     {
-        TRACE("bindUTF8Param %s %d %s", name, chars, val);
+        TRACE("bindUTF8Param %s %d %s", name, code_points, val);
         auto code_units = embedContextCallbacks->rtlUtf8Size(code_points, val);
         auto memIdxVar = wasmEngine->callRealloc(wasmName, {0, 0, 1, (int32_t)code_units});
         auto memIdx = memIdxVar[0].i32();
         auto mem = wasmEngine->getData(wasmName);
-        for (int i = 0; i < code_units; i++)
-        {
-            mem[memIdx + i] = val[i];
-        }
+        memcpy(&mem[memIdx], val, code_units);
+        // for (int i = 0; i < code_units; i++)
+        // {
+        //     mem[memIdx + i] = val[i];
+        // }
         args.push_back(memIdx);
         args.push_back((int32_t)code_units);
     }
     virtual void bindUnicodeParam(const char *name, size32_t chars, const UChar *val)
     {
-        TRACE("bindUnicodeParam %s %d %S", name, chars, reinterpret_cast<const wchar_t *>(val));
-        auto memIdxVar = wasmEngine->callRealloc(wasmName, {0, 0, 2, (int32_t)chars * 2});
-        auto memIdx = memIdxVar[0].i32();
-        auto mem = wasmEngine->getData(wasmName);
-        for (int i = 0; i < chars * 2; i += 2)
-        {
-            mem[memIdx + i] = val[i];
-        }
-        args.push_back(memIdx);
-        args.push_back((int32_t)chars);
+        // TRACE("bindUnicodeParam %s %d %S", name, chars, reinterpret_cast<const wchar_t *>(val));
+        size32_t utf8chars;
+        char *utf8;
+        embedContextCallbacks->rtlUnicodeToUtf8X(utf8chars, utf8, chars, val);
+        bindUTF8Param(name, utf8chars, utf8);
     }
     virtual void bindSetParam(const char *name, int elemType, size32_t elemSize, bool isAll, size32_t totalBytes, const void *setData)
     {
@@ -355,21 +338,21 @@ public:
     {
         TRACE("getRealResult");
         if (results[0].kind() == wasmtime::ValKind::F64)
-            return (int32_t)results[0].f64();
+            return results[0].f64();
         return results[0].f32();
     }
     virtual __int64 getSignedResult()
     {
         TRACE("getSignedResult");
         if (results[0].kind() == wasmtime::ValKind::I64)
-            return (int32_t)results[0].i64();
+            return results[0].i64();
         return results[0].i32();
     }
     virtual unsigned __int64 getUnsignedResult()
     {
         TRACE("getUnsignedResult");
         if (results[0].kind() == wasmtime::ValKind::I64)
-            return (int32_t)results[0].i64();
+            return results[0].i64();
         return results[0].i32();
     }
     virtual void getStringResult(size32_t &__chars, char *&__result)
@@ -377,26 +360,34 @@ public:
         TRACE("getStringResult %zu", results.size());
         auto ptr = results[0].i32();
         auto data = wasmEngine->getData(wasmName);
-
-        // uint32_t begin;
-        // load_int<uint32_t>(data, ptr, begin);
-        // TRACE("begin %u", begin);
-        // uint32_t tagged_code_units;
-        // load_int<uint32_t>(data, ptr + 4, tagged_code_units);
-        // TRACE("tagged_code_units %u", tagged_code_units);
-        std::string s = load_string(data, ptr);
-        TRACE("load_string %s", s.c_str());
-        __chars = s.length();
-        __result = reinterpret_cast<char *>(embedContextCallbacks->rtlMalloc(__chars));
-        s.copy(__result, __chars);
+        uint32_t strPtr;
+        uint32_t strBytes;
+        std::tie(strPtr, strBytes) = load_string(data, ptr);
+        embedContextCallbacks->rtlStrToStrX(__chars, __result, strBytes, reinterpret_cast<const char *>(&data[strPtr]));
     }
     virtual void getUTF8Result(size32_t &__chars, char *&__result)
     {
         TRACE("getUTF8Result");
+        auto ptr = results[0].i32();
+        auto data = wasmEngine->getData(wasmName);
+        uint32_t strPtr;
+        uint32_t strBytes;
+        std::tie(strPtr, strBytes) = load_string(data, ptr);
+        __chars = embedContextCallbacks->rtlUtf8Length(strBytes, &data[strPtr]);
+        TRACE("getUTF8Result %d %d", strBytes, __chars);
+        __result = (char *)embedContextCallbacks->rtlMalloc(strBytes);
+        memcpy(__result, &data[strPtr], strBytes);
     }
     virtual void getUnicodeResult(size32_t &__chars, UChar *&__result)
     {
         TRACE("getUnicodeResult");
+        auto ptr = results[0].i32();
+        auto data = wasmEngine->getData(wasmName);
+        uint32_t strPtr;
+        uint32_t strBytes;
+        std::tie(strPtr, strBytes) = load_string(data, ptr);
+        unsigned numchars = embedContextCallbacks->rtlUtf8Length(strBytes, &data[strPtr]);
+        embedContextCallbacks->rtlUtf8ToUnicodeX(__chars, __result, numchars, reinterpret_cast<const char *>(&data[strPtr]));
     }
     virtual void getSetResult(bool &__isAllResult, size32_t &__resultBytes, void *&__result, int elemType, size32_t elemSize)
     {
