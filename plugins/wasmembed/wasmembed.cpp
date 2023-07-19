@@ -75,41 +75,6 @@ namespace wasmLanguageHelper
             throw ret;
         }
 
-        virtual void *rtlMalloc(size32_t size) override
-        {
-            return ::rtlMalloc(size);
-        }
-
-        virtual void rtlStrToStrX(unsigned &tlen, char *&tgt, unsigned slen, const void *src) override
-        {
-            return ::rtlStrToStrX(tlen, tgt, slen, src);
-        }
-
-        virtual void rtlUtf8ToUnicodeX(unsigned &outlen, UChar *&out, unsigned inlen, char const *in) override
-        {
-            ::rtlUtf8ToUnicodeX(outlen, out, inlen, in);
-        }
-
-        virtual void rtlUtf8ToUtf8X(size32_t &outlen, char *&out, size32_t inlen, const char *in) override
-        {
-            ::rtlUtf8ToUtf8X(outlen, out, inlen, in);
-        }
-
-        virtual unsigned rtlUtf8Size(unsigned len, const void *data) override
-        {
-            return ::rtlUtf8Size(len, data);
-        }
-
-        virtual unsigned rtlUtf8Length(unsigned size, const void *_data) override
-        {
-            return ::rtlUtf8Length(size, _data);
-        }
-
-        virtual void rtlUnicodeToUtf8X(unsigned &outlen, char *&out, unsigned inlen, const UChar *in) override
-        {
-            return ::rtlUnicodeToUtf8X(outlen, out, inlen, in);
-        }
-
         virtual const char *resolveManifestPath(const char *leafName) override
         {
             if (leafName && *leafName)

@@ -1,12 +1,16 @@
 #include "secure-enclave.hpp"
+#include "rtlconst.hpp"
+
+// From deftype.hpp in common
+#define UNKNOWN_LENGTH 0xFFFFFFF1
 
 #include "abi.hpp"
 #include "util.hpp"
 
 #include <map>
 #include <functional>
-
-std::shared_ptr<IWasmEmbedCallback> embedContextCallbacks;
+#include <mutex>
+#include <shared_mutex>
 
 #define ENABLE_TRACE
 #ifdef ENABLE_TRACE
@@ -18,18 +22,80 @@ std::shared_ptr<IWasmEmbedCallback> embedContextCallbacks;
     } while (0)
 #endif
 
-class WasmEngine
+template <typename K, typename V>
+class ThreadSafeMap
 {
 protected:
-    wasmtime::Engine engine;
-
-    std::map<std::string, wasmtime::Instance> wasmInstances;
-    std::map<std::string, wasmtime::Memory> wasmMems;
-    std::map<std::string, wasmtime::Func> wasmFuncs;
+    std::unordered_map<K, V> map;
+    mutable std::shared_mutex mutex;
 
 public:
+    ThreadSafeMap() {}
+    ~ThreadSafeMap() {}
+
+    void clear()
+    {
+        std::unique_lock lock(mutex);
+        map.clear();
+    }
+
+    void insertIfMissing(const K &key, std::function<V()> &valueCallback)
+    {
+        std::unique_lock lock(mutex);
+        if (map.find(key) == map.end())
+            map.insert(std::make_pair(key, valueCallback()));
+    }
+
+    void erase(const K &key)
+    {
+        std::unique_lock lock(mutex);
+        map.erase(key);
+    }
+
+    bool find(const K &key, std::optional<V> &value) const
+    {
+        std::shared_lock lock(mutex);
+        auto it = map.find(key);
+        if (it != map.end())
+        {
+            value = it->second;
+            return true;
+        }
+        return false;
+    }
+
+    bool has(const K &key) const
+    {
+        std::shared_lock lock(mutex);
+        return map.find(key) != map.end();
+    }
+
+    void for_each(std::function<void(const K &key, const V &value)> func) const
+    {
+        std::shared_lock lock(mutex);
+        for (auto it = map.begin(); it != map.end(); ++it)
+        {
+            func(it->first, it->second);
+        }
+    }
+};
+
+std::shared_ptr<IWasmEmbedCallback> embedContextCallbacks;
+
+class WasmEngine
+{
+private:
+    wasmtime::Engine engine;
     wasmtime::Store store;
 
+    ThreadSafeMap<std::string, wasmtime::Instance> wasmInstances;
+    //  wasmMems and wasmFuncs are only written to during createInstance, so no need for a mutex
+    std::unordered_map<std::string, wasmtime::Memory> wasmMems;
+    std::unordered_map<std::string, wasmtime::Func> wasmFuncs;
+
+    mutable std::shared_mutex store_mutex;
+
+public:
     WasmEngine() : store(engine)
     {
     }
@@ -38,98 +104,100 @@ public:
     {
     }
 
-    bool hasInstance(const std::string &wasmName)
+    bool hasInstance(const std::string &wasmName) const
     {
-        return wasmInstances.find(wasmName) != wasmInstances.end();
+        return wasmInstances.has(wasmName);
     }
 
-    wasmtime::Instance getInstance(const std::string &wasmName)
+    wasmtime::Instance getInstance(const std::string &wasmName) const
     {
-        auto instanceItr = wasmInstances.find(wasmName);
-        if (instanceItr == wasmInstances.end())
+        std::optional<wasmtime::Instance> instance;
+        if (!wasmInstances.find(wasmName, instance))
             embedContextCallbacks->throwStringException(-1, "Wasm instance not found: %s", wasmName.c_str());
-        return instanceItr->second;
+        return instance.value();
+    }
+
+    wasmtime::Instance createInstance(const std::string &wasmName, const std::variant<std::string_view, wasmtime::Span<uint8_t>> &wasm)
+    {
+        TRACE("resolveModule %s", wasmName.c_str());
+        auto module = std::holds_alternative<std::string_view>(wasm) ? wasmtime::Module::compile(engine, std::get<std::string_view>(wasm)).unwrap() : wasmtime::Module::compile(engine, std::get<wasmtime::Span<uint8_t>>(wasm)).unwrap();
+        TRACE("resolveModule2 %s", wasmName.c_str());
+
+        wasmtime::WasiConfig wasi;
+        wasi.inherit_argv();
+        wasi.inherit_env();
+        wasi.inherit_stdin();
+        wasi.inherit_stdout();
+        wasi.inherit_stderr();
+        store.context().set_wasi(std::move(wasi)).unwrap();
+        TRACE("resolveModule3 %s", wasmName.c_str());
+
+        wasmtime::Linker linker(engine);
+        linker.define_wasi().unwrap();
+        TRACE("resolveModule4 %s", wasmName.c_str());
+
+        auto callback = [this, wasmName](wasmtime::Caller caller, uint32_t msg, uint32_t msg_len)
+        {
+            TRACE("callback: %i %i", msg_len, msg);
+
+            auto data = this->getData(wasmName);
+            auto msg_ptr = (char *)&data[msg];
+            std::string str(msg_ptr, msg_len);
+            embedContextCallbacks->DBGLOG("from wasm: %s", str.c_str());
+        };
+        auto host_func = linker.func_wrap("$root", "dbglog", callback).unwrap();
+
+        auto newInstance = linker.instantiate(store, module).unwrap();
+        linker.define_instance(store, "linking2", newInstance).unwrap();
+
+        for (auto exportItem : module.exports())
+        {
+            auto externType = wasmtime::ExternType::from_export(exportItem);
+            std::string name(exportItem.name());
+            if (std::holds_alternative<wasmtime::FuncType::Ref>(externType))
+            {
+                TRACE("Exported function: %s", name.c_str());
+                auto func = std::get<wasmtime::Func>(*newInstance.get(store, name));
+                wasmFuncs.insert(std::make_pair(wasmName + "." + name, func));
+            }
+            else if (std::holds_alternative<wasmtime::MemoryType::Ref>(externType))
+            {
+                TRACE("Exported memory: %s", name.c_str());
+                auto memory = std::get<wasmtime::Memory>(*newInstance.get(store, name));
+                wasmMems.insert(std::make_pair(wasmName + "." + name, memory));
+            }
+            else if (std::holds_alternative<wasmtime::TableType::Ref>(externType))
+            {
+                TRACE("Exported table: %s", name.c_str());
+            }
+            else if (std::holds_alternative<wasmtime::GlobalType::Ref>(externType))
+            {
+                TRACE("Exported global: %s", name.c_str());
+            }
+            else
+            {
+                TRACE("Unknown export type");
+            }
+        }
+
+        return newInstance;
     }
 
     void registerInstance(const std::string &wasmName, const std::variant<std::string_view, wasmtime::Span<uint8_t>> &wasm)
     {
-        TRACE("registerInstance %s", wasmName.c_str());
-        auto instanceItr = wasmInstances.find(wasmName);
-        if (instanceItr == wasmInstances.end())
+        std::function<wasmtime::Instance()> createInstanceCallback = [this, wasmName, wasm]()
         {
-            TRACE("resolveModule %s", wasmName.c_str());
-            auto module = std::holds_alternative<std::string_view>(wasm) ? wasmtime::Module::compile(engine, std::get<std::string_view>(wasm)).unwrap() : wasmtime::Module::compile(engine, std::get<wasmtime::Span<uint8_t>>(wasm)).unwrap();
-            TRACE("resolveModule2 %s", wasmName.c_str());
-
-            wasmtime::WasiConfig wasi;
-            wasi.inherit_argv();
-            wasi.inherit_env();
-            wasi.inherit_stdin();
-            wasi.inherit_stdout();
-            wasi.inherit_stderr();
-            store.context().set_wasi(std::move(wasi)).unwrap();
-            TRACE("resolveModule3 %s", wasmName.c_str());
-
-            wasmtime::Linker linker(engine);
-            linker.define_wasi().unwrap();
-            TRACE("resolveModule4 %s", wasmName.c_str());
-
-            auto callback = [this, wasmName](wasmtime::Caller caller, uint32_t msg, uint32_t msg_len)
-            {
-                TRACE("callback: %i %i", msg_len, msg);
-
-                auto data = this->getData(wasmName);
-                auto msg_ptr = (char *)&data[msg];
-                std::string str(msg_ptr, msg_len);
-                embedContextCallbacks->DBGLOG("from wasm: %s", str.c_str());
-            };
-            auto host_func = linker.func_wrap("$root", "dbglog", callback).unwrap();
-
-            auto newInstance = linker.instantiate(store, module).unwrap();
-            linker.define_instance(store, "linking2", newInstance).unwrap();
-
-            TRACE("resolveModule5 %s", wasmName.c_str());
-
-            wasmInstances.insert(std::make_pair(wasmName, newInstance));
-
-            for (auto exportItem : module.exports())
-            {
-                auto externType = wasmtime::ExternType::from_export(exportItem);
-                std::string name(exportItem.name());
-                if (std::holds_alternative<wasmtime::FuncType::Ref>(externType))
-                {
-                    TRACE("Exported function: %s", name.c_str());
-                    auto func = std::get<wasmtime::Func>(*newInstance.get(store, name));
-                    wasmFuncs.insert(std::make_pair(wasmName + "." + name, func));
-                }
-                else if (std::holds_alternative<wasmtime::MemoryType::Ref>(externType))
-                {
-                    TRACE("Exported memory: %s", name.c_str());
-                    auto memory = std::get<wasmtime::Memory>(*newInstance.get(store, name));
-                    wasmMems.insert(std::make_pair(wasmName + "." + name, memory));
-                }
-                else if (std::holds_alternative<wasmtime::TableType::Ref>(externType))
-                {
-                    TRACE("Exported table: %s", name.c_str());
-                }
-                else if (std::holds_alternative<wasmtime::GlobalType::Ref>(externType))
-                {
-                    TRACE("Exported global: %s", name.c_str());
-                }
-                else
-                {
-                    TRACE("Unknown export type");
-                }
-            }
-        }
+            return createInstance(wasmName, wasm);
+        };
+        wasmInstances.insertIfMissing(wasmName, createInstanceCallback);
     }
 
-    bool hasFunc(const std::string &qualifiedID)
+    bool hasFunc(const std::string &qualifiedID) const
     {
         return wasmFuncs.find(qualifiedID) != wasmFuncs.end();
     }
 
-    wasmtime::Func getFunc(const std::string &qualifiedID)
+    wasmtime::Func getFunc(const std::string &qualifiedID) const
     {
         auto found = wasmFuncs.find(qualifiedID);
         if (found == wasmFuncs.end())
@@ -196,10 +264,9 @@ public:
         auto gc_func_name = createQualifiedID(wasmName, "cabi_post_" + funcName);
         if (wasmEngine->hasFunc(gc_func_name))
         {
-            auto func = wasmEngine->getFunc(gc_func_name);
             for (auto &result : results)
             {
-                func.call(wasmEngine->store, {result}).unwrap();
+                wasmEngine->call(gc_func_name, {result});
             }
         }
     }
@@ -277,13 +344,13 @@ public:
         TRACE("bindUnsignedParam %s %llu", name, val);
         args.push_back(static_cast<int64_t>(val));
     }
-    virtual void bindStringParam(const char *paramName, size32_t len, const char *val)
+    virtual void bindStringParam(const char *name, size32_t code_units, const char *val)
     {
-        TRACE("bindStringParam %s %d %s", paramName, len, val);
+        TRACE("bindStringParam %s %d %s", name, code_units, val);
         size32_t utfCharCount;
         rtlDataAttr utfText;
-        rtlStrToUtf8X(utfCharCount, utfText.refstr(), len, val);
-        bindUTF8Param(paramName, utfCharCount, utfText.getstr());
+        rtlStrToUtf8X(utfCharCount, utfText.refstr(), code_units, val);
+        bindUTF8Param(name, utfCharCount, utfText.getstr());
     }
     virtual void bindVStringParam(const char *name, const char *val)
     {
@@ -293,37 +360,105 @@ public:
     virtual void bindUTF8Param(const char *name, size32_t code_points, const char *val)
     {
         TRACE("bindUTF8Param %s %d %s", name, code_points, val);
-        auto code_units = embedContextCallbacks->rtlUtf8Size(code_points, val);
+        auto code_units = rtlUtf8Size(code_points, val);
         auto memIdxVar = wasmEngine->callRealloc(wasmName, {0, 0, 1, (int32_t)code_units});
         auto memIdx = memIdxVar[0].i32();
         auto mem = wasmEngine->getData(wasmName);
         memcpy(&mem[memIdx], val, code_units);
-        // for (int i = 0; i < code_units; i++)
-        // {
-        //     mem[memIdx + i] = val[i];
-        // }
         args.push_back(memIdx);
         args.push_back((int32_t)code_units);
     }
-    virtual void bindUnicodeParam(const char *name, size32_t chars, const UChar *val)
+    virtual void bindUnicodeParam(const char *name, size32_t code_points, const UChar *val)
     {
-        // TRACE("bindUnicodeParam %s %d %S", name, chars, reinterpret_cast<const wchar_t *>(val));
-        size32_t utf8chars;
-        char *utf8;
-        embedContextCallbacks->rtlUnicodeToUtf8X(utf8chars, utf8, chars, val);
-        bindUTF8Param(name, utf8chars, utf8);
+        TRACE("bindUnicodeParam %s %d", name, code_points);
+        size32_t utfCharCount;
+        rtlDataAttr utfText;
+        rtlUnicodeToUtf8X(utfCharCount, utfText.refstr(), code_points, val);
+        bindUTF8Param(name, utfCharCount, utfText.getstr());
     }
+
     virtual void bindSetParam(const char *name, int elemType, size32_t elemSize, bool isAll, size32_t totalBytes, const void *setData)
     {
         TRACE("bindSetParam %s %d %d %d %d %p", name, elemType, elemSize, isAll, totalBytes, setData);
+        type_vals typecode = (type_vals)elemType;
+        const byte *inData = (const byte *)setData;
+        const byte *endData = inData + totalBytes;
+        int numElems;
+        if (elemSize == UNKNOWN_LENGTH)
+        {
+            numElems = 0;
+            // Will need 2 passes to work out how many elements there are in the set :(
+            while (inData < endData)
+            {
+                int thisSize;
+                switch (elemType)
+                {
+                case type_varstring:
+                    thisSize = strlen((const char *)inData) + 1;
+                    break;
+                case type_string:
+                    thisSize = *(size32_t *)inData + sizeof(size32_t);
+                    break;
+                case type_unicode:
+                    thisSize = (*(size32_t *)inData) * sizeof(UChar) + sizeof(size32_t);
+                    break;
+                case type_utf8:
+                    thisSize = rtlUtf8Size(*(size32_t *)inData, inData + sizeof(size32_t)) + sizeof(size32_t);
+                    break;
+                default:
+                    rtlFail(0, "wasmembed: Unsupported parameter type");
+                    break;
+                }
+                inData += thisSize;
+                numElems++;
+            }
+            inData = (const byte *)setData;
+        }
+        else
+            numElems = totalBytes / elemSize;
+
+        std::vector<wasmtime::Val> memIdxVar;
+        int32_t memIdx;
+
+        switch (typecode)
+        {
+        case type_boolean:
+            memIdxVar = wasmEngine->callRealloc(wasmName, {0, 0, 1, (int32_t)numElems});
+            memIdx = memIdxVar[0].i32();
+            break;
+        default:
+            rtlFail(0, "wasmembed: Unsupported parameter type");
+            break;
+        }
+
+        auto mem = wasmEngine->getData(wasmName);
+        size32_t thisSize = elemSize;
+        for (int idx = 0; idx < numElems; idx++)
+        {
+            switch (typecode)
+            {
+            case type_boolean:
+                mem[memIdx + idx] = *(bool *)inData;
+                break;
+            default:
+                rtlFail(0, "v8embed: Unsupported parameter type");
+                break;
+            }
+            inData += thisSize;
+        }
+        args.push_back(memIdx);
+        args.push_back(numElems);
     }
+
     virtual void bindRowParam(const char *name, IOutputMetaData &metaVal, const byte *val) override
     {
         TRACE("bindRowParam %s %p", name, val);
+        embedContextCallbacks->throwStringException(-1, "bindRowParam not implemented");
     }
     virtual void bindDatasetParam(const char *name, IOutputMetaData &metaVal, IRowStream *val)
     {
         TRACE("bindDatasetParam %s %p", name, val);
+        embedContextCallbacks->throwStringException(-1, "bindDatasetParam not implemented");
     }
     virtual bool getBooleanResult()
     {
@@ -333,6 +468,7 @@ public:
     virtual void getDataResult(size32_t &__len, void *&__result)
     {
         TRACE("getDataResult");
+        embedContextCallbacks->throwStringException(-1, "getDataResult not implemented");
     }
     virtual double getRealResult()
     {
@@ -361,9 +497,9 @@ public:
         auto ptr = results[0].i32();
         auto data = wasmEngine->getData(wasmName);
         uint32_t strPtr;
-        uint32_t strBytes;
-        std::tie(strPtr, strBytes) = load_string(data, ptr);
-        embedContextCallbacks->rtlStrToStrX(__chars, __result, strBytes, reinterpret_cast<const char *>(&data[strPtr]));
+        uint32_t code_units;
+        std::tie(strPtr, code_units) = load_string(data, ptr);
+        rtlStrToStrX(__chars, __result, code_units, reinterpret_cast<const char *>(&data[strPtr]));
     }
     virtual void getUTF8Result(size32_t &__chars, char *&__result)
     {
@@ -371,12 +507,12 @@ public:
         auto ptr = results[0].i32();
         auto data = wasmEngine->getData(wasmName);
         uint32_t strPtr;
-        uint32_t strBytes;
-        std::tie(strPtr, strBytes) = load_string(data, ptr);
-        __chars = embedContextCallbacks->rtlUtf8Length(strBytes, &data[strPtr]);
-        TRACE("getUTF8Result %d %d", strBytes, __chars);
-        __result = (char *)embedContextCallbacks->rtlMalloc(strBytes);
-        memcpy(__result, &data[strPtr], strBytes);
+        uint32_t code_units;
+        std::tie(strPtr, code_units) = load_string(data, ptr);
+        __chars = rtlUtf8Length(code_units, &data[strPtr]);
+        TRACE("getUTF8Result %d %d", code_units, __chars);
+        __result = (char *)rtlMalloc(code_units);
+        memcpy(__result, &data[strPtr], code_units);
     }
     virtual void getUnicodeResult(size32_t &__chars, UChar *&__result)
     {
@@ -384,33 +520,41 @@ public:
         auto ptr = results[0].i32();
         auto data = wasmEngine->getData(wasmName);
         uint32_t strPtr;
-        uint32_t strBytes;
-        std::tie(strPtr, strBytes) = load_string(data, ptr);
-        unsigned numchars = embedContextCallbacks->rtlUtf8Length(strBytes, &data[strPtr]);
-        embedContextCallbacks->rtlUtf8ToUnicodeX(__chars, __result, numchars, reinterpret_cast<const char *>(&data[strPtr]));
+        uint32_t code_units;
+        std::tie(strPtr, code_units) = load_string(data, ptr);
+        unsigned numchars = rtlUtf8Length(code_units, &data[strPtr]);
+        rtlUtf8ToUnicodeX(__chars, __result, numchars, reinterpret_cast<const char *>(&data[strPtr]));
     }
     virtual void getSetResult(bool &__isAllResult, size32_t &__resultBytes, void *&__result, int elemType, size32_t elemSize)
     {
-        TRACE("getSetResult");
+        TRACE("getSetResult %d %d %zu", elemType, elemSize, results.size());
+        auto ptr = results[0].i32();
+        auto data = wasmEngine->getData(wasmName);
+
+        embedContextCallbacks->throwStringException(-1, "getSetResult not implemented");
     }
     virtual IRowStream *getDatasetResult(IEngineRowAllocator *_resultAllocator)
     {
         TRACE("getDatasetResult");
+        embedContextCallbacks->throwStringException(-1, "getDatasetResult not implemented");
         return NULL;
     }
     virtual byte *getRowResult(IEngineRowAllocator *_resultAllocator)
     {
         TRACE("getRowResult");
+        embedContextCallbacks->throwStringException(-1, "getRowResult not implemented");
         return NULL;
     }
     virtual size32_t getTransformResult(ARowBuilder &builder)
     {
         TRACE("getTransformResult");
+        embedContextCallbacks->throwStringException(-1, "getTransformResult not implemented");
         return 0;
     }
     virtual void loadCompiledScript(size32_t chars, const void *_script) override
     {
         TRACE("loadCompiledScript %p", _script);
+        embedContextCallbacks->throwStringException(-1, "loadCompiledScript not implemented");
     }
     virtual void enter() override
     {
@@ -490,6 +634,6 @@ SECUREENCLAVE_API void syntaxCheck(size32_t &__lenResult, char *&__result, const
     }
 
     __lenResult = errMsg.length();
-    __result = reinterpret_cast<char *>(embedContextCallbacks->rtlMalloc(__lenResult));
+    __result = reinterpret_cast<char *>(rtlMalloc(__lenResult));
     errMsg.copy(__result, __lenResult);
 }

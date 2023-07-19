@@ -25,7 +25,7 @@ include_directories(
 
 add_definitions(-D_USRDLL -DSECUREENCLAVE_EXPORTS)
 
-add_library(secure-enclave STATIC
+add_library(secure-enclave SHARED
     secure-enclave.cpp
     secure-enclave.hpp
     abi.cpp
@@ -36,6 +36,8 @@ add_library(secure-enclave STATIC
 
 target_link_libraries(secure-enclave PRIVATE
     ${WASMTIME_LIB}
+    eclrtl
+    jlib
 )
 
 install(
