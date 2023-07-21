@@ -3,10 +3,10 @@ services:
     entrypoint:
     - sleep
     - infinity
-    image: docker/dev-environments-default:stable-1
-    init: true
+    build: 
+      context: dockerfiles/vcpkg/ubuntu-22.04
+      target: development
     volumes:
     - type: bind
       source: /var/run/docker.sock
       target: /var/run/docker.sock
-
