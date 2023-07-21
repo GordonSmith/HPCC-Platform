@@ -16,3 +16,5 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 RUN git config --global --add safe.directory '*'
 
 WORKDIR /hpcc-dev
+
+ENTRYPOINT ["/compose-dev.sh"]
