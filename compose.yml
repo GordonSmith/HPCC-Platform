@@ -1,0 +1,12 @@
+services:
+  app:
+    entrypoint:
+    - sleep
+    - infinity
+    build: 
+      context: dockerfiles/vcpkg/ubuntu-22.04
+    volumes:
+    - type: bind
+      source: /var/run/docker.sock
+      target: /var/run/docker.sock
+
