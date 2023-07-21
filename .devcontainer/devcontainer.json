@@ -6,11 +6,14 @@
 		// Sets the run context to one level up instead of the .devcontainer folder.
 		"context": "..",
 		// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-		"dockerfile": "../dockerfiles/vcpkg/ubuntu-22.04.dockerfile"
+		"dockerfile": "../dockerfiles/vcpkg/ubuntu-22.04.dockerfile",
+		"args": {
+			"VCPKG_REF": "hpcc-platform-9.2.x"
+		}
 	},
 	"workspaceMount": "source=${localWorkspaceFolder},target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached",
 	"workspaceFolder": "/hpcc-dev/HPCC-Platform",
-	"mounts":[
+	"mounts": [
 		"source=HPCC-Platform-build,target=/hpcc-dev/HPCC-Platform/build,type=volume"
 	],
 	"features": {
@@ -19,19 +22,22 @@
 		// 	"version": "lts"
 		// }
 	},
-
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
-
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
-
 	// Uncomment the next line to run commands after the container is created.
-	"postCreateCommand": "/hpcc-dev/HPCC-Platform/vcpkg/bootstrap-vcpkg.sh",
-
+	"postCreateCommand": "/hpcc-dev/HPCC-Platform/vcpkg/bootstrap-vcpkg.sh && rsync -av --ignore-existing /hpcc-dev/vcpkg_installed /hpcc-dev/HPCC-Platform/build",
 	// Configure tool-specific properties.
-	// "customizations": {},
-
+	"customizations": {
+		"vscode": {
+			"settings": {},
+			"extensions": [
+				"ms-vscode.cmake-tools",
+				"ms-vscode.cpptools-extension-pack"
+			]
+		}
+	},
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
 	"remoteUser": "root"
 }
