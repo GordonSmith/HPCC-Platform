@@ -238,7 +238,7 @@ jobs:
           context: ${{ needs.preamble.outputs.folder_build }}
           push: ${{ github.repository_owner == 'hpcc-systems' }}
           build-args: |
-            DEB_FILE=${{ steps.vars.outputs.k8s_deb_file }}
+            DEB_FILE=${{ steps.container.outputs.k8s_deb_file }}
           tags: |
             ${{ steps.vars.outputs.docker_tag_community }}
             ${{ steps.vars.outputs.docker_tag_community_base }}
