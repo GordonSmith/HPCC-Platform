@@ -206,7 +206,7 @@ jobs:
             cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DSIGN_MODULES_PASSPHRASE=${{ secrets.SIGN_MODULES_PASSPHRASE }} -DSIGN_MODULES_KEYID=${{ secrets.SIGN_MODULES_KEYID }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=ON -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=ON && \
             cmake --build /hpcc-dev/build --parallel $(nproc) --target package"
           k8s_deb_path=$(ls -t -- /hpcc-dev/build/*-k8s.deb 2>/dev/null | head -1)
-          echo "k8s_deb_file=$(basename '$k8s_deb_path')" >> $GITHUB_OUTPUT
+          echo "k8s_deb_file=$(basename "$k8s_deb_path")" >> $GITHUB_OUTPUT
 
       - name: Print vars
         run: |
