@@ -93,17 +93,14 @@ jobs:
           - os: ubuntu-22.10
           - os: ubuntu-22.04
             container: true
-          - os: ubuntu-22.04
-          - os: ubuntu-22.04
             documentation: true
+            ln: true
           - os: ubuntu-20.04
+            ln: true
           - os: centos-8
           - os: centos-7
+            ln: true
           - os: amazonlinux
-          - os: ubuntu-20.04
-            ln: true
-          - os: centos-7
-            ln: true
       fail-fast: false
 
     steps:
@@ -136,11 +133,14 @@ jobs:
           echo "docker_tag_candidate_baseX=$docker_build_label:${{ needs.preamble.outputs.candidate_base_branch }}" >> $GITHUB_OUTPUT
           echo "docker_tag_candidate_base=$docker_build_label:candidate-9.2.x" >> $GITHUB_OUTPUT
           echo "docker_tag_candidate=$docker_build_label:${{ needs.preamble.outputs.candidate_branch }}" >> $GITHUB_OUTPUT
-          docker_core_label=hpccsystems/platform-core-${{ matrix.os }}
-          echo "docker_tag_community_baseX=$docker_core_label:${{ needs.preamble.outputs.candidate_base_branch }}" >> $GITHUB_OUTPUT
-          echo "docker_tag_community_base=$docker_core_label:candidate-9.2.x" >> $GITHUB_OUTPUT
-          echo "docker_tag_community=$docker_core_label:${{ needs.preamble.outputs.community_tag }}" >> $GITHUB_OUTPUT
-          echo "docker_tag_internal=$docker_core_label:${{ needs.preamble.outputs.internal_tag }}" >> $GITHUB_OUTPUT
+          docker_community_label=hpccsystems/platform-core-${{ matrix.os }}
+          echo "docker_tag_community_baseX=$docker_community_label:${{ needs.preamble.outputs.candidate_base_branch }}" >> $GITHUB_OUTPUT
+          echo "docker_tag_community_base=$docker_community_label:candidate-9.2.x" >> $GITHUB_OUTPUT
+          echo "docker_tag_community=$docker_community_label:${{ needs.preamble.outputs.community_tag }}" >> $GITHUB_OUTPUT
+          docker_internal_label=ln/platform-core-${{ matrix.os }}
+          echo "docker_tag_internal_baseX=$docker_internal_label:${{ needs.preamble.outputs.candidate_base_branch }}" >> $GITHUB_OUTPUT
+          echo "docker_tag_internal_base=$docker_internal_label:candidate-9.2.x" >> $GITHUB_OUTPUT
+          echo "docker_tag_internal=$docker_internal_label:${{ needs.preamble.outputs.internal_tag }}" >> $GITHUB_OUTPUT
 
       - name: Print vars
         run: |
@@ -175,7 +175,6 @@ jobs:
           cache-to: type=inline
 
       - name: CMake Packages
-        if: ${{ !matrix.container && !matrix.ln && !matrix.documentation }}
         run: |
           mkdir -p ${{ needs.preamble.outputs.folder_build }}
           echo "${{ secrets.SIGNING_SECRET }}" > ${{ needs.preamble.outputs.folder_build }}/private.key
@@ -193,7 +192,6 @@ jobs:
 
       - name: CMake Containerized Packages
         if: ${{ matrix.container }}
-        id: container
         run: |
           mkdir -p ${{ needs.preamble.outputs.folder_build }}
           echo "${{ secrets.SIGNING_SECRET }}" > ${{ needs.preamble.outputs.folder_build }}/private.key
@@ -205,9 +203,6 @@ jobs:
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} ${{ steps.vars.outputs.docker_tag_candidate_base }} "${{ needs.preamble.outputs.gpg_import }} && \
             cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/build ${{ needs.preamble.outputs.cmake_docker_config }} -DSIGN_MODULES_PASSPHRASE=${{ secrets.SIGN_MODULES_PASSPHRASE }} -DSIGN_MODULES_KEYID=${{ secrets.SIGN_MODULES_KEYID }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=ON -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=ON && \
             cmake --build /hpcc-dev/build --parallel $(nproc) --target package"
-          k8s_deb_path=$(ls -t ${{ needs.preamble.outputs.folder_build }}/*k8s.deb 2>/dev/null | head -1)
-          k8s_deb_file=$(basename "$k8s_deb_path")
-          echo "k8s_deb_file=$k8s_deb_file" >> $GITHUB_OUTPUT
 
       - name: CMake documentation
         if: ${{ matrix.documentation }}
@@ -221,16 +216,23 @@ jobs:
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} ${{ steps.vars.outputs.docker_tag_candidate_base }} "cd /hpcc-dev/build/Release/docs/EN_US && zip ALL_HPCC_DOCS_EN_US-${{ needs.preamble.outputs.community_tag }}.zip *.pdf"
           docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_build }} ${{ steps.vars.outputs.docker_tag_candidate_base }} "cd /hpcc-dev/build/Release/docs/PT_BR && zip ALL_HPCC_DOCS_PT_BR-${{ needs.preamble.outputs.community_tag }}.zip *.pdf"
 
-      - name: Upload Assets
+      - name: Upload Assets (community)
         uses: ncipollo/release-action@v1.12.0
-        if: ${{ !matrix.ln }}
         with:
           allowUpdates: true
           generateReleaseNotes: false
           prerelease: ${{ contains(github.ref, '-rc') }}
           artifacts: "${{ needs.preamble.outputs.folder_build }}/*.deb,${{ needs.preamble.outputs.folder_build }}/*.rpm,${{ needs.preamble.outputs.folder_build }}/Release/docs/*.zip,${{ needs.preamble.outputs.folder_build }}/Release/docs/EN_US/*.zip,${{ needs.preamble.outputs.folder_build }}/Release/docs/PT_BR/*.zip,${{ needs.preamble.outputs.folder_build }}/docs/EN_US/EclipseHelp/*.zip,${{ needs.preamble.outputs.folder_build }}/docs/EN_US/HTMLHelp/*.zip,${{ needs.preamble.outputs.folder_build }}/docs/PT_BR/HTMLHelp/*.zip"
 
-      - name: Create Community Image
+      - name: Create Docker Image (find deb)
+        id: container
+        if: ${{ matrix.container }}
+        run: |
+          k8s_pkg_path=$(ls -t ${{ needs.preamble.outputs.folder_build }}/*64_k8s.deb 2>/dev/null | head -1)
+          k8s_pkg_file=$(basename "$k8s_pkg_path")
+          echo "k8s_pkg_file=$k8s_pkg_file" >> $GITHUB_OUTPUT
+  
+      - name: Create Docker Image (community)
         uses: docker/build-push-action@v4
         if: ${{ matrix.container }}
         with:
@@ -239,7 +241,7 @@ jobs:
           context: ${{ needs.preamble.outputs.folder_build }}
           push: ${{ github.repository_owner == 'hpcc-systems' }}
           build-args: |
-            DEB_FILE=${{ steps.container.outputs.k8s_deb_file }}
+            PKG_FILE=${{ steps.container.outputs.k8s_pkg_file }}
           tags: |
             ${{ steps.vars.outputs.docker_tag_community }}
             ${{ steps.vars.outputs.docker_tag_community_base }}
@@ -259,7 +261,24 @@ jobs:
           # docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_ln }} --mount ${{ needs.preamble.outputs.mount_build }} ${{ steps.vars.outputs.docker_tag_candidate_base }} "cmake -S /hpcc-dev/LN -B /hpcc-dev/build -DHPCC_SOURCE_DIR=/hpcc-dev/HPCC-Platform ${{ needs.preamble.outputs.cmake_docker_config }} -DINCLUDE_PLUGINS=ON -DCONTAINERIZED=OFF -DSUPPRESS_REMBED=ON -DSUPPRESS_V8EMBED=ON -DSUPPRESS_SPARK=ON -DCPACK_STRIP_FILES=ON" 
           # docker run --rm --mount ${{ needs.preamble.outputs.mount_platform }} --mount ${{ needs.preamble.outputs.mount_ln }} --mount ${{ needs.preamble.outputs.mount_build }} ${{ steps.vars.outputs.docker_tag_candidate_base }} "cmake --build /hpcc-dev/build --parallel $(nproc) --target package"
 
-      - name: Upload LN Assets
+      - name: Create Docker Image (internal)
+        uses: docker/build-push-action@v4
+        if: ${{ matrix.ln && matrix.container }}
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ${{ needs.preamble.outputs.folder_platform }}/dockerfiles/vcpkg/platform-core-${{ matrix.os }}.dockerfile
+          context: ${{ needs.preamble.outputs.folder_build }}
+          outputs: |
+            type=tar,dest=${{ needs.preamble.outputs.folder_build }}/platform-core-${{ matrix.os }}.tar
+          build-args: |
+            PKG_FILE=${{ steps.container.outputs.k8s_pkg_file }}
+          tags: |
+            ${{ steps.vars.outputs.docker_tag_internal }}
+            ${{ steps.vars.outputs.docker_tag_internal_base }}
+          cache-from: |
+            type=registry,ref=${{ steps.vars.outputs.docker_tag_community_base }}
+
+      - name: Upload Assets (internal)
         if: ${{ matrix.ln }}
         uses: ncipollo/release-action@v1.12.0
         with:
@@ -270,7 +289,7 @@ jobs:
           repo: LN
           token: ${{ secrets.LNB_TOKEN }}
           tag: ${{ needs.preamble.outputs.internal_tag }}
-          artifacts: "${{ needs.preamble.outputs.folder_build }}/hpccsystems-platform-internal*.deb,${{ needs.preamble.outputs.folder_build }}/hpccsystems-platform-internal*.rpm"
+          artifacts: "${{ needs.preamble.outputs.folder_build }}/hpccsystems-platform-internal*.deb,${{ needs.preamble.outputs.folder_build }}/hpccsystems-platform-internal*.rpm,${{ needs.preamble.outputs.folder_build }}/platform-core-${{ matrix.os }}.tar"
 
       - name: Cleanup Environment
         if: always()
