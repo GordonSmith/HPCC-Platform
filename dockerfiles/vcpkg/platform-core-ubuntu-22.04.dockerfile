@@ -81,7 +81,7 @@ RUN mkdir /var/run/HPCCSystems && chown hpcc:hpcc /var/run/HPCCSystems
 ARG DEB_FILE=hpccsystems-platform-community_9.2.4-1jammy_amd64_k8s.deb
 COPY ./${DEB_FILE} /tmp/${DEB_FILE}
 RUN dpkg -i /tmp/${DEB_FILE} && \
-    apt-get install -f \
+    apt-get install -f && \
     rm /tmp/${DEB_FILE}
 
 USER hpcc
