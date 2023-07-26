@@ -183,6 +183,13 @@ jobs:
             type=registry,ref=${{ steps.vars.outputs.docker_tag }}
           cache-to: type=inline
 
+      - name: Free additional disk space (remove Java)
+        run: |
+          df -h
+          dpkg-query -W -f='${binary:Package}\n' | grep -E -e '^(ia32-)?(sun|oracle)-java' -e '^openjdk-' -e '^icedtea' -e '^(default|gcj)-j(re|dk)' -e '^gcj-(.*)-j(re|dk)' -e '^java-common' | xargs sudo apt-get -y remove
+          sudo apt-get -y autoremove
+          df -h
+          
       # Communtiy Build 
       - name: CMake Packages (community)
         if: ${{ !matrix.ln && !matrix.container && !matrix.documentation }}
