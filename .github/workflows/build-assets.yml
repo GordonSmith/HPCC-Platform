@@ -136,11 +136,11 @@ jobs:
           echo "docker_build_label=$docker_build_label" >> $GITHUB_OUTPUT
           echo "docker_tag=$docker_build_label:$vcpkg_sha_short" >> $GITHUB_OUTPUT
           # DO_NOT_PULL_NEXT_LINE echo "docker_tag_candidate_base=$docker_build_label:${{ needs.preamble.outputs.candidate_base_branch }}" >> $GITHUB_OUTPUT
-          echo "docker_tag_candidate_base=$docker_build_label:candidate-9.2.x" >> $GITHUB_OUTPUT
+          echo "docker_tag_candidate_base=$docker_build_label:candidate-8.12.x" >> $GITHUB_OUTPUT
           echo "docker_tag_candidate=$docker_build_label:${{ needs.preamble.outputs.candidate_branch }}" >> $GITHUB_OUTPUT
           docker_community_label=hpccsystems/platform-core-${{ matrix.os }}
           # DO_NOT_PULL_NEXT_LINE echo "docker_tag_community_base=$docker_community_label:${{ needs.preamble.outputs.candidate_base_branch }}" >> $GITHUB_OUTPUT
-          echo "docker_tag_community_base=$docker_core_label:candidate-9.2.x" >> $GITHUB_OUTPUT
+          echo "docker_tag_community_base=$docker_core_label:candidate-8.12.x" >> $GITHUB_OUTPUT
           echo "docker_tag_community=$docker_community_label:${{ needs.preamble.outputs.community_tag }}" >> $GITHUB_OUTPUT
           docker_internal_label=ln/platform-core-${{ matrix.os }}
           echo "docker_tag_internal_base=$docker_internal_label:${{ needs.preamble.outputs.candidate_base_branch }}" >> $GITHUB_OUTPUT
