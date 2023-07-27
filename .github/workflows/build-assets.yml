@@ -57,7 +57,7 @@ jobs:
           community_base_ref=${{ github.event.base_ref || github.ref }}
           candidate_branch=$(echo $community_base_ref | cut -d'/' -f3)
           echo "candidate_branch=$candidate_branch" >> $GITHUB_OUTPUT
-          echo "candidate_base_branch=$(echo $candidate_branch | awk -F'.' -v OFS='.' '{ $3=\"x\"; print }')" >> $GITHUB_OUTPUT
+          echo "candidate_base_branch=$(echo $candidate_branch | awk -F'.' -v OFS='.' '{ $3="x"; print }')" >> $GITHUB_OUTPUT
           echo "cmake_docker_config=-DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_FILES_DIR=/hpcc-dev -DCPACK_THREADS=0 -DUSE_OPTIONAL=OFF -DSIGN_MODULES=${{ github.repository_owner == 'hpcc-systems' && 'ON' || 'OFF' }}" >> $GITHUB_OUTPUT
           echo 'gpg_import=gpg --batch --import /hpcc-dev/build/private.key' >> $GITHUB_OUTPUT
 
