@@ -274,7 +274,7 @@ jobs:
           password: ${{ secrets.JFROG_PASSWORD }}
 
       - name: CMake Packages (internal)
-        if: ${{ matrix.ln && !matrix.push && !matrix.documentation }}
+        if: ${{ matrix.ln && !matrix.container && !matrix.documentation }}
         run: |
           mkdir -p ${{ needs.preamble.outputs.folder_build }}
           echo "${{ secrets.SIGNING_SECRET }}" > ${{ needs.preamble.outputs.folder_build }}/private.key
@@ -288,7 +288,7 @@ jobs:
             cmake --build /hpcc-dev/build --parallel $(nproc) --target package" 
 
       - name: CMake Containerized Packages (internal)
-        if: ${{ matrix.ln && matrix.push && !matrix.documentation }}
+        if: ${{ matrix.ln && matrix.container && !matrix.documentation }}
         run: |
           mkdir -p ${{ needs.preamble.outputs.folder_build }}
           echo "${{ secrets.SIGNING_SECRET }}" > ${{ needs.preamble.outputs.folder_build }}/private.key
@@ -334,8 +334,8 @@ jobs:
           build-args: |
             PKG_FILE=${{ steps.ln-container.outputs.pkg_file }}
           tags: |
-            ${{ secrets.JFROG_REGISTRY }}/ln/platform-${{ matrix.container && 'k8s' || 'core' }}-${{ matrix.os }}:${{ needs.preamble.outputs.internal_tag }}
-            ${{ secrets.JFROG_REGISTRY }}/ln/platform-${{ matrix.container && 'k8s' || 'core' }}-${{ matrix.os }}:${{ needs.preamble.outputs.candidate_base_branch }}
+            ${{ secrets.JFROG_REGISTRY || 'dummy.io' }}/ln/platform-${{ matrix.container && 'k8s' || 'core' }}-${{ matrix.os }}:${{ needs.preamble.outputs.internal_tag }}
+            ${{ secrets.JFROG_REGISTRY || 'dummy.io' }}/ln/platform-${{ matrix.container && 'k8s' || 'core' }}-${{ matrix.os }}:${{ needs.preamble.outputs.candidate_base_branch }}
           cache-from: |
             type=registry,ref=hpccsystems/platform-core-${{ matrix.os }}:${{ needs.preamble.outputs.candidate_base_branch }}
 
