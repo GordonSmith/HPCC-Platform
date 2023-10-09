@@ -19,7 +19,7 @@
 # own Docker image, for use in automated github workflows.
 # If building manually, it's simpler just to run buildall.sh directly
 
-FROM docker:19.03.2 as runtime
+FROM docker:24.0.6 as runtime
 
 RUN apk update \
   && apk upgrade \
