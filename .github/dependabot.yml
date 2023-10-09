@@ -42,7 +42,7 @@ updates:
 
   # Maintain dependencies for NuGet
   - package-ecosystem: "nuget"
-    directory: "/"
+    directory: "/vcpkg/"
     schedule:
       interval: "weekly"
     commit-message:
