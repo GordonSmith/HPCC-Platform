@@ -4,7 +4,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     commit-message:
       prefix: "[actions]"
 
@@ -12,7 +12,7 @@ updates:
   - package-ecosystem: "gitsubmodule"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     commit-message:
       prefix: "[submodule]"
 
@@ -20,7 +20,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     commit-message:
       prefix: "[npm]"
 
@@ -28,7 +28,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/esp/src"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     commit-message:
       prefix: "[npm]"
 
@@ -36,6 +36,20 @@ updates:
   - package-ecosystem: "docker"
     directory: "/dockerfiles"
     schedule:
-      interval: "weekly"
+      interval: "daily"
+    commit-message:
+      prefix: "[docker]"
+
+  - package-ecosystem: "docker"
+    directory: "/dockerfiles/vcpkg"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "[docker]"
+
+  - package-ecosystem: "docker"
+    directory: "/dockerfiles/vcpkg/platform-core-ubuntu-22.04"
+    schedule:
+      interval: "daily"
     commit-message:
       prefix: "[docker]"
