@@ -39,11 +39,3 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "[docker]"
-
-  # Maintain dependencies for NuGet
-  - package-ecosystem: "nuget"
-    directory: "/vcpkg/"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "[nuget]"
