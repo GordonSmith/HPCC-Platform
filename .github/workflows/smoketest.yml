@@ -292,7 +292,7 @@ jobs:
 
     - name: build-logs-artifact
       if: ${{ failure() }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: build-logs
         path: |
@@ -356,7 +356,7 @@ jobs:
 
     - name: regression-setup-logs-artifact
       if: ${{ failure() || cancelled() }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: regress-setup-logs
         path: |
@@ -376,7 +376,7 @@ jobs:
 
     - name: Upload install artifact
       if: ${{ steps.check-cache.outputs.state != '' && github.event_name == 'pull_request' }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: installsetup-artifact
         path: |
@@ -468,7 +468,7 @@ jobs:
 
     - name: regression-run-logs-artifact
       if: ${{ failure() || cancelled() }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: regression-run-logs-${{ matrix.engine }}-${{ steps.vars.outputs.matrix-setname }}
         path: |
@@ -585,7 +585,7 @@ jobs:
 
     - name: eclwatch-ui-test-logs-artifact
       if: ${{ failure() || cancelled() }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ECLWatchUiTest
         path: install/test-ui/eclWatchUiTest.log
