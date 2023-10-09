@@ -92,7 +92,7 @@ jobs:
 
       # build branch image
       - name: branch image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./dockerfiles/platform-build/Dockerfile

@@ -107,7 +107,7 @@ jobs:
       # or they'll be a "latest" which will have been picked up by the check-images step.
       - name: branch image
         if: ${{ steps.check-images.outputs.prbase_missing == '1' }}
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./dockerfiles/platform-build/Dockerfile
@@ -127,7 +127,7 @@ jobs:
             BUILD_THREADS=${{ steps.vars.outputs.build_threads }}
 
       - name: PR image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./dockerfiles/platform-build-incremental-container/Dockerfile
