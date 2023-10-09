@@ -1,0 +1,49 @@
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "[actions]"
+
+  # Maintain dependencies for Git Submodules
+  - package-ecosystem: "gitsubmodule"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "[submodule]"
+
+  # Maintain dependencies for online document support (npm)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "[npm]"
+
+  # Maintain dependencies for ECL Watch (npm)
+  - package-ecosystem: "npm"
+    directory: "/esp/src"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "[npm]"
+
+  # Maintain dependencies for docker images (docker)
+  - package-ecosystem: "docker"
+    directory: "/dockerfiles"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "[docker]"
+
+  # Maintain dependencies for NuGet
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "[nuget]"
