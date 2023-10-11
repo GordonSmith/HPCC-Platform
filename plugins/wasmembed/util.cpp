@@ -1,27 +1,21 @@
 #include "util.hpp"
 #include <jexcept.hpp>
+#include "jfile.hpp"
 
 #include <fstream>
 #include <sstream>
 
 std::vector<uint8_t> readWasmBinaryToBuffer(const std::string &filename)
 {
-    std::ifstream file(filename, std::ios::binary | std::ios::ate);
-    if (!file)
-    {
-        throw makeStringException(0, "Failed to open file");
-    }
+    Owned<IFile> file = createIFile(filename.c_str());
+    Owned<IFileIO> fileIO = file->open(IFOread);
+    if (!fileIO)
+        throw makeStringExceptionV(0, "Failed to open %s", filename.c_str());
 
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    std::vector<uint8_t> buffer(size);
-    if (!file.read(reinterpret_cast<char *>(buffer.data()), size))
-    {
-        throw makeStringException(1, "Failed to read file");
-    }
-
-    return buffer;
+    MemoryBuffer mb;
+    size32_t count = read(fileIO, 0, (size32_t)-1, mb);
+    uint8_t *ptr = (uint8_t *)mb.detach();
+    return std::vector<uint8_t>(ptr, ptr + count);
 }
 
 std::string extractContentInDoubleQuotes(const std::string &input)
@@ -32,7 +26,7 @@ std::string extractContentInDoubleQuotes(const std::string &input)
         return "";
 
     std::size_t secondQuote = input.find('"', firstQuote + 1);
-    if (firstQuote == secondQuote == std::string::npos)
+    if (secondQuote == std::string::npos)
         return "";
 
     return input.substr(firstQuote + 1, secondQuote - firstQuote - 1);
@@ -40,19 +34,11 @@ std::string extractContentInDoubleQuotes(const std::string &input)
 
 std::pair<std::string, std::string> splitQualifiedID(const std::string &qualifiedName)
 {
-    std::istringstream iss(qualifiedName);
-    std::vector<std::string> tokens;
-    std::string token;
+    std::size_t firstDot = qualifiedName.find_first_of('.');
+    if (firstDot == std::string::npos || firstDot == 0 || firstDot == qualifiedName.size() - 1)
+        throw makeStringExceptionV(3, "Invalid import function '%s', expected format: <module>.<function>", qualifiedName.c_str());
 
-    while (std::getline(iss, token, '.'))
-    {
-        tokens.push_back(token);
-    }
-    if (tokens.size() != 2)
-    {
-        throw makeStringExceptionV(3, "Invalid import function %s, expected format: <module>.<function>", qualifiedName.c_str());
-    }
-    return std::make_pair(tokens[0], tokens[1]);
+    return std::make_pair(qualifiedName.substr(0, firstDot), qualifiedName.substr(firstDot + 1));
 }
 
 std::string createQualifiedID(const std::string &wasmName, const std::string &funcName)

@@ -12,7 +12,7 @@
 #include <sstream>
 #include <vector>
 
-auto UTF16_TAG = 1 << 31;
+auto UTF16_TAG = 1U << 31;
 
 //
 /* canonical despecialize (python)          -------------------------------------------------------------
@@ -90,7 +90,12 @@ def align_to(ptr, alignment):
 
 uint32_t align_to(uint32_t ptr, uint32_t alignment)
 {
-    return std::ceil(ptr / alignment) * alignment;
+    return (ptr + alignment - 1) & ~(alignment - 1);
+}
+
+bool isAligned(uint32_t ptr, uint32_t alignment)
+{
+    return (ptr & (alignment - 1)) == 0;
 }
 
 //  loading ---
@@ -124,12 +129,13 @@ T load_int(const wasmtime::Span<uint8_t> &data, int32_t ptr)
     auto nbytes = sizeof(retVal);
     for (int i = 0; i < nbytes; ++i)
     {
-        uint8_t b = data[ptr + i];
+        std::make_unsigned_t<T> b = data[ptr + i];
         retVal += b << (i * 8);
     }
-    if (std::is_signed<T>::value)
+    if (std::is_signed<T>::value && data[ptr + nbytes - 1] & 0x80)
     {
-        retVal += (data[ptr + nbytes - 1] & 0x80) ? -1 << (8 * nbytes) : 0;
+        std::make_unsigned_t<T> b = -1;
+        retVal += b << (nbytes * 8);
     }
     return retVal;
 }
@@ -201,7 +207,7 @@ std::pair<uint32_t /*ptr*/, uint32_t /*byte length*/> load_string_from_range(con
         }
     }
 
-    if (ptr != align_to(ptr, alignment))
+    if (!isAligned(ptr, alignment))
     {
         throw makeStringException(3, "Invalid alignment");
     }
@@ -244,7 +250,7 @@ def load_list_from_range(cx, ptr, length, elem_type):
 template <typename T>
 std::vector<T> load_list_from_range(const wasmtime::Span<uint8_t> &data, uint32_t ptr, uint32_t length)
 {
-    if (ptr != align_to(ptr, alignment(T{})))
+    if (!isAligned(ptr, alignment(T{})))
         throw makeStringException(2, "Pointer is not aligned");
     if (ptr + length * sizeof(T) > data.size())
         throw makeStringException(1, "Out of bounds access");
