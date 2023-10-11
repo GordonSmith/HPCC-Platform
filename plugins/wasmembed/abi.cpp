@@ -12,7 +12,7 @@
 #include <sstream>
 #include <vector>
 
-auto UTF16_TAG = 1 << 31;
+auto UTF16_TAG = 1U << 31;
 
 //
 /* canonical despecialize (python)          -------------------------------------------------------------
@@ -90,7 +90,12 @@ def align_to(ptr, alignment):
 
 uint32_t align_to(uint32_t ptr, uint32_t alignment)
 {
-    return std::ceil(ptr / alignment) * alignment;
+  return (ptr + alignment - 1) & ~(alignment - 1);
+}
+
+bool isAligned(uint32_t ptr, uint32_t alignment)
+{
+  return (ptr & (alignment - 1)) == 0;
 }
 
 //  loading ---
@@ -120,18 +125,19 @@ def load_int(cx, ptr, nbytes, signed = False):
 template <typename T>
 T load_int(const wasmtime::Span<uint8_t> &data, int32_t ptr)
 {
-    T retVal = 0;
-    auto nbytes = sizeof(retVal);
-    for (int i = 0; i < nbytes; ++i)
-    {
-        uint8_t b = data[ptr + i];
-        retVal += b << (i * 8);
-    }
-    if (std::is_signed<T>::value)
-    {
-        retVal += (data[ptr + nbytes - 1] & 0x80) ? -1 << (8 * nbytes) : 0;
-    }
-    return retVal;
+  T retVal = 0;
+  auto nbytes = sizeof(retVal);
+  for (int i = 0; i < nbytes; ++i)
+  {
+    std::make_unsigned_t<T> b = data[ptr + i];
+    retVal += b << (i * 8);
+  }
+  if (std::is_signed<T>::value && data[ptr + nbytes - 1] & 0x80)
+  {
+    std::make_unsigned_t<T> b = -1;
+    retVal += b << (nbytes * 8);
+  }
+  return retVal;
 }
 
 /* canonical load_string_from_range (python)  -------------------------------------------------------------
@@ -171,47 +177,47 @@ std::string global_encoding = "utf8";
 
 std::pair<uint32_t /*ptr*/, uint32_t /*byte length*/> load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t ptr, uint32_t tagged_code_units)
 {
-    std::string encoding = "utf-8";
-    uint32_t byte_length = tagged_code_units;
-    uint32_t alignment = 1;
-    if (global_encoding.compare("utf8") == 0)
+  std::string encoding = "utf-8";
+  uint32_t byte_length = tagged_code_units;
+  uint32_t alignment = 1;
+  if (global_encoding.compare("utf8") == 0)
+  {
+    alignment = 1;
+    byte_length = tagged_code_units;
+    encoding = "utf-8";
+  }
+  else if (global_encoding.compare("utf16") == 0)
+  {
+    alignment = 2;
+    byte_length = 2 * tagged_code_units;
+    encoding = "utf-16-le";
+  }
+  else if (global_encoding.compare("latin1+utf16") == 0)
+  {
+    alignment = 2;
+    if (tagged_code_units & UTF16_TAG)
     {
-        alignment = 1;
-        byte_length = tagged_code_units;
-        encoding = "utf-8";
+      byte_length = 2 * (tagged_code_units ^ UTF16_TAG);
+      encoding = "utf-16-le";
     }
-    else if (global_encoding.compare("utf16") == 0)
+    else
     {
-        alignment = 2;
-        byte_length = 2 * tagged_code_units;
-        encoding = "utf-16-le";
+      byte_length = tagged_code_units;
+      encoding = "latin-1";
     }
-    else if (global_encoding.compare("latin1+utf16") == 0)
-    {
-        alignment = 2;
-        if (tagged_code_units & UTF16_TAG)
-        {
-            byte_length = 2 * (tagged_code_units ^ UTF16_TAG);
-            encoding = "utf-16-le";
-        }
-        else
-        {
-            byte_length = tagged_code_units;
-            encoding = "latin-1";
-        }
-    }
+  }
 
-    if (ptr != align_to(ptr, alignment))
-    {
-        throw makeStringException(3, "Invalid alignment");
-    }
+  if (!isAligned(ptr, alignment))
+  {
+    throw makeStringException(3, "Invalid alignment");
+  }
 
-    if (ptr + byte_length > data.size())
-    {
-        throw makeStringException(1, "Out of bounds");
-    }
+  if (ptr + byte_length > data.size())
+  {
+    throw makeStringException(1, "Out of bounds");
+  }
 
-    return std::make_pair(ptr, byte_length);
+  return std::make_pair(ptr, byte_length);
 }
 
 /*  canonical load_string (python)          -------------------------------------------------------------
@@ -224,9 +230,9 @@ def load_string(cx, ptr):
 */
 std::pair<uint32_t /*ptr*/, uint32_t /*byte length*/> load_string(const wasmtime::Span<uint8_t> &data, uint32_t ptr)
 {
-    uint32_t begin = load_int<uint32_t>(data, ptr);
-    uint32_t tagged_code_units = load_int<uint32_t>(data, ptr + 4);
-    return load_string_from_range(data, begin, tagged_code_units);
+  uint32_t begin = load_int<uint32_t>(data, ptr);
+  uint32_t tagged_code_units = load_int<uint32_t>(data, ptr + 4);
+  return load_string_from_range(data, begin, tagged_code_units);
 }
 
 /*  canonical load_list_from_range (python) -------------------------------------------------------------
@@ -244,16 +250,16 @@ def load_list_from_range(cx, ptr, length, elem_type):
 template <typename T>
 std::vector<T> load_list_from_range(const wasmtime::Span<uint8_t> &data, uint32_t ptr, uint32_t length)
 {
-    if (ptr != align_to(ptr, alignment(T{})))
-        throw makeStringException(2, "Pointer is not aligned");
-    if (ptr + length * sizeof(T) > data.size())
-        throw makeStringException(1, "Out of bounds access");
-    std::vector<T> a;
-    for (uint32_t i = 0; i < length; i++)
-    {
-        a.push_back(load<T>(data, ptr + i * sizeof(T)));
-    }
-    return a;
+  if (!isAligned(ptr, alignment(T{})))
+    throw makeStringException(2, "Pointer is not aligned");
+  if (ptr + length * sizeof(T) > data.size())
+    throw makeStringException(1, "Out of bounds access");
+  std::vector<T> a;
+  for (uint32_t i = 0; i < length; i++)
+  {
+    a.push_back(load<T>(data, ptr + i * sizeof(T)));
+  }
+  return a;
 }
 
 /*  canonical load_list (python)            -------------------------------------------------------------
