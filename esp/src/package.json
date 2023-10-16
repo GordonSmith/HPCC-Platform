@@ -34,7 +34,7 @@
   },
   "main": "src/stub.js",
   "dependencies": {
-    "@fluentui/react": "8.110.7",
+    "@fluentui/react": "8.112.3",
     "@fluentui/react-components": "9.23.1",
     "@fluentui/react-experiments": "8.14.95",
     "@fluentui/react-hooks": "8.6.29",
