@@ -77,7 +77,7 @@
   },
   "devDependencies": {
     "@simbathesailor/use-what-changed": "^2.0.0",
-    "@types/dojo": "1.9.44",
+    "@types/dojo": "1.9.46",
     "@types/react": "17.0.62",
     "@types/react-dom": "17.0.20",
     "@typescript-eslint/eslint-plugin": "5.54.0",
