@@ -4,13 +4,8 @@
 */
 
 #include "abi.hpp"
-#include "jexcept.hpp"
 
-#include <cmath>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <vector>
+#include "jexcept.hpp"
 
 auto UTF16_TAG = 1U << 31;
 
@@ -107,39 +102,39 @@ def load_int(cx, ptr, nbytes, signed = False):
 
 */
 
-#include <stdio.h>
-#include <stdint.h>
-
-// int load_int(const wasmtime::Span<uint8_t> &cx, int32_t *ptr, int nbytes, int signed)
-// {
-//   int result = 0;
-//   for (int i = 0; i < nbytes; i++) {
-//     result += ptr[i] << (8*i);
-//   }
-//   if (signed) {
-//     result += (ptr[nbytes-1] & 0x80) ? -1 << (8*nbytes) : 0;
-//   }
-//   return result;
-// }
-
 template <typename T>
-T load_int(const wasmtime::Span<uint8_t> &data, int32_t ptr)
+T load_int(const wasmtime::Span<uint8_t> &data, uint32_t ptr)
 {
     T retVal = 0;
-    auto nbytes = sizeof(retVal);
-    for (int i = 0; i < nbytes; ++i)
+    if constexpr (sizeof(T) == 1)
     {
-        std::make_unsigned_t<T> b = data[ptr + i];
-        retVal += b << (i * 8);
+        retVal = static_cast<T>(data[ptr]);
     }
-    if (std::is_signed<T>::value && data[ptr + nbytes - 1] & 0x80)
+    else if constexpr (sizeof(T) == 2)
     {
-        std::make_unsigned_t<T> b = -1;
-        retVal += b << (nbytes * 8);
+        retVal = static_cast<T>((static_cast<uint16_t>(data[ptr + 1]) << 8) |
+                                static_cast<uint16_t>(data[ptr]));
+    }
+    else if constexpr (sizeof(T) == 4)
+    {
+        retVal = static_cast<T>((static_cast<uint32_t>(data[ptr + 3]) << 24) |
+                                (static_cast<uint32_t>(data[ptr + 2]) << 16) |
+                                (static_cast<uint32_t>(data[ptr + 1]) << 8) |
+                                static_cast<uint32_t>(data[ptr]));
+    }
+    else if constexpr (sizeof(T) == 8)
+    {
+        retVal = static_cast<T>((static_cast<uint64_t>(data[ptr + 7]) << 56) |
+                                (static_cast<uint64_t>(data[ptr + 6]) << 48) |
+                                (static_cast<uint64_t>(data[ptr + 5]) << 40) |
+                                (static_cast<uint64_t>(data[ptr + 4]) << 32) |
+                                (static_cast<uint64_t>(data[ptr + 3]) << 24) |
+                                (static_cast<uint64_t>(data[ptr + 2]) << 16) |
+                                (static_cast<uint64_t>(data[ptr + 1]) << 8) |
+                                static_cast<uint64_t>(data[ptr]));
     }
     return retVal;
 }
-
 /* canonical load_string_from_range (python)  -------------------------------------------------------------
 
 def load_string_from_range(cx, ptr, tagged_code_units):
@@ -173,9 +168,9 @@ def load_string_from_range(cx, ptr, tagged_code_units):
 */
 
 //  More:  Not currently available from the wasmtime::context object, see https://github.com/bytecodealliance/wasmtime/issues/6719
-std::string global_encoding = "utf8";
+static const std::string global_encoding = "utf8";
 
-std::pair<uint32_t /*ptr*/, uint32_t /*byte length*/> load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t ptr, uint32_t tagged_code_units)
+std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t ptr, uint32_t tagged_code_units)
 {
     std::string encoding = "utf-8";
     uint32_t byte_length = tagged_code_units;
@@ -217,7 +212,7 @@ std::pair<uint32_t /*ptr*/, uint32_t /*byte length*/> load_string_from_range(con
         throw makeStringException(1, "Out of bounds");
     }
 
-    return std::make_pair(ptr, byte_length);
+    return std::make_tuple(ptr, encoding, byte_length);
 }
 
 /*  canonical load_string (python)          -------------------------------------------------------------
@@ -228,7 +223,7 @@ def load_string(cx, ptr):
   return load_string_from_range(cx, begin, tagged_code_units)
 
 */
-std::pair<uint32_t /*ptr*/, uint32_t /*byte length*/> load_string(const wasmtime::Span<uint8_t> &data, uint32_t ptr)
+std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string(const wasmtime::Span<uint8_t> &data, uint32_t ptr)
 {
     uint32_t begin = load_int<uint32_t>(data, ptr);
     uint32_t tagged_code_units = load_int<uint32_t>(data, ptr + 4);

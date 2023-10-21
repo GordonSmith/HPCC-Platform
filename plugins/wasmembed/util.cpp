@@ -1,16 +1,15 @@
 #include "util.hpp"
-#include <jexcept.hpp>
+
+#include "platform.h"
+#include "jexcept.hpp"
 #include "jfile.hpp"
 
-#include <fstream>
-#include <sstream>
-
-std::vector<uint8_t> readWasmBinaryToBuffer(const std::string &filename)
+std::vector<uint8_t> readWasmBinaryToBuffer(const char *filename)
 {
-    Owned<IFile> file = createIFile(filename.c_str());
+    Owned<IFile> file = createIFile(filename);
     Owned<IFileIO> fileIO = file->open(IFOread);
     if (!fileIO)
-        throw makeStringExceptionV(0, "Failed to open %s", filename.c_str());
+        throw makeStringExceptionV(0, "Failed to open %s", filename);
 
     MemoryBuffer mb;
     size32_t count = read(fileIO, 0, (size32_t)-1, mb);

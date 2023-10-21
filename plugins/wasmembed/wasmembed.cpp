@@ -1,10 +1,7 @@
-#include "platform.h"
-#include "hqlplugins.hpp"
-#include "rtlconst.hpp"
-#include "rtlfield.hpp"
-#include "enginecontext.hpp"
-
 #include "secure-enclave.hpp"
+
+#include "jexcept.hpp"
+#include "hqlplugins.hpp"
 
 static const char *compatibleVersions[] = {
     "WASM Embed Helper 1.0.0",
@@ -39,16 +36,10 @@ namespace wasmLanguageHelper
         {
             return createFunctionContextEx(nullptr, nullptr, flags, options);
         }
+
         virtual IEmbedFunctionContext *createFunctionContextEx(ICodeContext *codeCtx, const IThorActivityContext *activityContext, unsigned flags, const char *options) override
         {
-            StringArray manifestModules;
-            if (codeCtx)
-            {
-                auto engine = codeCtx->queryEngineContext();
-                if (engine)
-                    engine->getManifestFiles("wasm", manifestModules);
-            }
-            return createISecureEnclave(manifestModules);
+            return createISecureEnclave(codeCtx);
         }
 
         virtual IEmbedServiceContext *createServiceContext(const char *service, unsigned flags, const char *options) override

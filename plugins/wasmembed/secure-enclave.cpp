@@ -1,21 +1,19 @@
 #include "secure-enclave.hpp"
-#include "eclrtl.hpp"
-#include "eclrtl_imp.hpp"
-#include "rtlconst.hpp"
-#include "jiface.hpp"
-#include "jlog.hpp"
-#include "jexcept.hpp"
 
-// From deftype.hpp in common
-#define UNKNOWN_LENGTH 0xFFFFFFF1
+#include "eclrtl_imp.hpp"
+#include "jexcept.hpp"
+#include "jiface.hpp"
+#include "eclhelper.hpp"
+#include "enginecontext.hpp"
 
 #include "abi.hpp"
 #include "util.hpp"
 
-#include <map>
-#include <functional>
 #include <mutex>
-#include <shared_mutex>
+#include <filesystem>
+
+// From deftype.hpp in common
+#define UNKNOWN_LENGTH 0xFFFFFFF1
 
 // #define ENABLE_TRACE
 #ifdef ENABLE_TRACE
@@ -26,88 +24,18 @@
     {                      \
     } while (0)
 #endif
-
-template <typename K, typename V>
-class ThreadSafeMap
-{
-protected:
-    std::unordered_map<K, V> map;
-    mutable std::shared_mutex mutex;
-
-public:
-    ThreadSafeMap() {}
-    ~ThreadSafeMap() {}
-
-    void clear()
-    {
-        std::unique_lock lock(mutex);
-        map.clear();
-    }
-
-    void insertIfMissing(const K &key, std::function<V()> &valueCallback)
-    {
-        std::unique_lock lock(mutex);
-        if (map.find(key) == map.end())
-            map.insert(std::make_pair(key, valueCallback()));
-    }
-
-    void erase(const K &key)
-    {
-        std::unique_lock lock(mutex);
-        map.erase(key);
-    }
-
-    bool find(const K &key, std::optional<V> &value) const
-    {
-        std::shared_lock lock(mutex);
-        auto it = map.find(key);
-        if (it != map.end())
-        {
-            value = it->second;
-            return true;
-        }
-        return false;
-    }
-
-    bool has(const K &key) const
-    {
-        std::shared_lock lock(mutex);
-        return map.find(key) != map.end();
-    }
-
-    void forEach(std::function<void(const K &key, const V &value)> func) const
-    {
-        std::shared_lock lock(mutex);
-        for (auto it = map.begin(); it != map.end(); ++it)
-        {
-            func(it->first, it->second);
-        }
-    }
-};
-
 class WasmEngine
 {
 private:
-    wasmtime::Engine engine;
-    wasmtime::Store store;
+    std::once_flag wasmLoadedFlag;
+    std::unordered_map<std::string, wasmtime::Module> wasmModules;
 
-    ThreadSafeMap<std::string, wasmtime::Instance> wasmInstances;
-
-    //  wasmMems and wasmFuncs are only written to during createInstance, so no need for a mutex.
-    //  createInstance is only called from within wasmInstances.insertIfMissing via lambda function
-    //  So is behind a mutex anyway.
-    std::unordered_map<std::string, wasmtime::Memory> wasmMems;
-    std::unordered_map<std::string, wasmtime::Func> wasmFuncs;
-
-private:
-    //  Do not call this function directly...
-    wasmtime::Instance createInstance(const std::string &wasmName, const std::variant<std::string_view, wasmtime::Span<uint8_t>> &wasm)
+    wasmtime::Module createModule(const std::string &wasmName, const wasmtime::Span<uint8_t> &wasm)
     {
-        TRACE("WASM SE createInstance %s", wasmName.c_str());
+        TRACE("WasmEngine createModule %s", wasmName.c_str());
         try
         {
-            auto module = std::holds_alternative<std::string_view>(wasm) ? wasmtime::Module::compile(engine, std::get<std::string_view>(wasm)).unwrap() : wasmtime::Module::compile(engine, std::get<wasmtime::Span<uint8_t>>(wasm)).unwrap();
-
+            wasmtime::Store store(engine);
             wasmtime::WasiConfig wasi;
             wasi.inherit_argv();
             wasi.inherit_env();
@@ -115,8 +43,118 @@ private:
             wasi.inherit_stdout();
             wasi.inherit_stderr();
             store.context().set_wasi(std::move(wasi)).unwrap();
+            return wasmtime::Module::compile(engine, wasm).unwrap();
+        }
+        catch (const wasmtime::Error &e)
+        {
+            throw makeStringExceptionV(100, "WasmEngine createModule failed: %s", e.message().c_str());
+        }
+    }
 
-            wasmtime::Linker linker(engine);
+    void loadWasmFiles(ICodeContext *codeCtx)
+    {
+        TRACE("WasmEngine loadWasmFiles");
+        IEngineContext *engine = codeCtx->queryEngineContext();
+        if (!engine)
+            throw makeStringException(100, "Faile to get engine context");
+
+        StringArray manifestModules;
+        engine->getManifestFiles("wasm", manifestModules);
+
+        ForEachItemIn(idx, manifestModules)
+        {
+            const char *path = manifestModules.item(idx);
+            TRACE("WasmEngine loadWasmFiles %s", path);
+            std::vector<uint8_t> contents = readWasmBinaryToBuffer(path);
+            auto module = createModule(path, contents);
+            std::filesystem::path p(path);
+            wasmModules.insert(std::make_pair(p.stem(), module));
+        }
+    }
+
+public:
+    wasmtime::Engine engine;
+
+    WasmEngine()
+    {
+        TRACE("WASM SE WasmEngine");
+    }
+
+    ~WasmEngine()
+    {
+        TRACE("WASM SE ~WasmEngine");
+    }
+
+    void setCodeContext(ICodeContext *codeCtx)
+    {
+        TRACE("WASM SE setCodeContext");
+        std::call_once(wasmLoadedFlag, &WasmEngine::loadWasmFiles, this, codeCtx);
+    }
+
+    bool hasModule(const std::string &wasmName) const
+    {
+        TRACE("WASM SE hasModule");
+        return wasmModules.find(wasmName) != wasmModules.end();
+    }
+
+    wasmtime::Module getModule(const std::string &wasmName) const
+    {
+        TRACE("WASM SE getModule");
+        auto found = wasmModules.find(wasmName);
+        if (found == wasmModules.end())
+            throw makeStringExceptionV(1, "Wasm module not found: %s", wasmName.c_str());
+        return found->second;
+    }
+};
+static std::unique_ptr<WasmEngine> wasmEngine = std::make_unique<WasmEngine>();
+
+class WasmStore
+{
+private:
+    wasmtime::Store store;
+
+    std::unordered_map<std::string, wasmtime::Instance> wasmInstances;
+    std::unordered_map<std::string, wasmtime::Memory> wasmMems;
+    std::unordered_map<std::string, wasmtime::Func> wasmFuncs;
+
+public:
+    WasmStore() : store(wasmEngine->engine)
+    {
+        TRACE("WASM SE WasmStore");
+    }
+
+    ~WasmStore()
+    {
+        TRACE("WASM SE ~WasmStore");
+    }
+
+    bool hasInstance(const std::string &wasmName) const
+    {
+        TRACE("WASM SE hasInstance");
+        return wasmInstances.find(wasmName) != wasmInstances.end();
+    }
+
+    wasmtime::Instance getInstance(const std::string &wasmName) const
+    {
+        TRACE("WASM SE getInstance");
+        auto found = wasmInstances.find(wasmName);
+        if (found == wasmInstances.end())
+            throw makeStringExceptionV(1, "Wasm instance not found: %s", wasmName.c_str());
+        return found->second;
+    }
+
+    void registerInstance(const std::string &wasmName)
+    {
+        TRACE("WASM SE registerInstance %s", wasmName.c_str());
+        if (hasInstance(wasmName))
+        {
+            throw makeStringExceptionV(2, "Wasm instance already registered: %s", wasmName.c_str());
+        }
+        TRACE("WASM SE createInstance %s", wasmName.c_str());
+        auto module = wasmEngine->getModule(wasmName);
+        try
+        {
+            wasmtime::Linker linker(wasmEngine->engine);
             linker.define_wasi().unwrap();
 
             auto callback = [this, wasmName](wasmtime::Caller caller, uint32_t msg, uint32_t msg_len)
@@ -160,49 +198,12 @@ private:
                     TRACE("WASM SE Unknown export type");
                 }
             }
-
-            return newInstance;
+            wasmInstances.insert(std::make_pair(wasmName, newInstance));
         }
         catch (const wasmtime::Error &e)
         {
             throw makeStringExceptionV(0, "WASM SE createInstance: %s", e.message().c_str());
         }
-    }
-
-public:
-    WasmEngine() : store(engine)
-    {
-        TRACE("WASM SE WasmEngine");
-    }
-
-    ~WasmEngine()
-    {
-        TRACE("WASM SE ~WasmEngine");
-    }
-
-    bool hasInstance(const std::string &wasmName) const
-    {
-        TRACE("WASM SE hasInstance");
-        return wasmInstances.has(wasmName);
-    }
-
-    wasmtime::Instance getInstance(const std::string &wasmName) const
-    {
-        TRACE("WASM SE getInstance");
-        std::optional<wasmtime::Instance> instance;
-        if (!wasmInstances.find(wasmName, instance))
-            throw makeStringExceptionV(1, "Wasm instance not found: %s", wasmName.c_str());
-        return instance.value();
-    }
-
-    void registerInstance(const std::string &wasmName, const std::variant<std::string_view, wasmtime::Span<uint8_t>> &wasm)
-    {
-        TRACE("WASM SE registerInstance %s", wasmName.c_str());
-        std::function<wasmtime::Instance()> createInstanceCallback = [this, wasmName, wasm]()
-        {
-            return createInstance(wasmName, wasm);
-        };
-        wasmInstances.insertIfMissing(wasmName, createInstanceCallback);
     }
 
     bool hasFunc(const std::string &qualifiedID) const
@@ -266,7 +267,7 @@ public:
         return found->second.data(store.context());
     }
 };
-static std::unique_ptr<WasmEngine> wasmEngine;
+thread_local std::unique_ptr<WasmStore> wasmStore = std::make_unique<WasmStore>();
 
 class SecureFunction : public CInterfaceOf<IEmbedFunctionContext>
 {
@@ -274,21 +275,14 @@ class SecureFunction : public CInterfaceOf<IEmbedFunctionContext>
     std::string funcName;
     std::string qualifiedID;
 
-    const IThorActivityContext *activityCtx = nullptr;
     std::vector<wasmtime::Val> args;
     std::vector<wasmtime::Val> wasmResults;
 
-    StringArray manifestModules;
-
 public:
-    SecureFunction(const StringArray &_manifestModules)
+    SecureFunction(ICodeContext *codeCtx)
     {
         TRACE("WASM SE se:constructor");
-        manifestModules.appendArray(_manifestModules);
-        if (!wasmEngine)
-        {
-            wasmEngine = std::make_unique<WasmEngine>();
-        }
+        wasmEngine->setCodeContext(codeCtx);
     }
 
     virtual ~SecureFunction()
@@ -298,33 +292,18 @@ public:
         //  Garbage Collection  ---
         //    Function results  ---
         auto gc_func_name = createQualifiedID(wasmName, "cabi_post_" + funcName);
-        if (wasmEngine->hasFunc(gc_func_name))
+        if (wasmStore->hasFunc(gc_func_name))
         {
             for (auto &result : wasmResults)
             {
-                wasmEngine->call(gc_func_name, {result});
+                wasmStore->call(gc_func_name, {result});
             }
         }
-    }
-
-    const char *resolveManifestPath(const char *leafName)
-    {
-        if (leafName && *leafName)
-        {
-            ForEachItemIn(idx, manifestModules)
-            {
-                const char *path = manifestModules.item(idx);
-                if (endsWith(path, leafName))
-                    return path;
-            }
-        }
-        return nullptr;
     }
 
     //  IEmbedFunctionContext ---
-    void setActivityContext(const IThorActivityContext *_activityCtx)
+    void setActivityContext(const IThorActivityContext *activityCtx)
     {
-        activityCtx = _activityCtx;
     }
 
     virtual IInterface *bindParamWriter(IInterface *esdl, const char *esdlservice, const char *esdltype, const char *name)
@@ -402,9 +381,9 @@ public:
     {
         TRACE("WASM SE bindUTF8Param %s %d %s", name, chars, val);
         auto bytes = rtlUtf8Size(chars, val);
-        auto memIdxVar = wasmEngine->callRealloc(wasmName, {0, 0, 1, (int32_t)bytes});
+        auto memIdxVar = wasmStore->callRealloc(wasmName, {0, 0, 1, (int32_t)bytes});
         auto memIdx = memIdxVar[0].i32();
-        auto mem = wasmEngine->getData(wasmName);
+        auto mem = wasmStore->getData(wasmName);
         memcpy(&mem[memIdx], val, bytes);
         args.push_back(memIdx);
         args.push_back((int32_t)bytes);
@@ -464,7 +443,7 @@ public:
         switch (typecode)
         {
         case type_boolean:
-            memIdxVar = wasmEngine->callRealloc(wasmName, {0, 0, 1, (int32_t)numElems});
+            memIdxVar = wasmStore->callRealloc(wasmName, {0, 0, 1, (int32_t)numElems});
             memIdx = memIdxVar[0].i32();
             break;
         default:
@@ -472,7 +451,7 @@ public:
             break;
         }
 
-        auto mem = wasmEngine->getData(wasmName);
+        auto mem = wasmStore->getData(wasmName);
         size32_t thisSize = elemSize;
         for (int idx = 0; idx < numElems; idx++)
         {
@@ -538,20 +517,23 @@ public:
     {
         TRACE("WASM SE getStringResult %zu", wasmResults.size());
         auto ptr = wasmResults[0].i32();
-        auto data = wasmEngine->getData(wasmName);
+        auto data = wasmStore->getData(wasmName);
         uint32_t strPtr;
+        std::string encoding;
         uint32_t bytes;
-        std::tie(strPtr, bytes) = load_string(data, ptr);
-        rtlUtf8ToStrX(chars, result, bytes, reinterpret_cast<const char *>(&data[strPtr]));
+        std::tie(strPtr, encoding, bytes) = load_string(data, ptr);
+        size32_t codepoints = rtlUtf8Length(bytes, &data[strPtr]);
+        rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&data[strPtr]));
     }
     virtual void getUTF8Result(size32_t &chars, char *&result)
     {
         TRACE("WASM SE getUTF8Result");
         auto ptr = wasmResults[0].i32();
-        auto data = wasmEngine->getData(wasmName);
+        auto data = wasmStore->getData(wasmName);
         uint32_t strPtr;
+        std::string encoding;
         uint32_t bytes;
-        std::tie(strPtr, bytes) = load_string(data, ptr);
+        std::tie(strPtr, encoding, bytes) = load_string(data, ptr);
         chars = rtlUtf8Length(bytes, &data[strPtr]);
         TRACE("WASM SE getUTF8Result %d %d", bytes, chars);
         result = (char *)rtlMalloc(bytes);
@@ -561,10 +543,11 @@ public:
     {
         TRACE("WASM SE getUnicodeResult");
         auto ptr = wasmResults[0].i32();
-        auto data = wasmEngine->getData(wasmName);
+        auto data = wasmStore->getData(wasmName);
         uint32_t strPtr;
+        std::string encoding;
         uint32_t bytes;
-        std::tie(strPtr, bytes) = load_string(data, ptr);
+        std::tie(strPtr, encoding, bytes) = load_string(data, ptr);
         unsigned numchars = rtlUtf8Length(bytes, &data[strPtr]);
         rtlUtf8ToUnicodeX(chars, result, numchars, reinterpret_cast<const char *>(&data[strPtr]));
     }
@@ -572,7 +555,7 @@ public:
     {
         TRACE("WASM SE getSetResult %d %d %zu", elemType, elemSize, wasmResults.size());
         auto ptr = wasmResults[0].i32();
-        auto data = wasmEngine->getData(wasmName);
+        auto data = wasmStore->getData(wasmName);
 
         throw makeStringException(-1, "getSetResult not implemented");
     }
@@ -614,55 +597,27 @@ public:
     virtual void compileEmbeddedScript(size32_t lenChars, const char *_utf) override
     {
         TRACE("WASM SE compileEmbeddedScript");
-        std::string utf(_utf, lenChars);
-        funcName = extractContentInDoubleQuotes(utf);
-        wasmName = "embed_" + funcName;
-        qualifiedID = createQualifiedID(wasmName, funcName);
-        wasmEngine->registerInstance(wasmName, utf);
     }
     virtual void importFunction(size32_t lenChars, const char *qualifiedName) override
     {
         TRACE("WASM SE importFunction: %s", qualifiedName);
 
         qualifiedID = std::string(qualifiedName, lenChars);
-        auto [_wasmName, _funcName] = splitQualifiedID(qualifiedID);
-        wasmName = _wasmName;
-        funcName = _funcName;
+        std::tie(wasmName, funcName) = splitQualifiedID(qualifiedID);
 
-        if (!wasmEngine->hasInstance(wasmName))
+        if (!wasmStore->hasInstance(wasmName))
         {
-            std::string fullPath = resolveManifestPath((wasmName + ".wasm").c_str());
-            auto wasmFile = readWasmBinaryToBuffer(fullPath);
-            wasmEngine->registerInstance(wasmName, wasmFile);
+            wasmStore->registerInstance(wasmName);
         }
     }
     virtual void callFunction()
     {
         TRACE("WASM SE callFunction %s", qualifiedID.c_str());
-        wasmResults = wasmEngine->call(qualifiedID, args);
+        wasmResults = wasmStore->call(qualifiedID, args);
     }
 };
 
-IEmbedFunctionContext *createISecureEnclave(const StringArray &manifestModules)
+IEmbedFunctionContext *createISecureEnclave(ICodeContext *codeCtx)
 {
-    return new SecureFunction(manifestModules);
-}
-
-void syntaxCheck(size32_t &lenResult, char *&result, const char *funcname, size32_t charsBody, const char *body, const char *argNames, const char *compilerOptions, const char *persistOptions)
-{
-    std::string errMsg = "";
-    try
-    {
-        wasmtime::Engine engine;
-        wasmtime::Store store(engine);
-        auto module = wasmtime::Module::compile(engine, body);
-    }
-    catch (const wasmtime::Error &e)
-    {
-        errMsg = e.message();
-    }
-
-    lenResult = errMsg.length();
-    result = reinterpret_cast<char *>(rtlMalloc(lenResult));
-    errMsg.copy(result, lenResult);
+    return new SecureFunction(codeCtx);
 }

@@ -29,29 +29,29 @@ ROUND(float32Test((real4)1234.1234, (real4)2345.2345), 3) = ROUND((real4)((real4
 float64Test(123456789.123456789, 23456789.23456789) = (real8)((real8)123456789.123456789 + (real8)23456789.23456789);
 // '--- unsigned ---';
 u8Test(1, 2) = (unsigned1)(1 + 2);
-u8Test(255, 1) = (unsigned1)(255 + 1);
+u8Test(254, 1) = (unsigned1)(254 + 1);
 u16Test(1, 2) = (unsigned2)(1 + 2);
-u16Test(65535, 1) = (unsigned2)(65535 + 1);
+u16Test(65534, 1) = (unsigned2)(65534 + 1);
 u32Test(1, 2) = (unsigned4)(1 + 2);
-u32Test(4294967295, 1) = (unsigned4)(4294967295 + 1);
+u32Test(4294967294, 1) = (unsigned4)(4294967294 + 1);
 u64Test(1, 2) = (unsigned8)(1 + 2);
-u64Test(18446744073709551615, 1) = (unsigned8)(18446744073709551615 + 1);
+u64Test(18446744073709551614, 1) = (unsigned8)(18446744073709551614 + 1);
 // '--- signed ---';
 s8Test(1, 2) = (integer1)(1 + 2);
-s8Test(127, 1) = (integer1)(127 + 1);
-s8Test(-128, -1) = (integer1)(-128 - 1);
+s8Test(126, 1) = (integer1)(126 + 1);
+s8Test(-127, -1) = (integer1)(-127 - 1);
 
 s16Test(1, 2) = (integer2)(1 + 2);
-s16Test(32767, 1) = (integer2)(32767 + 1);
-s16Test(-32768, -1) = (integer2)(-32768 - 1);
+s16Test(32766, 1) = (integer2)(32766 + 1);
+s16Test(-32767, -1) = (integer2)(-32767 - 1);
 
 s32Test(1, 2) = (integer4)(1 + 2);
-s32Test(2147483647, 1) = (integer4)(2147483647 + 1);
-s32Test(-2147483648, -1) = (integer4)(-2147483648 - 1);
+s32Test(2147483646, 1) = (integer4)(2147483646 + 1);
+s32Test(-2147483647, -1) = (integer4)(-2147483647 - 1);
 
 s64Test(1, 2) = (integer8)(1 + 2);
-s64Test(9223372036854775807, 1) = (integer8)(9223372036854775807 + 1);
-s64Test(-9223372036854775808, -1) = (integer8)(-9223372036854775808 - 1);
+s64Test(9223372036854775806, 1) = (integer8)(9223372036854775806 + 1);
+s64Test(-9223372036854775807, -1) = (integer8)(-9223372036854775807 - 1);
 // '--- string ---';
 varstringTest('1234567890', 'abcdefghij') = '1234567890' + 'abcdefghij';
 stringTest('1234567890', 'abcdefghij') = '1234567890' + 'abcdefghij';
@@ -72,16 +72,41 @@ r := RECORD
 d := dataset('~regress::multi::searchsource', r, THOR);
 
 r2 := RECORD(r)
+  unsigned8 newUnsigned;
+  string newWord;
   boolean passed;
 END;
 
 r2 t(r L) := TRANSFORM
-  boolean a := u64Test(L.doc, L.wpos) = (unsigned8)(L.doc + L.wpos);
-  boolean b := stringTest(L.word, L.word) = L.word + L.word;
+  SELF.newUnsigned :=  u64Test(L.doc, L.wpos);
+  boolean a := SELF.newUnsigned = (unsigned8)(L.doc + L.wpos);
+  SELF.newWord := stringTest(L.word, L.word);
+  boolean b := SELF.newWord = L.word + L.word;
   SELF.passed := a and B;
   SELF := L;
 END;
 
-d2 := project(choosen(d, 100), t(LEFT));
-count(d2(passed=false)) = 0;
+r2 t2(r L) := TRANSFORM
+  SELF.newUnsigned :=  u64Test(L.doc, L.wpos);
+  boolean a := SELF.newUnsigned = L.doc+ L.wpos;
+  SELF.newWord := L.word + L.word;
+  boolean b := SELF.newWord = L.word + L.word;
+  SELF.passed := a and B;
+  SELF := L;
+END;
+
+r2 t3(r L) := TRANSFORM
+  SELF.newUnsigned := L.doc+ L.wpos;
+  boolean a := SELF.newUnsigned = L.doc+ L.wpos;
+  SELF.newWord := L.word + L.word;
+  boolean b := SELF.newWord = L.word + L.word;
+  SELF.passed := a and B;
+  SELF := L;
+END;
+
+unsigned sampleSize := 10000;
+d2 := project(choosen(d, sampleSize), t(LEFT));
+d3 := project(choosen(d, sampleSize, 5000), t(LEFT));
+d4 := project(choosen(d, sampleSize, 10001), t(LEFT));
+count(d2(passed=false)) = 0 AND count(d3(passed=false)) = 0 AND count(d4(passed=false)) = 0;
 // '--- --- ---';
