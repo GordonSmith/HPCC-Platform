@@ -56,7 +56,7 @@ private:
         TRACE("WasmEngine loadWasmFiles");
         IEngineContext *engine = codeCtx->queryEngineContext();
         if (!engine)
-            throw makeStringException(100, "Faile to get engine context");
+            throw makeStringException(100, "Failed to get engine context");
 
         StringArray manifestModules;
         engine->getManifestFiles("wasm", manifestModules);
@@ -102,7 +102,7 @@ public:
         TRACE("WASM SE getModule");
         auto found = wasmModules.find(wasmName);
         if (found == wasmModules.end())
-            throw makeStringExceptionV(1, "Wasm module not found: %s", wasmName.c_str());
+            throw makeStringExceptionV(100, "Wasm module not found: %s", wasmName.c_str());
         return found->second;
     }
 };
@@ -139,7 +139,7 @@ public:
         TRACE("WASM SE getInstance");
         auto found = wasmInstances.find(wasmName);
         if (found == wasmInstances.end())
-            throw makeStringExceptionV(1, "Wasm instance not found: %s", wasmName.c_str());
+            throw makeStringExceptionV(100, "Wasm instance not found: %s", wasmName.c_str());
         return found->second;
     }
 
@@ -148,7 +148,7 @@ public:
         TRACE("WASM SE registerInstance %s", wasmName.c_str());
         if (hasInstance(wasmName))
         {
-            throw makeStringExceptionV(2, "Wasm instance already registered: %s", wasmName.c_str());
+            throw makeStringExceptionV(100, "Wasm instance already registered: %s", wasmName.c_str());
         }
         TRACE("WASM SE createInstance %s", wasmName.c_str());
         auto module = wasmEngine->getModule(wasmName);
@@ -202,7 +202,7 @@ public:
         }
         catch (const wasmtime::Error &e)
         {
-            throw makeStringExceptionV(0, "WASM SE createInstance: %s", e.message().c_str());
+            throw makeStringExceptionV(100, "WASM SE createInstance: %s", e.message().c_str());
         }
     }
 
@@ -217,7 +217,7 @@ public:
         TRACE("WASM SE getFunc");
         auto found = wasmFuncs.find(qualifiedID);
         if (found == wasmFuncs.end())
-            throw makeStringExceptionV(2, "Wasm function not found: %s", qualifiedID.c_str());
+            throw makeStringExceptionV(100, "Wasm function not found: %s", qualifiedID.c_str());
         return found->second;
     }
 
@@ -248,7 +248,7 @@ public:
         }
         catch (const wasmtime::Trap &e)
         {
-            throw makeStringExceptionV(0, "WASM SE call: %s", e.message().c_str());
+            throw makeStringExceptionV(100, "WASM SE call: %s", e.message().c_str());
         }
     }
 
@@ -263,7 +263,7 @@ public:
         TRACE("WASM SE getData");
         auto found = wasmMems.find(createQualifiedID(wasmName, "memory"));
         if (found == wasmMems.end())
-            throw makeStringExceptionV(3, "Wasm memory not found: %s", wasmName.c_str());
+            throw makeStringExceptionV(100, "Wasm memory not found: %s", wasmName.c_str());
         return found->second.data(store.context());
     }
 };
@@ -473,12 +473,12 @@ public:
     virtual void bindRowParam(const char *name, IOutputMetaData &metaVal, const byte *val) override
     {
         TRACE("WASM SE bindRowParam %s %p", name, val);
-        throw makeStringException(-1, "bindRowParam not implemented");
+        throw makeStringException(200, "bindRowParam not implemented");
     }
     virtual void bindDatasetParam(const char *name, IOutputMetaData &metaVal, IRowStream *val)
     {
         TRACE("WASM SE bindDatasetParam %s %p", name, val);
-        throw makeStringException(-1, "bindDatasetParam not implemented");
+        throw makeStringException(200, "bindDatasetParam not implemented");
     }
     virtual bool getBooleanResult()
     {
@@ -488,7 +488,7 @@ public:
     virtual void getDataResult(size32_t &len, void *&result)
     {
         TRACE("WASM SE getDataResult");
-        throw makeStringException(-1, "getDataResult not implemented");
+        throw makeStringException(200, "getDataResult not implemented");
     }
     virtual double getRealResult()
     {
@@ -557,30 +557,30 @@ public:
         auto ptr = wasmResults[0].i32();
         auto data = wasmStore->getData(wasmName);
 
-        throw makeStringException(-1, "getSetResult not implemented");
+        throw makeStringException(200, "getSetResult not implemented");
     }
     virtual IRowStream *getDatasetResult(IEngineRowAllocator *_resultAllocator)
     {
         TRACE("WASM SE getDatasetResult");
-        throw makeStringException(-1, "getDatasetResult not implemented");
+        throw makeStringException(200, "getDatasetResult not implemented");
         return NULL;
     }
     virtual byte *getRowResult(IEngineRowAllocator *_resultAllocator)
     {
         TRACE("WASM SE getRowResult");
-        throw makeStringException(-1, "getRowResult not implemented");
+        throw makeStringException(200, "getRowResult not implemented");
         return NULL;
     }
     virtual size32_t getTransformResult(ARowBuilder &builder)
     {
         TRACE("WASM SE getTransformResult");
-        throw makeStringException(-1, "getTransformResult not implemented");
+        throw makeStringException(200, "getTransformResult not implemented");
         return 0;
     }
     virtual void loadCompiledScript(size32_t chars, const void *_script) override
     {
         TRACE("WASM SE loadCompiledScript %p", _script);
-        throw makeStringException(-1, "loadCompiledScript not implemented");
+        throw makeStringException(200, "loadCompiledScript not implemented");
     }
     virtual void enter() override
     {
@@ -597,6 +597,7 @@ public:
     virtual void compileEmbeddedScript(size32_t lenChars, const char *_utf) override
     {
         TRACE("WASM SE compileEmbeddedScript");
+        throw makeStringException(200, "compileEmbeddedScript not supported");
     }
     virtual void importFunction(size32_t lenChars, const char *qualifiedName) override
     {
