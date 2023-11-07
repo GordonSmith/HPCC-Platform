@@ -95,6 +95,8 @@ jobs:
       - name: Start HPCC-Platform
         shell: "bash"
         run: |
+          export LANG="en_US.UTF-8"
+          sudo update-locale
           sudo /etc/init.d/hpcc-init start
 
       - name: Run Tests
