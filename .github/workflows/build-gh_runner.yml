@@ -111,11 +111,7 @@ jobs:
             python3-dev \
             rsync \
             fop \
-            libsaxonb-java \
-            r-base \
-            r-cran-rcpp \
-            r-cran-rinside \
-            r-cran-inline
+            libsaxonb-java
 
       - name: Ubuntu Mono Dependencies
         if: ${{ inputs.os == 'ubuntu-22.04' }}
