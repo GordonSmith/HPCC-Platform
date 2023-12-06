@@ -3,6 +3,8 @@ name: Build Assets
 env:
   VCPKG_BINARY_SOURCES: "clear;nuget,GitHub,read"
   VCPKG_NUGET_REPOSITORY: "https://github.com/hpcc-systems/vcpkg"
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  VCPKG_FEATURE_FLAGS: dependencygraph
 
 on:
   push:
@@ -16,6 +18,10 @@ on:
       - "!community_8.2.*"
       - "!community_8.0.*"
       - "!community_7.*"
+
+# Allow action to write the dependency metadata
+permissions:
+  contents: write
 
 jobs:
   preamble:
