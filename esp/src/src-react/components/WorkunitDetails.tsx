@@ -23,6 +23,7 @@ import { Variables } from "./Variables";
 import { Workflows } from "./Workflows";
 import { WorkunitSummary } from "./WorkunitSummary";
 import { TabInfo, DelayLoadedPanel, OverflowTabList } from "./controls/TabbedPanes/index";
+import { ECLArchive } from "./ECLArchive";
 
 const logger = scopedLogger("src-react/components/WorkunitDetails.tsx");
 
@@ -155,6 +156,9 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
                 <Logs wuid={wuid} filter={queryParams.logs} setLogCount={setLogCount} />
             </DelayLoadedPanel>
             <DelayLoadedPanel visible={tab === "eclsummary"} size={size}>
+                <ECLArchive wuid={wuid} selection={state?.metrics} />
+            </DelayLoadedPanel>
+            <DelayLoadedPanel visible={tab === "eclsummaryOld"} size={size}>
                 <DojoAdapter widgetClassID="ECLArchiveWidget" params={{ Wuid: wuid }} />
             </DelayLoadedPanel>
             <DelayLoadedPanel visible={tab === "xml"} size={size}>

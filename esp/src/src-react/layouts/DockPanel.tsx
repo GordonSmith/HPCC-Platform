@@ -147,7 +147,7 @@ interface DockPanelProps {
 }
 
 export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
-    items,
+    items = [],
     layout,
     layoutChanged = layout => { },
     onDockPanelCreate
@@ -188,6 +188,8 @@ export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
             layoutChanged(dockPanel?.layout());
         };
     }, [dockPanel, layoutChanged]);
+
+    // selectAll(".flat li.lm-TabBar-tab.p-TabBar-tab").classed(useStyles().tab, true);
 
     React.useEffect(() => {
         items.filter(isDockPanelComponent).forEach(item => {
