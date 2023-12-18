@@ -5,22 +5,9 @@
     "tasks": [
         {
             "type": "npm",
-            "label": "pre build",
-            "script": "build-dev",
-            "problemMatcher": [
-                "$tsc-watch"
-            ],
-            "presentation": {
-                "group": "group-build"
-            }
-        },
-        {
-            "type": "npm",
             "label": "tsc watch",
             "script": "compile-watch",
-            "dependsOn": [
-                "pre build"
-            ],
+            "dependsOn": [],
             "problemMatcher": [
                 "$tsc-watch"
             ],
@@ -32,9 +19,7 @@
             "type": "npm",
             "label": "bundle watch",
             "script": "bundle-watch",
-            "dependsOn": [
-                "pre build"
-            ],
+            "dependsOn": [],
             "problemMatcher": [],
             "presentation": {
                 "group": "group-build"
