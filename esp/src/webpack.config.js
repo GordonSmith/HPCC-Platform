@@ -90,10 +90,9 @@ module.exports = function (env) {
                 "clipboard": path.resolve(__dirname, "node_modules/clipboard/dist/clipboard"),
                 "@fluentui/react-experiments/lib/Pagination": path.resolve(__dirname, "node_modules/@fluentui/react-experiments/lib/Pagination")
             },
-            // WebPack >= v5
-            // fallback: {
-            //     "@hpcc-js": path.resolve(__dirname, "../../../hpcc-js/packages")
-            // },
+            fallback: {
+                "@hpcc-js": path.resolve(__dirname, "../../../Visualization/packages")
+            },
         },
         plugins: plugins,
         resolveLoader: {

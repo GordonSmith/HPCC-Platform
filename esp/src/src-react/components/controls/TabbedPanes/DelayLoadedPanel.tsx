@@ -29,4 +29,3 @@ export const DelayLoadedPanel: React.FunctionComponent<DelayLoadedPanelProps> = 
         {children}
     </div >;
 };
-

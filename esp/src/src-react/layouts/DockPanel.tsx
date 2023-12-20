@@ -142,15 +142,15 @@ export type DockPanelItems = (DockPanelWidget | DockPanelComponent)[];
 interface DockPanelProps {
     items?: DockPanelItems,
     layout?: object,
-    layoutChanged: (layout: object) => void,
     onDockPanelCreate: (dockpanel: ResetableDockPanel) => void
+    layoutChanged: (layout: object) => void,
 }
 
 export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
     items = [],
     layout,
-    layoutChanged = layout => { },
-    onDockPanelCreate
+    onDockPanelCreate,
+    layoutChanged = layout => { }
 }) => {
 
     const { theme, themeV9 } = useUserTheme();
@@ -166,6 +166,12 @@ export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
             } else if (item.widget) {
                 idx[item.widget.id()] = item.widget;
                 retVal.addWidget(item.widget, item.title, item.location, idx[item.ref], item.closable);
+            }
+        });
+        retVal.on("layoutChanged", () => {
+            const layout = retVal.layout() as { main: any };
+            if (layout?.main) {
+                retVal["__lastLayout"] = layout;
             }
         });
         setIdx(idx);

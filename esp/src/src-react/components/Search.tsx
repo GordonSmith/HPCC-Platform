@@ -59,7 +59,7 @@ export const Search: React.FunctionComponent<SearchProps> = ({
         refreshTable } = useFluentStoreState({});
 
     //  Search
-    const search = useConst(new ESPSearch(() => { progress.value++; }));
+    const search = useConst(() => new ESPSearch(() => { progress.value++; }));
 
     //  Grid ---
     const columns = React.useMemo((): FluentColumns => {

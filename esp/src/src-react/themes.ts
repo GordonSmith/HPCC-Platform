@@ -124,7 +124,7 @@ const brands = {
     "office": brandOffice,
     "teams": brandTeams
 };
-const brand = brands["teams"];
+const brand = brands["web"];
 
 namespace current {
     export const lightTheme = createTheme(lightThemeOld, true);
@@ -140,7 +140,7 @@ namespace next {
     export const darkTheme = createV8Theme(brand, darkThemeV9, true, current.darkTheme);
 }
 
-const useNext = true;
+const useNext = false;
 export const lightTheme = useNext ? next.lightTheme : current.lightTheme;
 export const darkTheme = useNext ? next.darkTheme : current.darkTheme;
 export const lightThemeV9 = useNext ? next.lightThemeV9 : current.lightThemeV9;

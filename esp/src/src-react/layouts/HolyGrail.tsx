@@ -19,7 +19,7 @@ export const HolyGrail: React.FunctionComponent<HolyGrailProps> = ({
     right,
     footer,
     footerStyles = { flex: "0 0", minWidth: 0 },
-    fullscreen = false
+    fullscreen = false,
 }) => {
 
     const { isDark } = useUserTheme();

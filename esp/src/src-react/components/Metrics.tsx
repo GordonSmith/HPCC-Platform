@@ -111,12 +111,14 @@ function formatValues(item: IScope, key: string, dedup: DedupProperties): Proper
 
 interface MetricsProps {
     wuid: string;
+    preHide?: React.MutableRefObject<() => void>;
     parentUrl?: string;
     selection?: string;
 }
 
 export const Metrics: React.FunctionComponent<MetricsProps> = ({
     wuid,
+    preHide,
     parentUrl = `/workunits/${wuid}/metrics`,
     selection
 }) => {
@@ -138,6 +140,28 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const [isLayoutComplete, setIsLayoutComplete] = React.useState<boolean>(false);
     const [isRenderComplete, setIsRenderComplete] = React.useState<boolean>(false);
     const [dot, setDot] = React.useState<string>("");
+
+    React.useEffect(() => {
+        if (preHide && dockpanel) {
+
+            //  Update layout prior to being hidden  ---
+            preHide.current = () => {
+                const layout = dockpanel.layout() as { main: any };
+                if (layout?.main) {
+                    setOptions({ ...options, layout: dockpanel.layout() });
+                }
+                saveOptions();
+            };
+
+            //  Update layout prior to unmount  ---
+            return () => {
+                if (dockpanel["__lastLayout"]?.main) {
+                    setOptions({ ...options, layout: dockpanel["__lastLayout"] });
+                }
+                saveOptions();
+            };
+        }
+    }, [dockpanel, options, preHide, saveOptions, setOptions]);
 
     React.useEffect(() => {
         const service = new WorkunitsServiceEx({ baseUrl: "" });
@@ -280,6 +304,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const metricGraph = useConst(() => new MetricGraph());
     const metricGraphWidget = useConst(() => new MetricGraphWidget()
         .zoomToFitLimit(1)
+        .selectionGlowColor("DodgerBlue")
         .on("selectionChanged", () => {
             const selection = metricGraphWidget.selection().filter(id => metricGraph.item(id)).map(id => metricGraph.item(id).id);
             setSelectedMetricsSource("metricGraphWidget");

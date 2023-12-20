@@ -30,7 +30,7 @@
         "paths": {
             "@hpcc-js/*": [
                 "./node_modules/@hpcc-js/*",
-                "../../../hpcc-js/packages/*"
+                "../../../Visualization/packages/*"
             ]
         }
     },
