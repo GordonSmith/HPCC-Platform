@@ -140,7 +140,7 @@ namespace next {
     export const darkTheme = createV8Theme(brand, darkThemeV9, true, current.darkTheme);
 }
 
-const useNext = false;
+const useNext = true;
 export const lightTheme = useNext ? next.lightTheme : current.lightTheme;
 export const darkTheme = useNext ? next.darkTheme : current.darkTheme;
 export const lightThemeV9 = useNext ? next.lightThemeV9 : current.lightThemeV9;

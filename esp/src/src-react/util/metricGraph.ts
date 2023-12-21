@@ -41,7 +41,7 @@ const KindShape = {
 };
 
 function shape(v: IScope) {
-    return TypeShape[v.type] ?? KindShape[v.kind] ?? "rectangle";
+    return TypeShape[v.type] ?? KindShape[v.Kind] ?? "rectangle";
 }
 
 const CHARS = new Set("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");

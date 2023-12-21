@@ -111,14 +111,12 @@ function formatValues(item: IScope, key: string, dedup: DedupProperties): Proper
 
 interface MetricsProps {
     wuid: string;
-    preHide?: React.MutableRefObject<() => void>;
     parentUrl?: string;
     selection?: string;
 }
 
 export const Metrics: React.FunctionComponent<MetricsProps> = ({
     wuid,
-    preHide,
     parentUrl = `/workunits/${wuid}/metrics`,
     selection
 }) => {
@@ -142,26 +140,15 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const [dot, setDot] = React.useState<string>("");
 
     React.useEffect(() => {
-        if (preHide && dockpanel) {
 
-            //  Update layout prior to being hidden  ---
-            preHide.current = () => {
-                const layout = dockpanel.layout() as { main: any };
-                if (layout?.main) {
-                    setOptions({ ...options, layout: dockpanel.layout() });
-                }
-                saveOptions();
-            };
-
-            //  Update layout prior to unmount  ---
+        //  Update layout prior to unmount  ---
+        if (dockpanel && options && saveOptions && setOptions) {
             return () => {
-                if (dockpanel["__lastLayout"]?.main) {
-                    setOptions({ ...options, layout: dockpanel["__lastLayout"] });
-                }
+                setOptions({ ...options, layout: dockpanel.getLayout() });
                 saveOptions();
             };
         }
-    }, [dockpanel, options, preHide, saveOptions, setOptions]);
+    }, [dockpanel, options, saveOptions, setOptions]);
 
     React.useEffect(() => {
         const service = new WorkunitsServiceEx({ baseUrl: "" });
@@ -617,11 +604,6 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         ];
     }, [scopeFilter, onChangeScopeFilter, scopesTable, graphComponent, propsTable, propsTable2]);
 
-    const layoutChanged = React.useCallback((layout) => {
-        setOptions({ ...options, layout });
-        saveOptions();
-    }, [options, saveOptions, setOptions]);
-
     //  Command Bar  ---
     const buttons = React.useMemo((): ICommandBarItemProps[] => [
         {
@@ -703,7 +685,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         </>}
         main={
             <ErrorBoundary>
-                <DockPanel items={items} layout={options?.layout} layoutChanged={layoutChanged} onDockPanelCreate={setDockpanel} />
+                <DockPanel items={items} layout={options?.layout} onDockPanelCreate={setDockpanel} />
                 <MetricsOptions show={showMetricOptions} setShow={setShowMetricOptions} />
             </ErrorBoundary>
         }

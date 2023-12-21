@@ -45,7 +45,6 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
     const [workunit] = useWorkunit(wuid, true);
     const [logCount, setLogCount] = React.useState<number | string>("*");
     const [logsDisabled, setLogsDisabled] = React.useState(true);
-    const preHide = React.useRef<() => void>();
 
     useDeepEffect(() => {
         hasLogAccess().then(response => {
@@ -58,13 +57,8 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
     }, [wuid], [queryParams]);
 
     const onTabSelect = React.useCallback((newTab: TabInfo) => {
-        if (tab === "metrics") {
-            if (preHide.current) {
-                preHide.current();
-            }
-        }
         pushUrl(newTab.__state ?? `/workunits/${wuid}/${newTab.id}`);
-    }, [preHide, tab, wuid]);
+    }, [wuid]);
 
     const tabs = React.useMemo((): TabInfo[] => {
         return [{
@@ -138,7 +132,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
                 <SourceFiles wuid={wuid} filter={queryParams.inputs} />
             </DelayLoadedPanel>
             <DelayLoadedPanel visible={tab === "metrics"} size={size}>
-                <Metrics wuid={wuid} selection={state?.metrics} preHide={preHide} />
+                <Metrics wuid={wuid} selection={state?.metrics} />
             </DelayLoadedPanel>
             <DelayLoadedPanel visible={tab === "workflows"} size={size}>
                 <Workflows wuid={wuid} />

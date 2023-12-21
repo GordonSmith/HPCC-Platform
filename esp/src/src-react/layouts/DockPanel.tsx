@@ -107,25 +107,25 @@ function isDockPanelComponent(item: DockPanelWidget | DockPanelComponent): item 
     return !!(item as DockPanelComponent).component;
 }
 
+export interface DockPanelLayout {
+    main: object;
+}
+
+function validLayout(layout?: any) {
+    return !!layout?.main;
+}
+
+function formatLayout(layout?: any): DockPanelLayout | undefined {
+    if (validLayout(layout)) {
+        return layout;
+    }
+    return undefined;
+}
+
 export class ResetableDockPanel extends HPCCDockPanel {
 
-    protected _origLayout;
-
-    render() {
-        const retVal = super.render();
-        if (this._origLayout === undefined) {
-            this._origLayout = this.layout();
-        }
-        return retVal;
-    }
-
-    setLayout(layout: object) {
-        if (this._origLayout === undefined) {
-            this._origLayout = this.layout();
-        }
-        this.layout(layout);
-        return this;
-    }
+    protected _origLayout: DockPanelLayout | undefined;
+    protected _lastLayout: DockPanelLayout | undefined;
 
     resetLayout() {
         if (this._origLayout) {
@@ -135,22 +135,45 @@ export class ResetableDockPanel extends HPCCDockPanel {
                 ;
         }
     }
+
+    setLayout(layout: object) {
+        if (this._origLayout === undefined) {
+            this._origLayout = formatLayout(this.layout());
+        }
+        this.layout(layout);
+        return this;
+    }
+
+    getLayout() {
+        return formatLayout(this.layout()) ?? this._lastLayout ?? this._origLayout;
+    }
+
+    render() {
+        const retVal = super.render();
+        if (this._origLayout === undefined) {
+            this._origLayout = formatLayout(this.layout());
+        }
+        return retVal;
+    }
+
+    //  Events  ---
+    layoutChanged() {
+        this._lastLayout = this.getLayout();
+    }
 }
 
 export type DockPanelItems = (DockPanelWidget | DockPanelComponent)[];
 
 interface DockPanelProps {
-    items?: DockPanelItems,
-    layout?: object,
-    onDockPanelCreate: (dockpanel: ResetableDockPanel) => void
-    layoutChanged: (layout: object) => void,
+    items?: DockPanelItems;
+    layout?: object;
+    onDockPanelCreate?: (dockpanel: ResetableDockPanel) => void;
 }
 
 export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
     items = [],
     layout,
-    onDockPanelCreate,
-    layoutChanged = layout => { }
+    onDockPanelCreate
 }) => {
 
     const { theme, themeV9 } = useUserTheme();
@@ -168,16 +191,12 @@ export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
                 retVal.addWidget(item.widget, item.title, item.location, idx[item.ref], item.closable);
             }
         });
-        retVal.on("layoutChanged", () => {
-            const layout = retVal.layout() as { main: any };
-            if (layout?.main) {
-                retVal["__lastLayout"] = layout;
-            }
-        });
         setIdx(idx);
-        setTimeout(() => {
-            onDockPanelCreate(retVal);
-        }, 0);
+        if (onDockPanelCreate) {
+            setTimeout(() => {
+                onDockPanelCreate(retVal);
+            }, 0);
+        }
         return retVal;
     });
 
@@ -188,12 +207,6 @@ export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
             dockPanel?.setLayout(layout);
         }
     }, [dockPanel, layout]);
-
-    React.useEffect(() => {
-        return () => {
-            layoutChanged(dockPanel?.layout());
-        };
-    }, [dockPanel, layoutChanged]);
 
     // selectAll(".flat li.lm-TabBar-tab.p-TabBar-tab").classed(useStyles().tab, true);
 

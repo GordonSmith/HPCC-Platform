@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluen
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
 import { HolyGrail } from "../layouts/HolyGrail";
-import { DockPanel, DockPanelItems, ResetableDockPanel } from "../layouts/DockPanel";
+import { DockPanel, DockPanelItems } from "../layouts/DockPanel";
 import { ShortVerticalDivider } from "./Common";
 
 const logger = scopedLogger("src-react/components/ECLArchive.tsx");
@@ -103,8 +103,7 @@ export const ECLArchive: React.FunctionComponent<ECLArchiveProps> = ({
     return <HolyGrail fullscreen={fullscreen}
         header={<CommandBar items={buttons} farItems={rightButtons} />}
         main={
-            <DockPanel items={items} layout={undefined} layoutChanged={undefined} onDockPanelCreate={function (dockpanel: ResetableDockPanel): void {
-            }} />
+            <DockPanel items={items} />
         }
     />;
 };
