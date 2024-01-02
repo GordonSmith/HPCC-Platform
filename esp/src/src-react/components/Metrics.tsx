@@ -140,17 +140,6 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const [dot, setDot] = React.useState<string>("");
 
     React.useEffect(() => {
-
-        //  Update layout prior to unmount  ---
-        if (dockpanel && options && saveOptions && setOptions) {
-            return () => {
-                setOptions({ ...options, layout: dockpanel.getLayout() });
-                saveOptions();
-            };
-        }
-    }, [dockpanel, options, saveOptions, setOptions]);
-
-    React.useEffect(() => {
         const service = new WorkunitsServiceEx({ baseUrl: "" });
         service.WUAnalyseHotspot({
             Wuid: wuid,
@@ -603,6 +592,17 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             }
         ];
     }, [scopeFilter, onChangeScopeFilter, scopesTable, graphComponent, propsTable, propsTable2]);
+
+    React.useEffect(() => {
+
+        //  Update layout prior to unmount  ---
+        if (dockpanel && options && saveOptions && setOptions) {
+            return () => {
+                setOptions({ ...options, layout: dockpanel.getLayout() });
+                saveOptions();
+            };
+        }
+    }, [dockpanel, options, saveOptions, setOptions]);
 
     //  Command Bar  ---
     const buttons = React.useMemo((): ICommandBarItemProps[] => [
