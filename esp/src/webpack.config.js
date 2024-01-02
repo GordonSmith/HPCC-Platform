@@ -91,8 +91,12 @@ module.exports = function (env) {
                 "@fluentui/react-experiments/lib/Pagination": path.resolve(__dirname, "node_modules/@fluentui/react-experiments/lib/Pagination")
             },
             fallback: {
-                "@hpcc-js": path.resolve(__dirname, "../../../Visualization/packages")
-            },
+                "@hpcc-js": [
+                    path.resolve(__dirname, "../../../hpcc-js/packages"),
+                    path.resolve(__dirname, "../../../Visualization/packages")
+                ]
+            }
+
         },
         plugins: plugins,
         resolveLoader: {
