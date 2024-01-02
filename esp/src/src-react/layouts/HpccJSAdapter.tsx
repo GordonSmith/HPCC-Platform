@@ -52,7 +52,7 @@ export interface AutosizeHpccJSComponentProps {
     hidden?: boolean
 }
 
-export const AutosizeHpccJSComponent: React.FunctionComponent<AutosizeHpccJSComponentProps> = ({
+export const AutosizeHpccJSComponent: React.FunctionComponent<React.PropsWithChildren<AutosizeHpccJSComponentProps>> = ({
     widget,
     fixedHeight = "100%",
     padding = 0,
@@ -86,7 +86,7 @@ export interface AutosizeComponentProps {
     hidden?: boolean
 }
 
-export const AutosizeComponent: React.FunctionComponent<AutosizeComponentProps> = ({
+export const AutosizeComponent: React.FunctionComponent<React.PropsWithChildren<AutosizeComponentProps>> = ({
     fixedHeight = "100%",
     padding = 0,
     hidden = false,

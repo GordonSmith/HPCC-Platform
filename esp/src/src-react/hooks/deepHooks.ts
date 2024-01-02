@@ -26,18 +26,15 @@ export function useDeepEffect(callback: EffectCallback, dependencies: Dependency
     return React.useEffect(callback, [...dependencies, ...useDeepCompareMemoize(deepDependencies, verbose)]);
 }
 
-type UseCallbackParams = Parameters<typeof React.useCallback>
-type CallbackCallback = UseCallbackParams[0]
-type UseCallbackReturn = ReturnType<typeof React.useCallback>
-
-export function useDeepCallback(callback: CallbackCallback, dependencies: DependencyList, deepDependencies: DependencyList, verbose = false): UseCallbackReturn {
+// eslint-disable-next-line @typescript-eslint/ban-types
+export function useDeepCallback<T extends Function>(callback: T, dependencies: DependencyList, deepDependencies: DependencyList, verbose = false): T {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    return React.useCallback(callback, [...dependencies, ...useDeepCompareMemoize(deepDependencies, verbose)]);
+    return React.useCallback<T>(callback, [...dependencies, ...useDeepCompareMemoize(deepDependencies, verbose)]);
 }
 
-export function useDeepMemo(memo: CallbackCallback, dependencies: DependencyList, deepDependencies: DependencyList, verbose = false) {
+export function useDeepMemo<T>(memo: () => T, dependencies: DependencyList, deepDependencies: DependencyList, verbose = false): T {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    return React.useMemo(memo, [...dependencies, ...useDeepCompareMemoize(deepDependencies, verbose)]);
+    return React.useMemo<T>(memo, [...dependencies, ...useDeepCompareMemoize(deepDependencies, verbose)]);
 }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import * as ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import { initializeIcons } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { cookieKeyValStore } from "src/KeyValStore";
@@ -38,6 +38,8 @@ needsRedirectV9().then(async redirected => {
     }
 });
 
+const root = createRoot(document.getElementById("placeholder"));
+
 async function loadUI() {
     const authTypeResp = await fetch("/esp/getauthtype");
     const authType = await authTypeResp?.text() ?? "None";
@@ -49,10 +51,7 @@ async function loadUI() {
         }
         import("./components/forms/Login").then(_ => {
             try {
-                ReactDOM.render(
-                    <_.Login />,
-                    document.getElementById("placeholder")
-                );
+                root.render(<_.Login />);
                 document.getElementById("loadingOverlay").remove();
             } catch (e) {
                 logger.error(e);
@@ -61,10 +60,7 @@ async function loadUI() {
     } else {
         import("./components/Frame").then(_ => {
             try {
-                ReactDOM.render(
-                    <_.Frame />,
-                    document.getElementById("placeholder")
-                );
+                root.render(<_.Frame />);
                 document.getElementById("loadingOverlay").remove();
             } catch (e) {
                 logger.error(e);

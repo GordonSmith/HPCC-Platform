@@ -1,5 +1,5 @@
 import * as React from "react";
-import * as ReactDOM from "react-dom";
+import { createRoot, Root } from "react-dom/client";
 import { Theme, ThemeProvider } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
 import { FluentProvider, Theme as ThemeV9 } from "@fluentui/react-components";
@@ -16,6 +16,7 @@ export class ReactWidget extends HTMLWidget {
     protected _children = <div></div>;
 
     protected _div;
+    protected _rectRoot: Root;
 
     constructor() {
         super();
@@ -48,6 +49,7 @@ export class ReactWidget extends HTMLWidget {
     enter(domNode, element) {
         super.enter(domNode, element);
         this._div = element.append("div");
+        this._rectRoot = createRoot(this._div.node(), { identifierPrefix: "dockpanel-" });
     }
 
     private _prevWidth;
@@ -59,11 +61,10 @@ export class ReactWidget extends HTMLWidget {
             .style("height", `${this.height()}px`)
             ;
 
-        ReactDOM.render(
+        this._rectRoot.render(
             <FluentProvider theme={this._themeV9} style={{ height: "100%" }}>
                 <ThemeProvider theme={this._theme} style={{ height: "100%" }}>{this._children}</ThemeProvider>
-            </FluentProvider>,
-            this._div.node()
+            </FluentProvider>
         );
 
         //  TODO:  Hack to make command bar resize...
@@ -75,9 +76,7 @@ export class ReactWidget extends HTMLWidget {
     }
 
     exit(domNode, element) {
-        ReactDOM.unmountComponentAtNode(
-            this._div.node()
-        );
+        setTimeout(() => this._rectRoot.unmount(), 0);
         super.enter(domNode, element);
     }
 

@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as topic from "dojo/topic";
 import { ThemeProvider } from "@fluentui/react";
-import { FluentProvider } from "@fluentui/react-components";
+import { FluentProvider, useId, Toaster } from "@fluentui/react-components";
 import { select as d3Select } from "@hpcc-js/common";
 import { scopedLogger } from "@hpcc-js/util";
 import { HolyGrail } from "../layouts/HolyGrail";
@@ -34,6 +34,8 @@ export const Frame: React.FunctionComponent<FrameProps> = () => {
     const [environmentTitle] = useGlobalStore("HPCCPlatformWidget_Toolbar_Text", "", true);
 
     const [globalWUNotes] = useGlobalWorkunitNotes();
+
+    const toasterId = useId("toaster");
 
     React.useEffect(() => {
         globalWUNotes.forEach(note => {
@@ -113,6 +115,7 @@ export const Frame: React.FunctionComponent<FrameProps> = () => {
             <CookieConsent showCookieConsent={showCookieConsent} onApply={(n: boolean) => {
                 userKeyValStore().set("user_cookie_consent", n ? "1" : "0");
             }} />
+            <Toaster toasterId={toasterId} />
         </ThemeProvider >
     </FluentProvider >;
 };
