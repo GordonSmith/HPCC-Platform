@@ -57,12 +57,13 @@ function doBuild() {
     mkdir -p $HOME/.ccache
     docker run --rm \
         --mount source="$(pwd)",target=/hpcc-dev/HPCC-Platform,type=bind,consistency=cached \
+        --mount source="$(realpath ~)/LN",target=/hpcc-dev/LN,type=bind,consistency=cached \
         --mount source="$(realpath ~)/.cache/vcpkg",target=/root/.cache/vcpkg,type=bind,consistency=cached \
         --mount source="$HOME/.ccache",target=/root/.ccache,type=bind,consistency=cached \
         hpccsystems/platform-build-$1:$VCPKG_REF \
         "rm -rf /hpcc-dev/HPCC-Platform/build-$1/CMakeCache.txt /hpcc-dev/HPCC-Platform/build-$1/CMakeFiles && \
-        cmake -S /hpcc-dev/HPCC-Platform -B /hpcc-dev/HPCC-Platform/build-$1 ${CMAKE_ALL_OPTIONS} ${CMAKE_OPTIONS_EXTRA} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache && \
-        cmake --build /hpcc-dev/HPCC-Platform/build-$1 --parallel && \
+        cmake -S /hpcc-dev/LN -B /hpcc-dev/HPCC-Platform/build-$1 ${CMAKE_ALL_OPTIONS} ${CMAKE_OPTIONS_EXTRA} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache && \
+        cmake --build /hpcc-dev/HPCC-Platform/build-$1 --target package --parallel && \
         echo 'Done'"
 
 # sudo chown -R $(id -u):$(id -g) ./build-$1
@@ -77,13 +78,13 @@ mkdir -p ./vcpkg-logs
 if [ "$1" != "" ]; then
     doBuild $1 &
 else
-    doBuild ubuntu-24.04 &> vcpkg-logs/ubuntu-24.04.log &
-    doBuild ubuntu-22.04 &> vcpkg-logs/ubuntu-22.04.log &
-    doBuild ubuntu-20.04 &> vcpkg-logs/ubuntu-20.04.log &
-    doBuild rockylinux-8 &> vcpkg-logs/rockylinux-8.log &
-    doBuild centos-8 &> vcpkg-logs/centos-8.log &
-    doBuild amazonlinux &> vcpkg-logs/amazonlinux.log &
-    doBuild centos-7-rh-python38 &> vcpkg-logs/centos-7-rh-python38.log & 
+    # doBuild ubuntu-24.04 &> vcpkg-logs/ubuntu-24.04.log &
+    # doBuild ubuntu-22.04 &> vcpkg-logs/ubuntu-22.04.log &
+    # doBuild ubuntu-20.04 &> vcpkg-logs/ubuntu-20.04.log &
+    # doBuild rockylinux-8 &> vcpkg-logs/rockylinux-8.log &
+    # doBuild centos-8 &> vcpkg-logs/centos-8.log &
+    # doBuild amazonlinux &> vcpkg-logs/amazonlinux.log &
+    # doBuild centos-7-rh-python38 &> vcpkg-logs/centos-7-rh-python38.log & 
     doBuild centos-7 &> vcpkg-logs/centos-7.log & 
 fi
 
