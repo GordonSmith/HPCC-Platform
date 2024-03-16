@@ -38,6 +38,7 @@ if(WASMEMBED)
         add_library(wasmembed SHARED 
             wasmembed.cpp
             secure-enclave.cpp
+            abi.hpp
             abi.cpp
             util.cpp
         )
