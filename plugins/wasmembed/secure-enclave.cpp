@@ -8,9 +8,12 @@
 
 #include "abi.hpp"
 #include "util.hpp"
+#include "val.hpp"
 
 #include <mutex>
 #include <filesystem>
+
+#include <wasmtime.hh>
 
 // From deftype.hpp in common
 #define UNKNOWN_LENGTH 0xFFFFFFF1
@@ -24,8 +27,6 @@
     {                      \
     } while (0)
 #endif
-
-#include <wasmtime.hh>
 
 class WasmEngine
 {
@@ -763,6 +764,8 @@ protected:
         bool r = f.result<bool>(0);
         CPPUNIT_ASSERT(r == false);
 
+        wasmtime::Engine engine;
+
         Function f2("wasmembed.bool-test");
         f2.push_param(true);
         f2.push_param(true);
@@ -804,6 +807,8 @@ protected:
         // char *result;
         // rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx.opts.memory[strPtr]));
         // CPPUNIT_ASSERT(strcmp(result, "aaabbb") == 0);
+
+        test2();
     }
 
     void test2()
@@ -855,7 +860,18 @@ protected:
         auto memory = std::get<wasmtime::Memory>(*instance.get(store, "memory"));
         store.context().set_data(memory);
 
-        abi::CallContext cx = abi::mk_cx(memory.data(store.context()), "utf8", realloc);
+        // abi::CallContext cx = abi::mk_cx(memory.data(store.context()), "utf8", realloc);
+        wasmtime::Span<uint8_t> data = memory.data(store.context());
+        CallContextPtr cx = createCallContext(data, realloc);
+
+        FuncTypePtr f4 = createFuncType();
+
+        Val v2 = Val(false);
+        v2.store(cx);
+
+        f4->appendParam(false);
+        f4->appendParam(false);
+        f4->call(cx);
 
         // auto [aaa, aaa2] = abi::store_string(cx, "aaa");
         // auto [bbb, bbb2] = abi::store_string(cx, "bbb");

@@ -1,5 +1,8 @@
 #include "cmcpp.hpp"
 
+#include <cstring>
+#include <optional> // Include the necessary header file
+
 class CanonicalOptionsImpl : public CanonicalOptions
 {
 private:
@@ -17,27 +20,23 @@ public:
     {
         return _string_encoding.c_str();
     }
-    void *realloc(void *ptr, size_t old_size, size_t align, size_t new_size)
+    int realloc(int ptr, int old_size, int align, int new_size)
     {
-        if (_realloc)
-        {
-            return _realloc(ptr, old_size, align, new_size);
-        }
-        throw std::runtime_error("realloc not set");
+        return _realloc(ptr, old_size, align, new_size);
     }
     void post_return()
     {
+        //  Optional
         if (_post_return)
         {
             _post_return();
         }
-        throw std::runtime_error("post_return not set");
     }
 };
 
 const char *GuestEncodingString[] = {"utf-8", "utf-16-le", "latin1"};
 
-CanonicalOptionsPtr createCanonicalOptions(const GuestMemory &memory, GuestEncoding encoding, const GuestRealloc &realloc, const GuestPostReturn &post_return)
+CanonicalOptionsPtr createCanonicalOptions(const GuestMemory &memory, const GuestRealloc &realloc, GuestEncoding encoding, const GuestPostReturn &post_return)
 {
     return std::make_shared<CanonicalOptionsImpl>(memory, GuestEncodingString[encoding], realloc, post_return);
 }
@@ -45,13 +44,13 @@ CanonicalOptionsPtr createCanonicalOptions(const GuestMemory &memory, GuestEncod
 class CallContextImpl : public CallContext
 {
 public:
-    CallContextImpl(CallContextPtr options)
+    CallContextImpl(CanonicalOptionsPtr options)
     {
-        this->opts = options->opts;
+        opts = options;
     }
 };
 
-CallContextPtr createCallContext(CallContextPtr options)
+CallContextPtr createCallContext(const GuestMemory &memory, const GuestRealloc &realloc, GuestEncoding encoding, const GuestPostReturn &post_return)
 {
-    return std::make_shared<CallContextImpl>(options);
+    return std::make_shared<CallContextImpl>(createCanonicalOptions(memory, realloc, encoding, post_return));
 }

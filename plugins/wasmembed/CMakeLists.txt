@@ -42,6 +42,8 @@ if(WASMEMBED)
             abi.cpp
             cmcpp.hpp
             cmcpp.cpp
+            val.hpp
+            val.cpp
             util.cpp
         )
 

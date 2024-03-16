@@ -13,7 +13,7 @@
 #include <memory>
 
 using GuestMemory = std::span<uint8_t, std::dynamic_extent>;
-using GuestRealloc = std::function<void *(void *ptr, size_t old_size, size_t align, size_t new_size)>;
+using GuestRealloc = std::function<int(int ptr, int old_size, int align, int new_size)>;
 using GuestPostReturn = std::function<void()>;
 
 enum GuestEncoding
@@ -30,11 +30,11 @@ public:
 
     GuestMemory memory;
     virtual const char *string_encoding() = 0;
-    virtual void *realloc(void *ptr, size_t old_size, size_t align, size_t new_size) = 0;
+    virtual int realloc(int ptr, int old_size, int align, int new_size) = 0;
     virtual void post_return() = 0;
 };
 using CanonicalOptionsPtr = std::shared_ptr<CanonicalOptions>;
-CanonicalOptionsPtr createCanonicalOptions(const GuestMemory &memory, GuestEncoding encoding, const GuestRealloc &realloc, const GuestPostReturn &post_return);
+CanonicalOptionsPtr createCanonicalOptions(const GuestMemory &memory, const GuestRealloc &realloc, GuestEncoding encoding = GuestEncoding::Utf8, const GuestPostReturn &post_return = nullptr);
 
 class CallContext
 {
@@ -44,6 +44,6 @@ public:
     CanonicalOptionsPtr opts;
 };
 using CallContextPtr = std::shared_ptr<CallContext>;
-CallContextPtr createCallContext(CallContextPtr options);
+CallContextPtr createCallContext(const GuestMemory &memory, const GuestRealloc &realloc, GuestEncoding encoding = GuestEncoding::Utf8, const GuestPostReturn &post_return = nullptr);
 
 #endif
