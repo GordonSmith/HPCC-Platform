@@ -15,7 +15,7 @@
 // From deftype.hpp in common
 #define UNKNOWN_LENGTH 0xFFFFFFF1
 
-// #define ENABLE_TRACE
+#define ENABLE_TRACE
 #ifdef ENABLE_TRACE
 #define TRACE(format, ...) DBGLOG(format __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -89,6 +89,12 @@ public:
     {
         TRACE("WASM SE setCodeContext");
         std::call_once(wasmLoadedFlag, &WasmEngine::loadWasmFiles, this, codeCtx);
+    }
+
+    void setModule(const std::string &wasmName, const wasmtime::Span<uint8_t> &wasm)
+    {
+        TRACE("WASM SE createModule");
+        wasmModules.insert(std::make_pair(wasmName, createModule(wasmName, wasm)));
     }
 
     bool hasModule(const std::string &wasmName) const
@@ -206,6 +212,12 @@ public:
         }
     }
 
+    abi::CallContext createContext(const std::string &qualifiedID)
+    {
+        return abi::mk_cx(this->getData(qualifiedID), "utf8", [this, qualifiedID](int a, int b, int c, int d) -> int
+                          { return this->callRealloc(qualifiedID, {a, b, c, d})[0].i32(); });
+    }
+
     bool hasFunc(const std::string &qualifiedID) const
     {
         TRACE("WASM SE hasFunc");
@@ -221,20 +233,32 @@ public:
         return found->second;
     }
 
-    wasmtime::ValType::ListRef getFuncParams(const std::string &qualifiedID)
+    std::vector<wasmtime::ValType> getFuncParams(const std::string &qualifiedID)
     {
         TRACE("WASM SE getFuncParams");
         auto func = getFunc(qualifiedID);
         wasmtime::FuncType funcType = func.type(store.context());
-        return funcType->params();
+        auto params = funcType->params();
+        std::vector<wasmtime::ValType> retVal;
+        for (auto &param : params)
+        {
+            retVal.push_back(param);
+        }
+        return retVal;
     }
 
-    wasmtime::ValType::ListRef getFuncResults(const std::string &qualifiedID)
+    std::vector<wasmtime::ValType> getFuncResults(const std::string &qualifiedID)
     {
         TRACE("WASM SE getFuncResults");
         auto func = getFunc(qualifiedID);
         wasmtime::FuncType funcType = func.type(store.context());
-        return funcType->results();
+        auto results = funcType->results();
+        std::vector<wasmtime::ValType> retVal;
+        for (auto &result : results)
+        {
+            retVal.push_back(result);
+        }
+        return retVal;
     }
 
     std::vector<wasmtime::Val> call(const std::string &qualifiedID, const std::vector<wasmtime::Val> &params)
@@ -269,8 +293,9 @@ public:
 };
 thread_local std::unique_ptr<WasmStore> wasmStore = std::make_unique<WasmStore>();
 
-class SecureFunction : public CInterfaceOf<IEmbedFunctionContext>
+class Function
 {
+protected:
     std::string wasmName;
     std::string funcName;
     std::string qualifiedID;
@@ -278,16 +303,21 @@ class SecureFunction : public CInterfaceOf<IEmbedFunctionContext>
     std::vector<wasmtime::Val> args;
     std::vector<wasmtime::Val> wasmResults;
 
-public:
-    SecureFunction(ICodeContext *codeCtx)
+    Function()
     {
-        TRACE("WASM SE se:constructor");
-        wasmEngine->setCodeContext(codeCtx);
+        TRACE("Function::constructor");
     }
 
-    virtual ~SecureFunction()
+public:
+    Function(const std::string &qualifiedID) : qualifiedID(qualifiedID)
     {
-        TRACE("WASM SE se:destructor");
+        TRACE("Function::constructor(%s)", qualifiedID.c_str());
+        std::tie(wasmName, funcName) = splitQualifiedID(qualifiedID);
+    }
+
+    virtual ~Function()
+    {
+        TRACE("Function::destructor");
 
         //  Garbage Collection  ---
         //    Function results  ---
@@ -299,6 +329,61 @@ public:
                 wasmStore->call(gc_func_name, {result});
             }
         }
+    }
+
+    void push_param(bool val)
+    {
+        TRACE("Function::push_param %s %i", "bool", val);
+        args.push_back(val);
+    }
+
+    template <typename T>
+    T pop_result()
+    {
+        TRACE("Function::pop_result %s", "bool");
+        if (wasmResults.empty())
+            throw std::runtime_error("No results to pop");
+
+        auto result = wasmResults[0];
+
+        wasmResults.erase(wasmResults.begin());
+        auto gc_func_name = createQualifiedID(wasmName, "cabi_post_" + funcName);
+        if (wasmStore->hasFunc(gc_func_name))
+        {
+            wasmStore->call(gc_func_name, {result});
+        }
+
+        if constexpr (std::is_same<T, bool>::value ||
+                      std::is_same<T, uint8_t>::value ||
+                      std::is_same<T, int8_t>::value ||
+                      std::is_same<T, uint32_t>::value ||
+                      std::is_same<T, int32_t>::value)
+        {
+            if (result.kind() != wasmtime::ValKind::I32)
+                throw std::runtime_error("Result is not an i32");
+            return result.i32();
+        }
+    }
+
+    void call()
+    {
+        TRACE("Function::call %s", qualifiedID.c_str());
+        wasmResults = wasmStore->call(qualifiedID, args);
+    }
+};
+
+class SecureFunction : public Function, public CInterfaceOf<IEmbedFunctionContext>
+{
+public:
+    SecureFunction(ICodeContext *codeCtx)
+    {
+        TRACE("WASM SE se:constructor");
+        wasmEngine->setCodeContext(codeCtx);
+    }
+
+    virtual ~SecureFunction()
+    {
+        TRACE("WASM SE se:destructor");
     }
 
     //  IEmbedFunctionContext ---
@@ -519,39 +604,39 @@ public:
     {
         TRACE("WASM SE getStringResult %zu", wasmResults.size());
         auto ptr = wasmResults[0].i32();
-        auto data = wasmStore->getData(wasmName);
+        abi::CallContext cx = abi::mk_cx(wasmStore->getData(wasmName));
         uint32_t strPtr;
         std::string encoding;
         uint32_t bytes;
-        std::tie(strPtr, encoding, bytes) = abi::load_string(data, ptr);
-        size32_t codepoints = rtlUtf8Length(bytes, &data[strPtr]);
-        rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&data[strPtr]));
+        std::tie(strPtr, encoding, bytes) = abi::load_string(cx, ptr);
+        size32_t codepoints = rtlUtf8Length(bytes, &cx.opts.memory[strPtr]);
+        rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx.opts.memory[strPtr]));
     }
     virtual void getUTF8Result(size32_t &chars, char *&result)
     {
         TRACE("WASM SE getUTF8Result");
         auto ptr = wasmResults[0].i32();
-        auto data = wasmStore->getData(wasmName);
+        abi::CallContext cx = abi::mk_cx(wasmStore->getData(wasmName));
         uint32_t strPtr;
         std::string encoding;
         uint32_t bytes;
-        std::tie(strPtr, encoding, bytes) = abi::load_string(data, ptr);
-        chars = rtlUtf8Length(bytes, &data[strPtr]);
+        std::tie(strPtr, encoding, bytes) = abi::load_string(cx, ptr);
+        chars = rtlUtf8Length(bytes, &cx.opts.memory[strPtr]);
         TRACE("WASM SE getUTF8Result %d %d", bytes, chars);
         result = (char *)rtlMalloc(bytes);
-        memcpy(result, &data[strPtr], bytes);
+        memcpy(result, &cx.opts.memory[strPtr], bytes);
     }
     virtual void getUnicodeResult(size32_t &chars, UChar *&result)
     {
         TRACE("WASM SE getUnicodeResult");
         auto ptr = wasmResults[0].i32();
-        auto data = wasmStore->getData(wasmName);
+        abi::CallContext cx = abi::mk_cx(wasmStore->getData(wasmName));
         uint32_t strPtr;
         std::string encoding;
         uint32_t bytes;
-        std::tie(strPtr, encoding, bytes) = abi::load_string(data, ptr);
-        unsigned numchars = rtlUtf8Length(bytes, &data[strPtr]);
-        rtlUtf8ToUnicodeX(chars, result, numchars, reinterpret_cast<const char *>(&data[strPtr]));
+        std::tie(strPtr, encoding, bytes) = abi::load_string(cx, ptr);
+        unsigned numchars = rtlUtf8Length(bytes, &cx.opts.memory[strPtr]);
+        rtlUtf8ToUnicodeX(chars, result, numchars, reinterpret_cast<const char *>(&cx.opts.memory[strPtr]));
     }
     virtual void getSetResult(bool &__isAllResult, size32_t &resultBytes, void *&result, int elemType, size32_t elemSize)
     {
@@ -647,10 +732,58 @@ public:
 protected:
     void test()
     {
+        std::vector<uint8_t> _contents = readWasmBinaryToBuffer("plugins/wasmembed/test/build-container/wasmembed.wasm");
+        const wasmtime::Span<uint8_t> &contents = _contents;
+        wasmEngine->setModule("wasmembed", contents);
+        wasmStore->registerInstance("wasmembed");
+        Function f("wasmembed.bool-test");
+        f.push_param(false);
+        f.push_param(false);
+        f.call();
+        bool r = f.pop_result<bool>();
+        CPPUNIT_ASSERT(r == false);
+
+        Function f2("wasmembed.bool-test");
+        f2.push_param(true);
+        f2.push_param(true);
+        f2.call();
+        bool r2 = f2.pop_result<bool>();
+        CPPUNIT_ASSERT(r2 == true);
+
+
+        CPPUNIT_ASSERT(wasmStore->call("wasmembed.bool-test", {true, true})[0].i32() == true);
+        auto params = wasmStore->getFuncParams("wasmembed.utf8-string-test");
+        CPPUNIT_ASSERT(params.size() == 4);
+        auto results = wasmStore->getFuncResults("wasmembed.utf8-string-test");
+        CPPUNIT_ASSERT(results.size() == 1);
+
+        // Function f("wasmembed.utf8-string-test");
+
+        abi::CallContext cx = wasmStore->createContext("wasmembed");
+        auto [aaa, aaa2] = abi::store_string(cx, "aaa");
+        auto [bbb, bbb2] = abi::store_string(cx, "bbb");
+        auto xxx = wasmStore->call("wasmembed.utf8-string-test", {aaa, aaa2, bbb, bbb2})[0].i32();
+        uint32_t strPtr;
+        std::string encoding;
+        uint32_t bytes;
+        std::tie(strPtr, encoding, bytes) = abi::load_string(cx, xxx);
+        size32_t codepoints = rtlUtf8Length(bytes, &cx.opts.memory[strPtr]);
+        size32_t chars;
+        char *result;
+        rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx.opts.memory[strPtr]));
+        CPPUNIT_ASSERT(strcmp(result, "aaabbb") == 0);
+    }
+
+    void test2()
+    {
         std::cout << "Compiling module\n";
         wasmtime::Engine engine;
 
         wasmtime::Store store(engine);
+        std::vector<uint8_t> _contents = readWasmBinaryToBuffer("plugins/wasmembed/test/build-container/wasmembed.wasm");
+        const wasmtime::Span<uint8_t> &contents = _contents;
+        auto module = wasmtime::Module::compile(engine, contents).unwrap();
+
         wasmtime::WasiConfig wasi;
         wasi.inherit_argv();
         wasi.inherit_env();
@@ -659,24 +792,19 @@ protected:
         wasi.inherit_stderr();
         store.context().set_wasi(std::move(wasi)).unwrap();
 
-        std::vector<uint8_t> _contents = readWasmBinaryToBuffer("plugins/wasmembed/test/build-container/wasmembed.wasm");
-        const wasmtime::Span<uint8_t> &contents = _contents;
-        auto module = wasmtime::Module::compile(engine, contents).unwrap();
-
-        std::cout << "Initializing...\n";
         wasmtime::Linker linker(engine);
         linker.define_wasi().unwrap();
 
-        auto callback = [](wasmtime::Caller caller, uint32_t msg, uint32_t msg_len)
+        auto callback = [&store](wasmtime::Caller caller, uint32_t msg, uint32_t msg_len)
         {
-            auto memory = std::get<wasmtime::Memory>(*caller.get_export("m"));
-            // auto data = this->getData(wasmName);
-            auto msg_ptr = ((char *)&memory)[msg];
+            auto memory = std::get<wasmtime::Memory>(*caller.get_export("memory"));
+            auto data = memory.data(store.context());
+            const char *msg_ptr = reinterpret_cast<const char *>(&data[msg]);
             std::string str(msg_ptr, msg_len);
-            DBGLOG("from wasm: %s", str.c_str());
+            std::cout << str << std::endl;
         };
-        auto host_func = linker.func_wrap("$root", "dbglog", callback).unwrap();
 
+        auto host_func = linker.func_wrap("$root", "dbglog", callback).unwrap();
         auto instance = linker.instantiate(store, module).unwrap();
         linker.define_instance(store, "linking2", instance).unwrap();
 
@@ -686,8 +814,29 @@ protected:
         ASSERT(bool_test.call(store, {true, false}).unwrap()[0].i32() == false);
         ASSERT(bool_test.call(store, {true, true}).unwrap()[0].i32() == true);
 
+        auto cabi_realloc = std::get<wasmtime::Func>(*instance.get(store, "cabi_realloc"));
+        std::function<int(int, int, int, int)> realloc = [&store, cabi_realloc](int a, int b, int c, int d) -> int
+        {
+            return cabi_realloc.call(store, {a, b, c, d}).unwrap()[0].i32();
+        };
         auto utf8_string_test = std::get<wasmtime::Func>(*instance.get(store, "utf8-string-test"));
-        // utf8_string_test.call(store, {"aaa", "bbb"});
+        auto memory = std::get<wasmtime::Memory>(*instance.get(store, "memory"));
+        store.context().set_data(memory);
+
+        abi::CallContext cx = abi::mk_cx(memory.data(store.context()), "utf8", realloc);
+
+        auto [aaa, aaa2] = abi::store_string(cx, "aaa");
+        auto [bbb, bbb2] = abi::store_string(cx, "bbb");
+        auto ret = utf8_string_test.call(store, {aaa, aaa2, bbb, bbb2}).unwrap();
+        auto ptr = ret[0].i32();
+        uint32_t strPtr;
+        std::string encoding;
+        uint32_t bytes;
+        std::tie(strPtr, encoding, bytes) = abi::load_string(cx, ptr);
+        size32_t codepoints = rtlUtf8Length(bytes, &cx.opts.memory[strPtr]);
+        size32_t chars;
+        char *result;
+        rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx.opts.memory[strPtr]));
 
         ASSERT(bool_test.call(store, {false, false}).unwrap()[0].i32() == false);
 

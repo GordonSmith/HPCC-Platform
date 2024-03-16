@@ -11,6 +11,7 @@ void dbglog(const std::string str)
 
 bool hpcc_test_bool_test(bool a, bool b)
 {
+    dbglog("hpcc_test_bool_test(" + std::to_string(a) + ", " + std::to_string(b) + ")");
     return a && b;
 }
 float hpcc_test_float32_test(float a, float b)
@@ -61,14 +62,12 @@ static uint32_t tally = 0;
 void hpcc_test_utf8_string_test(hpcc_test_string_t *a, hpcc_test_string_t *b, hpcc_test_string_t *ret)
 {
     std::string s1((const char *)a->ptr, a->len);
+    dbglog(std::string("s1:  ") + s1);
     hpcc_test_string_free(a);
     std::string s2((const char *)b->ptr, b->len);
+    dbglog(std::string("s2:  ") + s2);
     hpcc_test_string_free(b);
     std::string r = s1 + s2;
     dbglog(std::to_string(++tally) + ":  " + r);
     hpcc_test_string_dup(ret, r.c_str());
-}
-
-void hpcc_test_u8_list_test(hpcc_test_list_u8_t *ret)
-{
 }

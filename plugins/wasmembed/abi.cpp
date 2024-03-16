@@ -5,10 +5,12 @@
 
 #include "abi.hpp"
 
+#include "jexcept.hpp"
+
 #include <cmath>
 #include <cassert>
-
-#include "jexcept.hpp"
+#include <map>
+#include <cstring>
 
 namespace abi
 {
@@ -692,7 +694,7 @@ namespace abi
         return align_to(s, alignment_variant(cases));
     }
 
-    int num_i32_flags(const std::vector<std::string>& labels);
+    int num_i32_flags(const std::vector<std::string> &labels);
 
     int size_flags(const std::vector<std::string> &labels)
     {
@@ -705,7 +707,8 @@ namespace abi
         return 4 * num_i32_flags(labels);
     }
 
-    int num_i32_flags(const std::vector<std::string>& labels) {
+    int num_i32_flags(const std::vector<std::string> &labels)
+    {
         return std::ceil(static_cast<double>(labels.size()) / 32);
     }
 
@@ -716,153 +719,264 @@ namespace abi
 
     //  Runtime State  ---
 
-    class CallContext;
+    HandleElem::HandleElem(int rep, bool own, CallContext *scope)
+        : rep(rep), own(own), scope(scope), lend_count(0) {}
 
-    class HandleElem
+    HandleTable::HandleTable()
     {
-    public:
-        int rep;
-        bool own;
-        std::optional<CallContext *> scope;
-        int lend_count;
+        array.push_back(std::nullopt);
+    }
 
-        HandleElem(int rep, bool own, CallContext *scope = nullptr)
-            : rep(rep), own(own), scope(scope), lend_count(0) {}
-    };
-
-    class HandleTable
+    HandleElem &HandleTable::get(int i)
     {
-    public:
-        std::vector<std::optional<HandleElem>> array;
-        std::vector<int> free;
+        assert(i < array.size());
+        assert(array[i].has_value());
+        return array[i].value();
+    }
 
-        HandleTable()
-        {
-            array.push_back(std::nullopt);
-        }
-
-        HandleElem &get(int i)
-        {
-            assert(i < array.size());
-            assert(array[i].has_value());
-            return array[i].value();
-        }
-
-        int add(const HandleElem &h)
-        {
-            int i;
-            if (!free.empty())
-            {
-                i = free.back();
-                free.pop_back();
-                assert(!array[i].has_value());
-                array[i] = h;
-            }
-            else
-            {
-                i = static_cast<int>(array.size());
-                assert(i < (1 << 30));
-                array.push_back(h);
-            }
-            return i;
-        }
-
-        HandleElem remove(int i)
-        {
-            HandleElem h = get(i);
-            array[i] = std::nullopt;
-            free.push_back(i);
-            return h;
-        }
-    };
-
-    // class HandleTables
-    // {
-    // private:
-    //     std::unordered_map<ResourceType, HandleTable> rt_to_table;
-
-    // public:
-
-    //     HandleTable &table(ResourceType rt)
-    //     {
-    //         return rt_to_table[rt];
-    //     }
-
-    //     // Get a handle from the table
-    //     // Assuming HandleTable::get(i) returns the handle
-    //     // Modify the return type accordingly
-    //     HandleElem get(ResourceType rt, int i)
-    //     {
-    //         return table(rt).get(i);
-    //     }
-
-    //     // Add a handle to the table
-    //     // Assuming HandleTable::add(h) adds the handle
-    //     // Modify the parameters and return type accordingly
-    //     void add(ResourceType rt, const HandleElem &h)
-    //     {
-    //         table(rt).add(h);
-    //     }
-    // };
-
-    // class CanonicalOptions
-    // {
-    // public:
-    //     std::vector<uint8_t> memory;
-    //     std::string string_encoding;
-    //     std::function<int(int, int, int, int)> realloc;
-    //     std::function<void()> post_return;
-    // };
-
-    class ComponentInstance
+    int HandleTable::add(const HandleElem &h)
     {
-    public:
-        bool may_leave;
-        bool may_enter;
-        // HandleTables handles;
+        int i;
+        if (!free.empty())
+        {
+            i = free.back();
+            free.pop_back();
+            assert(!array[i].has_value());
+            array[i] = h;
+        }
+        else
+        {
+            i = static_cast<int>(array.size());
+            assert(i < (1 << 30));
+            array.push_back(h);
+        }
+        return i;
+    }
 
-        ComponentInstance() : may_leave(true), may_enter(true) {}
-    };
-
-    class ResourceType
+    HandleElem HandleTable::remove(int i)
     {
-    public:
-        ComponentInstance impl;
-        std::function<void(int)> dtor;
+        HandleElem h = get(i);
+        array[i] = std::nullopt;
+        free.push_back(i);
+        return h;
+    }
 
-        ResourceType(ComponentInstance impl, std::function<void(int)> dtor = nullptr)
-            : impl(impl), dtor(dtor) {}
-    };
+    HandleTable &HandleTables::table(std::shared_ptr<abi::ResourceType> rt)
+    {
+        if (rt_to_table.find(rt) == rt_to_table.end())
+        {
+            rt_to_table[rt] = HandleTable();
+        }
+        return rt_to_table[rt];
+    }
 
-    // class CallContext
-    // {
-    // public:
-    //     CanonicalOptions opts;
-    //     ComponentInstance inst;
-    //     std::vector<HandleElem> lenders;
-    //     int borrow_count;
+    HandleElem &HandleTables::get(std::shared_ptr<abi::ResourceType> rt, int i)
+    {
+        return table(rt).get(i);
+    }
 
-    //     CallContext(const CanonicalOptions &opts, const ComponentInstance &inst)
-    //         : opts(opts), inst(inst), borrow_count(0) {}
+    int HandleTables::add(std::shared_ptr<abi::ResourceType> rt, const HandleElem &h)
+    {
+        return table(rt).add(h);
+    }
 
-    //     void track_owning_lend(HandleElem &lending_handle)
-    //     {
-    //         assert(lending_handle.own);
-    //         lending_handle.lend_count++;
-    //         lenders.push_back(lending_handle);
-    //     }
+    HandleElem HandleTables::remove(std::shared_ptr<abi::ResourceType> rt, int i)
+    {
+        return table(rt).remove(i);
+    }
 
-    //     void exit_call()
-    //     {
-    //         assert(borrow_count == 0);
-    //         for (auto &h : lenders)
-    //         {
-    //             h.lend_count--;
-    //         }
-    //     }
-    // };
+    CanonicalOptions::CanonicalOptions(const wasmtime::Span<uint8_t> &memory,
+                                       const std::string &string_encoding,
+                                       const std::function<int(int, int, int, int)> &realloc,
+                                       const std::function<void()> &post_return) : memory(memory), string_encoding(string_encoding), realloc(realloc), post_return(post_return) {}
+
+    CanonicalOptions::CanonicalOptions(const CanonicalOptions &other) : memory(other.memory), string_encoding(other.string_encoding), realloc(other.realloc), post_return(other.post_return) {}
+
+    ComponentInstance::ComponentInstance()
+        : may_leave(true), may_enter(true), handles(HandleTables())
+    {
+    }
+
+    CallContext::CallContext(const CanonicalOptions &opts, const ComponentInstance &inst)
+        : opts(opts), inst(inst), borrow_count(0) {}
+
+    CallContext::CallContext(const CallContext &other) : opts(other.opts), inst(other.inst), borrow_count(other.borrow_count) {}
+    void CallContext::operator=(const CallContext &other)
+    {
+        opts = other.opts;
+        inst = other.inst;
+        borrow_count = other.borrow_count;
+    }
+
+    void CallContext::track_owning_lend(HandleElem &lending_handle)
+    {
+        assert(lending_handle.own);
+        lending_handle.lend_count++;
+        lenders.push_back(lending_handle);
+    }
+
+    void CallContext::exit_call()
+    {
+        assert(borrow_count == 0);
+        for (auto &h : lenders)
+        {
+            h.lend_count--;
+        }
+    }
+
+    ResourceType::ResourceType(ComponentInstance impl, std::function<void(int)> dtor)
+        : impl(impl), dtor(dtor) {}
+
+    bool ResourceType::operator<(const ResourceType &rt) const
+    {
+        return &impl < &rt.impl;
+    }
 
     //  loading ---
+
+    // int load_int(const CallContext &cx, int ptr, int nbytes, bool isSigned = false)
+    // {
+    //     int result = 0;
+    //     for (int i = 0; i < nbytes; ++i)
+    //     {
+    //         result |= (cx.opts.memory[ptr + i] << (8 * i));
+    //     }
+    //     if (isSigned && (cx.opts.memory[ptr + nbytes - 1] & 0x80))
+    //     {
+    //         for (int i = nbytes; i < sizeof(int); ++i)
+    //         {
+    //             result |= (0xFF << (8 * i));
+    //         }
+    //     }
+    //     return result;
+    // }
+
+    template <typename T>
+    T load_int(const CallContext &cx, uint32_t ptr, int nbytes)
+    {
+        T retVal = 0;
+        if (nbytes == 1)
+        {
+            retVal = static_cast<T>(cx.opts.memory[ptr]);
+        }
+        else if (nbytes == 2)
+        {
+            retVal = static_cast<T>((static_cast<uint16_t>(cx.opts.memory[ptr + 1]) << 8) |
+                                    static_cast<uint16_t>(cx.opts.memory[ptr]));
+        }
+        else if (nbytes == 4)
+        {
+            retVal = static_cast<T>((static_cast<uint32_t>(cx.opts.memory[ptr + 3]) << 24) |
+                                    (static_cast<uint32_t>(cx.opts.memory[ptr + 2]) << 16) |
+                                    (static_cast<uint32_t>(cx.opts.memory[ptr + 1]) << 8) |
+                                    static_cast<uint32_t>(cx.opts.memory[ptr]));
+        }
+        else if (nbytes == 8)
+        {
+            retVal = static_cast<T>((static_cast<uint64_t>(cx.opts.memory[ptr + 7]) << 56) |
+                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 6]) << 48) |
+                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 5]) << 40) |
+                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 4]) << 32) |
+                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 3]) << 24) |
+                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 2]) << 16) |
+                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 1]) << 8) |
+                                    static_cast<uint64_t>(cx.opts.memory[ptr]));
+        }
+        return retVal;
+    }
+
+    auto load(const CallContext &cx, uint32_t ptr, const ValType &t)
+    {
+        if (ptr != align_to(ptr, alignment(t)))
+        {
+            throw makeStringException(3, "Unaligned Ptr");
+        }
+
+        if (ptr + size(t) > cx.opts.memory.size())
+        {
+            throw makeStringException(1, "Out of bounds");
+        }
+
+        switch (despecialize(t).kind)
+        {
+        case ValKind::Bool:
+            // return convert_int_to_bool(load_int(cx, ptr, 1));
+            break;
+        case ValKind::U8:
+            return load_int<uint8_t>(cx, ptr, 1);
+        case ValKind::U16:
+            // return load_int(cx, ptr, 2);
+            break;
+        case ValKind::U32:
+            // return load_int(cx, ptr, 4);
+            break;
+        case ValKind::U64:
+            // return load_int(cx, ptr, 8);
+            break;
+        case ValKind::S8:
+            // return load_int(cx, ptr, 1, signed=True);
+            break;
+        case ValKind::S16:
+            // return load_int(cx, ptr, 2, signed=True);
+            break;
+        case ValKind::S32:
+            // return load_int(cx, ptr, 4, signed=True);
+            break;
+        case ValKind::S64:
+            // return load_int(cx, ptr, 8, signed=True);
+            break;
+        case ValKind::Float32:
+            // return decode_i32_as_float(load_int(cx, ptr, 4));
+            break;
+        case ValKind::Float64:
+            // return decode_i64_as_float(load_int(cx, ptr, 8));
+            break;
+        case ValKind::Char:
+            // return convert_i32_to_char(cx, load_int(cx, ptr, 4));
+            break;
+        case ValKind::String:
+            // return load_string(cx, ptr);
+            break;
+        case ValKind::List:
+            // return load_list(cx, ptr, t);
+            break;
+        case ValKind::Record:
+            // return load_record(cx, ptr, fields);
+            break;
+        case ValKind::Variant:
+            // return load_variant(cx, ptr, cases);
+            break;
+        case ValKind::Flags:
+            // return load_flags(cx, ptr, labels);
+            break;
+        case ValKind::Own:
+            // return lift_own(cx, load_int(cx.opts, ptr, 4), t);
+            break;
+        case ValKind::Borrow:
+            // return lift_borrow(cx, load_int(cx.opts, ptr, 4), t);
+            break;
+        }
+        //   match despecialize(t):
+        //     case Bool()         : return convert_int_to_bool(load_int(cx, ptr, 1))
+        //     case U8()           : return load_int(cx, ptr, 1)
+        //     case U16()          : return load_int(cx, ptr, 2)
+        //     case U32()          : return load_int(cx, ptr, 4)
+        //     case U64()          : return load_int(cx, ptr, 8)
+        //     case S8()           : return load_int(cx, ptr, 1, signed=True)
+        //     case S16()          : return load_int(cx, ptr, 2, signed=True)
+        //     case S32()          : return load_int(cx, ptr, 4, signed=True)
+        //     case S64()          : return load_int(cx, ptr, 8, signed=True)
+        //     case Float32()      : return decode_i32_as_float(load_int(cx, ptr, 4))
+        //     case Float64()      : return decode_i64_as_float(load_int(cx, ptr, 8))
+        //     case Char()         : return convert_i32_to_char(cx, load_int(cx, ptr, 4))
+        //     case String()       : return load_string(cx, ptr)
+        //     case List(t)        : return load_list(cx, ptr, t)
+        //     case Record(fields) : return load_record(cx, ptr, fields)
+        //     case Variant(cases) : return load_variant(cx, ptr, cases)
+        //     case Flags(labels)  : return load_flags(cx, ptr, labels)
+        //     case Own()          : return lift_own(cx, load_int(cx.opts, ptr, 4), t)
+        //     case Borrow()       : return lift_borrow(cx, load_int(cx.opts, ptr, 4), t)
+    }
 
     /* canonical load_int (python)              -------------------------------------------------------------
 
@@ -871,39 +985,6 @@ namespace abi
 
     */
 
-    template <typename T>
-    T load_int(const wasmtime::Span<uint8_t> &data, uint32_t ptr)
-    {
-        T retVal = 0;
-        if constexpr (sizeof(T) == 1)
-        {
-            retVal = static_cast<T>(data[ptr]);
-        }
-        else if constexpr (sizeof(T) == 2)
-        {
-            retVal = static_cast<T>((static_cast<uint16_t>(data[ptr + 1]) << 8) |
-                                    static_cast<uint16_t>(data[ptr]));
-        }
-        else if constexpr (sizeof(T) == 4)
-        {
-            retVal = static_cast<T>((static_cast<uint32_t>(data[ptr + 3]) << 24) |
-                                    (static_cast<uint32_t>(data[ptr + 2]) << 16) |
-                                    (static_cast<uint32_t>(data[ptr + 1]) << 8) |
-                                    static_cast<uint32_t>(data[ptr]));
-        }
-        else if constexpr (sizeof(T) == 8)
-        {
-            retVal = static_cast<T>((static_cast<uint64_t>(data[ptr + 7]) << 56) |
-                                    (static_cast<uint64_t>(data[ptr + 6]) << 48) |
-                                    (static_cast<uint64_t>(data[ptr + 5]) << 40) |
-                                    (static_cast<uint64_t>(data[ptr + 4]) << 32) |
-                                    (static_cast<uint64_t>(data[ptr + 3]) << 24) |
-                                    (static_cast<uint64_t>(data[ptr + 2]) << 16) |
-                                    (static_cast<uint64_t>(data[ptr + 1]) << 8) |
-                                    static_cast<uint64_t>(data[ptr]));
-        }
-        return retVal;
-    }
     /* canonical load_string_from_range (python)  -------------------------------------------------------------
 
     def load_string_from_range(cx, ptr, tagged_code_units):
@@ -939,24 +1020,24 @@ namespace abi
     //  More:  Not currently available from the wasmtime::context object, see https://github.com/bytecodealliance/wasmtime/issues/6719
     static const std::string global_encoding = "utf8";
 
-    std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t ptr, uint32_t tagged_code_units)
+    std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string_from_range(const CallContext &cx, uint32_t ptr, uint32_t tagged_code_units)
     {
         std::string encoding = "utf-8";
         uint32_t byte_length = tagged_code_units;
         uint32_t alignment = 1;
-        if (global_encoding.compare("utf8") == 0)
+        if (cx.opts.string_encoding.compare("utf8") == 0)
         {
             alignment = 1;
             byte_length = tagged_code_units;
             encoding = "utf-8";
         }
-        else if (global_encoding.compare("utf16") == 0)
+        else if (cx.opts.string_encoding.compare("utf16") == 0)
         {
             alignment = 2;
             byte_length = 2 * tagged_code_units;
             encoding = "utf-16-le";
         }
-        else if (global_encoding.compare("latin1+utf16") == 0)
+        else if (cx.opts.string_encoding.compare("latin1+utf16") == 0)
         {
             alignment = 2;
             if (tagged_code_units & UTF16_TAG)
@@ -970,16 +1051,17 @@ namespace abi
                 encoding = "latin-1";
             }
         }
-
         if (!isAligned(ptr, alignment))
         {
             throw makeStringException(3, "Invalid alignment");
         }
 
-        if (ptr + byte_length > data.size())
+        if (ptr + byte_length > cx.opts.memory.size())
         {
             throw makeStringException(1, "Out of bounds");
         }
+        // TODO
+        // auto s = cx.opts.memory[ptr:ptr+byte_length].decode(encoding);
 
         return std::make_tuple(ptr, encoding, byte_length);
     }
@@ -992,11 +1074,11 @@ namespace abi
       return load_string_from_range(cx, begin, tagged_code_units)
 
     */
-    std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string(const wasmtime::Span<uint8_t> &data, uint32_t ptr)
+    std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string(const CallContext &cx, uint32_t ptr)
     {
-        uint32_t begin = load_int<uint32_t>(data, ptr);
-        uint32_t tagged_code_units = load_int<uint32_t>(data, ptr + 4);
-        return load_string_from_range(data, begin, tagged_code_units);
+        uint32_t begin = load_int<uint32_t>(cx, ptr, 4);
+        uint32_t tagged_code_units = load_int<uint32_t>(cx, ptr + 4, 4);
+        return load_string_from_range(cx, begin, tagged_code_units);
     }
 
     /*  canonical load_list_from_range (python) -------------------------------------------------------------
@@ -1036,6 +1118,259 @@ namespace abi
     */
 
     //  Storing  ---
+    void store_int(const CallContext &cx, int v, uint32_t ptr, uint32_t nbytes, bool isSigned = false)
+    {
+        if (isSigned)
+        {
+            int64_t signedValue = static_cast<int64_t>(v);
+            std::memcpy(&cx.opts.memory[ptr], &signedValue, nbytes);
+        }
+        else
+        {
+            uint64_t unsignedValue = static_cast<uint64_t>(v);
+            std::memcpy(&cx.opts.memory[ptr], &unsignedValue, nbytes);
+        }
+    }
+
+    std::tuple<uint32_t, uint32_t> store_string_copy(const CallContext &cx, const std::string &src, uint32_t src_code_units, uint32_t dst_code_unit_size, uint32_t dst_alignment, const std::string &dst_encoding)
+    {
+        const uint32_t MAX_STRING_BYTE_LENGTH = (1U << 31) - 1;
+        uint32_t dst_byte_length = dst_code_unit_size * src_code_units;
+        if (dst_byte_length > MAX_STRING_BYTE_LENGTH)
+            throw makeStringException(3, "Destination byte length exceeds maximum string byte length");
+        uint32_t ptr = cx.opts.realloc(0, 0, dst_alignment, dst_byte_length);
+        if (ptr != align_to(ptr, dst_alignment))
+            throw makeStringException(4, "Pointer is not aligned");
+        if (ptr + dst_byte_length > cx.opts.memory.size())
+            throw makeStringException(5, "Out of bounds access");
+        // TODO:    std::string encoded = encode(src, dst_encoding);
+        std::string encoded = src;
+        if (dst_byte_length != encoded.size())
+            throw makeStringException(6, "Destination byte length does not match encoded string length");
+        std::memcpy(&cx.opts.memory[ptr], encoded.data(), encoded.size());
+        return std::make_tuple(ptr, src_code_units);
+    }
+
+    auto MAX_STRING_BYTE_LENGTH = (1U << 31) - 1;
+
+    std::tuple<uint32_t, uint32_t> store_string_to_utf8(const CallContext &cx, const std::string &src, uint32_t src_code_units, uint32_t worst_case_size)
+    {
+        assert(src_code_units <= MAX_STRING_BYTE_LENGTH);
+        uint32_t ptr = cx.opts.realloc(0, 0, 1, src_code_units);
+        if (ptr + src_code_units > cx.opts.memory.size())
+            throw std::runtime_error("Out of bounds access");
+        //  TODO:  std::string encoded = encode(src, "utf-8");
+        std::string encoded = src;
+        assert(src_code_units <= encoded.size());
+        std::memcpy(&cx.opts.memory[ptr], encoded.data(), src_code_units);
+        if (src_code_units < encoded.size())
+        {
+            if (worst_case_size > MAX_STRING_BYTE_LENGTH)
+                throw std::runtime_error("Worst case size exceeds maximum string byte length");
+            ptr = cx.opts.realloc(ptr, src_code_units, 1, worst_case_size);
+            if (ptr + worst_case_size > cx.opts.memory.size())
+                throw std::runtime_error("Out of bounds access");
+            std::memcpy(&cx.opts.memory[ptr + src_code_units], &encoded[src_code_units], encoded.size() - src_code_units);
+            if (worst_case_size > encoded.size())
+            {
+                ptr = cx.opts.realloc(ptr, worst_case_size, 1, encoded.size());
+                if (ptr + encoded.size() > cx.opts.memory.size())
+                    throw std::runtime_error("Out of bounds access");
+            }
+        }
+        return std::make_tuple(ptr, encoded.size());
+    }
+
+    std::tuple<uint32_t, uint32_t> store_utf16_to_utf8(const CallContext &cx, const std::string &src, uint32_t src_code_units)
+    {
+        uint32_t worst_case_size = src_code_units * 3;
+        return store_string_to_utf8(cx, src, src_code_units, worst_case_size);
+    }
+
+    std::tuple<uint32_t, uint32_t> store_latin1_to_utf8(const CallContext &cx, const std::string &src, uint32_t src_code_units)
+    {
+        uint32_t worst_case_size = src_code_units * 2;
+        return store_string_to_utf8(cx, src, src_code_units, worst_case_size);
+    }
+
+    std::tuple<uint32_t, uint32_t> store_utf8_to_utf16(const CallContext &cx, const std::string &src, uint32_t src_code_units)
+    {
+        uint32_t worst_case_size = 2 * src_code_units;
+        if (worst_case_size > MAX_STRING_BYTE_LENGTH)
+            throw std::runtime_error("Worst case size exceeds maximum string byte length");
+        uint32_t ptr = cx.opts.realloc(0, 0, 2, worst_case_size);
+        if (ptr != align_to(ptr, 2))
+            throw std::runtime_error("Pointer misaligned");
+        if (ptr + worst_case_size > cx.opts.memory.size())
+            throw std::runtime_error("Out of bounds access");
+        //  TODO:  std::string encoded = encode(src, "utf-16-le");
+        std::string encoded = src;
+        std::memcpy(&cx.opts.memory[ptr], encoded.data(), encoded.size());
+        if (encoded.size() < worst_case_size)
+        {
+            ptr = cx.opts.realloc(ptr, worst_case_size, 2, encoded.size());
+            if (ptr != align_to(ptr, 2))
+                throw std::runtime_error("Pointer misaligned");
+            if (ptr + encoded.size() > cx.opts.memory.size())
+                throw std::runtime_error("Out of bounds access");
+        }
+        uint32_t code_units = static_cast<uint32_t>(encoded.size() / 2);
+        return std::make_tuple(ptr, code_units);
+    }
+
+    std::tuple<uint32_t, uint32_t> store_string_to_latin1_or_utf16(const CallContext &cx, const std::string &src, uint32_t src_code_units)
+    {
+        assert(src_code_units <= MAX_STRING_BYTE_LENGTH);
+        uint32_t ptr = cx.opts.realloc(0, 0, 2, src_code_units);
+        if (ptr != align_to(ptr, 2))
+            throw std::runtime_error("Pointer misaligned");
+        if (ptr + src_code_units > cx.opts.memory.size())
+            throw std::runtime_error("Out of bounds access");
+        uint32_t dst_byte_length = 0;
+        for (char usv : src)
+        {
+            if (static_cast<uint32_t>(usv) < (1 << 8))
+            {
+                cx.opts.memory[ptr + dst_byte_length] = static_cast<uint32_t>(usv);
+                dst_byte_length += 1;
+            }
+            else
+            {
+                uint32_t worst_case_size = 2 * src_code_units;
+                if (worst_case_size > MAX_STRING_BYTE_LENGTH)
+                    throw std::runtime_error("Worst case size exceeds maximum string byte length");
+                ptr = cx.opts.realloc(ptr, src_code_units, 2, worst_case_size);
+                if (ptr != align_to(ptr, 2))
+                    throw std::runtime_error("Pointer misaligned");
+                if (ptr + worst_case_size > cx.opts.memory.size())
+                    throw std::runtime_error("Out of bounds access");
+                for (int j = dst_byte_length - 1; j >= 0; --j)
+                {
+                    cx.opts.memory[ptr + 2 * j] = cx.opts.memory[ptr + j];
+                    cx.opts.memory[ptr + 2 * j + 1] = 0;
+                }
+                // TODO: Implement encoding to 'utf-16-le'
+                std::string encoded = src;
+                std::memcpy(&cx.opts.memory[ptr + 2 * dst_byte_length], encoded.data(), encoded.size());
+                if (worst_case_size > encoded.size())
+                {
+                    ptr = cx.opts.realloc(ptr, worst_case_size, 2, encoded.size());
+                    if (ptr != align_to(ptr, 2))
+                        throw std::runtime_error("Pointer misaligned");
+                    if (ptr + encoded.size() > cx.opts.memory.size())
+                        throw std::runtime_error("Out of bounds access");
+                }
+                uint32_t tagged_code_units = static_cast<uint32_t>(encoded.size() / 2) | UTF16_TAG;
+                return std::make_tuple(ptr, tagged_code_units);
+            }
+        }
+        if (dst_byte_length < src_code_units)
+        {
+            ptr = cx.opts.realloc(ptr, src_code_units, 2, dst_byte_length);
+            if (ptr != align_to(ptr, 2))
+                throw std::runtime_error("Pointer misaligned");
+            if (ptr + dst_byte_length > cx.opts.memory.size())
+                throw std::runtime_error("Out of bounds access");
+        }
+        return std::make_tuple(ptr, dst_byte_length);
+    }
+
+    std::tuple<uint32_t, uint32_t> store_probably_utf16_to_latin1_or_utf16(const CallContext &cx, const std::string &src, uint32_t src_code_units)
+    {
+        uint32_t src_byte_length = 2 * src_code_units;
+        if (src_byte_length > MAX_STRING_BYTE_LENGTH)
+            throw std::runtime_error("src_byte_length exceeds MAX_STRING_BYTE_LENGTH");
+
+        uint32_t ptr = cx.opts.realloc(0, 0, 2, src_byte_length);
+        if (ptr != align_to(ptr, 2))
+            throw std::runtime_error("ptr is not aligned");
+
+        if (ptr + src_byte_length > cx.opts.memory.size())
+            throw std::runtime_error("Not enough memory");
+
+        //  TODO:  std::string encoded = encode_utf16le(src);
+        std::string encoded = src;
+        std::copy(encoded.begin(), encoded.end(), cx.opts.memory.begin() + ptr);
+
+        if (std::any_of(src.begin(), src.end(), [](char c)
+                        { return static_cast<unsigned char>(c) >= (1 << 8); }))
+        {
+            uint32_t tagged_code_units = static_cast<uint32_t>(encoded.size() / 2) | UTF16_TAG;
+            return std::make_tuple(ptr, tagged_code_units);
+        }
+
+        uint32_t latin1_size = static_cast<uint32_t>(encoded.size() / 2);
+        for (uint32_t i = 0; i < latin1_size; ++i)
+            cx.opts.memory[ptr + i] = cx.opts.memory[ptr + 2 * i];
+
+        ptr = cx.opts.realloc(ptr, src_byte_length, 1, latin1_size);
+        if (ptr + latin1_size > cx.opts.memory.size())
+            throw std::runtime_error("Not enough memory");
+
+        return std::make_tuple(ptr, latin1_size);
+    }
+
+    std::tuple<uint32_t, uint32_t> store_string_into_range(const CallContext &cx, const std::string &src, const std::string &src_encoding, uint32_t src_tagged_code_units)
+    {
+        std::string src_simple_encoding;
+        uint32_t src_code_units;
+
+        if (src_encoding == "latin1+utf16")
+        {
+            if (src_tagged_code_units & UTF16_TAG)
+            {
+                src_simple_encoding = "utf16";
+                src_code_units = src_tagged_code_units ^ UTF16_TAG;
+            }
+            else
+            {
+                src_simple_encoding = "latin1";
+                src_code_units = src_tagged_code_units;
+            }
+        }
+        else
+        {
+            src_simple_encoding = src_encoding;
+            src_code_units = src_tagged_code_units;
+        }
+
+        if (cx.opts.string_encoding.compare("utf8") == 0)
+        {
+            if (src_simple_encoding == "utf8")
+                return store_string_copy(cx, src, src_code_units, 1, 1, "utf-8");
+            else if (src_simple_encoding == "utf16")
+                return store_utf16_to_utf8(cx, src, src_code_units);
+            else if (src_simple_encoding == "latin1")
+                return store_latin1_to_utf8(cx, src, src_code_units);
+        }
+        else if (cx.opts.string_encoding.compare("utf16") == 0)
+        {
+            if (src_simple_encoding == "utf8")
+                return store_utf8_to_utf16(cx, src, src_code_units);
+            else if (src_simple_encoding == "utf16" || src_simple_encoding == "latin1")
+                return store_string_copy(cx, src, src_code_units, 2, 2, "utf-16-le");
+        }
+        else if (cx.opts.string_encoding.compare("latin1+utf16") == 0)
+        {
+            if (src_encoding == "utf8" || src_encoding == "utf16")
+                return store_string_to_latin1_or_utf16(cx, src, src_code_units);
+            else if (src_encoding == "latin1+utf16")
+            {
+                if (src_simple_encoding == "latin1")
+                    return store_string_copy(cx, src, src_code_units, 1, 2, "latin-1");
+                else if (src_simple_encoding == "utf16")
+                    return store_probably_utf16_to_latin1_or_utf16(cx, src, src_code_units);
+            }
+        }
+
+        throw makeStringException(3, "Unsupported encoding");
+    }
+
+    std::tuple<wasmtime::Val, wasmtime::Val> store_string(const CallContext &cx, const std::string &v)
+    {
+        auto [begin, tagged_code_units] = store_string_into_range(cx, v, "utf8", v.size());
+        return std::make_tuple(wasmtime::Val(static_cast<int32_t>(begin)), wasmtime::Val(static_cast<int32_t>(tagged_code_units)));
+    }
 
     /*
 
@@ -1053,8 +1388,6 @@ namespace abi
       return (ptr, src_code_units)
 
     */
-
-    uint32_t MAX_STRING_BYTE_LENGTH = (1U << 31) - 1;
 
     // std::tuple<uint32_t, uint32_t> store_string_copy(const wasmtime::Span<uint8_t> &data, const char *src, uint32_t src_code_units, uint32_t dst_code_unit_size, uint32_t dst_alignment, const std::string &dst_encoding)
     // {
@@ -1204,6 +1537,24 @@ namespace abi
     // }
 
     // void store_string(const wasmtime::Span<uint8_t> &data, const std::string &utf8Str)
+
+    CanonicalOptions mk_opts(const wasmtime::Span<uint8_t> &memory,
+                             const std::string &encoding = "utf8",
+                             const std::function<int(int, int, int, int)> &realloc = nullptr,
+                             const std::function<void()> &post_return = nullptr)
+    {
+        return CanonicalOptions(memory, encoding, realloc, post_return);
+    }
+
+    CallContext mk_cx(const wasmtime::Span<uint8_t> &memory,
+                      const std::string &encoding,
+                      const std::function<int(int, int, int, int)> &realloc,
+                      const std::function<void()> &post_return)
+    {
+        auto opts = mk_opts(memory, encoding, realloc, post_return);
+        return CallContext(opts, ComponentInstance());
+    }
+
     // {
     // }
 }
@@ -1298,28 +1649,6 @@ bool equal_modulo_string_encoding(const auto &s, const auto &t)
 //         return ret;
 //     }
 // };
-
-// CanonicalOptions mk_opts(const std::vector<uint8_t> &memory = {},
-//                          const std::string &encoding = "utf8",
-//                          const std::function<int(int, int, int, int)> &realloc = nullptr,
-//                          const std::function<void()> &post_return = nullptr)
-// {
-//     CanonicalOptions opts;
-//     opts.memory = memory;
-//     opts.string_encoding = encoding;
-//     opts.realloc = realloc;
-//     opts.post_return = post_return;
-//     return opts;
-// }
-
-// CallContext mk_cx(const std::vector<uint8_t> &memory = {},
-//                   const std::string &encoding = "utf8",
-//                   const std::function<int(int, int, int, int)> &realloc = nullptr,
-//                   const std::function<void()> &post_return = nullptr)
-// {
-//     auto opts = mk_opts(memory, encoding, realloc, post_return);
-//     return CallContext(opts, ComponentInstance());
-// }
 
 // std::tuple<std::string, std::string, size_t> mk_str(const std::string &s)
 // {
