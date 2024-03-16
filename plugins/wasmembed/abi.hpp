@@ -56,12 +56,6 @@ namespace abi
 
     //  ---
 
-    class Type
-    {
-    public:
-        virtual ~Type() = default;
-    };
-
     class ExternType : public Type
     {
     public:
