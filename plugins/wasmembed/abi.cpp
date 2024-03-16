@@ -11,6 +11,11 @@
 #include <cstring>
 #include <random>
 #include <bit>
+#include <stdexcept>
+#include <any>
+
+using float32_t = float;
+using float64_t = double;
 
 namespace abi
 {
@@ -232,6 +237,7 @@ namespace abi
         case ValKind::Borrow:
             return 4;
         }
+
         throw std::runtime_error("Invalid type");
     }
 
@@ -448,7 +454,7 @@ namespace abi
         return table(rt).remove(i);
     }
 
-    CanonicalOptions::CanonicalOptions(const wasmtime::Span<uint8_t> &memory,
+    CanonicalOptions::CanonicalOptions(const Span<uint8_t> &memory,
                                        const std::string &string_encoding,
                                        const std::function<int(int, int, int, int)> &realloc,
                                        const std::function<void()> &post_return) : memory(memory), string_encoding(string_encoding), realloc(realloc), post_return(post_return) {}
@@ -631,8 +637,8 @@ namespace abi
 
     std::vector<std::any> load_list_from_range(const CallContext &cx, uint32_t ptr, uint32_t length, const ValType &t)
     {
-        assert(ptr == align_to(ptr, alignment(elem_type)));
-        assert(ptr + length * size(elem_type) <= cx.opts.memory.size());
+        assert(ptr == align_to(ptr, alignment(t)));
+        assert(ptr + length * size(t) <= cx.opts.memory.size());
         std::vector<std::any> a;
         for (uint32_t i = 0; i < length; ++i)
         {
@@ -895,7 +901,7 @@ namespace abi
     {
         assert(src_code_units <= MAX_STRING_BYTE_LENGTH);
         uint32_t ptr = cx.opts.realloc(0, 0, 1, src_code_units);
-        assert(ptr + src_code_units <=> cx.opts.memory.size());
+        assert(ptr + src_code_units <= cx.opts.memory.size());
         //  TODO:  std::string encoded = encode(src, "utf-8");
         std::string encoded = std::string(src, src_code_units);
         assert(src_code_units <= encoded.size());
@@ -1247,7 +1253,7 @@ namespace abi
         return GuestStringPtr(begin, tagged_code_units);
     }
 
-    CanonicalOptions mk_opts(const wasmtime::Span<uint8_t> &memory,
+    CanonicalOptions mk_opts(const Span<uint8_t> &memory,
                              const std::string &encoding = "utf8",
                              const std::function<int(int, int, int, int)> &realloc = nullptr,
                              const std::function<void()> &post_return = nullptr)
@@ -1255,7 +1261,7 @@ namespace abi
         return CanonicalOptions(memory, encoding, realloc, post_return);
     }
 
-    CallContext mk_cx(const wasmtime::Span<uint8_t> &memory,
+    CallContext mk_cx(const Span<uint8_t> &memory,
                       const std::string &encoding,
                       const std::function<int(int, int, int, int)> &realloc,
                       const std::function<void()> &post_return)

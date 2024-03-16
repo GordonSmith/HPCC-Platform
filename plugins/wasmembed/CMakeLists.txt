@@ -40,6 +40,8 @@ if(WASMEMBED)
             secure-enclave.cpp
             abi.hpp
             abi.cpp
+            cmcpp.hpp
+            cmcpp.cpp
             util.cpp
         )
 

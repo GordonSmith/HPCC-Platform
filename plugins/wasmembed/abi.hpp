@@ -5,23 +5,26 @@
 #include <sstream>
 #endif
 
+#include <cstdint>
+#include <string>
 #include <functional>
 #include <optional>
 #include <map>
 
-#include <wasmtime.hh>
-
 namespace abi
 {
+    template <typename T, std::size_t Extent = std::dynamic_extent>
+    using Span = std::span<T, Extent>;
+
     class CanonicalOptions
     {
     public:
-        wasmtime::Span<uint8_t> memory;
+        Span<uint8_t> memory;
         std::string string_encoding;
         std::function<int(int, int, int, int)> realloc;
         std::function<void()> post_return;
 
-        CanonicalOptions(const wasmtime::Span<uint8_t> &memory,
+        CanonicalOptions(const Span<uint8_t> &memory,
                          const std::string &string_encoding,
                          const std::function<int(int, int, int, int)> &realloc,
                          const std::function<void()> &post_return);
@@ -107,7 +110,7 @@ namespace abi
         void exit_call();
     };
 
-    CallContext mk_cx(const wasmtime::Span<uint8_t> &memory,
+    CallContext mk_cx(const Span<uint8_t> &memory,
                       const std::string &encoding = "utf8",
                       const std::function<int(int, int, int, int)> &realloc = nullptr,
                       const std::function<void()> &post_return = nullptr);

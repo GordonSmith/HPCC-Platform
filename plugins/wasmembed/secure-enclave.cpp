@@ -24,6 +24,9 @@
     {                      \
     } while (0)
 #endif
+
+#include <wasmtime.hh>
+
 class WasmEngine
 {
 private:
