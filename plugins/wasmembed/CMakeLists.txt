@@ -3,7 +3,6 @@ project(wasmembed)
 if(WASMEMBED)
     ADD_PLUGIN(wasmembed)
     if(MAKE_WASMEMBED)
-        add_subdirectory (abi)
         set(CMAKE_CXX_STANDARD 20)
         find_path(WASMTIME_CPP_API_INCLUDE_DIRS "wasmtime-cpp-api/wasmtime.hh"
             PATHS ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}
