@@ -27,7 +27,7 @@ world hpcc-test {
   export s32-test: func(a: s32, b: s32) -> s32;
   export s64-test: func(a: s64, b: s64) -> s64;
   export utf8-string-test: func(a: string, b: string) -> string;
-  export utf8-string-test2: func(a: string, b: string) -> list<string>;
+  export utf8-string-test2: func(a: string, b: string) -> (a: string, b: string);
 
 //  export list-c: func(a: list<u8>);
 //  export list-d: func() -> list<u8>;
