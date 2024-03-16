@@ -10,9 +10,7 @@
 			"-DCONTAINERIZED=OFF",
 			"-DUSE_OPTIONAL=OFF",
 			"-DUSE_CPPUNIT=ON",
-			"-DINCLUDE_PLUGINS=ON",
-			"-DSUPPRESS_V8EMBED=ON",
-			"-DSUPPRESS_REMBED=ON"
+			"-DECLBLAS=ON"
 		],
 		"editor.formatOnSave": false
 	},

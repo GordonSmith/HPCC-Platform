@@ -324,10 +324,7 @@ public:
         auto gc_func_name = createQualifiedID(wasmName, "cabi_post_" + funcName);
         if (wasmStore->hasFunc(gc_func_name))
         {
-            for (auto &result : wasmResults)
-            {
-                wasmStore->call(gc_func_name, {result});
-            }
+            wasmStore->call(gc_func_name, {wasmResults});
         }
     }
 
@@ -337,21 +334,22 @@ public:
         args.push_back(val);
     }
 
-    template <typename T>
-    T pop_result()
+    void push_param(const char *str)
     {
-        TRACE("Function::pop_result %s", "bool");
-        if (wasmResults.empty())
-            throw std::runtime_error("No results to pop");
+        const abi::CallContext &cx = wasmStore->createContext(wasmName);
+        auto tmp = abi::store_string(cx, str);
+        args.push_back(std::get<0>(tmp));
+        args.push_back(std::get<1>(tmp));
+    }
 
-        auto result = wasmResults[0];
+    template <typename T>
+    T result(size_t idx = 0)
+    {
+        TRACE("Function::result");
+        if (wasmResults.empty() || idx >= wasmResults.size())
+            throw std::runtime_error("idx out of range");
 
-        wasmResults.erase(wasmResults.begin());
-        auto gc_func_name = createQualifiedID(wasmName, "cabi_post_" + funcName);
-        if (wasmStore->hasFunc(gc_func_name))
-        {
-            wasmStore->call(gc_func_name, {result});
-        }
+        auto result = wasmResults[idx];
 
         if constexpr (std::is_same<T, bool>::value ||
                       std::is_same<T, uint8_t>::value ||
@@ -363,6 +361,20 @@ public:
                 throw std::runtime_error("Result is not an i32");
             return result.i32();
         }
+        else if constexpr (std::is_same<T, const char *>::value)
+        {
+            if (result.kind() != wasmtime::ValKind::I32)
+                throw std::runtime_error("Result is not an i32");
+            const abi::CallContext &cx = wasmStore->createContext(wasmName);
+            auto ptr = result.i32();
+            auto [strPtr, encoding, bytes] = abi::load_string(cx, ptr);
+            size32_t codepoints = rtlUtf8Length(bytes, &cx.opts.memory[strPtr]);
+            size32_t chars;
+            char *result;
+            rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx.opts.memory[strPtr]));
+            return result;
+        }
+        throw std::runtime_error("Unknwon T");
     }
 
     void call()
@@ -740,16 +752,24 @@ protected:
         f.push_param(false);
         f.push_param(false);
         f.call();
-        bool r = f.pop_result<bool>();
+        bool r = f.result<bool>(0);
         CPPUNIT_ASSERT(r == false);
 
         Function f2("wasmembed.bool-test");
         f2.push_param(true);
         f2.push_param(true);
         f2.call();
-        bool r2 = f2.pop_result<bool>();
+        bool r2 = f2.result<bool>(0);
         CPPUNIT_ASSERT(r2 == true);
 
+        Function f3("wasmembed.utf8-string-test2");
+        f3.push_param("aaa");
+        f3.push_param("bbb");
+        f3.call();
+        const char *r3 = f3.result<const char *>(0);
+        CPPUNIT_ASSERT(strcmp(r3, "aaabbb") == 0);
+        const char *r4 = f3.result<const char *>(1);
+        CPPUNIT_ASSERT(strcmp(r4, "aaabbb") == 0);
 
         CPPUNIT_ASSERT(wasmStore->call("wasmembed.bool-test", {true, true})[0].i32() == true);
         auto params = wasmStore->getFuncParams("wasmembed.utf8-string-test");

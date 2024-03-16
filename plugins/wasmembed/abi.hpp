@@ -107,6 +107,13 @@ namespace abi
                       const std::function<int(int, int, int, int)> &realloc = nullptr,
                       const std::function<void()> &post_return = nullptr);
 
+    template <typename T>
+    T load_int(const CallContext &cx, uint32_t ptr, uint8_t nbytes);
+    bool convert_int_to_bool(uint8_t i);
+
+    template <typename T>
+    void store_int(const CallContext &cx, const T &v, uint32_t ptr, uint8_t nbytes, bool isSigned = false);
+
     std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string(const CallContext &cx, uint32_t ptr);
     std::tuple<wasmtime::Val, wasmtime::Val> store_string(const CallContext &cx, const std::string &v);
 }

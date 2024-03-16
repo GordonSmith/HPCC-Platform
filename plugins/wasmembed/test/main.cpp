@@ -71,3 +71,9 @@ void hpcc_test_utf8_string_test(hpcc_test_string_t *a, hpcc_test_string_t *b, hp
     dbglog(std::to_string(++tally) + ":  " + r);
     hpcc_test_string_dup(ret, r.c_str());
 }
+
+void hpcc_test_utf8_string_test2(hpcc_test_string_t *a, hpcc_test_string_t *b, hpcc_test_string_t *ret0, hpcc_test_string_t *ret1)
+{
+    hpcc_test_utf8_string_test(a, b, ret0);
+    hpcc_test_utf8_string_test(b, a, ret1);
+}

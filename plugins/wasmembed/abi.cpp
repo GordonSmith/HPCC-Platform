@@ -16,20 +16,6 @@ namespace abi
 {
     auto UTF16_TAG = 1U << 31;
 
-    // class List;
-    // class Record;
-    // class Tuple;
-    // class Variant;
-    // class Enum;
-    // class Option;
-    // class Result;
-    // class Flags;
-    // class Own;
-    // class Borrow;
-
-    // typedef std::variant<bool, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float32_t, float64_t,
-    // char, std::string, List, Record, Tuple, Variant, Enum, Option, Result, Flags, Own, Borrow> VariantT;
-
     class Type
     {
     public:
@@ -258,7 +244,7 @@ namespace abi
     class ValType
     {
     public:
-        ValKind kind;
+        const ValKind kind;
 
         ValType(ValKind kind) : kind(kind) {}
     };
@@ -267,12 +253,26 @@ namespace abi
     {
     public:
         Bool() : ValType(ValKind::Bool) {}
+
+        static bool load(const CallContext &cx, uint32_t ptr)
+        {
+            return convert_int_to_bool(load_int<uint8_t>(cx, ptr, 1));
+        }
+        static void store(const CallContext &cx, bool v, uint32_t ptr)
+        {
+            store_int(cx, v, ptr, 1);
+        }
     };
 
     class S8 : public ValType
     {
     public:
         S8() : ValType(ValKind::S8) {}
+
+        static bool load(const CallContext &cx, uint32_t ptr)
+        {
+            return convert_int_to_bool(load_int<uint8_t>(cx, ptr, 1));
+        }
     };
 
     class U8 : public ValType
@@ -851,41 +851,50 @@ namespace abi
     //     return result;
     // }
 
-    template <typename T>
-    T load_int(const CallContext &cx, uint32_t ptr, int nbytes)
+    // template <typename T>
+    // T load_int(const CallContext &cx, uint32_t ptr, uint8_t nbytes)
+    // {
+    //     T retVal = 0;
+    //     if (nbytes == 1)
+    //     {
+    //         retVal = static_cast<T>(cx.opts.memory[ptr]);
+    //     }
+    //     else if (nbytes == 2)
+    //     {
+    //         retVal = static_cast<T>((static_cast<uint16_t>(cx.opts.memory[ptr + 1]) << 8) |
+    //                                 static_cast<uint16_t>(cx.opts.memory[ptr]));
+    //     }
+    //     else if (nbytes == 4)
+    //     {
+    //         retVal = static_cast<T>((static_cast<uint32_t>(cx.opts.memory[ptr + 3]) << 24) |
+    //                                 (static_cast<uint32_t>(cx.opts.memory[ptr + 2]) << 16) |
+    //                                 (static_cast<uint32_t>(cx.opts.memory[ptr + 1]) << 8) |
+    //                                 static_cast<uint32_t>(cx.opts.memory[ptr]));
+    //     }
+    //     else if (nbytes == 8)
+    //     {
+    //         retVal = static_cast<T>((static_cast<uint64_t>(cx.opts.memory[ptr + 7]) << 56) |
+    //                                 (static_cast<uint64_t>(cx.opts.memory[ptr + 6]) << 48) |
+    //                                 (static_cast<uint64_t>(cx.opts.memory[ptr + 5]) << 40) |
+    //                                 (static_cast<uint64_t>(cx.opts.memory[ptr + 4]) << 32) |
+    //                                 (static_cast<uint64_t>(cx.opts.memory[ptr + 3]) << 24) |
+    //                                 (static_cast<uint64_t>(cx.opts.memory[ptr + 2]) << 16) |
+    //                                 (static_cast<uint64_t>(cx.opts.memory[ptr + 1]) << 8) |
+    //                                 static_cast<uint64_t>(cx.opts.memory[ptr]));
+    //     }
+    //     else
+    //     {
+    //         throw makeStringException(3, "Invalid nbytes");
+    //     }
+    //     return retVal;
+    // }
+
+    bool convert_int_to_bool(uint8_t i)
     {
-        T retVal = 0;
-        if (nbytes == 1)
-        {
-            retVal = static_cast<T>(cx.opts.memory[ptr]);
-        }
-        else if (nbytes == 2)
-        {
-            retVal = static_cast<T>((static_cast<uint16_t>(cx.opts.memory[ptr + 1]) << 8) |
-                                    static_cast<uint16_t>(cx.opts.memory[ptr]));
-        }
-        else if (nbytes == 4)
-        {
-            retVal = static_cast<T>((static_cast<uint32_t>(cx.opts.memory[ptr + 3]) << 24) |
-                                    (static_cast<uint32_t>(cx.opts.memory[ptr + 2]) << 16) |
-                                    (static_cast<uint32_t>(cx.opts.memory[ptr + 1]) << 8) |
-                                    static_cast<uint32_t>(cx.opts.memory[ptr]));
-        }
-        else if (nbytes == 8)
-        {
-            retVal = static_cast<T>((static_cast<uint64_t>(cx.opts.memory[ptr + 7]) << 56) |
-                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 6]) << 48) |
-                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 5]) << 40) |
-                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 4]) << 32) |
-                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 3]) << 24) |
-                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 2]) << 16) |
-                                    (static_cast<uint64_t>(cx.opts.memory[ptr + 1]) << 8) |
-                                    static_cast<uint64_t>(cx.opts.memory[ptr]));
-        }
-        return retVal;
+        return i > 0;
     }
 
-    auto load(const CallContext &cx, uint32_t ptr, const ValType &t)
+    std::variant<bool, uint8_t, uint16_t> load(const CallContext &cx, uint32_t ptr, const ValType &t)
     {
         if (ptr != align_to(ptr, alignment(t)))
         {
@@ -900,13 +909,11 @@ namespace abi
         switch (despecialize(t).kind)
         {
         case ValKind::Bool:
-            // return convert_int_to_bool(load_int(cx, ptr, 1));
-            break;
+            return convert_int_to_bool(load_int<uint8_t>(cx, ptr, 1));
         case ValKind::U8:
             return load_int<uint8_t>(cx, ptr, 1);
         case ValKind::U16:
-            // return load_int(cx, ptr, 2);
-            break;
+            return load_int<uint16_t>(cx, ptr, 2);
         case ValKind::U32:
             // return load_int(cx, ptr, 4);
             break;
@@ -1118,19 +1125,6 @@ namespace abi
     */
 
     //  Storing  ---
-    void store_int(const CallContext &cx, int v, uint32_t ptr, uint32_t nbytes, bool isSigned = false)
-    {
-        if (isSigned)
-        {
-            int64_t signedValue = static_cast<int64_t>(v);
-            std::memcpy(&cx.opts.memory[ptr], &signedValue, nbytes);
-        }
-        else
-        {
-            uint64_t unsignedValue = static_cast<uint64_t>(v);
-            std::memcpy(&cx.opts.memory[ptr], &unsignedValue, nbytes);
-        }
-    }
 
     std::tuple<uint32_t, uint32_t> store_string_copy(const CallContext &cx, const std::string &src, uint32_t src_code_units, uint32_t dst_code_unit_size, uint32_t dst_alignment, const std::string &dst_encoding)
     {
@@ -1372,6 +1366,27 @@ namespace abi
         return std::make_tuple(wasmtime::Val(static_cast<int32_t>(begin)), wasmtime::Val(static_cast<int32_t>(tagged_code_units)));
     }
 
+    template <typename T>
+    T load_int(const CallContext &cx, uint32_t ptr, uint8_t nbytes)
+    {
+        T retVal = 0;
+        for (size_t i = 0; i < sizeof(T); ++i)
+        {
+            retVal |= static_cast<T>(cx.opts.memory[ptr + i]) << (8 * i);
+        }
+        return retVal;
+    }
+    bool convert_int_to_bool(uint8_t i);
+
+    template <typename T>
+    void store_int(const CallContext &cx, const T &v, uint32_t ptr, uint8_t nbytes, bool isSigned)
+    {
+        for (size_t i = 0; i < sizeof(T); ++i)
+        {
+            cx.opts.memory[ptr + i] = static_cast<uint8_t>(v >> (8 * i));
+        }
+    }
+
     /*
 
     MAX_STRING_BYTE_LENGTH = (1 << 31) - 1
@@ -1554,9 +1569,6 @@ namespace abi
         auto opts = mk_opts(memory, encoding, realloc, post_return);
         return CallContext(opts, ComponentInstance());
     }
-
-    // {
-    // }
 }
 
 #ifdef _USE_CPPUNIT
