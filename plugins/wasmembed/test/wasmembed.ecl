@@ -61,6 +61,8 @@ utf8Test(U8'您好', U8'欢迎光临') = U8'您好' + U8'欢迎光临';
 string5Test('1234567890', 'abcdefghij') = (string12)((string5)'1234567890' + (string5)'abcdefghij');
 utf8_5Test(U8'您好1234567890', U8'欢迎光临abcdefghij') = (utf8_12)((utf8_5)U8'您好1234567890' + (utf8_5)U8'欢迎光临abcdefghij');
 unicode5Test(U'您好1234567890', U'欢迎光临abcdefghij') = (unicode12)((unicode5)U'您好1234567890' + (unicode5)U'欢迎光临abcdefghij');
+// '--- lists ---';
+
 // '--- reentry ---';
 r := RECORD
   unsigned1 kind;

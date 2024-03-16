@@ -523,7 +523,7 @@ public:
         uint32_t strPtr;
         std::string encoding;
         uint32_t bytes;
-        std::tie(strPtr, encoding, bytes) = load_string(data, ptr);
+        std::tie(strPtr, encoding, bytes) = abi::load_string(data, ptr);
         size32_t codepoints = rtlUtf8Length(bytes, &data[strPtr]);
         rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&data[strPtr]));
     }
@@ -535,7 +535,7 @@ public:
         uint32_t strPtr;
         std::string encoding;
         uint32_t bytes;
-        std::tie(strPtr, encoding, bytes) = load_string(data, ptr);
+        std::tie(strPtr, encoding, bytes) = abi::load_string(data, ptr);
         chars = rtlUtf8Length(bytes, &data[strPtr]);
         TRACE("WASM SE getUTF8Result %d %d", bytes, chars);
         result = (char *)rtlMalloc(bytes);
@@ -549,7 +549,7 @@ public:
         uint32_t strPtr;
         std::string encoding;
         uint32_t bytes;
-        std::tie(strPtr, encoding, bytes) = load_string(data, ptr);
+        std::tie(strPtr, encoding, bytes) = abi::load_string(data, ptr);
         unsigned numchars = rtlUtf8Length(bytes, &data[strPtr]);
         rtlUtf8ToUnicodeX(chars, result, numchars, reinterpret_cast<const char *>(&data[strPtr]));
     }
@@ -624,3 +624,78 @@ IEmbedFunctionContext *createISecureEnclave(ICodeContext *codeCtx)
 {
     return new SecureFunction(codeCtx);
 }
+
+#ifdef _USE_CPPUNIT
+
+#include "unittests.hpp"
+
+class WasmTest : public CppUnit::TestFixture
+{
+    CPPUNIT_TEST_SUITE(WasmTest);
+    CPPUNIT_TEST(test);
+    CPPUNIT_TEST_SUITE_END();
+
+public:
+    WasmTest()
+    {
+    }
+
+    ~WasmTest()
+    {
+    }
+
+protected:
+    void test()
+    {
+        std::cout << "Compiling module\n";
+        wasmtime::Engine engine;
+
+        wasmtime::Store store(engine);
+        wasmtime::WasiConfig wasi;
+        wasi.inherit_argv();
+        wasi.inherit_env();
+        wasi.inherit_stdin();
+        wasi.inherit_stdout();
+        wasi.inherit_stderr();
+        store.context().set_wasi(std::move(wasi)).unwrap();
+
+        std::vector<uint8_t> _contents = readWasmBinaryToBuffer("plugins/wasmembed/test/build-container/wasmembed.wasm");
+        const wasmtime::Span<uint8_t> &contents = _contents;
+        auto module = wasmtime::Module::compile(engine, contents).unwrap();
+
+        std::cout << "Initializing...\n";
+        wasmtime::Linker linker(engine);
+        linker.define_wasi().unwrap();
+
+        auto callback = [](wasmtime::Caller caller, uint32_t msg, uint32_t msg_len)
+        {
+            auto memory = std::get<wasmtime::Memory>(*caller.get_export("m"));
+            // auto data = this->getData(wasmName);
+            auto msg_ptr = ((char *)&memory)[msg];
+            std::string str(msg_ptr, msg_len);
+            DBGLOG("from wasm: %s", str.c_str());
+        };
+        auto host_func = linker.func_wrap("$root", "dbglog", callback).unwrap();
+
+        auto instance = linker.instantiate(store, module).unwrap();
+        linker.define_instance(store, "linking2", instance).unwrap();
+
+        auto bool_test = std::get<wasmtime::Func>(*instance.get(store, "bool-test"));
+        ASSERT(bool_test.call(store, {false, false}).unwrap()[0].i32() == false);
+        ASSERT(bool_test.call(store, {false, true}).unwrap()[0].i32() == false);
+        ASSERT(bool_test.call(store, {true, false}).unwrap()[0].i32() == false);
+        ASSERT(bool_test.call(store, {true, true}).unwrap()[0].i32() == true);
+
+        auto utf8_string_test = std::get<wasmtime::Func>(*instance.get(store, "utf8-string-test"));
+        // utf8_string_test.call(store, {"aaa", "bbb"});
+
+        ASSERT(bool_test.call(store, {false, false}).unwrap()[0].i32() == false);
+
+        std::cout << "Done\n";
+    }
+};
+
+CPPUNIT_TEST_SUITE_REGISTRATION(WasmTest);
+CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(WasmTest, "WasmTest");
+
+#endif

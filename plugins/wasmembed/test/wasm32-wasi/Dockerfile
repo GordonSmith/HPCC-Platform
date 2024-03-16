@@ -21,13 +21,14 @@ SHELL ["/bin/bash", "--login", "-c"]
 
 WORKDIR /hpcc-dev
 
-ARG WIT_VERSION=0.9.0
+# List of current vertsion can be found in https://github.com/bytecodealliance/wit-bindgen/releases  ---
+ARG WIT_VERSION=0.21.0
 RUN cargo install wasm-tools && \
-    cargo install --git https://github.com/bytecodealliance/wit-bindgen --tag wit-bindgen-cli-${WIT_VERSION} wit-bindgen-cli && \
+    cargo install --git https://github.com/bytecodealliance/wit-bindgen --tag v${WIT_VERSION} wit-bindgen-cli && \
     curl https://wasmtime.dev/install.sh -sSf | bash 
 
 # List of current vertsion can be found in https://github.com/bytecodealliance/wit-bindgen/releases  ---
-ARG WASI_VERSION=20
+ARG WASI_VERSION=21
 ARG WASI_MINOR_VERSION=0
 ARG WASI_VERSION_FULL=${WASI_VERSION}.${WASI_MINOR_VERSION}
 RUN wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz

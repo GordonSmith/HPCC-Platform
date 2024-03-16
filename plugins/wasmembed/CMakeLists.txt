@@ -21,15 +21,17 @@ if(WASMEMBED)
         include_directories(
             ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-c-api
             ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-cpp-api
-            ./../../system/include
-            ./../../system/jlib
-            ./../../rtl/eclrtl
-            ./../../rtl/include
+            ${HPCC_SOURCE_DIR}/system/include
+            ${HPCC_SOURCE_DIR}/system/jlib
+            ${HPCC_SOURCE_DIR}/rtl/eclrtl
+            ${HPCC_SOURCE_DIR}/rtl/include
 
             #  Following includes are needed for "enginecontext.hpp"
-            ./../../common/thorhelper
-            ./../../dali/base
-            ./../../system/mp
+            ${HPCC_SOURCE_DIR}/common/thorhelper
+            ${HPCC_SOURCE_DIR}/dali/base
+            ${HPCC_SOURCE_DIR}/system/mp
+
+            ${HPCC_SOURCE_DIR}/testing/unittests
         )
 
         add_definitions(-D_USRDLL -DWASMEMBED_EXPORTS)

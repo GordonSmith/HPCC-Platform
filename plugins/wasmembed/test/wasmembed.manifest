@@ -1,0 +1,3 @@
+<Manifest>
+    <Resource filename="build-container/wasmembed.wasm" type="wasm" />
+</Manifest>

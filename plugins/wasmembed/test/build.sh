@@ -15,8 +15,9 @@ CMAKE_OPTIONS="-G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_TOOLCHAIN_FILE=/hp
 docker run --rm \
     --mount source="${SCRIPT_DIR}",target=/hpcc-dev/wasmembed,type=bind,consistency=cached \
     --mount source="${ROOT_DIR}/testing/regress/ecl",target=/hpcc-dev/install-target,type=bind,consistency=cached \
+    --mount source="${SCRIPT_DIR}/build",target=/hpcc-dev/build,type=bind,consistency=cached \
     wasm32-wasi:latest \
-    "rm -rf ./build && \
+    "rm -rf ./build/* && \
     cmake -S . -B /hpcc-dev/build ${CMAKE_OPTIONS} && \
     cmake --build /hpcc-dev/build --target install"
 
