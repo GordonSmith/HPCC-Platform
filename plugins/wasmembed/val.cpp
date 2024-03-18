@@ -825,7 +825,7 @@ bool isAligned(uint32_t ptr, uint32_t alignment)
 
 //  loading --------------------------------------------------------------------------------------------
 
-Val load(const CallContext &cx, uint32_t ptr, ValType t, ValType lt = ValType::Unknown);
+Val load(const CallContext &cx, uint32_t ptr, ValType t, std::variant<ValType, const std::vector<Field> &, const std::vector<Case> &, const std::vector<std::string> &> opt);
 
 template <typename T>
 T load_int(const CallContext &cx, uint32_t ptr, uint8_t nbytes)
@@ -1078,7 +1078,7 @@ std::map<std::string, bool> unpack_flags_from_int(int i, const std::vector<std::
 //     return h.rep;
 // }
 
-Val load(const CallContext &cx, uint32_t ptr, ValType t, std::variant<ValType, const std::vector<Field>> opt)
+Val load(const CallContext &cx, uint32_t ptr, ValType t, std::variant<ValType, const std::vector<Field> &, const std::vector<Case> &, const std::vector<std::string> &> opt)
 {
     switch (t)
     {
@@ -1116,9 +1116,9 @@ Val load(const CallContext &cx, uint32_t ptr, ValType t, std::variant<ValType, c
     case ValType::Record:
         return load_record(cx, ptr, std::get<1>(opt));
     case ValType::Variant:
-        return load_variant(cx, ptr, static_cast<const Variant &>(t).cases);
+        return load_variant(cx, ptr, std::get<2>(opt));
     case ValType::Flags:
-        return load_flags(cx, ptr, static_cast<const Flags &>(t).labels);
+        return load_flags(cx, ptr, std::get<3>(opt));
         // case ValType::Own:
         //     return lift_own(cx, load_int<uint32_t>(cx, ptr, 4), static_cast<const Own &>(t));
         // case ValType::Borrow:
@@ -1487,19 +1487,7 @@ void store_record(const CallContext &cx, RecordPtr record, uint32_t ptr)
     }
 }
 
-/*
-def match_case(v, cases):
-  assert(len(v.keys()) == 1)
-  key = list(v.keys())[0]
-  value = list(v.values())[0]
-  for label in key.split('|'):
-    case_index = find_case(label, cases)
-    if case_index != -1:
-      return (case_index, value)
-*/
-
-std::string case_label_with_refinements(const Case &c, const std::vector<Case> &cases);
-std::map<std::string, std::any> load_variant(const CallContext &cx, uint32_t &ptr, const std::vector<Case> &cases)
+VariantPtr load_variant(const CallContext &cx, uint32_t ptr, const std::vector<Case> &cases)
 {
     uint32_t disc_size = size(discriminant_type(cases));
     uint32_t case_index = load_int<uint32_t>(cx, ptr, disc_size);
@@ -1508,29 +1496,21 @@ std::map<std::string, std::any> load_variant(const CallContext &cx, uint32_t &pt
     {
         throw std::runtime_error("case_index out of range");
     }
-    Case c = cases[case_index];
+    const Case &c = cases[case_index];
     ptr = align_to(ptr, max_case_alignment(cases));
     std::string case_label = case_label_with_refinements(c, cases);
-    if (c.v.has_value())
+    if (!c.v.has_value())
     {
-        return {{case_label, load(cx, ptr, c.v.value())}};
+        Case c2(case_label, nullptr, c.refines);
+        std::vector<Case> cases2 = {c2};
+        return std::make_shared<Variant>(cases2);
     }
-    return {{case_label, nullptr}};
-}
-
-int find_case(const std::string &label, const std::vector<Case> &cases);
-std::string case_label_with_refinements(const Case &c, const std::vector<Case> &cases)
-{
-    std::string label = c.label;
-    Case currentCase = c;
-
-    while (currentCase.refines.has_value())
+    else
     {
-        // TODO:  currentCase = cases[find_case(currentCase.refines.value(), cases)];
-        label += '|' + currentCase.label;
+        Case c2(case_label, load(cx, ptr, c.v.value().kind()), c.refines);
+        std::vector<Case> cases2 = {c2};
+        return std::make_shared<Variant>(cases2);
     }
-
-    return label;
 }
 
 int find_case(const std::string &label, const std::vector<Case> &cases)
