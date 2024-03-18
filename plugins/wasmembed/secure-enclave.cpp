@@ -891,31 +891,33 @@ protected:
 
         auto utf8_string_test = std::get<wasmtime::Func>(*instance.get(store, "utf8-string-test"));
 
-        auto x = utf8_string_test.call(store, joinWasmVals(lower_flat(*cx, "aaa"), lower_flat(*cx, "bbb"))).unwrap();
+        auto result = utf8_string_test.call(store, joinWasmVals(lower_flat(*cx, "aaa"), lower_flat(*cx, "bbb"))).unwrap()[0];
+        lift
 
-        // Val v2 = Val(false);
-        // Val w2 = store(cx);
+                // Val v2 = Val(false);
+                // Val w2 = store(cx);
 
-        // f4->appendParam(false);
-        // f4->appendParam(false);
-        // f4->call(cx);
+                // f4->appendParam(false);
+                // f4->appendParam(false);
+                // f4->call(cx);
 
-        // auto [aaa, aaa2] = abi::store_string(cx, "aaa");
-        // auto [bbb, bbb2] = abi::store_string(cx, "bbb");
-        // auto ret = utf8_string_test.call(store, {aaa, aaa2, bbb, bbb2}).unwrap();
-        // auto ptr = ret[0].i32();
-        // uint32_t strPtr;
-        // std::string encoding;
-        // uint32_t bytes;
-        // std::tie(strPtr, encoding, bytes) = abi::load_string(cx, ptr);
-        // size32_t codepoints = rtlUtf8Length(bytes, &cx.opts.memory[strPtr]);
-        // size32_t chars;
-        // char *result;
-        // rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx.opts.memory[strPtr]));
+                // auto [aaa, aaa2] = abi::store_string(cx, "aaa");
+                // auto [bbb, bbb2] = abi::store_string(cx, "bbb");
+                // auto ret = utf8_string_test.call(store, {aaa, aaa2, bbb, bbb2}).unwrap();
+                // auto ptr = ret[0].i32();
+                // uint32_t strPtr;
+                // std::string encoding;
+                // uint32_t bytes;
+                // std::tie(strPtr, encoding, bytes) = abi::load_string(cx, ptr);
+                // size32_t codepoints = rtlUtf8Length(bytes, &cx.opts.memory[strPtr]);
+                // size32_t chars;
+                // char *result;
+                // rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx.opts.memory[strPtr]));
 
-        // ASSERT(bool_test.call(store, {false, false}).unwrap()[0].i32() == false);
+                // ASSERT(bool_test.call(store, {false, false}).unwrap()[0].i32() == false);
 
-        std::cout << "Done\n";
+                std::cout
+            << "Done\n";
     }
 };
 

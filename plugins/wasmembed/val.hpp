@@ -1,5 +1,5 @@
-#include <cstring>
-#include <optional> // Include the necessary header file
+#include "cmcpp.hpp"
+
 #if __has_include(<span>)
 #include <span>
 #else
@@ -7,12 +7,9 @@
 #include <sstream>
 #endif
 
+#include <optional>
 #include <string>
-#include <functional>
-#include <memory>
 #include <variant>
-
-#include "cmcpp.hpp"
 
 using float32_t = float;
 using float64_t = double;
@@ -42,9 +39,9 @@ enum class ValType : uint8_t
     Enum,
     Option,
     Result,
-    Flags,
-    Own,
-    Borrow
+    // Flags,
+    // Own,
+    // Borrow
 };
 
 typedef struct string_
@@ -59,8 +56,8 @@ typedef struct func
     size_t index;
 } func_t;
 
-class FuncType;
-using FuncTypePtr = std::shared_ptr<FuncType>;
+// class FuncType;
+// using FuncTypePtr = std::shared_ptr<FuncType>;
 
 class List;
 using ListPtr = std::shared_ptr<List>;
@@ -80,14 +77,14 @@ class Option;
 using OptionPtr = std::shared_ptr<Option>;
 class Result;
 using ResultPtr = std::shared_ptr<Result>;
-class Flags;
-using FlagsPtr = std::shared_ptr<Flags>;
-class Own;
-using OwnPtr = std::shared_ptr<Own>;
-class Borrow;
-using BorrowPtr = std::shared_ptr<Borrow>;
+// class Flags;
+// using FlagsPtr = std::shared_ptr<Flags>;
+// class Own;
+// using OwnPtr = std::shared_ptr<Own>;
+// class Borrow;
+// using BorrowPtr = std::shared_ptr<Borrow>;
 
-using PtrVariant = std::variant<FuncTypePtr, ListPtr, FieldPtr, RecordPtr, TuplePtr, CasePtr, VariantPtr, EnumPtr, OptionPtr, ResultPtr, FlagsPtr, OwnPtr, BorrowPtr>;
+using PtrVariant = std::variant<ListPtr, FieldPtr, RecordPtr, TuplePtr, CasePtr, VariantPtr, EnumPtr, OptionPtr, ResultPtr>;
 
 typedef union valunion
 {
@@ -113,11 +110,11 @@ typedef union valunion
     Enum *enum_;
     Option *option;
     Result *result;
-    Flags *flags;
-    Own *own;
-    Borrow *borrow;
+    // Flags *flags;
+    // Own *own;
+    // Borrow *borrow;
 
-    FuncType *func;
+    // FuncType *func;
 } valunion_t;
 
 typedef struct val
@@ -149,7 +146,6 @@ public:
     Val(char c);
     Val(const char *s);
     Val(const char *s, size_t len);
-    Val(FuncTypePtr func);
     Val(ListPtr list);
     Val(FieldPtr field);
     Val(RecordPtr record);
@@ -159,9 +155,10 @@ public:
     Val(EnumPtr enum_);
     Val(OptionPtr option);
     Val(ResultPtr result);
-    Val(FlagsPtr flags);
-    Val(OwnPtr own);
-    Val(BorrowPtr borrow);
+    // Val(FlagsPtr flags);
+    // Val(OwnPtr own);
+    // Val(BorrowPtr borrow);
+    // Val(FuncTypePtr func);
 
     Val(const Val &other);
     Val(Val &&other) noexcept;
@@ -183,7 +180,6 @@ public:
     float64_t f64() const;
     char c() const;
     string_t s() const;
-    FuncType *func() const;
     ListPtr list() const;
     FieldPtr field() const;
     RecordPtr record() const;
@@ -193,9 +189,10 @@ public:
     EnumPtr enum_() const;
     OptionPtr option() const;
     ResultPtr result() const;
-    FlagsPtr flags() const;
-    OwnPtr own() const;
-    BorrowPtr borrow() const;
+    // FlagsPtr flags() const;
+    // OwnPtr own() const;
+    // BorrowPtr borrow() const;
+    // FuncType *func() const;
 };
 
 enum class WasmValType : uint8_t
@@ -232,15 +229,15 @@ public:
     float64_t f64() const;
 };
 
-class FuncType
-{
-public:
-    virtual ~FuncType() = default;
+// class FuncType
+// {
+// public:
+//     virtual ~FuncType() = default;
 
-    virtual std::vector<ValType> param_types() = 0;
-    virtual std::vector<ValType> result_types() = 0;
-};
-FuncTypePtr createFuncType();
+//     virtual std::vector<ValType> param_types() = 0;
+//     virtual std::vector<ValType> result_types() = 0;
+// };
+// FuncTypePtr createFuncType();
 
 class List
 {
@@ -275,7 +272,7 @@ public:
 class Tuple
 {
 public:
-    std::vector<Val> ts;
+    std::vector<Val> vs;
 
     Tuple();
     virtual ~Tuple() = default;
