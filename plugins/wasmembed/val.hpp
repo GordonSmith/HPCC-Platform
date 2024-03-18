@@ -16,7 +16,7 @@
 using float32_t = float;
 using float64_t = double;
 
-enum class valkind_t : uint8_t
+enum class ValType : uint8_t
 {
     Bool,
     S8,
@@ -57,6 +57,9 @@ typedef struct func
     size_t index;
 } func_t;
 
+class FuncType;
+using FuncTypePtr = std::shared_ptr<FuncType>;
+
 class List;
 using ListPtr = std::shared_ptr<List>;
 class Field;
@@ -82,109 +85,297 @@ using OwnPtr = std::shared_ptr<Own>;
 class Borrow;
 using BorrowPtr = std::shared_ptr<Borrow>;
 
-class FuncType;
-using FuncTypePtr = std::shared_ptr<FuncType>;
-
 typedef union valunion
 {
     bool b;
-    int8_t i8;
+    int8_t s8;
     uint8_t u8;
-    int16_t i16;
+    int16_t s16;
     uint16_t u16;
-    int32_t i32;
+    int32_t s32;
     uint32_t u32;
-    int64_t i64;
+    int64_t s64;
     uint64_t u64;
     float32_t f32;
     float64_t f64;
     char c;
     string_t s;
-    List *l;
-    Field *f;
-    Record *r;
-    Tuple *t;
-    Case *cs;
-    Variant *v;
-    Enum *e;
-    Option *o;
-    Result *re;
-    Flags *fl;
-    Own *ow;
-    Borrow *bo;
+    List *list;
+    Field *field;
+    Record *record;
+    Tuple *tuple;
+    Case *case_;
+    Variant *variant;
+    Enum *enum_;
+    Option *option;
+    Result *result;
+    Flags *flags;
+    Own *own;
+    Borrow *borrow;
 
     FuncType *func;
 } valunion_t;
 
 typedef struct val
 {
-    valkind_t kind;
+    ValType kind;
     valunion_t of;
 } val_t;
 
 class Val
 {
     val_t val;
-    FuncTypePtr val_func;
+    std::shared_ptr<void> shared_ptr;
 
     Val();
     Val(val_t val);
 
 public:
     Val(bool b);
-    Val(int8_t i8);
+    Val(int8_t s8);
     Val(uint8_t u8);
-    Val(int16_t i16);
+    Val(int16_t s16);
     Val(uint16_t u16);
-    Val(int32_t i32);
-    Val(int64_t i64);
+    Val(int32_t s32);
+    Val(int64_t s64);
+    Val(uint64_t u64);
     Val(float32_t f32);
     Val(float64_t f64);
     Val(char c);
+    Val(const char *s);
     Val(const char *s, size_t len);
     Val(FuncTypePtr func);
+    Val(ListPtr list);
+    Val(FieldPtr field);
+    Val(RecordPtr record);
+    Val(TuplePtr tuple);
+    Val(CasePtr case_);
+    Val(VariantPtr variant);
+    Val(EnumPtr enum_);
+    Val(OptionPtr option);
+    Val(ResultPtr result);
+    Val(FlagsPtr flags);
+    Val(OwnPtr own);
+    Val(BorrowPtr borrow);
+
     Val(const Val &other);
     Val(Val &&other) noexcept;
     ~Val();
-
     Val &operator=(const Val &other) noexcept;
     Val &operator=(Val &&other) noexcept;
 
-    valkind_t kind() const;
+    ValType kind() const;
     bool b() const;
-    int8_t i8() const;
+    int8_t s8() const;
     uint8_t u8() const;
-    int16_t i16() const;
+    int16_t s16() const;
     uint16_t u16() const;
-    int32_t i32() const;
+    int32_t s32() const;
     uint32_t u32() const;
-    int64_t i64() const;
+    int64_t s64() const;
     uint64_t u64() const;
     float32_t f32() const;
     float64_t f64() const;
     char c() const;
     string_t s() const;
     FuncType *func() const;
-
-    void store(CallContextPtr cx) const;
+    List *list() const;
+    Field *field() const;
+    Record *record() const;
+    Tuple *tuple() const;
+    Case *case_() const;
+    Variant *variant() const;
+    Enum *enum_() const;
+    Option *option() const;
+    Result *result() const;
+    Flags *flags() const;
+    Own *own() const;
+    Borrow *borrow() const;
 };
 
-class List
+enum class WasmValType : uint8_t
 {
-public:
-    virtual ~List() = default;
-
-    virtual valkind_t kind() const = 0;
-    virtual void append(const Val &v) = 0;
+    I32,
+    I64,
+    F32,
+    F64
 };
-ListPtr createList(const valkind_t &kind);
+
+class WasmVal
+{
+    val_t val;
+
+    WasmVal();
+    WasmVal(val_t val);
+
+public:
+    WasmVal(uint32_t i32);
+    WasmVal(uint64_t i64);
+    WasmVal(float32_t f32);
+    WasmVal(float64_t f64);
+
+    WasmVal(const WasmVal &other);
+    WasmVal(WasmVal &&other) noexcept;
+    ~WasmVal();
+    WasmVal &operator=(const WasmVal &other) noexcept;
+    WasmVal &operator=(WasmVal &&other) noexcept;
+
+    WasmValType kind() const;
+    uint32_t i32() const;
+    uint64_t i64() const;
+    float32_t f32() const;
+    float64_t f64() const;
+};
 
 class FuncType
 {
 public:
     virtual ~FuncType() = default;
 
-    virtual void appendParam(const Val &v) = 0;
-    virtual void call(CallContextPtr cx) = 0;
+    virtual std::vector<ValType> param_types() = 0;
+    virtual std::vector<ValType> result_types() = 0;
 };
 FuncTypePtr createFuncType();
+
+class List
+{
+public:
+    const ValType &t;
+
+    List(const ValType &t);
+    virtual ~List() = default;
+};
+
+class Field
+{
+public:
+    const std::string &label;
+    const Val &v;
+
+    Field(const std::string &label, const Val &v);
+    virtual ~Field() = default;
+};
+
+class Record
+{
+public:
+    std::vector<Field> fields;
+
+    Record();
+    virtual ~Record() = default;
+};
+
+class Tuple
+{
+public:
+    std::vector<Val> ts;
+
+    Tuple();
+    virtual ~Tuple() = default;
+};
+
+class Case
+{
+public:
+    const std::string &label;
+    std::optional<Val> v;
+    std::optional<std::string> refines;
+
+    Case(const std::string &label, const std::optional<Val> &v = std::nullopt, const std::optional<std::string> &refines = std::nullopt);
+    virtual ~Case() = default;
+};
+
+class Variant
+{
+public:
+    const std::vector<Case> &cases;
+
+    Variant(const std::vector<Case> &cases);
+    virtual ~Variant() = default;
+};
+
+class Enum
+{
+public:
+    const std::vector<std::string> &labels;
+
+    Enum(const std::vector<std::string> &labels);
+    virtual ~Enum() = default;
+};
+
+class Option
+{
+public:
+    const Val &v;
+
+    Option(const Val &v);
+    virtual ~Option() = default;
+};
+
+class Result
+{
+public:
+    const std::optional<Val> &ok;
+    const std::optional<Val> &error;
+
+    Result(const std::optional<Val> &ok, const std::optional<Val> &error);
+    virtual ~Result() = default;
+};
+
+class Flags
+{
+public:
+    const std::vector<std::string> &labels;
+
+    Flags(const std::vector<std::string> &labels);
+    virtual ~Flags() = default;
+};
+
+// class Own
+// {
+// public:
+//     const ResourceType &rt;
+
+//     Own(const ResourceType &rt);
+//     virtual ~Own() = default;
+// };
+
+// class Borrow
+// {
+// public:
+//     const ResourceType &rt;
+
+//     Borrow(const ResourceType &rt);
+//     virtual ~Borrow() = default;
+// };
+//  ----------------------------------------------------------------
+
+class Type
+{
+public:
+    virtual ~Type() = default;
+};
+
+class ExternType : public Type
+{
+public:
+    virtual ~ExternType() = default;
+};
+
+class CoreExternType : public Type
+{
+public:
+    virtual ~CoreExternType() = default;
+};
+
+class CoreFuncType : public CoreExternType
+{
+public:
+    const std::vector<std::string> &params;
+    const std::vector<std::string> &results;
+
+    CoreFuncType(const std::vector<std::string> &params, const std::vector<std::string> &results);
+    virtual ~CoreFuncType() = default;
+};
+
+std::vector<WasmVal> lower_flat(const CallContext &cx, const Val &v);

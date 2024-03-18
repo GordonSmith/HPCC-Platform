@@ -108,7 +108,9 @@
 			"typeinfo": "cpp",
 			"valarray": "cpp",
 			"variant": "cpp"
-		}
+		},
+		"ecl.launchConfiguration": "localhost",
+		"ecl.targetCluster": {}
 	},
 	"extensions": {
 		"recommendations": [

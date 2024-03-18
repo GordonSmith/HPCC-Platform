@@ -6,24 +6,21 @@
 class CanonicalOptionsImpl : public CanonicalOptions
 {
 private:
-    const std::string &_string_encoding;
     const GuestRealloc &_realloc;
     const GuestPostReturn &_post_return;
 
 public:
-    CanonicalOptionsImpl(const GuestMemory &memory, const std::string &string_encoding, const GuestRealloc &realloc, const GuestPostReturn &post_return) : _string_encoding(string_encoding), _realloc(realloc), _post_return(post_return)
+    CanonicalOptionsImpl(const GuestMemory &memory, HostEncoding string_encoding, const GuestRealloc &realloc, const GuestPostReturn &post_return) : _realloc(realloc), _post_return(post_return)
     {
         this->memory = memory;
+        this->string_encoding = string_encoding;
     }
 
-    const char *string_encoding()
-    {
-        return _string_encoding.c_str();
-    }
     int realloc(int ptr, int old_size, int align, int new_size)
     {
         return _realloc(ptr, old_size, align, new_size);
     }
+
     void post_return()
     {
         //  Optional
@@ -34,11 +31,9 @@ public:
     }
 };
 
-const char *GuestEncodingString[] = {"utf-8", "utf-16-le", "latin1"};
-
-CanonicalOptionsPtr createCanonicalOptions(const GuestMemory &memory, const GuestRealloc &realloc, GuestEncoding encoding, const GuestPostReturn &post_return)
+CanonicalOptionsPtr createCanonicalOptions(const GuestMemory &memory, const GuestRealloc &realloc, HostEncoding encoding, const GuestPostReturn &post_return)
 {
-    return std::make_shared<CanonicalOptionsImpl>(memory, GuestEncodingString[encoding], realloc, post_return);
+    return std::make_shared<CanonicalOptionsImpl>(memory, encoding, realloc, post_return);
 }
 
 class CallContextImpl : public CallContext
@@ -50,7 +45,7 @@ public:
     }
 };
 
-CallContextPtr createCallContext(const GuestMemory &memory, const GuestRealloc &realloc, GuestEncoding encoding, const GuestPostReturn &post_return)
+CallContextPtr createCallContext(const GuestMemory &memory, const GuestRealloc &realloc, HostEncoding encoding, const GuestPostReturn &post_return)
 {
     return std::make_shared<CallContextImpl>(createCanonicalOptions(memory, realloc, encoding, post_return));
 }

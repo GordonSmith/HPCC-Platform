@@ -811,6 +811,34 @@ protected:
         test2();
     }
 
+    wasmtime::Val val2WVal(const WasmVal &val)
+    {
+        switch (val.kind())
+        {
+        case WasmValType::I32:
+            return static_cast<int32_t>(val.i32());
+        case WasmValType::I64:
+            return static_cast<int32_t>(val.i64());
+        case WasmValType::F32:
+            return static_cast<float>(val.f32());
+        case WasmValType::F64:
+            return static_cast<double>(val.f64());
+        }
+    }
+
+    template <typename... Args>
+    std::vector<wasmtime::Val> joinWasmVals(Args... args)
+    {
+        std::vector<wasmtime::Val> result;
+        auto push_to_result = [&](const auto &vec)
+        {
+            for (const auto &val : vec)
+                result.push_back(val2WVal(val));
+        };
+        (push_to_result(args), ...);
+        return result;
+    }
+
     void test2()
     {
         std::cout << "Compiling module\n";
@@ -845,33 +873,32 @@ protected:
         auto instance = linker.instantiate(store, module).unwrap();
         linker.define_instance(store, "linking2", instance).unwrap();
 
-        auto bool_test = std::get<wasmtime::Func>(*instance.get(store, "bool-test"));
-        ASSERT(bool_test.call(store, {false, false}).unwrap()[0].i32() == false);
-        ASSERT(bool_test.call(store, {false, true}).unwrap()[0].i32() == false);
-        ASSERT(bool_test.call(store, {true, false}).unwrap()[0].i32() == false);
-        ASSERT(bool_test.call(store, {true, true}).unwrap()[0].i32() == true);
-
         auto cabi_realloc = std::get<wasmtime::Func>(*instance.get(store, "cabi_realloc"));
         std::function<int(int, int, int, int)> realloc = [&store, cabi_realloc](int a, int b, int c, int d) -> int
         {
             return cabi_realloc.call(store, {a, b, c, d}).unwrap()[0].i32();
         };
-        auto utf8_string_test = std::get<wasmtime::Func>(*instance.get(store, "utf8-string-test"));
         auto memory = std::get<wasmtime::Memory>(*instance.get(store, "memory"));
         store.context().set_data(memory);
-
-        // abi::CallContext cx = abi::mk_cx(memory.data(store.context()), "utf8", realloc);
         wasmtime::Span<uint8_t> data = memory.data(store.context());
         CallContextPtr cx = createCallContext(data, realloc);
 
-        FuncTypePtr f4 = createFuncType();
+        auto bool_test = std::get<wasmtime::Func>(*instance.get(store, "bool-test"));
+        ASSERT(bool_test.call(store, joinWasmVals(lower_flat(*cx, false), lower_flat(*cx, false))).unwrap()[0].i32() == false);
+        ASSERT(bool_test.call(store, joinWasmVals(lower_flat(*cx, false), lower_flat(*cx, true))).unwrap()[0].i32() == false);
+        ASSERT(bool_test.call(store, joinWasmVals(lower_flat(*cx, true), lower_flat(*cx, false))).unwrap()[0].i32() == false);
+        ASSERT(bool_test.call(store, joinWasmVals(lower_flat(*cx, true), lower_flat(*cx, true))).unwrap()[0].i32() == true);
 
-        Val v2 = Val(false);
-        v2.store(cx);
+        auto utf8_string_test = std::get<wasmtime::Func>(*instance.get(store, "utf8-string-test"));
 
-        f4->appendParam(false);
-        f4->appendParam(false);
-        f4->call(cx);
+        auto x = utf8_string_test.call(store, joinWasmVals(lower_flat(*cx, "aaa"), lower_flat(*cx, "bbb"))).unwrap();
+
+        // Val v2 = Val(false);
+        // Val w2 = store(cx);
+
+        // f4->appendParam(false);
+        // f4->appendParam(false);
+        // f4->call(cx);
 
         // auto [aaa, aaa2] = abi::store_string(cx, "aaa");
         // auto [bbb, bbb2] = abi::store_string(cx, "bbb");

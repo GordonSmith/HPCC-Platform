@@ -145,14 +145,6 @@ namespace abi
         Borrow
     };
 
-    enum class HostEncoding
-    {
-        Utf8,
-        Utf16,
-        Latin1,
-        Latin1_Utf16
-    };
-
     enum class GuestEncoding
     {
         Utf8,
