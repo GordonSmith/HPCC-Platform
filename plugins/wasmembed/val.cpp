@@ -4,6 +4,8 @@
 #include <cmath>
 #include <random>
 #include <map>
+#include <sstream>
+#include <any>
 
 Val::Val() : val{}
 {
@@ -317,88 +319,88 @@ FuncType *Val::func() const
     return val.of.func;
 }
 
-List *Val::list() const
+ListPtr Val::list() const
 {
     if (val.kind != ValType::List)
         std::abort();
-    return val.of.list;
+    return std::get<ListPtr>(shared_ptr);
 }
 
-Field *Val::field() const
+FieldPtr Val::field() const
 {
     if (val.kind != ValType::Field)
         std::abort();
-    return val.of.field;
+    return std::get<FieldPtr>(shared_ptr);
 }
 
-Record *Val::record() const
+RecordPtr Val::record() const
 {
     if (val.kind != ValType::Record)
         std::abort();
-    return val.of.record;
+    return std::get<RecordPtr>(shared_ptr);
 }
 
-Tuple *Val::tuple() const
+TuplePtr Val::tuple() const
 {
     if (val.kind != ValType::Tuple)
         std::abort();
-    return val.of.tuple;
+    return std::get<TuplePtr>(shared_ptr);
 }
 
-Case *Val::case_() const
+CasePtr Val::case_() const
 {
     if (val.kind != ValType::Case)
         std::abort();
-    return val.of.case_;
+    return std::get<CasePtr>(shared_ptr);
 }
 
-Variant *Val::variant() const
+VariantPtr Val::variant() const
 {
     if (val.kind != ValType::Variant)
         std::abort();
-    return val.of.variant;
+    return std::get<VariantPtr>(shared_ptr);
 }
 
-Enum *Val::enum_() const
+EnumPtr Val::enum_() const
 {
     if (val.kind != ValType::Enum)
         std::abort();
-    return val.of.enum_;
+    return std::get<EnumPtr>(shared_ptr);
 }
 
-Option *Val::option() const
+OptionPtr Val::option() const
 {
     if (val.kind != ValType::Option)
         std::abort();
-    return val.of.option;
+    return std::get<OptionPtr>(shared_ptr);
 }
 
-Result *Val::result() const
+ResultPtr Val::result() const
 {
     if (val.kind != ValType::Result)
         std::abort();
-    return val.of.result;
+    return std::get<ResultPtr>(shared_ptr);
 }
 
-Flags *Val::flags() const
+FlagsPtr Val::flags() const
 {
     if (val.kind != ValType::Flags)
         std::abort();
-    return val.of.flags;
+    return std::get<FlagsPtr>(shared_ptr);
 }
 
-Own *Val::own() const
+OwnPtr Val::own() const
 {
     if (val.kind != ValType::Own)
         std::abort();
-    return val.of.own;
+    return std::get<OwnPtr>(shared_ptr);
 }
 
-Borrow *Val::borrow() const
+BorrowPtr Val::borrow() const
 {
     if (val.kind != ValType::Borrow)
         std::abort();
-    return val.of.borrow;
+    return std::get<BorrowPtr>(shared_ptr);
 }
 
 WasmVal::WasmVal() : val{} {}
@@ -549,7 +551,7 @@ FuncTypePtr createFuncType()
 
 List::List(const ValType &t) : t(t) {}
 
-Field::Field(const std::string &label, const Val &v) : label(label), v(v) {}
+Field::Field(const std::string &label, const ValType &t) : label(label), t(t) {}
 
 Record::Record() {}
 
@@ -578,9 +580,11 @@ Val despecialize(const Val &v)
     case ValType::Tuple:
     {
         RecordPtr r = std::make_shared<Record>();
-        for (const auto &t : v.tuple()->ts)
+        for (const auto &v2 : v.tuple()->ts)
         {
-            r->fields.push_back(Field("", despecialize(t)));
+            Field f("", despecialize(v).kind());
+            f.v = v2;
+            r->fields.push_back(f);
         }
         return r;
     }
@@ -687,7 +691,7 @@ int alignment_record(const std::vector<Field> &fields)
     int a = 1;
     for (const auto &f : fields)
     {
-        a = std::max(a, alignment(f.v));
+        a = std::max(a, alignment(f.v.value()));
     }
     return a;
 }
@@ -768,8 +772,8 @@ int size_record(const std::vector<Field> &fields)
     int s = 0;
     for (const auto &f : fields)
     {
-        s = align_to(s, alignment(f.v));
-        s += size(f.v);
+        s = align_to(s, alignment(f.v.value()));
+        s += size(f.v.value());
     }
     assert(s > 0);
     return align_to(s, alignment_record(fields));
@@ -817,6 +821,310 @@ int num_i32_flags(const std::vector<std::string> &labels)
 bool isAligned(uint32_t ptr, uint32_t alignment)
 {
     return (ptr & (alignment - 1)) == 0;
+}
+
+//  loading --------------------------------------------------------------------------------------------
+
+Val load(const CallContext &cx, uint32_t ptr, ValType t, ValType lt = ValType::Unknown);
+
+template <typename T>
+T load_int(const CallContext &cx, uint32_t ptr, uint8_t nbytes)
+{
+    T retVal = 0;
+    for (size_t i = 0; i < sizeof(T); ++i)
+    {
+        retVal |= static_cast<T>(cx.opts->memory[ptr + i]) << (8 * i);
+    }
+    return retVal;
+}
+
+bool convert_int_to_bool(uint8_t i)
+{
+    return i > 0;
+}
+
+bool DETERMINISTIC_PROFILE = false;
+float32_t CANONICAL_FLOAT32_NAN = 0x7fc00000;
+float64_t CANONICAL_FLOAT64_NAN = 0x7ff8000000000000;
+
+float canonicalize_nan32(float32_t f)
+{
+    if (std::isnan(f))
+    {
+        f = CANONICAL_FLOAT32_NAN;
+        assert(std::isnan(f));
+    }
+    return f;
+}
+
+float64_t canonicalize_nan64(float64_t f)
+{
+    if (std::isnan(f))
+    {
+        f = CANONICAL_FLOAT64_NAN;
+        assert(std::isnan(f));
+    }
+    return f;
+}
+
+float core_f32_reinterpret_i32(int32_t i);
+float decode_i32_as_float(int32_t i)
+{
+    return canonicalize_nan32(core_f32_reinterpret_i32(i));
+}
+
+double core_f64_reinterpret_i64(int64_t i);
+double decode_i64_as_float(int64_t i)
+{
+    return canonicalize_nan64(core_f64_reinterpret_i64(i));
+}
+
+float32_t core_f32_reinterpret_i32(int32_t i)
+{
+    float f;
+    std::memcpy(&f, &i, sizeof f);
+    return f;
+}
+
+float64_t core_f64_reinterpret_i64(int64_t i)
+{
+    double d;
+    std::memcpy(&d, &i, sizeof d);
+    return d;
+}
+
+char convert_i32_to_char(const CallContext &cx, int32_t i)
+{
+    assert(i < 0x110000);
+    assert(!(0xD800 <= i && i <= 0xDFFF));
+    return static_cast<char>(i);
+}
+
+using HostStringTuple = std::tuple<const char * /*s*/, std::string /*encoding*/, size_t /*byte length*/>;
+
+HostStringTuple load_string_from_range(const CallContext &cx, uint32_t ptr, uint32_t tagged_code_units);
+HostStringTuple load_string(const CallContext &cx, uint32_t ptr)
+{
+    uint32_t begin = load_int<uint32_t>(cx, ptr, 4);
+    uint32_t tagged_code_units = load_int<uint32_t>(cx, ptr + 4, 4);
+    return load_string_from_range(cx, begin, tagged_code_units);
+}
+
+auto UTF16_TAG = 1U << 31;
+HostStringTuple load_string_from_range(const CallContext &cx, uint32_t ptr, uint32_t tagged_code_units)
+{
+    std::string encoding = "utf-8";
+    uint32_t byte_length = tagged_code_units;
+    uint32_t alignment = 1;
+    if (cx.opts->string_encoding == HostEncoding::Utf8)
+    {
+        alignment = 1;
+        byte_length = tagged_code_units;
+        encoding = "utf-8";
+    }
+    else if (cx.opts->string_encoding == HostEncoding::Utf16)
+    {
+        alignment = 2;
+        byte_length = 2 * tagged_code_units;
+        encoding = "utf-16-le";
+    }
+    else if (cx.opts->string_encoding == HostEncoding::Latin1_Utf16)
+    {
+        alignment = 2;
+        if (tagged_code_units & UTF16_TAG)
+        {
+            byte_length = 2 * (tagged_code_units ^ UTF16_TAG);
+            encoding = "utf-16-le";
+        }
+        else
+        {
+            byte_length = tagged_code_units;
+            encoding = "latin-1";
+        }
+    }
+    assert(isAligned(ptr, alignment));
+    assert(ptr + byte_length <= cx.opts->memory.size());
+    // TODO decode the string
+    // auto s = cx.opts->memory[ptr:ptr+byte_length].decode(encoding);
+    std::string s(cx.opts->memory[ptr], byte_length);
+
+    return HostStringTuple((const char *)&cx.opts->memory[ptr], encoding, byte_length);
+}
+
+ListPtr load_list_from_range(const CallContext &cx, uint32_t ptr, uint32_t length, ValType t);
+
+ListPtr load_list(const CallContext &cx, uint32_t ptr, ValType t)
+{
+    uint32_t begin = load_int<uint32_t>(cx, ptr, 4);
+    uint32_t length = load_int<uint32_t>(cx, ptr + 4, 4);
+    return load_list_from_range(cx, begin, length, t);
+}
+
+ListPtr load_list_from_range(const CallContext &cx, uint32_t ptr, uint32_t length, ValType t)
+{
+    assert(ptr == align_to(ptr, alignment(t)));
+    assert(ptr + length * size(t) <= cx.opts->memory.size());
+    auto list = std::make_shared<List>(t);
+    for (uint32_t i = 0; i < length; ++i)
+    {
+        list->vs.push_back(load(cx, ptr + i * size(t), t));
+    }
+    return list;
+}
+
+RecordPtr load_record(const CallContext &cx, uint32_t ptr, const std::vector<Field> &fields)
+{
+    RecordPtr retVal = std::make_shared<Record>();
+    for (auto &field : fields)
+    {
+        ptr = align_to(ptr, alignment(field.t));
+        Field f(field.label, field.t);
+        f.v = load(cx, ptr, field.t);
+        retVal->fields.push_back(f);
+        ptr += size(f.t);
+    }
+    return retVal;
+}
+
+std::string case_label_with_refinements(const Case &c, const std::vector<Case> &cases);
+std::map<std::string, Val> load_variant(const CallContext &cx, uint32_t &ptr, const std::vector<Case> &cases)
+{
+    uint32_t disc_size = size(discriminant_type(cases));
+    uint32_t case_index = load_int<uint32_t>(cx, ptr, disc_size);
+    ptr += disc_size;
+    if (case_index >= cases.size())
+    {
+        throw std::runtime_error("case_index out of range");
+    }
+    Case c = cases[case_index];
+    ptr = align_to(ptr, max_case_alignment(cases));
+    std::string case_label = case_label_with_refinements(c, cases);
+    if (c.v.has_value())
+    {
+        return {{case_label, load(cx, ptr, c.v.value().kind())}};
+    }
+    return {{case_label, nullptr}};
+}
+
+int find_case(const std::string &label, const std::vector<Case> &cases);
+std::string case_label_with_refinements(const Case &c, const std::vector<Case> &cases)
+{
+    std::string label = c.label;
+    Case currentCase = c;
+
+    while (currentCase.refines.has_value())
+    {
+        // TODO:  currentCase = cases[find_case(currentCase.refines.value(), cases)];
+        label += '|' + currentCase.label;
+    }
+
+    return label;
+}
+
+int find_case(const std::string &label, const std::vector<Case> &cases)
+{
+    auto it = std::find_if(cases.begin(), cases.end(), [&label](const Case &c)
+                           { return c.label == label; });
+
+    if (it != cases.end())
+    {
+        return std::distance(cases.begin(), it);
+    }
+
+    return -1;
+}
+
+std::map<std::string, bool> unpack_flags_from_int(int i, const std::vector<std::string> &labels);
+std::map<std::string, bool> load_flags(const CallContext &cx, uint32_t ptr, const std::vector<std::string> &labels)
+{
+    uint32_t i = load_int<uint32_t>(cx, ptr, size_flags(labels));
+    return unpack_flags_from_int(i, labels);
+}
+
+std::map<std::string, bool> unpack_flags_from_int(int i, const std::vector<std::string> &labels)
+{
+    std::map<std::string, bool> record;
+    for (const auto &l : labels)
+    {
+        record[l] = bool(i & 1);
+        i >>= 1;
+    }
+    return record;
+}
+
+// uint32_t lift_own(const CallContext &_cx, int i, const Own &t)
+// {
+//     CallContext &cx = const_cast<CallContext &>(_cx);
+//     HandleElem h = cx.inst.handles.remove(t.rt, i);
+//     if (h.lend_count != 0)
+//     {
+//         throw std::runtime_error("Lend count is not zero");
+//     }
+//     if (!h.own)
+//     {
+//         throw std::runtime_error("Not owning");
+//     }
+//     return h.rep;
+// }
+
+// uint32_t lift_borrow(const CallContext &_cx, int i, const Borrow &t)
+// {
+//     CallContext &cx = const_cast<CallContext &>(_cx);
+//     HandleElem h = cx.inst.handles.get(t.rt, i);
+//     if (h.own)
+//     {
+//         cx.track_owning_lend(h);
+//     }
+//     return h.rep;
+// }
+
+Val load(const CallContext &cx, uint32_t ptr, ValType t, std::variant<ValType, const std::vector<Field>> opt)
+{
+    switch (t)
+    {
+    case ValType::Bool:
+        return convert_int_to_bool(load_int<uint8_t>(cx, ptr, 1));
+    case ValType::U8:
+        return load_int<uint8_t>(cx, ptr, 1);
+    case ValType::U16:
+        return load_int<uint16_t>(cx, ptr, 2);
+    case ValType::U32:
+        return load_int<uint32_t>(cx, ptr, 4);
+    case ValType::U64:
+        return load_int<uint64_t>(cx, ptr, 8);
+    case ValType::S8:
+        return load_int<int8_t>(cx, ptr, 1);
+    case ValType::S16:
+        return load_int<int16_t>(cx, ptr, 2);
+    case ValType::S32:
+        return load_int<int32_t>(cx, ptr, 4);
+    case ValType::S64:
+        return load_int<int64_t>(cx, ptr, 8);
+    case ValType::Float32:
+        return decode_i32_as_float(load_int<int32_t>(cx, ptr, 4));
+    case ValType::Float64:
+        return decode_i64_as_float(load_int<int64_t>(cx, ptr, 8));
+    case ValType::Char:
+        return convert_i32_to_char(cx, load_int<int32_t>(cx, ptr, 4));
+    case ValType::String:
+    {
+        auto s = load_string(cx, ptr);
+        return Val(std::get<0>(s), std::get<2>(s));
+    }
+    case ValType::List:
+        return load_list(cx, ptr, std::get<0>(opt));
+    case ValType::Record:
+        return load_record(cx, ptr, std::get<1>(opt));
+    case ValType::Variant:
+        return load_variant(cx, ptr, static_cast<const Variant &>(t).cases);
+    case ValType::Flags:
+        return load_flags(cx, ptr, static_cast<const Flags &>(t).labels);
+        // case ValType::Own:
+        //     return lift_own(cx, load_int<uint32_t>(cx, ptr, 4), static_cast<const Own &>(t));
+        // case ValType::Borrow:
+        //     return lift_borrow(cx, load_int<uint32_t>(cx, ptr, 4), static_cast<const Borrow &>(t));
+    }
+    throw std::runtime_error("Invalid type");
 }
 
 //  Storing ----------------------------------------------------------------
@@ -1063,6 +1371,293 @@ std::tuple<uint32_t, uint32_t> store_string_into_range(const CallContext &cx, co
     return std::make_tuple(0, 0);
 }
 
+template <typename T>
+void store_int(const CallContext &cx, const T &v, uint32_t ptr, uint8_t nbytes, bool isSigned = false)
+{
+    for (size_t i = 0; i < nbytes; ++i)
+    {
+        cx.opts->memory[ptr + i] = static_cast<uint8_t>(v >> (8 * i));
+    }
+}
+
+void store_string(const CallContext &cx, const Val &v, uint32_t ptr)
+{
+    auto [begin, tagged_code_units] = store_string_into_range(cx, v);
+    store_int(cx, begin, ptr, 4);
+    store_int(cx, tagged_code_units, ptr + 4, 4);
+}
+
+template <typename T>
+T random_nan_bits(int bits, int quiet_bits)
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distrib(1 << quiet_bits, (1 << bits) - 1);
+    return distrib(gen);
+}
+
+bool DETERMINISTIC_PROFILE = false;
+float32_t CANONICAL_FLOAT32_NAN = 0x7fc00000;
+float64_t CANONICAL_FLOAT64_NAN = 0x7ff8000000000000;
+
+float32_t core_f32_reinterpret_i32(int32_t i);
+float32_t maybe_scramble_nan32(float32_t f)
+{
+    if (std::isnan(f))
+    {
+        if (DETERMINISTIC_PROFILE)
+        {
+            f = CANONICAL_FLOAT32_NAN;
+        }
+        else
+        {
+            f = core_f32_reinterpret_i32(random_nan_bits<int32_t>(32, 8));
+        }
+        assert(std::isnan(f));
+    }
+    return f;
+}
+
+float64_t core_f64_reinterpret_i64(int64_t i);
+float64_t maybe_scramble_nan64(float64_t f)
+{
+    if (std::isnan(f))
+    {
+        if (DETERMINISTIC_PROFILE)
+        {
+            f = CANONICAL_FLOAT32_NAN;
+        }
+        else
+        {
+            f = core_f64_reinterpret_i64(random_nan_bits<int64_t>(64, 11));
+        }
+        assert(std::isnan(f));
+    }
+    return f;
+}
+
+uint32_t encode_float_as_i32(float32_t f)
+{
+    return std::bit_cast<uint32_t>(maybe_scramble_nan32(f));
+}
+
+uint64_t encode_float_as_i64(float64_t f)
+{
+    return std::bit_cast<uint64_t>(maybe_scramble_nan64(f));
+}
+
+void store(const CallContext &cx, const Val &v, uint32_t ptr);
+std::pair<uint32_t, size_t> store_list_into_range(const CallContext &cx, const std::vector<Val> &v, const ValType &elem_type)
+{
+    auto byte_length = v.size() * size(elem_type);
+    if (byte_length >= std::numeric_limits<uint32_t>::max())
+    {
+        throw std::runtime_error("byte_length exceeds limit");
+    }
+    uint32_t ptr = cx.opts->realloc(0, 0, alignment(elem_type), byte_length);
+    if (ptr != align_to(ptr, alignment(elem_type)))
+    {
+        throw std::runtime_error("ptr not aligned");
+    }
+    if (ptr + byte_length > cx.opts->memory.size())
+    {
+        throw std::runtime_error("memory overflow");
+    }
+    for (size_t i = 0; i < v.size(); ++i)
+    {
+        store(cx, v[i], ptr + i * size(elem_type));
+    }
+    return {ptr, v.size()};
+}
+
+void store_list(const CallContext &cx, ListPtr list, uint32_t ptr)
+{
+    auto [begin, length] = store_list_into_range(cx, list->vs, list->t);
+    store_int(cx, begin, ptr, 4);
+    store_int(cx, length, ptr + 4, 4);
+}
+
+void store_record(const CallContext &cx, RecordPtr record, uint32_t ptr)
+{
+    for (const auto &f : record->fields)
+    {
+        ptr = align_to(ptr, alignment(f.v));
+        store(cx, f.v, ptr);
+        ptr += size(f.v);
+    }
+}
+
+/*
+def match_case(v, cases):
+  assert(len(v.keys()) == 1)
+  key = list(v.keys())[0]
+  value = list(v.values())[0]
+  for label in key.split('|'):
+    case_index = find_case(label, cases)
+    if case_index != -1:
+      return (case_index, value)
+*/
+
+std::string case_label_with_refinements(const Case &c, const std::vector<Case> &cases);
+std::map<std::string, std::any> load_variant(const CallContext &cx, uint32_t &ptr, const std::vector<Case> &cases)
+{
+    uint32_t disc_size = size(discriminant_type(cases));
+    uint32_t case_index = load_int<uint32_t>(cx, ptr, disc_size);
+    ptr += disc_size;
+    if (case_index >= cases.size())
+    {
+        throw std::runtime_error("case_index out of range");
+    }
+    Case c = cases[case_index];
+    ptr = align_to(ptr, max_case_alignment(cases));
+    std::string case_label = case_label_with_refinements(c, cases);
+    if (c.v.has_value())
+    {
+        return {{case_label, load(cx, ptr, c.v.value())}};
+    }
+    return {{case_label, nullptr}};
+}
+
+int find_case(const std::string &label, const std::vector<Case> &cases);
+std::string case_label_with_refinements(const Case &c, const std::vector<Case> &cases)
+{
+    std::string label = c.label;
+    Case currentCase = c;
+
+    while (currentCase.refines.has_value())
+    {
+        // TODO:  currentCase = cases[find_case(currentCase.refines.value(), cases)];
+        label += '|' + currentCase.label;
+    }
+
+    return label;
+}
+
+int find_case(const std::string &label, const std::vector<Case> &cases)
+{
+    auto it = std::find_if(cases.begin(), cases.end(), [&label](const Case &c)
+                           { return c.label == label; });
+
+    if (it != cases.end())
+    {
+        return std::distance(cases.begin(), it);
+    }
+
+    return -1;
+}
+
+std::pair<uint32_t, Val> match_case(VariantPtr v)
+{
+    assert(v->cases.size() == 1);
+    auto key = v->cases[0].label;
+    auto value = v->cases[0].v;
+    for (auto label : split(key, '|'))
+    {
+        auto case_index = find_case(label, cases);
+        if (case_index != -1)
+        {
+            return {case_index, value};
+        }
+    }
+    throw std::runtime_error("Case not found");
+}
+
+std::vector<std::string> split(const std::string &input, char delimiter)
+{
+    std::vector<std::string> result;
+    std::string token;
+    std::istringstream stream(input);
+
+    while (std::getline(stream, token, delimiter))
+    {
+        result.push_back(token);
+    }
+
+    return result;
+}
+
+void store_variant(const CallContext &cx, VariantPtr v, uint32_t ptr)
+{
+    auto [case_index, case_value] = match_case(v);
+    auto disc_size = size(discriminant_type(cases));
+    store_int(cx, case_index, ptr, disc_size);
+    ptr += disc_size;
+    ptr = align_to(ptr, max_case_alignment(cases));
+    const auto &c = cases[case_index];
+    if (c.t.has_value())
+    {
+        store(cx, case_value, c.t.value(), ptr);
+    }
+}
+
+void store(const CallContext &cx, const Val &v, uint32_t ptr)
+{
+    assert(ptr == align_to(ptr, alignment(v)));
+    assert(ptr + size(v) <= cx.opts->memory.size());
+    switch (v.kind())
+    {
+    case ValType::Bool:
+        store_int(cx, v.b(), ptr, 1);
+        break;
+    case ValType::U8:
+        store_int(cx, v.u8(), ptr, 1);
+        break;
+    case ValType::U16:
+        store_int(cx, v.u16(), ptr, 2);
+        break;
+    case ValType::U32:
+        store_int(cx, v.u32(), ptr, 4);
+        break;
+    case ValType::U64:
+        store_int(cx, v.u64(), ptr, 8);
+        break;
+    case ValType::S8:
+        store_int(cx, v.s8(), ptr, 1, true);
+        break;
+    case ValType::S16:
+        store_int(cx, v.s16(), ptr, 2, true);
+        break;
+    case ValType::S32:
+        store_int(cx, v.s32(), ptr, 4, true);
+        break;
+    case ValType::S64:
+        store_int(cx, v.s64(), ptr, 8, true);
+        break;
+    case ValType::Float32:
+        store_int(cx, encode_float_as_i32(v.f32()), ptr, 4);
+        break;
+    case ValType::Float64:
+        store_int(cx, encode_float_as_i64(v.f64()), ptr, 8);
+        break;
+    case ValType::Char:
+        store_int(cx, char_to_i32(v.c()), ptr, 4);
+        break;
+    case ValType::String:
+        store_string(cx, v, ptr);
+        break;
+    case ValType::List:
+        store_list(cx, v.list(), ptr);
+        break;
+    case ValType::Record:
+        store_record(cx, v.record(), ptr);
+        break;
+    case ValType::Variant:
+        store_variant(cx, v.variant(), ptr);
+        break;
+    case ValType::Flags:
+        store_flags(cx, v.flags(), ptr, t.getLabels());
+        break;
+    case ValType::Own:
+        store_int(cx, lower_own(cx.opts, v, t), ptr, 4);
+        break;
+    case ValType::Borrow:
+        store_int(cx, lower_borrow(cx.opts, v, t), ptr, 4);
+        break;
+    default:
+        throw std::runtime_error("Unknown type");
+    }
+}
+
 //  Flatten  ----------------------------------------------------------------
 
 const int MAX_FLAT_PARAMS = 16;
@@ -1099,7 +1694,7 @@ CoreFuncType flatten_functype(FuncTypePtr ft, std::string context)
 std::vector<std::string> flatten_types(const std::vector<ValType> &ts)
 {
     std::vector<std::string> result;
-    for (const ValType &t : ts)
+    for (ValType t : ts)
     {
         std::vector<std::string> flattened = flatten_type(t);
         result.insert(result.end(), flattened.begin(), flattened.end());
@@ -1198,10 +1793,6 @@ std::string join(const std::string &a, const std::string &b)
     return "i64";
 }
 
-bool DETERMINISTIC_PROFILE = false;
-float32_t CANONICAL_FLOAT32_NAN = 0x7fc00000;
-float64_t CANONICAL_FLOAT64_NAN = 0x7ff8000000000000;
-
 float canonicalize_nan32(float32_t f)
 {
     if (std::isnan(f))
@@ -1222,14 +1813,13 @@ float64_t canonicalize_nan64(float64_t f)
     return f;
 }
 
-float core_f32_reinterpret_i32(int32_t i);
-float decode_i32_as_float(int32_t i)
+float32_t decode_i32_as_float(int32_t i)
 {
     return canonicalize_nan32(core_f32_reinterpret_i32(i));
 }
 
-double core_f64_reinterpret_i64(int64_t i);
-double decode_i64_as_float(int64_t i)
+float64_t core_f64_reinterpret_i64(int64_t i);
+float64_t decode_i64_as_float(int64_t i)
 {
     return canonicalize_nan64(core_f64_reinterpret_i64(i));
 }
@@ -1246,49 +1836,6 @@ float64_t core_f64_reinterpret_i64(int64_t i)
     double d;
     std::memcpy(&d, &i, sizeof d);
     return d;
-}
-
-template <typename T>
-T random_nan_bits(int bits, int quiet_bits)
-{
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distrib(1 << quiet_bits, (1 << bits) - 1);
-    return distrib(gen);
-}
-
-float32_t maybe_scramble_nan32(float32_t f)
-{
-    if (std::isnan(f))
-    {
-        if (DETERMINISTIC_PROFILE)
-        {
-            f = CANONICAL_FLOAT32_NAN;
-        }
-        else
-        {
-            f = core_f32_reinterpret_i32(random_nan_bits<int32_t>(32, 8));
-        }
-        assert(std::isnan(f));
-    }
-    return f;
-}
-
-float64_t maybe_scramble_nan64(float64_t f)
-{
-    if (std::isnan(f))
-    {
-        if (DETERMINISTIC_PROFILE)
-        {
-            f = CANONICAL_FLOAT32_NAN;
-        }
-        else
-        {
-            f = core_f64_reinterpret_i64(random_nan_bits<int64_t>(64, 11));
-        }
-        assert(std::isnan(f));
-    }
-    return f;
 }
 
 std::vector<WasmVal> lower_flat_string(const CallContext &cx, const Val &v)
@@ -1367,24 +1914,3 @@ std::vector<WasmVal> lower_values(const CallContext &cx, int max_flat, std::vect
         return flat_vals;
     }
 }
-
-//  Storing  ----------------------------------------------------------------
-template <typename T>
-void store_int(const CallContext &cx, const T &v, uint32_t ptr, uint8_t nbytes, bool isSigned)
-{
-    for (size_t i = 0; i < nbytes; ++i)
-    {
-        cx.opts->memory[ptr + i] = static_cast<uint8_t>(v >> (8 * i));
-    }
-}
-
-// void store(CallContextPtr cx, const Val &hostValue, const std::vector<Val> &guestValues)
-// {
-//     Val v = despecialize(*this);
-//     switch (v.kind())
-//     {
-//     case ValType::Bool:
-//         store_int(cx, v.b(), 0, 1, false);
-//         break;
-//     }
-// }

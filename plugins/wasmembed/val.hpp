@@ -10,6 +10,7 @@
 #include <string>
 #include <functional>
 #include <memory>
+#include <variant>
 
 #include "cmcpp.hpp"
 
@@ -18,6 +19,7 @@ using float64_t = double;
 
 enum class ValType : uint8_t
 {
+    Unknown,
     Bool,
     S8,
     U8,
@@ -85,6 +87,8 @@ using OwnPtr = std::shared_ptr<Own>;
 class Borrow;
 using BorrowPtr = std::shared_ptr<Borrow>;
 
+using PtrVariant = std::variant<FuncTypePtr, ListPtr, FieldPtr, RecordPtr, TuplePtr, CasePtr, VariantPtr, EnumPtr, OptionPtr, ResultPtr, FlagsPtr, OwnPtr, BorrowPtr>;
+
 typedef union valunion
 {
     bool b;
@@ -125,7 +129,7 @@ typedef struct val
 class Val
 {
     val_t val;
-    std::shared_ptr<void> shared_ptr;
+    PtrVariant shared_ptr;
 
     Val();
     Val(val_t val);
@@ -137,6 +141,7 @@ public:
     Val(int16_t s16);
     Val(uint16_t u16);
     Val(int32_t s32);
+    Val(uint32_t u32);
     Val(int64_t s64);
     Val(uint64_t u64);
     Val(float32_t f32);
@@ -179,18 +184,18 @@ public:
     char c() const;
     string_t s() const;
     FuncType *func() const;
-    List *list() const;
-    Field *field() const;
-    Record *record() const;
-    Tuple *tuple() const;
-    Case *case_() const;
-    Variant *variant() const;
-    Enum *enum_() const;
-    Option *option() const;
-    Result *result() const;
-    Flags *flags() const;
-    Own *own() const;
-    Borrow *borrow() const;
+    ListPtr list() const;
+    FieldPtr field() const;
+    RecordPtr record() const;
+    TuplePtr tuple() const;
+    CasePtr case_() const;
+    VariantPtr variant() const;
+    EnumPtr enum_() const;
+    OptionPtr option() const;
+    ResultPtr result() const;
+    FlagsPtr flags() const;
+    OwnPtr own() const;
+    BorrowPtr borrow() const;
 };
 
 enum class WasmValType : uint8_t
@@ -241,6 +246,7 @@ class List
 {
 public:
     const ValType &t;
+    std::vector<Val> vs;
 
     List(const ValType &t);
     virtual ~List() = default;
@@ -250,9 +256,10 @@ class Field
 {
 public:
     const std::string &label;
-    const Val &v;
+    const ValType &t;
+    std::optional<Val> v;
 
-    Field(const std::string &label, const Val &v);
+    Field(const std::string &label, const ValType &t);
     virtual ~Field() = default;
 };
 
