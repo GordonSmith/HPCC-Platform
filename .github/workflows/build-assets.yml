@@ -102,6 +102,7 @@ jobs:
             name: docs
             documentation: true
           - os: ubuntu-20.04
+          - os: centos-8
           - os: centos-7
             cmake_options_extra: "-DVCPKG_TARGET_TRIPLET=x64-centos-7-dynamic"
           - os: amazonlinux
@@ -119,6 +120,10 @@ jobs:
             ee: true
           - os: ubuntu-20.04
             name: LN
+            ln: true
+          - os: centos-8
+            name: LN
+            cmake_options_extra: ""
             ln: true
           - os: centos-7
             name: LN
