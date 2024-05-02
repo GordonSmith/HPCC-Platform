@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useConst } from "@fluentui/react-hooks";
 import { IScope } from "@hpcc-js/comms";
-import { Table } from "@hpcc-js/dgrid";
+import { ColumnFormat, Table } from "@hpcc-js/dgrid";
 import nlsHPCC from "src/nlsHPCC";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 
@@ -10,6 +10,7 @@ interface MetricsPropertiesTablesProps {
     scopes?: IScope[];
 }
 
+const Columns = [nlsHPCC.Property, nlsHPCC.Value, "Avg", "Min", "Max", "Delta", "StdDev", "SkewMin", "SkewMax", "NodeMin", "NodeMax"];
 export const MetricsPropertiesTables: React.FunctionComponent<MetricsPropertiesTablesProps> = ({
     scopesTableColumns = [],
     scopes = []
@@ -21,8 +22,15 @@ export const MetricsPropertiesTables: React.FunctionComponent<MetricsPropertiesT
 
     //  Props Table  ---
     const propsTable = useConst(() => new Table()
-        .columns([nlsHPCC.Property, nlsHPCC.Value, "Avg", "Min", "Max", "Delta", "StdDev", "SkewMin", "SkewMax", "NodeMin", "NodeMax"])
+        .columns([...Columns])
+        .columnFormats([...Columns].map((col, idx) => {
+            return new ColumnFormat()
+                .column(col)
+                .width(idx < 2 ? 120 : 50)
+                ;
+        }))
         .columnWidth("auto")
+        .sortable(true)
     );
 
     React.useEffect(() => {
