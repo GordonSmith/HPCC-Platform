@@ -4,7 +4,7 @@ import { Theme, ThemeProvider } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
 import { FluentProvider, Theme as ThemeV9 } from "@fluentui/react-components";
 import { HTMLWidget, Widget } from "@hpcc-js/common";
-import { DockPanel as HPCCDockPanel, IClosable } from "@hpcc-js/phosphor";
+import { DockPanel as HPCCDockPanel, IClosable, WidgetAdapter } from "@hpcc-js/phosphor";
 import { compare2 } from "@hpcc-js/util";
 import { lightTheme, lightThemeV9 } from "../themes";
 import { useUserTheme } from "../hooks/theme";
@@ -139,6 +139,10 @@ export class ResetableDockPanel extends HPCCDockPanel {
     }
 
     //  Events  ---
+    childActivation(w: Widget, wa: WidgetAdapter) {
+
+    }
+
     layoutChanged() {
         this._lastLayout = this.getLayout();
     }
@@ -152,6 +156,7 @@ interface DockPanelItemProps {
     closable?: boolean | IClosable;
     padding?: number;
     children: JSX.Element;
+    onVisible?: (visible: boolean) => void;
 }
 
 export const DockPanelItem: React.FunctionComponent<DockPanelItemProps> = ({

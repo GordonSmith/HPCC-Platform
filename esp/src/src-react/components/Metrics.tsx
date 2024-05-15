@@ -162,6 +162,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     const [isLayoutComplete, setIsLayoutComplete] = React.useState<boolean>(false);
     const [isRenderComplete, setIsRenderComplete] = React.useState<boolean>(false);
     const [dot, setDot] = React.useState<string>("");
+    const [_metricGraphVisible, setMetricGraphVisible] = React.useState<boolean>(true);
 
     React.useEffect(() => {
         const service = new WorkunitsServiceEx({ baseUrl: "" });
@@ -617,7 +618,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                             main={<AutosizeHpccJSComponent widget={scopesTable} ></AutosizeHpccJSComponent>}
                         />
                     </DockPanelItem>
-                    <DockPanelItem key="metricGraph" title={nlsHPCC.Graph} location="split-right" relativeTo="scopesTable" >
+                    <DockPanelItem key="metricGraph" title={nlsHPCC.Graph} location="split-right" relativeTo="scopesTable" onVisible={setMetricGraphVisible}>
                         <HolyGrail
                             header={<>
                                 <CommandBar items={graphButtons} farItems={graphRightButtons} />
