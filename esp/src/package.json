@@ -35,7 +35,6 @@
   },
   "main": "src/stub.js",
   "dependencies": {
-    "@duckdb/react-duckdb": "1.28.1-dev106.0",
     "@fluentui/react": "8.117.0",
     "@fluentui/react-components": "9.47.2",
     "@fluentui/react-experiments": "8.14.137",
@@ -57,6 +56,7 @@
     "@hpcc-js/react": "2.53.16",
     "@hpcc-js/tree": "2.40.17",
     "@hpcc-js/util": "2.51.0",
+    "@hpcc-js/wasm": "2.16.2",
     "@kubernetes/client-node": "0.20.0",
     "clipboard": "2.0.11",
     "d3-dsv": "3.0.1",

@@ -3,6 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link, Pivot, 
 import { IScope } from "@hpcc-js/comms";
 import { SizeMe } from "react-sizeme";
 import nlsHPCC from "src/nlsHPCC";
+import { useDuckDBConnection } from "../hooks/duckdb";
 import { useWorkunitResults } from "../hooks/workunit";
 import { pivotItemStyle } from "../layouts/pivot";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
@@ -26,6 +27,22 @@ export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
         selection, setSelection,
         setTotal,
         refreshTable } = useFluentStoreState({});
+    const [connection] = useDuckDBConnection(scopes, "metrics");
+    const [data, setData] = React.useState<any[]>([]);
+
+    React.useEffect(() => {
+        if (connection) {
+            connection.query("SELECT * FROM metrics").then(result => {
+                setData(result.toArray().map((row) => row.toJSON()));
+            });
+        }
+    }, [connection]);
+
+    React.useEffect(() => {
+        if (data?.length) {
+            debugger;
+        }
+    }, [data]);
 
     //  Grid ---
     const columns = React.useMemo((): FluentColumns => {
