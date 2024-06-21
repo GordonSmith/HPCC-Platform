@@ -35,6 +35,7 @@
   },
   "main": "src/stub.js",
   "dependencies": {
+    "@duckdb/react-duckdb": "1.28.1-dev106.0",
     "@fluentui/react": "8.117.0",
     "@fluentui/react-components": "9.47.2",
     "@fluentui/react-experiments": "8.14.137",

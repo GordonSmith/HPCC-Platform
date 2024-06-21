@@ -23,6 +23,7 @@ import { ShortVerticalDivider } from "./Common";
 import { MetricsOptions } from "./MetricsOptions";
 import { BreadcrumbInfo, OverflowBreadcrumb } from "./controls/OverflowBreadcrumb";
 import { MetricsPropertiesTables } from "./MetricsPropertiesTables";
+import { MetricsData } from "./MetricsData";
 
 const logger = scopedLogger("src-react/components/Metrics.tsx");
 
@@ -616,6 +617,9 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                             header={<SearchBox value={scopeFilter} onChange={onChangeScopeFilter} iconProps={filterIcon} placeholder={nlsHPCC.Filter} />}
                             main={<AutosizeHpccJSComponent widget={scopesTable} ></AutosizeHpccJSComponent>}
                         />
+                    </DockPanelItem>
+                    <DockPanelItem key="rawData" title={nlsHPCC.RawData} location="tab-after" relativeTo="scopesTable">
+                        <MetricsData scopes={metrics}></MetricsData>
                     </DockPanelItem>
                     <DockPanelItem key="metricGraph" title={nlsHPCC.Graph} location="split-right" relativeTo="scopesTable" >
                         <HolyGrail
