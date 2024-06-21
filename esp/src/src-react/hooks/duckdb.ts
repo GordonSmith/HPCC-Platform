@@ -1,10 +1,11 @@
 import * as React from "react";
 //@ts-ignore
 import { DuckDB } from "@hpcc-js/wasm/duckdb";
+import type { AsyncDuckDB, Connection } from "@hpcc-js/wasm/dist/duckdb";
 
-export function useDuckDB(): [any] {
+export function useDuckDB(): [AsyncDuckDB] {
 
-    const [db, setDb] = React.useState();
+    const [db, setDb] = React.useState<AsyncDuckDB>();
 
     React.useEffect(() => {
         DuckDB.load().then(duckdb => {
@@ -15,10 +16,10 @@ export function useDuckDB(): [any] {
     return [db];
 }
 
-export function useDuckDBConnection<T>(scopes: T, name: string): [any] {
+export function useDuckDBConnection<T>(scopes: T, name: string): [Connection] {
 
     const [db] = useDuckDB();
-    const [connection, setConnection] = React.useState();
+    const [connection, setConnection] = React.useState<Connection>();
 
     React.useEffect(() => {
         let c;
@@ -28,7 +29,6 @@ export function useDuckDBConnection<T>(scopes: T, name: string): [any] {
                 await connection.insertJSONFromPath(`${name}.json`, { name });
                 await connection.close();
                 c = await db.connect();
-                // await connection.query(`CREATE TABLE ${name} AS SELECT * FROM read_json_auto('${name}.json')`);
                 setConnection(c);
             });
         }
