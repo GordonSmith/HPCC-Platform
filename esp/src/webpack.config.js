@@ -90,10 +90,14 @@ module.exports = function (env) {
             alias: {
             },
             fallback: {
+                "@hpcc-js/wasm": [
+                    path.resolve(__dirname, "../../../hpcc-js-wasm"),
+                ],
                 "@hpcc-js": [
                     path.resolve(__dirname, "../../../hpcc-js/packages"),
-                    path.resolve(__dirname, "../../../Visualization/packages")
+                    path.resolve(__dirname, "../../../Visualization/packages"),
                 ]
+
             }
         },
         plugins: plugins,

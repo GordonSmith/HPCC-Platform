@@ -28,6 +28,10 @@
         "typeRoots": [],
         "types": [],
         "paths": {
+            "@hpcc-js/wasm": [
+                "./node_modules/@hpcc-js/wasm",
+                "../../../hpcc-js-wasm"
+            ],
             "@hpcc-js/*": [
                 "./node_modules/@hpcc-js/*",
                 "../../../hpcc-js/packages/*",

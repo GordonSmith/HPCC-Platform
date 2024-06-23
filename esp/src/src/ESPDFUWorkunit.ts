@@ -327,7 +327,7 @@ export function CreateWUQueryStore(): BaseStore<FileSprayNS.GetDFUWorkunits, typ
     }, "ID", request => {
         request.includeTimings = true;
         request.includeTransferRate = true;
-        return service.GetDFUWorkunits(request).then(response => {
+        return service.GetDFUWorkunits(request as any).then(response => {
             return {
                 data: response.results.DFUWorkunit.map(wu => Get(wu.ID, wu)),
                 total: response.NumWUs

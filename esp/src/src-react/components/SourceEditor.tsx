@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { useConst, useOnEvent } from "@fluentui/react-hooks";
-import { Editor, ECLEditor, XMLEditor, JSONEditor } from "@hpcc-js/codemirror";
+import { Editor, ECLEditor, XMLEditor, JSONEditor, SQLEditor } from "@hpcc-js/codemirror";
 import { Workunit } from "@hpcc-js/comms";
 import nlsHPCC from "src/nlsHPCC";
 import { HolyGrail } from "../layouts/HolyGrail";
@@ -12,7 +12,7 @@ import { ShortVerticalDivider } from "./Common";
 
 import "eclwatch/css/cmDarcula.css";
 
-type ModeT = "ecl" | "xml" | "json" | "text";
+type ModeT = "ecl" | "xml" | "json" | "text" | "sql";
 
 function newEditor(mode: ModeT) {
     switch (mode) {
@@ -22,6 +22,8 @@ function newEditor(mode: ModeT) {
             return new XMLEditor();
         case "json":
             return new JSONEditor();
+        case "sql":
+            return new SQLEditor();
         case "text":
         default:
             return new Editor();
@@ -32,6 +34,7 @@ interface SourceEditorProps {
     mode?: ModeT;
     text?: string;
     readonly?: boolean;
+    toolbar?: boolean;
     onChange?: (text: string) => void;
 }
 
@@ -39,6 +42,7 @@ export const SourceEditor: React.FunctionComponent<SourceEditorProps> = ({
     mode = "text",
     text = "",
     readonly = false,
+    toolbar = true,
     onChange = (text: string) => { }
 }) => {
 
@@ -84,7 +88,7 @@ export const SourceEditor: React.FunctionComponent<SourceEditorProps> = ({
     useOnEvent(document, "eclwatch-theme-toggle", handleThemeToggle);
 
     return <HolyGrail
-        header={<CommandBar items={buttons} />}
+        header={toolbar && <CommandBar items={buttons} />}
         main={
             <AutosizeHpccJSComponent widget={editor} padding={4} />
         }

@@ -1,14 +1,13 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link, Pivot, PivotItem, ScrollablePane, Sticky } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, SelectionMode } from "@fluentui/react";
 import { IScope } from "@hpcc-js/comms";
 import { SizeMe } from "react-sizeme";
 import nlsHPCC from "src/nlsHPCC";
 import { useDuckDBConnection } from "../hooks/duckdb";
-import { useWorkunitResults } from "../hooks/workunit";
 import { pivotItemStyle } from "../layouts/pivot";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 import { ShortVerticalDivider } from "./Common";
-import { Result } from "./Result";
+import { SourceEditor } from "./SourceEditor";
 
 const defaultUIState = {
     hasSelection: false
@@ -22,71 +21,77 @@ export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
     scopes
 }) => {
 
+    const cleanScopes = React.useMemo(() => {
+        return scopes.map(scope => {
+            const retVal = { ...scope };
+            delete retVal.__children;
+            return retVal;
+        });
+    }, [scopes]);
+
+    const [connection] = useDuckDBConnection(cleanScopes, "metrics");
+    const [sql, setSql] = React.useState<string>("SELECT type, name, TimeElapsed FROM metrics WHERE TimeElapsed IS NOT NULL");
+    const [dirtySql, setDirtySql] = React.useState<string>(sql);
+    const [schema, setSchema] = React.useState<any[]>([]);
+    const [data, setData] = React.useState<any[]>([]);
     const [_uiState, setUIState] = React.useState({ ...defaultUIState });
     const {
         selection, setSelection,
         setTotal,
         refreshTable } = useFluentStoreState({});
-    const [connection] = useDuckDBConnection(scopes, "metrics");
-    const [data, setData] = React.useState<any[]>([]);
 
     React.useEffect(() => {
-        if (connection) {
-            connection.query("SELECT * FROM metrics").then(result => {
-                setData(result.toArray().map((row) => row.toJSON()));
+        if (cleanScopes.length === 0) {
+            setSchema([]);
+            setData([]);
+        } else if (connection) {
+            connection.query(`DESCRIBE ${sql}`).then(result => {
+                if (connection) {
+                    setSchema(result.toArray().map((row) => row.toJSON()));
+                }
+            });
+            connection.query(sql).then(result => {
+                if (connection) {
+                    setData(result.toArray().map((row) => row.toJSON()));
+                }
             });
         }
-    }, [connection]);
-
-    React.useEffect(() => {
-        if (data?.length) {
-            debugger;
-        }
-    }, [data]);
+    }, [cleanScopes.length, connection, sql]);
 
     //  Grid ---
     const columns = React.useMemo((): FluentColumns => {
-        return {
-            col1: {
-                width: 27,
-                selectorType: "checkbox"
-            },
-            Name: {
-                label: nlsHPCC.Name, width: 180, sortable: true,
-                formatter: (Name, row) => {
-                    return <Link href={`#/workunits/${row.Wuid}/outputs/${Name}`}>{Name}</Link>;
-                }
-            },
-            FileName: {
-                label: nlsHPCC.FileName, sortable: true,
-                formatter: (FileName, row) => {
-                    return <Link href={`#/files/${FileName}`}>{FileName}</Link>;
-                }
-            },
-            Value: {
-                label: nlsHPCC.Value,
-                width: 180,
-                sortable: true
-            },
-            ResultViews: {
-                label: nlsHPCC.Views, sortable: true,
-                formatter: (ResultViews, idx) => {
-                    return <>
-                        {ResultViews?.map((item, idx) => <Link href='#' viewName={encodeURIComponent(item)}>{item}</Link>)}
-                    </>;
-                }
+        const retVal: FluentColumns = {};
+        schema.forEach(col => {
+            /*
+            {
+                column_name: "CostCompile",
+                column_type: "DOUBLE",
+                null: "YES",
+                key: null,
+                default: null,
+                extra: null,
             }
-        };
-    }, []);
+            */
+            retVal[col.column_name] = {
+                label: col.column_name,
+                sortable: true
+            };
+        });
+        return retVal;
+    }, [schema]);
 
     //  Command Bar  ---
     const buttons = React.useMemo((): ICommandBarItemProps[] => [
         {
-            key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
+            key: "reset", text: nlsHPCC.Reset, iconProps: { iconName: "Refresh" },
             onClick: () => { }
         },
+        {
+            key: "submit", text: nlsHPCC.Submit, iconProps: { iconName: "Play" },
+            onClick: () => setSql(dirtySql)
+        },
         { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
-    ], []);
+    ], [dirtySql]);
 
     const copyButtons = useCopyButtons(columns, selection, "metrics");
 
@@ -101,42 +106,27 @@ export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
         setUIState(state);
     }, [selection]);
 
-    return <ScrollablePane>
-        <Sticky>
-            <CommandBar items={buttons} farItems={copyButtons} />
-        </Sticky>
-        <FluentGrid
-            data={scopes ?? []}
-            primaryID={"__hpcc_id"}
-            alphaNumColumns={{ Name: true, Value: true }}
-            columns={columns}
-            setSelection={setSelection}
-            setTotal={setTotal}
-            refresh={refreshTable}
-        ></FluentGrid>
-    </ScrollablePane >;
-};
-
-interface TabbedResultsProps {
-    wuid: string;
-    filter?: { [id: string]: any };
-}
-
-export const TabbedResults: React.FunctionComponent<TabbedResultsProps> = ({
-    wuid,
-    filter = {}
-}) => {
-
-    const [results] = useWorkunitResults(wuid);
-
-    return <SizeMe monitorHeight>{({ size }) =>
-        <Pivot overflowBehavior="menu" style={{ height: "100%" }}>
-            {results.map(result => {
-                return <PivotItem key={`${result?.ResultName}_${result?.Sequence}`} headerText={result?.ResultName} style={pivotItemStyle(size)}>
-                    <Result wuid={wuid} resultName={result?.ResultName} filter={filter} />
-                </PivotItem>;
-            })}
-        </Pivot>
-    }</SizeMe>;
-
+    return <div style={{ height: "100%", overflowY: "hidden" }}>
+        <CommandBar items={buttons} farItems={copyButtons} />
+        <div style={{ width: "100%", height: "80px" }}>
+            <SourceEditor text={sql} mode="sql" toolbar={false} onChange={sql => setDirtySql(sql)}></SourceEditor>
+        </div>
+        <SizeMe monitorHeight >{({ size }) =>
+            <div style={{ height: "100%", overflowY: "hidden" }}>
+                <div style={{ ...pivotItemStyle(size), overflowY: "hidden" }}>
+                    <FluentGrid
+                        data={data}
+                        primaryID={"__hpcc_id"}
+                        alphaNumColumns={{ Name: true, Value: true }}
+                        columns={columns}
+                        setSelection={setSelection}
+                        setTotal={setTotal}
+                        refresh={refreshTable}
+                        height={`${size.height - (80 + 8 + 45 + 12)}px`}
+                        selectionMode={SelectionMode.none}
+                    ></FluentGrid>
+                </div>
+            </div>
+        }</SizeMe>
+    </div>;
 };

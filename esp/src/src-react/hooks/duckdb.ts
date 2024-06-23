@@ -1,28 +1,37 @@
 import * as React from "react";
+// import { useId } from "@fluentui/react-hooks";
 //@ts-ignore
-import { DuckDB } from "@hpcc-js/wasm/duckdb";
-import type { AsyncDuckDB, Connection } from "@hpcc-js/wasm/dist/duckdb";
+import { DuckDB } from "@hpcc-js/wasm/dist/duckdb";
+import type { AsyncDuckDB, AsyncDuckDBConnection } from "@hpcc-js/wasm";
+
+console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
 
 export function useDuckDB(): [AsyncDuckDB] {
 
     const [db, setDb] = React.useState<AsyncDuckDB>();
 
     React.useEffect(() => {
+        // let _db: AsyncDuckDB | undefined;
         DuckDB.load().then(duckdb => {
+            // _db = duckdb.db;
             setDb(duckdb.db);
         });
+
+        return () => {
+        };
     }, []);
 
     return [db];
 }
 
-export function useDuckDBConnection<T>(scopes: T, name: string): [Connection] {
+export function useDuckDBConnection<T>(scopes: T, name: string): [AsyncDuckDBConnection] {
 
+    // const id = useId("duckdb-");
     const [db] = useDuckDB();
-    const [connection, setConnection] = React.useState<Connection>();
+    const [connection, setConnection] = React.useState<AsyncDuckDBConnection>();
 
     React.useEffect(() => {
-        let c;
+        let c: AsyncDuckDBConnection | undefined;
         if (db) {
             db.connect().then(async connection => {
                 await db.registerFileText(`${name}.json`, JSON.stringify(scopes));
