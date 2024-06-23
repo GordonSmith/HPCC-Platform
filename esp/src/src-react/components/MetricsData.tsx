@@ -45,16 +45,28 @@ export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
             setSchema([]);
             setData([]);
         } else if (connection) {
-            connection.query(`DESCRIBE ${sql}`).then(result => {
-                if (connection) {
-                    setSchema(result.toArray().map((row) => row.toJSON()));
-                }
-            });
-            connection.query(sql).then(result => {
-                if (connection) {
-                    setData(result.toArray().map((row) => row.toJSON()));
-                }
-            });
+            try {
+                connection.query(`DESCRIBE ${sql}`).then(result => {
+                    if (connection) {
+                        setSchema(result.toArray().map((row) => row.toJSON()));
+                    }
+                }).catch(e => {
+                    console.log(e.message);
+                    setSchema([]);
+                });
+                connection.query(sql).then(result => {
+                    if (connection) {
+                        setData(result.toArray().map((row) => row.toJSON()));
+                    }
+                }).catch(e => {
+                    console.log(e.message);
+                    setData([]);
+                });
+            } catch (e) {
+                console.log(e.message);
+                setSchema([]);
+                setData([]);
+            }
         }
     }, [cleanScopes.length, connection, sql]);
 

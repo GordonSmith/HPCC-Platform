@@ -12,12 +12,14 @@ export function useDuckDB(): [AsyncDuckDB] {
 
     React.useEffect(() => {
         // let _db: AsyncDuckDB | undefined;
-        DuckDB.load().then(duckdb => {
+        const duckdb = DuckDB.load().then(duckdb => {
             // _db = duckdb.db;
             setDb(duckdb.db);
+            return duckdb;
         });
 
         return () => {
+            duckdb?.db?.close();
         };
     }, []);
 
