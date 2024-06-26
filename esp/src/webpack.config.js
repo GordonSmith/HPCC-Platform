@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 /* eslint-disable @typescript-eslint/no-var-requires */
 var DojoWebpackPlugin = require("dojo-webpack-plugin");
+var StripStrictWebpackPlugin = require("./loader/StripStrictWebpackPlugin");
 
 var fs = require("fs");
 var path = require("path");
@@ -52,7 +53,8 @@ module.exports = function (env) {
             /^xstyle\/css!/, function (data) {
                 data.request = data.request.replace(/^xstyle\/css!/, "!style-loader!css-loader!");
             }
-        )
+        ),
+        new StripStrictWebpackPlugin()
     ];
 
     return {
@@ -66,25 +68,37 @@ module.exports = function (env) {
             pathinfo: true
         },
         module: {
-            rules: [
-                {
-                    test: /\.css$/,
-                    use: ["style-loader", "css-loader"]
-                }, {
-                    test: /\.js$/,
-                    use: ["source-map-loader"],
-                    enforce: "pre"
-                }, {
-                    test: /\.js$/,
-                    loader: "string-replace-loader",
-                    options: {
-                        search: isProduction ? "RELEASE_ONLY" : "DEBUG_ONLY",
-                        replace(match, p1, offset, string) {
-                            return "DEBUG_ONLY */";
-                        },
-                        flags: "g"
+            rules: [{
+                test: /\.js$/,
+                loader: "source-map-loader",
+                enforce: "pre",
+                options: {
+                    filterSourceMappingUrl: (url, resourcePath) => {
+                        // if (url.includes.nls || resourcePath.includes("nls")) {
+                        //     console.log(url, resourcePath);
+                        // }
+                        if (resourcePath.includes("nls")) {
+                            return false;
+                            // } else if (url === "duckdb.js.map" && resourcePath.includes("@hpcc-js")) {
+                            //     return false;
+                        }
+                        return true;
                     }
-                }]
+                }
+            }, {
+                test: /\.css$/,
+                use: ["style-loader", "css-loader"]
+            }, {
+                test: /\.js$/,
+                loader: "string-replace-loader",
+                options: {
+                    search: isProduction ? "RELEASE_ONLY" : "DEBUG_ONLY",
+                    replace(match, p1, offset, string) {
+                        return "DEBUG_ONLY */";
+                    },
+                    flags: "g"
+                }
+            }]
         },
         resolve: {
             alias: {
@@ -105,6 +119,7 @@ module.exports = function (env) {
             modules: ["node_modules"]
         },
 
+        target: "web",
         mode: isProduction ? "production" : "development",
         devtool: isProduction ? undefined : "cheap-module-source-map",
 

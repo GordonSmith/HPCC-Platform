@@ -1,19 +1,17 @@
 import * as React from "react";
 // import { useId } from "@fluentui/react-hooks";
 //@ts-ignore
-import { DuckDB } from "@hpcc-js/wasm/dist/duckdb";
-import type { AsyncDuckDB, AsyncDuckDBConnection } from "@hpcc-js/wasm";
+import { DuckDB } from "@hpcc-js/wasm/duckdb";
 
-console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+type AsyncDuckDB = any;
+type AsyncDuckDBConnection = any;
 
 export function useDuckDB(): [AsyncDuckDB] {
 
     const [db, setDb] = React.useState<AsyncDuckDB>();
 
     React.useEffect(() => {
-        // let _db: AsyncDuckDB | undefined;
         const duckdb = DuckDB.load().then(duckdb => {
-            // _db = duckdb.db;
             setDb(duckdb.db);
             return duckdb;
         });
@@ -26,11 +24,11 @@ export function useDuckDB(): [AsyncDuckDB] {
     return [db];
 }
 
-export function useDuckDBConnection<T>(scopes: T, name: string): [AsyncDuckDBConnection] {
+export function useDuckDBConnection<T>(scopes: T, name: string): AsyncDuckDBConnection | undefined {
 
     // const id = useId("duckdb-");
     const [db] = useDuckDB();
-    const [connection, setConnection] = React.useState<AsyncDuckDBConnection>();
+    const [connection, setConnection] = React.useState<AsyncDuckDBConnection | undefined>(undefined);
 
     React.useEffect(() => {
         let c: AsyncDuckDBConnection | undefined;
@@ -40,6 +38,13 @@ export function useDuckDBConnection<T>(scopes: T, name: string): [AsyncDuckDBCon
                 await connection.insertJSONFromPath(`${name}.json`, { name });
                 await connection.close();
                 c = await db.connect();
+                try { //  TODO:  Move to @hpcc-js/wasm
+                    await c.query("LOAD autocomplete").catch(e => {
+                        console.log(e.message);
+                    });
+                } catch (e) {
+                    console.log(e.message);
+                }
                 setConnection(c);
             });
         }
@@ -53,5 +58,5 @@ export function useDuckDBConnection<T>(scopes: T, name: string): [AsyncDuckDBCon
         };
     }, [db, name, scopes]);
 
-    return [connection];
+    return connection;
 }

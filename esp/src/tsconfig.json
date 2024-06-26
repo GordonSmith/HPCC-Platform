@@ -3,9 +3,9 @@
         "baseUrl": ".",
         "outDir": "./lib",
         "declarationDir": "./types",
-        "target": "es5",
-        "module": "amd",
-        "moduleResolution": "node",
+        "target": "ES5",
+        "module": "ES2022",
+        "moduleResolution": "Node",
         "allowSyntheticDefaultImports": true,
         "sourceMap": true,
         "declaration": true,
@@ -22,8 +22,8 @@
         "downlevelIteration": true,
         "jsx": "react",
         "lib": [
-            "dom",
-            "es2019"
+            "DOM",
+            "ES2022"
         ],
         "typeRoots": [],
         "types": [],
@@ -41,7 +41,8 @@
     },
     "include": [
         "src/**/*",
-        "src-react/**/*"
+        "src-react/**/*",
+        "eclwatch/nls"
     ],
     "watchOptions": {
         "watchFile": "useFsEvents",

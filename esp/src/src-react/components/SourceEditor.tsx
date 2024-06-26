@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { useConst, useOnEvent } from "@fluentui/react-hooks";
-import { Editor, ECLEditor, XMLEditor, JSONEditor, SQLEditor } from "@hpcc-js/codemirror";
+import { Editor, ECLEditor, XMLEditor, JSONEditor, SQLEditor, ICompletion } from "@hpcc-js/codemirror";
 import { Workunit } from "@hpcc-js/comms";
 import nlsHPCC from "src/nlsHPCC";
 import { HolyGrail } from "../layouts/HolyGrail";
@@ -14,6 +14,29 @@ import "eclwatch/css/cmDarcula.css";
 
 type ModeT = "ecl" | "xml" | "json" | "text" | "sql";
 
+class SQLEditorEx extends SQLEditor {
+
+    constructor() {
+        super();
+    }
+
+    enter(domNode, element) {
+        super.enter(domNode, element);
+        this.option("extraKeys", {
+            "Ctrl-Enter": cm => {
+                this.submit();
+            },
+            "Ctrl-S": cm => {
+                this.submit();
+            }
+
+        } as any);
+    }
+
+    submit() {
+    }
+}
+
 function newEditor(mode: ModeT) {
     switch (mode) {
         case "ecl":
@@ -23,7 +46,7 @@ function newEditor(mode: ModeT) {
         case "json":
             return new JSONEditor();
         case "sql":
-            return new SQLEditor();
+            return new SQLEditorEx();
         case "text":
         default:
             return new Editor();
@@ -36,6 +59,8 @@ interface SourceEditorProps {
     readonly?: boolean;
     toolbar?: boolean;
     onChange?: (text: string) => void;
+    onFetchHints?: (cm: any, option: any) => Promise<ICompletion>;
+    onSubmit?: () => void;
 }
 
 export const SourceEditor: React.FunctionComponent<SourceEditorProps> = ({
@@ -43,7 +68,9 @@ export const SourceEditor: React.FunctionComponent<SourceEditorProps> = ({
     text = "",
     readonly = false,
     toolbar = true,
-    onChange = (text: string) => { }
+    onChange = (text: string) => { },
+    onFetchHints,
+    onSubmit
 }) => {
 
     const { isDark } = useUserTheme();
@@ -59,11 +86,7 @@ export const SourceEditor: React.FunctionComponent<SourceEditorProps> = ({
         { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
     ];
 
-    const editor = useConst(() => newEditor(mode)
-        .on("changes", () => {
-            onChange(editor.text());
-        })
-    );
+    const editor = useConst(() => newEditor(mode));
 
     React.useEffect(() => {
         editor.option("theme", isDark ? "darcula" : "default");
@@ -76,6 +99,26 @@ export const SourceEditor: React.FunctionComponent<SourceEditorProps> = ({
             .lazyRender()
             ;
     }, [editor, text, readonly, isDark]);
+
+    React.useEffect(() => {
+        editor
+            .showHints(onFetchHints !== undefined)
+            .on("changes", onChange ? () => onChange(editor.text()) : undefined, true)
+            .on("fetchHints", (cm, option) => {
+                if (onFetchHints) {
+                    return onFetchHints(cm, option);
+                }
+                return Promise.resolve(null);
+            }, true)
+            .lazyRender()
+            ;
+    }, [editor, onChange, onFetchHints]);
+
+    React.useEffect(() => {
+        editor
+            .on("submit", onSubmit ? () => onSubmit() : undefined, true)
+            ;
+    }, [editor, onSubmit]);
 
     const handleThemeToggle = React.useCallback((evt) => {
         if (!editor) return;

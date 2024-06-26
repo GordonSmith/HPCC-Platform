@@ -42,14 +42,14 @@ define([
     "dojo/text!../templates/HPCCPlatformWidget.html",
 
     /* DEBUG_ONLY
-    "src/nls/bs/hpcc",
-    "src/nls/es/hpcc",
-    "src/nls/fr/hpcc",
-    "src/nls/hr/hpcc",
-    "src/nls/hu/hpcc",
-    "src/nls/pt-br/hpcc",
-    "src/nls/sr/hpcc",
-    "src/nls/zh/hpcc",
+    "./nls/bs/hpcc",
+    "./nls/es/hpcc",
+    "./nls/fr/hpcc",
+    "./nls/hr/hpcc",
+    "./nls/hu/hpcc",
+    "./nls/pt-br/hpcc",
+    "./nls/sr/hpcc",
+    "./nls/zh/hpcc",
     /* */
 
     "hpcc/DelayLoadWidget",
@@ -490,13 +490,13 @@ define([
         _ondebugLanguageFiles: function () {
             /* DEBUG_ONLY
             var context = this;
-            require(["src/nls/hpcc"], function (lang) {
+            require(["./eclwatch/nls/hpcc"], function (lang) {
                 var languageID = [];
                 var languageRequire = [];
                 for (var key in lang) {
                     if (key !== "root") {
                         languageID.push(key);
-                        languageRequire.push("src/nls/" + key + "/hpcc");
+                        languageRequire.push("./eclwatch/nls/" + key + "/hpcc");
                     }
                 }
                 var errWarnGrid = registry.byId(context.id + "ErrWarnGrid");

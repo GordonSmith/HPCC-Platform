@@ -226,7 +226,7 @@ set ( SRCS
     ${CMAKE_CURRENT_BINARY_DIR}/eclwatch/XrefLostFilesWidget.js
     ${CMAKE_CURRENT_BINARY_DIR}/eclwatch/XrefOrphanFilesWidget.js
     ${CMAKE_CURRENT_BINARY_DIR}/eclwatch/XrefQueryWidget.js
-    ${CMAKE_CURRENT_BINARY_DIR}/src/nls/hpcc.ts
+    ${CMAKE_CURRENT_BINARY_DIR}/eclwatch/nls/hpcc.js
     ${CMAKE_CURRENT_BINARY_DIR}/src/DataPatterns/AttributeDesc.ts
     ${CMAKE_CURRENT_BINARY_DIR}/src/DataPatterns/Cardinality.ts
     ${CMAKE_CURRENT_BINARY_DIR}/src/DataPatterns/config.ts
