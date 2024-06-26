@@ -19,6 +19,7 @@ const defaults = {
     layout: undefined
 };
 
+const MetricOptions = "MetricOptionsV2";
 const options = { ...defaults };
 
 function checkLayout(options: MetricsOptions): boolean {
@@ -52,7 +53,7 @@ export function useMetricsOptions(): [MetricsOptions, (opts: MetricsOptions) => 
 
     const save = React.useCallback(() => {
         if (checkLayout(options)) {
-            store?.set("MetricOptions", JSON.stringify(options), true);
+            store?.set(MetricOptions, JSON.stringify(options), true);
         }
     }, [store]);
 
@@ -60,7 +61,7 @@ export function useMetricsOptions(): [MetricsOptions, (opts: MetricsOptions) => 
         if (toDefaults) {
             setOptions({ ...defaults });
         } else {
-            store?.get("MetricOptions").then(opts => {
+            store?.get(MetricOptions).then(opts => {
                 const options = JSON.parse(opts);
                 checkLayout(options);
                 setOptions({ ...defaults, ...options });

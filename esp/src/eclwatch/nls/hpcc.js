@@ -548,6 +548,7 @@ define(["require", "exports"], function (require, exports) {
             Methods: "Methods",
             Metrics: "Metrics",
             MetricsGraph: "Metrics/Graph",
+            MetricsSQL: "Metrics (SQL)",
             Min: "Min",
             Mine: "Mine",
             MinNode: "Min Node",

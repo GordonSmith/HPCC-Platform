@@ -618,8 +618,8 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                             main={<AutosizeHpccJSComponent widget={scopesTable} ></AutosizeHpccJSComponent>}
                         />
                     </DockPanelItem>
-                    <DockPanelItem key="rawData" title={nlsHPCC.RawData} location="tab-after" relativeTo="scopesTable">
-                        <MetricsData scopes={metrics}></MetricsData>
+                    <DockPanelItem key="rawData" title={nlsHPCC.MetricsSQL} location="tab-after" relativeTo="scopesTable">
+                        <MetricsData scopes={metrics} selectedScopes={selectedMetrics}></MetricsData>
                     </DockPanelItem>
                     <DockPanelItem key="metricGraph" title={nlsHPCC.Graph} location="split-right" relativeTo="scopesTable" >
                         <HolyGrail

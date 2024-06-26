@@ -1,14 +1,19 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, SelectionMode } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { IScope } from "@hpcc-js/comms";
 import { ICompletion } from "@hpcc-js/codemirror";
+import { Table } from "@hpcc-js/dgrid";
 import { SizeMe } from "react-sizeme";
 import nlsHPCC from "src/nlsHPCC";
 import { useDuckDBConnection } from "../hooks/duckdb";
 import { pivotItemStyle } from "../layouts/pivot";
-import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
+import { HolyGrail } from "../layouts/HolyGrail";
+import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
+import { debounce } from "../util/throttle";
+import { useCopyButtons } from "./controls/Grid";
 import { ShortVerticalDivider } from "./Common";
 import { SourceEditor } from "./SourceEditor";
+import { useConst } from "@fluentui/react-hooks";
 
 const defaultUIState = {
     hasSelection: false
@@ -16,10 +21,12 @@ const defaultUIState = {
 
 interface MetricsDataProps {
     scopes: IScope[];
+    selectedScopes: IScope[];
 }
 
 export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
-    scopes
+    scopes,
+    selectedScopes
 }) => {
 
     const cleanScopes = React.useMemo(() => {
@@ -37,11 +44,7 @@ export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
     const [_sqlError, setSqlError] = React.useState<Error>();
     const [dirtySql, setDirtySql] = React.useState<string>(sql);
     const [data, setData] = React.useState<any[]>([]);
-    const [_uiState, setUIState] = React.useState({ ...defaultUIState });
-    const {
-        selection, setSelection,
-        setTotal,
-        refreshTable } = useFluentStoreState({});
+    const [_uiState, _setUIState] = React.useState({ ...defaultUIState });
 
     React.useEffect(() => {
         if (cleanScopes.length === 0) {
@@ -61,7 +64,9 @@ export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
                 connection.query(sql).then(result => {
                     setSqlError(undefined);
                     if (connection) {
-                        setData(result.toArray().map((row) => row.toJSON()));
+                        setData(result.toArray().map((row) => {
+                            return row.toArray();
+                        }));
                     }
                 }).catch(e => {
                     setSqlError(e);
@@ -76,8 +81,8 @@ export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
     }, [cleanScopes.length, connection, sql]);
 
     //  Grid ---
-    const columns = React.useMemo((): FluentColumns => {
-        const retVal: FluentColumns = {};
+    const columns = React.useMemo((): string[] => {
+        const retVal: string[] = [];
         schema.forEach(col => {
             /*
             {
@@ -89,13 +94,30 @@ export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
                 extra: null,
             }
             */
-            retVal[col.column_name] = {
-                label: col.column_name,
-                sortable: true
-            };
+            retVal.push(col.column_name);
         });
         return retVal;
     }, [schema]);
+
+    const scopesTable = useConst(() => new Table()
+        .multiSelect(true)
+        .sortable(true)
+        .on("click", debounce((row, col, sel) => {
+            if (sel) {
+                // const selection = scopesTable.selection();
+                // setSelectedMetricsSource("scopesTable");
+                // pushUrl(`${parentUrl}/${selection.map(row => row.__lparam.id).join(",")}`);
+            }
+        }, 100))
+    );
+
+    React.useEffect(() => {
+        scopesTable
+            .columns(columns)
+            .data(data)
+            .lazyRender()
+            ;
+    }, [columns, data]);
 
     //  Command Bar  ---
     const buttons = React.useMemo((): ICommandBarItemProps[] => [
@@ -110,19 +132,9 @@ export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
         { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
     ], [dirtySql]);
 
-    const copyButtons = useCopyButtons(columns, selection, "metrics");
+    const copyButtons = useCopyButtons({}, [], "metrics");
 
     //  Selection  ---
-    React.useEffect(() => {
-        const state = { ...defaultUIState };
-
-        for (let i = 0; i < selection.length; ++i) {
-            state.hasSelection = true;
-            break;
-        }
-        setUIState(state);
-    }, [selection]);
-
     const onChange = React.useCallback((newSql: string) => {
         setDirtySql(newSql);
     }, []);
@@ -168,18 +180,10 @@ export const MetricsData: React.FunctionComponent<MetricsDataProps> = ({
         </div>
         <SizeMe monitorHeight >{({ size }) =>
             <div style={{ height: "100%", overflowY: "hidden" }}>
-                <div style={{ ...pivotItemStyle(size), overflowY: "hidden" }}>
-                    <FluentGrid
-                        data={data}
-                        primaryID={"__hpcc_id"}
-                        alphaNumColumns={{ Name: true, Value: true }}
-                        columns={columns}
-                        setSelection={setSelection}
-                        setTotal={setTotal}
-                        refresh={refreshTable}
-                        height={`${size.height - (80 + 8 + 45 + 12)}px`}
-                        selectionMode={SelectionMode.none}
-                    ></FluentGrid>
+                <div style={{ ...pivotItemStyle({ width: size.width, height: size.height - (72) }), overflowY: "hidden" }}>
+                    <HolyGrail
+                        main={<AutosizeHpccJSComponent widget={scopesTable} ></AutosizeHpccJSComponent>}
+                    />
                 </div>
             </div>
         }</SizeMe>
