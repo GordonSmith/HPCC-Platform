@@ -149,7 +149,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     wuid,
     querySet = "",
     queryId = "",
-    parentUrl = `/workunits/${wuid}/metrics`,
+    parentUrl,
     selection
 }) => {
     const [_uiState, _setUIState] = React.useState({ ...defaultUIState });
@@ -194,6 +194,10 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         }).catch(err => logger.error(err));
     }, [wuid]);
 
+    const updateUrl = React.useCallback((selection: IScope[]) => {
+        pushUrl(`${parentUrl ?? `/workunits/${wuid}/metrics`}/${selection.map(row => row.__lparam?.id ?? row.id).join(",")}`);
+    }, [parentUrl, wuid]);
+
     const onHotspot = React.useCallback(() => {
         setSelectedMetricsSource("hotspot");
         pushUrl(`${parentUrl}/${selection}`);
@@ -206,7 +210,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             setTimelineFilter(sel ? row[7].__hpcc_id : "");
             if (sel) {
                 setSelectedMetricsSource("scopesTable");
-                pushUrl(`${parentUrl}/${row[7].Id}`);
+                updateUrl([row[0]]);
             }
         })
     );
@@ -226,7 +230,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
 
     const scopesSelectionChanged = React.useCallback((source: SelectedMetricsSource, selection: IScope[]) => {
         setSelectedMetricsSource(source);
-        pushUrl(`${parentUrl}/${selection.map(row => row.__lparam?.id ?? row.id).join(",")}`);
+        updateUrl(selection);
     }, [parentUrl]);
 
     const scopesTable = useConst(() => new TableEx()
@@ -266,9 +270,9 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         .zoomToFitLimit(1)
         .selectionGlowColor("DodgerBlue")
         .on("selectionChanged", () => {
-            const selection = metricGraphWidget.selection().filter(id => metricGraph.item(id)).map(id => metricGraph.item(id).id);
+            const selection = metricGraphWidget.selection().filter(id => metricGraph.item(id)).map(id => metricGraph.item(id));
             setSelectedMetricsSource("metricGraphWidget");
-            pushUrl(`${parentUrl}/${selection.join(",")}`);
+            updateUrl(selection);
         })
     );
 
@@ -558,7 +562,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                     iconProps: { iconName: "Table" },
                     onClick: () => {
                         const csv = Utility.formatAsDelim(formatColumns, metrics, ",");
-                        Utility.downloadCSV(csv, `metrics-${wuid}.csv`);
+                        Utility.downloadCSV(csv, `metrics - ${wuid}.csv`);
                     }
                 },
                 {
@@ -566,7 +570,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                     text: nlsHPCC.DownloadToDOT,
                     iconProps: { iconName: "Relationship" },
                     onClick: () => {
-                        Utility.downloadPlain(dot, `metrics-${wuid}.dot`);
+                        Utility.downloadPlain(dot, `metrics - ${wuid}.dot`);
                     }
                 }]
             }
