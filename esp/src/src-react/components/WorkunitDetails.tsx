@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Icon, Shimmer } from "@fluentui/react";
+import { Icon, IconButton, IIconProps, Shimmer } from "@fluentui/react";
 import { WsWorkunits, WorkunitsService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "react-sizeme";
@@ -30,6 +30,9 @@ import { ECLArchive } from "./ECLArchive";
 import { Metrics } from "./Metrics";
 
 const logger = scopedLogger("src-react/components/WorkunitDetails.tsx");
+
+const FullscreenIcon: IIconProps = { iconName: 'FullScreen' };
+// const RestoreIcon: IIconProps = { iconName: 'ChromeRestore' };
 
 const workunitService = new WorkunitsService({ baseUrl: "" });
 
@@ -176,6 +179,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
     return <SizeMe monitorHeight>{({ size }) =>
         <div style={{ height: "100%" }}>
             <OverflowTabList tabs={tabs} selected={tab} onTabSelect={onTabSelect} size="medium" />
+            <IconButton iconProps={FullscreenIcon} />
             <DelayLoadedPanel visible={tab === "summary"} size={size}>
                 <WorkunitSummary wuid={wuid} fullscreen={queryParams.summary?.fullscreen !== undefined} />
             </DelayLoadedPanel>
