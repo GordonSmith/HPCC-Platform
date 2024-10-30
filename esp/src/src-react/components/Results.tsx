@@ -9,6 +9,7 @@ import { pivotItemStyle } from "../layouts/pivot";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 import { ShortVerticalDivider } from "./Common";
 import { Result } from "./Result";
+import { parseHash } from "../util/history";
 
 const defaultUIState = {
     hasSelection: false
@@ -44,13 +45,15 @@ export const Results: React.FunctionComponent<ResultsProps> = ({
             Name: {
                 label: nlsHPCC.Name, width: 180, sortable: true,
                 formatter: (Name, row) => {
-                    return <Link href={`#/workunits/${row.Wuid}/outputs/${Name}`}>{Name}</Link>;
+                    const hash = parseHash(window.location.hash);
+                    return <Link href={`#/workunits/${row.Wuid}/outputs/${Name}${hash.search}`}>{Name}</Link>;
                 }
             },
             FileName: {
                 label: nlsHPCC.FileName, sortable: true,
                 formatter: (FileName, row) => {
-                    return <Link href={`#/files/${FileName}`}>{FileName}</Link>;
+                    const hash = parseHash(window.location.hash);
+                    return <Link href={`#/files/${FileName}${hash.search}`}>{FileName}</Link>;
                 }
             },
             Value: {
@@ -80,10 +83,10 @@ export const Results: React.FunctionComponent<ResultsProps> = ({
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
             onClick: () => {
                 if (selection.length === 1) {
-                    window.location.href = `#/workunits/${wuid}/outputs/${selection[0].Name}`;
+                    window.location.href = `#/workunits/${wuid}/outputs/${selection[0].Name}${window.location.search}`;
                 } else {
                     for (let i = selection.length - 1; i >= 0; --i) {
-                        window.open(`#/workunits/${wuid}/outputs/${selection[i].Name}`, "_blank");
+                        window.open(`#/workunits/${wuid}/outputs/${selection[i].Name}${window.location.search}`, "_blank");
                     }
                 }
             }

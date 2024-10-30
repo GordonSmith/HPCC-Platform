@@ -44,7 +44,7 @@ export const QueryMetrics: React.FunctionComponent<QueryMetricsProps> = ({
 
     return <SizeMe monitorHeight>{({ size }) =>
         <div style={{ height: "100%" }}>
-            <OverflowTabList tabs={tabs} selected={tab} onTabSelect={onTabSelect} size="medium" />
+            <OverflowTabList tabs={tabs} selected={tab} onTabSelect={onTabSelect} hash={window.location.hash} size="medium" />
             <DelayLoadedPanel visible={tab === "statistics"} size={size}>
                 <Metrics wuid={wuid} querySet={querySet} queryId={queryId} parentUrl={`/queries/${querySet}/${queryId}/metrics/statistics`} selection={selection} />
             </DelayLoadedPanel>

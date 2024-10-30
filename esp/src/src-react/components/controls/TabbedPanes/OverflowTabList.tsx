@@ -1,13 +1,15 @@
 import * as React from "react";
 import { Overflow, OverflowItem, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
+import { parseHash, joinHash } from "../../../util/history";
+import { OverflowMenu } from "../OverflowMenu";
 import { Count } from "./Count";
 import { TabInfo } from "./TabInfo";
-import { OverflowMenu } from "../OverflowMenu";
 
 export interface OverflowTabListProps {
     tabs: TabInfo[];
     selected: string;
     onTabSelect: (tab: TabInfo) => void;
+    hash: string;
     size?: "small" | "medium" | "large";
 }
 
@@ -15,10 +17,15 @@ export const OverflowTabList: React.FunctionComponent<OverflowTabListProps> = ({
     tabs,
     selected,
     onTabSelect,
+    hash,
     size = "medium"
 }) => {
 
-    const state = `${window.location.hash}${window.location.search}`;
+    const state = React.useMemo(() => {
+        const hashParts = parseHash(hash);
+        delete hashParts.searchParts.fullscreen;
+        return joinHash(hashParts);
+    }, [hash]);
 
     const [overflowItems, tabsIndex] = React.useMemo(() => {
         const tabsIndex = {};

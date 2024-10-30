@@ -4,6 +4,7 @@ import * as ESPRequest from "src/ESPRequest";
 import nlsHPCC from "src/nlsHPCC";
 import { HelperRow, useWorkunitHelpers } from "../hooks/workunit";
 import { HolyGrail } from "../layouts/HolyGrail";
+import { joinAllSearch, parseHash } from "../util/history";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 import { ShortVerticalDivider } from "./Common";
 
@@ -135,8 +136,11 @@ export const Helpers: React.FunctionComponent<HelpersProps> = ({
                 formatter: (Type, row) => {
                     const target = getTarget(row.id, row);
                     if (target) {
+                        const hash = parseHash(window.location.hash);
+                        hash.searchParts["mode"] = encodeURIComponent(target.sourceMode);
+                        hash.searchParts["src"] = encodeURIComponent(target.url);
                         const linkText = Type.replace("Slave", "Worker") + (row?.Description ? " (" + row.Description + ")" : "");
-                        return <Link href={`#/workunits/${row?.workunit?.Wuid}/helpers/${row.Type}?mode=${encodeURIComponent(target.sourceMode)}&src=${encodeURIComponent(target.url)}`}>{linkText}</Link>;
+                        return <Link href={`#/workunits/${row?.workunit?.Wuid}/helpers/${row.Type}${joinAllSearch(hash.searchParts)}`}>{linkText}</Link>;
                     }
                     return Type;
                 }

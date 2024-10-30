@@ -36,7 +36,6 @@ export const ECLArchive: React.FunctionComponent<ECLArchiveProps> = ({
     parentUrl = `/workunits/${wuid}/eclsummary`,
     selection
 }) => {
-    const [fullscreen, setFullscreen] = React.useState<boolean>(false);
     const [dockpanel, setDockpanel] = React.useState<ResetableDockPanel>();
     const [_archiveXmlStr, _workunit2, _state2, archive, refreshArchive] = useWorkunitArchive(wuid);
     const { metrics, refresh: refreshMetrics } = useWorkunitMetrics(wuid, scopeFilterDefault, nestedFilterDefault);
@@ -102,13 +101,10 @@ export const ECLArchive: React.FunctionComponent<ECLArchiveProps> = ({
             onClick: () => {
                 navigator?.clipboard?.writeText(selectionText);
             }
-        }, {
-            key: "fullscreen", title: nlsHPCC.MaximizeRestore, iconProps: { iconName: fullscreen ? "ChromeRestore" : "FullScreen" },
-            onClick: () => setFullscreen(!fullscreen)
         }
-    ], [selectionText, fullscreen]);
+    ], [selectionText]);
 
-    return <HolyGrail fullscreen={fullscreen}
+    return <HolyGrail
         header={<CommandBar items={buttons} farItems={rightButtons} />}
         main={
             <DockPanel hideSingleTabs onCreate={setDockpanel}>

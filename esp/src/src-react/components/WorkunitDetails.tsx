@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Icon, Shimmer } from "@fluentui/react";
+import { Icon, IconButton, IIconProps, mergeStyleSets, Shimmer, Stack } from "@fluentui/react";
 import { WsWorkunits, WorkunitsService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "react-sizeme";
@@ -10,7 +10,8 @@ import { emptyFilter, formatQuery } from "src/ESPWorkunit";
 import { useWorkunit } from "../hooks/workunit";
 import { useDeepEffect } from "../hooks/deepHooks";
 import { DojoAdapter } from "../layouts/DojoAdapter";
-import { parseQuery, pushUrl } from "../util/history";
+import { parseSearch, pushUrl, updateFullscreen } from "../util/history";
+import { useUserTheme } from "../hooks/theme";
 import { WorkunitPersona } from "./controls/StateIcon";
 import { Helpers } from "./Helpers";
 import { IFrame } from "./IFrame";
@@ -31,6 +32,9 @@ import { Metrics } from "./Metrics";
 
 const logger = scopedLogger("src-react/components/WorkunitDetails.tsx");
 
+const FullscreenIcon: IIconProps = { iconName: "FullScreen" };
+// const RestoreIcon: IIconProps = { iconName: 'ChromeRestore' };
+
 const workunitService = new WorkunitsService({ baseUrl: "" });
 
 type StringStringMap = { [key: string]: string };
@@ -39,6 +43,7 @@ interface WorkunitDetailsProps {
     wuid: string;
     parentUrl?: string;
     tab?: string;
+    fullscreen?: boolean;
     state?: { outputs?: string, metrics?: string, resources?: string, helpers?: string, eclsummary?: string };
     queryParams?: { summary?: StringStringMap, outputs?: StringStringMap, inputs?: StringStringMap, metrics?: StringStringMap, resources?: StringStringMap, helpers?: StringStringMap, logs?: StringStringMap };
 }
@@ -48,6 +53,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
     parentUrl = "/workunits",
     tab = "summary",
     state,
+    fullscreen = false,
     queryParams = {}
 }) => {
 
@@ -61,7 +67,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
         if (parentUrlParts.length <= 1) {
             return emptyFilter;
         }
-        return parseQuery("?" + parentUrlParts[1]);
+        return parseSearch("?" + parentUrlParts[1]);
     }, [parentUrl]);
 
     const nextWuid = React.useCallback((wuids: WsWorkunits.ECLWorkunit[]) => {
@@ -120,7 +126,8 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
 
     const onTabSelect = React.useCallback((tab: TabInfo) => {
         pushUrl(tab.__state ?? `${parentUrl}/${wuid}/${tab.id}`);
-    }, [parentUrl, wuid]);
+        updateFullscreen(fullscreen);
+    }, [fullscreen, parentUrl, wuid]);
 
     const tabs = React.useMemo((): TabInfo[] => {
         return [{
@@ -173,65 +180,89 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
         }];
     }, [logCount, logsDisabled, workunit?.ApplicationValueCount, workunit?.DebugValueCount, workunit?.GraphCount, workunit?.HelpersCount, workunit?.ResourceURLCount, workunit?.ResultCount, workunit?.SourceFileCount, workunit?.VariableCount, workunit?.WorkflowCount, wuid]);
 
-    return <SizeMe monitorHeight>{({ size }) =>
-        <div style={{ height: "100%" }}>
-            <OverflowTabList tabs={tabs} selected={tab} onTabSelect={onTabSelect} size="medium" />
-            <DelayLoadedPanel visible={tab === "summary"} size={size}>
-                <WorkunitSummary wuid={wuid} fullscreen={queryParams.summary?.fullscreen !== undefined} />
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "variables"} size={size}>
-                <Variables wuid={wuid} />
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "outputs"} size={size}>
-                {state?.outputs ?
-                    queryParams.outputs?.hasOwnProperty("__legacy") ? <IFrame src={`/WsWorkunits/WUResult?Wuid=${wuid}&ResultName=${state?.outputs}`} height="99%" /> :
-                        queryParams.outputs?.hasOwnProperty("__visualize") ? <DojoAdapter widgetClassID="VizWidget" params={{ Wuid: wuid, Sequence: state?.outputs }} /> :
-                            <Result wuid={wuid} resultName={state?.outputs} filter={queryParams.outputs} /> :
-                    <Results wuid={wuid} />
-                }
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "inputs"} size={size}>
-                <SourceFiles wuid={wuid} filter={queryParams.inputs} />
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "metrics"} size={size}>
-                <React.Suspense fallback={
-                    <>
-                        <Shimmer />
-                        <Shimmer />
-                        <Shimmer />
-                        <Shimmer />
-                    </>
-                }>
-                    <Metrics wuid={wuid} parentUrl={`${parentUrl}/${wuid}/metrics`} selection={state?.metrics} fullscreen={queryParams.metrics?.fullscreen !== undefined} />
-                </React.Suspense>
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "workflows"} size={size}>
-                <Workflows wuid={wuid} />
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "queries"} size={size}>
-                <Queries filter={{ WUID: wuid }} />
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "resources"} size={size}>
-                {state?.resources ?
-                    <FetchEditor mode={queryParams.resources?.mode as any} url={queryParams.resources?.url as string} /> :
-                    <Resources wuid={wuid} preview={queryParams.resources?.preview as any} />
-                }
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "helpers"} size={size}>
-                {state?.helpers ?
-                    <FetchEditor mode={queryParams.helpers?.mode as any} url={queryParams.helpers?.src as string} wuid={queryParams.helpers?.mode?.toLowerCase() === "ecl" ? wuid : ""} /> :
-                    <Helpers wuid={wuid} />
-                }
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "logs"} size={size}>
-                <Logs wuid={wuid} filter={queryParams.logs} setLogCount={setLogCount} />
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "eclsummary"} size={size}>
-                <ECLArchive wuid={wuid} parentUrl={`${parentUrl}/${wuid}/eclsummary`} selection={state?.eclsummary} />
-            </DelayLoadedPanel>
-            <DelayLoadedPanel visible={tab === "xml"} size={size}>
-                <WUXMLSourceEditor wuid={wuid} />
-            </DelayLoadedPanel>
-        </div>
-    }</SizeMe>;
+    const { themeV9 } = useUserTheme();
+    const layoutStyles = React.useMemo(() => mergeStyleSets({
+        fullscreen: {
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100%",
+            height: "100%",
+            background: themeV9.colorNeutralBackground1,
+        },
+        normal: {
+            height: "100%"
+        }
+    }), [themeV9.colorNeutralBackground1]);
+
+    return <div className={fullscreen ? layoutStyles.fullscreen : layoutStyles.normal}>
+        <SizeMe monitorHeight>{({ size }) =>
+            <div style={{ height: "100%" }}>
+                <Stack horizontal>
+                    <Stack.Item grow>
+                        <OverflowTabList tabs={tabs} selected={tab} onTabSelect={onTabSelect} hash={window.location.hash} size="medium" />
+                    </Stack.Item>
+                    <Stack.Item align="center">
+                        <IconButton iconProps={FullscreenIcon} onClick={() => updateFullscreen(!fullscreen)} />
+                    </Stack.Item>
+                </Stack>
+                <DelayLoadedPanel visible={tab === "summary"} size={size}>
+                    <WorkunitSummary wuid={wuid} />
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "variables"} size={size}>
+                    <Variables wuid={wuid} />
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "outputs"} size={size}>
+                    {state?.outputs ?
+                        queryParams.outputs?.hasOwnProperty("__legacy") ? <IFrame src={`/ WsWorkunits / WUResult ? Wuid = ${wuid} & ResultName= ${state?.outputs}`} height="99%" /> :
+                            queryParams.outputs?.hasOwnProperty("__visualize") ? <DojoAdapter widgetClassID="VizWidget" params={{ Wuid: wuid, Sequence: state?.outputs }} /> :
+                                <Result wuid={wuid} resultName={state?.outputs} filter={queryParams.outputs} /> :
+                        <Results wuid={wuid} />
+                    }
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "inputs"} size={size}>
+                    <SourceFiles wuid={wuid} filter={queryParams.inputs} />
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "metrics"} size={size}>
+                    <React.Suspense fallback={
+                        <>
+                            <Shimmer />
+                            <Shimmer />
+                            <Shimmer />
+                            <Shimmer />
+                        </>
+                    }>
+                        <Metrics wuid={wuid} parentUrl={`${parentUrl}/${wuid}/metrics`} selection={state?.metrics} />
+                    </React.Suspense>
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "workflows"} size={size}>
+                    <Workflows wuid={wuid} />
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "queries"} size={size}>
+                    <Queries filter={{ WUID: wuid }} />
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "resources"} size={size}>
+                    {state?.resources ?
+                        <FetchEditor mode={queryParams.resources?.mode as any} url={queryParams.resources?.url as string} /> :
+                        <Resources wuid={wuid} preview={queryParams.resources?.preview as any} />
+                    }
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "helpers"} size={size}>
+                    {state?.helpers ?
+                        <FetchEditor mode={queryParams.helpers?.mode as any} url={queryParams.helpers?.src as string} wuid={queryParams.helpers?.mode?.toLowerCase() === "ecl" ? wuid : ""} /> :
+                        <Helpers wuid={wuid} />
+                    }
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "logs"} size={size}>
+                    <Logs wuid={wuid} filter={queryParams.logs} setLogCount={setLogCount} />
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "eclsummary"} size={size}>
+                    <ECLArchive wuid={wuid} parentUrl={`${parentUrl}/${wuid}/eclsummary`} selection={state?.eclsummary} />
+                </DelayLoadedPanel>
+                <DelayLoadedPanel visible={tab === "xml"} size={size}>
+                    <WUXMLSourceEditor wuid={wuid} />
+                </DelayLoadedPanel>
+            </div>
+        }</SizeMe>
+    </div>;
 };

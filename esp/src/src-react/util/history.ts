@@ -1,5 +1,5 @@
 import UniversalRouter, { ResolveContext } from "universal-router";
-import { parse, ParsedQuery, pick, stringify } from "query-string";
+import { parse, pick, stringify } from "query-string";
 import { hashSum, scopedLogger } from "@hpcc-js/util";
 import { userKeyValStore } from "src/KeyValStore";
 import { QuerySortItem } from "src/store/Store";
@@ -20,11 +20,43 @@ export function resolve(pathnameOrContext: string | ResolveContext) {
     return g_router.resolve(pathnameOrContext);
 }
 
+export interface ParsedSearch {
+    [key: string]: string | boolean | number | Array<string | boolean | number>;
+}
+
+export interface HistoryLocation {
+    pathname: string;
+    search: string;
+    searchParts: ParsedSearch;
+    id: string;
+    state?: ParsedSearch
+}
+
+export function hasAllSearch(search: string): boolean;
+export function hasAllSearch(search: ParsedSearch): boolean;
+export function hasAllSearch(search: string | ParsedSearch): boolean {
+    if (typeof search === "string") {
+        return search[0] === "?";
+    }
+    return Object.keys(search).length > 0;
+}
+
+export function parseAllSearch(_: string): ParsedSearch {
+    if (_[0] !== "?") return {};
+    return { ...parse(_.substring(1), { parseBooleans: true, parseNumbers: true }) } as ParsedSearch;
+}
+
+export function joinAllSearch(search?: ParsedSearch): string {
+    if (!search) return "";
+    return `?${stringify(search)}`;
+}
+
 export function parseHash(hash: string): HistoryLocation {
     if (hash[0] !== "#") {
         return {
             pathname: "/",
             search: "",
+            searchParts: {},
             id: hashSum("#/")
         };
     }
@@ -33,24 +65,24 @@ export function parseHash(hash: string): HistoryLocation {
     return {
         pathname: parts[0],
         search: parts.length > 1 ? `?${parts[1]}` : "",
+        searchParts: parts.length > 1 ? parseAllSearch(`?${parts[1]}`) : {},
         id: hashSum(hash)
     };
 }
 
-export function parseQuery<T = ParsedQuery<string | boolean | number>>(_: string): T {
-    if (_[0] !== "?") return {} as T;
-    return { ...parse(_.substring(1), { parseBooleans: true, parseNumbers: true }) } as unknown as T;
+export function joinHash(hl: HistoryLocation): string {
+    return `#${hl.pathname}${joinAllSearch(hl.searchParts)}`;
 }
 
-export function parseSearch<T = ParsedQuery<string | boolean | number>>(_: string): T {
-    const parsed = parseQuery(_);
-    const excludeKeys = ["sortBy", "pageNum"];
+export function parseSearch(_: string): ParsedSearch {
+    const parsed = parseAllSearch(_);
+    const excludeKeys = ["sortBy", "pageNum", "fullscreen"];
     Object.keys(parsed).forEach(key => {
         if (excludeKeys.includes(key)) {
             delete parsed[key];
         }
     });
-    return { ...parsed } as unknown as T;
+    return { ...parsed };
 }
 
 export function parseSort(_?: string): QuerySortItem | undefined {
@@ -79,11 +111,19 @@ export function updatePage(pageNum: string) {
     updateParam("pageNum", pageNum);
 }
 
-interface HistoryLocation {
-    pathname: string;
-    search: string;
-    id: string;
-    state?: { [key: string]: any }
+export function parseFullscreen(_: string): boolean {
+    const filter = parse(pick(_.substring(1), ["fullscreen"]));
+    return filter?.fullscreen !== undefined && filter?.fullscreen !== "false";
+}
+
+export function updateFullscreen(fullscreen: boolean) {
+    const params = { ...hashHistory.location.searchParts };
+    if (fullscreen !== true) {
+        delete params["fullscreen"];
+    } else {
+        params["fullscreen"] = true;
+    }
+    updateSearch(params);
 }
 
 export type ListenerCallback<S extends object = object> = (location: HistoryLocation, action: string) => void;
@@ -102,6 +142,7 @@ class History<S extends object = object> {
     location: HistoryLocation = {
         pathname: "/",
         search: "",
+        searchParts: {},
         id: hashSum("#/")
     };
     state: S = {} as S;
@@ -148,6 +189,8 @@ class History<S extends object = object> {
     }
 
     push(to: { pathname?: string, search?: string }) {
+        to.pathname = to.pathname ?? this.location.pathname;
+        to.search = to.search ?? this.location.search;
         const newHash = this.fixHash(`${this.trimRightSlash(to.pathname || this.location.pathname)}${to.search || ""}`);
         if (window.location.hash !== newHash) {
             globalHistory.pushState(undefined, "", newHash);
@@ -202,17 +245,15 @@ class History<S extends object = object> {
 
 export const hashHistory = new History<any>();
 
-export function pushSearch(_: object) {
-    const search = stringify(_ as any);
+export function pushSearch(_: ParsedSearch) {
     hashHistory.push({
-        search: search ? "?" + search : ""
+        search: joinAllSearch(_)
     });
 }
 
-export function updateSearch(_: object) {
-    const search = stringify(_ as any);
+export function updateSearch(_: ParsedSearch) {
     hashHistory.replace({
-        search: search ? "?" + search : ""
+        search: joinAllSearch(_)
     });
 }
 
@@ -229,16 +270,16 @@ export function replaceUrl(_: string, refresh: boolean = false) {
     if (refresh) window.location.reload();
 }
 
-export function pushParam(key: string, val?: string | string[] | number | boolean) {
+export function pushSearchItem(key: string, val?: string | string[] | number | boolean) {
     pushParams({ [key]: val });
 }
 
-export function pushParamExact(key: string, val?: string | string[] | number | boolean) {
+export function pushSearchItemExact(key: string, val?: string | string[] | number | boolean) {
     pushParams({ [key]: val }, true);
 }
 
 function calcParams(search: { [key: string]: string | string[] | number | boolean }, keepEmpty: boolean = false) {
-    const params = parseQuery(hashHistory.location.search);
+    const params = { ...hashHistory.location.searchParts };
     for (const key in search) {
         const val = search[key];
         //  No empty strings OR "false" booleans...
@@ -251,16 +292,12 @@ function calcParams(search: { [key: string]: string | string[] | number | boolea
     return params;
 }
 
-export function calcSearch(search: { [key: string]: string | string[] | number | boolean }, keepEmpty: boolean = false) {
-    return stringify(calcParams(search, keepEmpty));
-}
-
 export function pushParams(search: { [key: string]: string | string[] | number | boolean }, keepEmpty: boolean = false) {
     pushSearch(calcParams(search, keepEmpty));
 }
 
 export function updateParam(key: string, val?: string | string[] | number | boolean) {
-    const params = parseQuery(hashHistory.location.search);
+    const params = { ...hashHistory.location.searchParts };
     if (val === undefined) {
         delete params[key];
     } else {

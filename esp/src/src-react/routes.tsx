@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Route, RouterContext } from "universal-router";
-import { initialize, parsePage, parseSearch, parseSort, pushUrl, replaceUrl } from "./util/history";
+import { initialize, parsePage, parseSearch, parseSort, parseFullscreen, pushUrl, replaceUrl } from "./util/history";
 
 declare const dojoConfig;
 
@@ -25,17 +25,17 @@ const workunitsChildren: Route[] = [
     },
     {
         path: "/:Wuid", action: (ctx, params) => import("./components/WorkunitDetails").then(_ => {
-            return <_.WorkunitDetails wuid={params.Wuid as string} parentUrl={params.parentUrl as string} queryParams={{ summary: parseSearch(ctx.search) as any }} />;
+            return <_.WorkunitDetails wuid={params.Wuid as string} parentUrl={params.parentUrl as string} fullscreen={parseFullscreen(ctx.search)} queryParams={{ summary: parseSearch(ctx.search) as any }} />;
         })
     },
     {
         path: "/:Wuid/:Tab", action: (ctx, params) => import("./components/WorkunitDetails").then(_ => {
-            return <_.WorkunitDetails wuid={params.Wuid as string} parentUrl={params.parentUrl as string} tab={params.Tab as string} queryParams={{ [params.Tab as string]: parseSearch(ctx.search) as any }} />;
+            return <_.WorkunitDetails wuid={params.Wuid as string} parentUrl={params.parentUrl as string} fullscreen={parseFullscreen(ctx.search)} tab={params.Tab as string} queryParams={{ [params.Tab as string]: parseSearch(ctx.search) as any }} />;
         })
     },
     {
         path: "/:Wuid/:Tab/:State", action: (ctx, params) => import("./components/WorkunitDetails").then(_ => {
-            return <_.WorkunitDetails wuid={params.Wuid as string} parentUrl={params.parentUrl as string} tab={params.Tab as string} state={{ [params.Tab as string]: (params.State as string) }} queryParams={{ [params.Tab as string]: parseSearch(ctx.search) as any }} />;
+            return <_.WorkunitDetails wuid={params.Wuid as string} parentUrl={params.parentUrl as string} fullscreen={parseFullscreen(ctx.search)} tab={params.Tab as string} state={{ [params.Tab as string]: (params.State as string) }} queryParams={{ [params.Tab as string]: parseSearch(ctx.search) as any }} />;
         })
     },
 ];

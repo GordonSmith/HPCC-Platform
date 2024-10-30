@@ -11,7 +11,7 @@ import { useConfirm } from "../hooks/confirm";
 import { useMyAccount } from "../hooks/user";
 import { useUserStore } from "../hooks/store";
 import { useLogicalClustersPalette } from "../hooks/platform";
-import { calcSearch, pushParams } from "../util/history";
+import { joinAllSearch, hasAllSearch, pushParams } from "../util/history";
 import { useHasFocus, useIsMounted } from "../hooks/util";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentPagedGrid, FluentPagedFooter, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
@@ -124,11 +124,10 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                 sortable: true,
                 formatter: (Wuid, row) => {
                     const wu = Get(Wuid);
-                    const search = calcSearch(filter);
                     return <>
                         <Image src={wu.getStateImage()} styles={{ root: { minWidth: "16px" } }} />
                         &nbsp;
-                        <Link href={search ? `#/workunits!${calcSearch(filter)}/${Wuid}` : `#/workunits/${Wuid}`}>{Wuid}</Link >
+                        <Link href={hasAllSearch(filter) ? `#/workunits!${joinAllSearch(filter)}/${Wuid}` : `#/workunits/${Wuid}`}>{Wuid}</Link >
                     </>;
                 }
             },

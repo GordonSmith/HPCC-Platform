@@ -11,7 +11,7 @@ import nlsHPCC from "src/nlsHPCC";
 import { wuidToDate } from "src/Utility";
 import { Memory } from "src/store/Memory";
 import { Chip } from "./controls/Chip";
-import { pushParamExact } from "../util/history";
+import { pushSearchItemExact } from "../util/history";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { Workunits } from "./Workunits";
 
@@ -81,7 +81,7 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
     const clusterChart = useConst(() =>
         new Bar()
             .columns(["Cluster", "Count"])
-            .on("click", (row, col, sel) => pushParamExact("cluster", sel ? row.Cluster : undefined))
+            .on("click", (row, col, sel) => pushSearchItemExact("cluster", sel ? row.Cluster : undefined))
     );
 
     const clusterPipeline = chain(
@@ -102,7 +102,7 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
     const ownerChart = useConst(() =>
         new Column()
             .columns(["Owner", "Count"])
-            .on("click", (row, col, sel) => pushParamExact("owner", sel ? row.Owner : undefined))
+            .on("click", (row, col, sel) => pushSearchItemExact("owner", sel ? row.Owner : undefined))
     );
 
     const ownerPipeline = chain(
@@ -123,7 +123,7 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
     const stateChart = useConst(() =>
         new Pie()
             .columns(["State", "Count"])
-            .on("click", (row, col, sel) => pushParamExact("state", sel ? row.State : undefined))
+            .on("click", (row, col, sel) => pushSearchItemExact("state", sel ? row.State : undefined))
     );
 
     const statePipeline = chain(
@@ -143,7 +143,7 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
     const protectedChart = useConst(() =>
         new Pie()
             .columns(["Protected", "Count"])
-            .on("click", (row, col, sel) => pushParamExact("protected", sel ? row.Protected === "true" : undefined))
+            .on("click", (row, col, sel) => pushSearchItemExact("protected", sel ? row.Protected === "true" : undefined))
     );
 
     const protectedPipeline = chain(
@@ -165,7 +165,7 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
             .xAxisType("time")
             .interpolate("cardinal")
             // .xAxisTypeTimePattern("")
-            .on("click", (row, col, sel) => pushParamExact("day", sel ? row.Day : undefined))
+            .on("click", (row, col, sel) => pushSearchItemExact("day", sel ? row.Day : undefined))
     );
 
     const dayPipeline = chain(
@@ -204,7 +204,7 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
                                 <CardHeader header={
                                     <Stack horizontal horizontalAlign="space-between">
                                         <Text variant="large" nowrap block styles={{ root: { fontWeight: "bold" } }}>{nlsHPCC.State}</Text>
-                                        {filterProps.state !== undefined && <Chip label={filterProps.state} onDelete={() => pushParamExact("state", undefined)} />}
+                                        {filterProps.state !== undefined && <Chip label={filterProps.state} onDelete={() => pushSearchItemExact("state", undefined)} />}
                                     </Stack>
                                 } />
                                 <CardPreview>
@@ -217,8 +217,8 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
                                 <CardHeader header={
                                     <Stack horizontal horizontalAlign="space-between">
                                         <Text variant="large" nowrap block styles={{ root: { fontWeight: "bold" } }}>{nlsHPCC.Day}</Text>
-                                        {filterProps.day !== undefined && <Chip label={filterProps.day} color="primary" onDelete={() => pushParamExact("day", undefined)} />}
-                                        <Dropdown onChange={(evt, opt, idx) => { pushParamExact("lastNDays", opt.key); }}
+                                        {filterProps.day !== undefined && <Chip label={filterProps.day} color="primary" onDelete={() => pushSearchItemExact("day", undefined)} />}
+                                        <Dropdown onChange={(evt, opt, idx) => { pushSearchItemExact("lastNDays", opt.key); }}
                                             options={[
                                                 { key: 1, text: "1 Day", selected: filterProps.lastNDays === 1 },
                                                 { key: 2, text: "2 Days", selected: filterProps.lastNDays === 2 },
@@ -241,7 +241,7 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
                                 <CardHeader header={
                                     <Stack horizontal horizontalAlign="space-between">
                                         <Text variant="large" nowrap block styles={{ root: { fontWeight: "bold" } }}>{nlsHPCC.Protected}</Text>
-                                        {filterProps.protected !== undefined && <Chip label={"" + filterProps.protected} color="primary" onDelete={() => pushParamExact("protected", undefined)} />}
+                                        {filterProps.protected !== undefined && <Chip label={"" + filterProps.protected} color="primary" onDelete={() => pushSearchItemExact("protected", undefined)} />}
                                     </Stack>
                                 } />
                                 <CardPreview>
@@ -258,7 +258,7 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
                                 <CardHeader header={
                                     <Stack horizontal horizontalAlign="space-between">
                                         <Text variant="large" nowrap block styles={{ root: { fontWeight: "bold" } }}>{nlsHPCC.Owner}</Text>
-                                        {filterProps.owner !== undefined && <Chip label={filterProps.owner} color="primary" onDelete={() => pushParamExact("owner", undefined)} />}
+                                        {filterProps.owner !== undefined && <Chip label={filterProps.owner} color="primary" onDelete={() => pushSearchItemExact("owner", undefined)} />}
                                     </Stack>
                                 } />
                                 <CardPreview>
@@ -271,7 +271,7 @@ export const WorkunitsDashboard: React.FunctionComponent<WorkunitsDashboardProps
                                 <CardHeader header={
                                     <Stack horizontal horizontalAlign="space-between">
                                         <Text variant="large" nowrap block styles={{ root: { fontWeight: "bold" } }}>{nlsHPCC.Cluster}</Text>
-                                        {filterProps.cluster !== undefined && <Chip label={filterProps.cluster} color="primary" onDelete={() => pushParamExact("cluster", undefined)} />}
+                                        {filterProps.cluster !== undefined && <Chip label={filterProps.cluster} color="primary" onDelete={() => pushSearchItemExact("cluster", undefined)} />}
                                     </Stack>
                                 } />
                                 <CardPreview>

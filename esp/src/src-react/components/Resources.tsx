@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
 import { useWorkunitResources } from "../hooks/workunit";
-import { updateParam } from "../util/history";
+import { parseHash, joinAllSearch, updateParam } from "../util/history";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 import { ShortVerticalDivider } from "./Common";
@@ -22,7 +22,9 @@ interface ResourcesProps {
 const defaultSort = { attribute: "Wuid", descending: true };
 
 function formatUrl(wuid: string, url: string) {
-    return `#/workunits/${wuid}/resources/content?url=/WsWorkunits/${url}`;
+    const hash = parseHash(window.location.hash);
+    hash.searchParts["url"] = `/WsWorkunits/${url}`;
+    return `#/workunits/${wuid}/resources/content${joinAllSearch(hash.searchParts)}`;
 }
 
 export const Resources: React.FunctionComponent<ResourcesProps> = ({
