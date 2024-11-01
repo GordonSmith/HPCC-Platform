@@ -147,6 +147,7 @@ export = {
         Content: "Content",
         Contents: "Contents",
         ContentType: "Content Type",
+        Context: "Context",
         Cookies: "Cookies",
         CookiesNoticeLinkText: "Our Cookie Notice",
         CookiesAcceptButtonText: "Allow Cookies",

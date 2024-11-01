@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link, Pivot, PivotItem, ProgressIndicator } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link, Pivot, PivotItem, ProgressIndicator, Text } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
 import { ESPSearch } from "src/ESPSearch";
 import nlsHPCC from "src/nlsHPCC";
@@ -10,6 +10,7 @@ import { Workunits } from "./Workunits";
 import { Files } from "./Files";
 import { Queries } from "./Queries";
 import { DFUWorkunits } from "./DFUWorkunits";
+import { useUserTheme } from "../hooks/theme";
 
 const defaultUIState = {
     hasSelection: false,
@@ -61,6 +62,8 @@ export const Search: React.FunctionComponent<SearchProps> = ({
     //  Search
     const search = useConst(() => new ESPSearch(() => { progress.value++; }));
 
+    const theme = useUserTheme();
+
     //  Grid ---
     const columns = React.useMemo((): FluentColumns => {
         return {
@@ -72,14 +75,27 @@ export const Search: React.FunctionComponent<SearchProps> = ({
                 }
             },
             Reason: { label: nlsHPCC.Where, width: 108, sortable: true },
+            Context: {
+                label: nlsHPCC.Context,
+                width: 360,
+                sortable: true, formatter: (Context, row) => {
+                    const parts = row.Context.split(new RegExp(`(${searchText})`, "gi"));
+                    return parts.map((part, index) =>
+                        part.toLowerCase() === searchText.toLowerCase() ?
+                            <Text key={index} style={{ backgroundColor: theme.themeV9.colorStatusWarningBackground2 }}>{part}</Text> :
+                            <Text key={index}>{part}</Text>
+                    );
+                }
+            },
             Summary: {
                 label: nlsHPCC.Who, sortable: true,
+                width: 240,
                 formatter: (Summary, row) => {
                     return <Link href={`${searchResultUrl(row)}`}>{Summary}</Link>;
                 }
             }
         };
-    }, []);
+    }, [theme, searchText]);
 
     const refreshData = React.useCallback(() => {
         search.searchAll(searchText).then(results => {
@@ -140,14 +156,13 @@ export const Search: React.FunctionComponent<SearchProps> = ({
     const [selectedKey, setSelectedKey] = React.useState("all");
 
     return <HolyGrail
-        header={<Pivot headersOnly={true} onLinkClick={(item: PivotItem) => setSelectedKey(item.props.itemKey!)
-        }>
+        header={<Pivot headersOnly={true} onLinkClick={(item: PivotItem) => setSelectedKey(item.props.itemKey!)}>
             <PivotItem itemKey="all" headerText={nlsHPCC.All} itemCount={data.length} />
             <PivotItem itemKey="ecl" headerText={nlsHPCC.ECLWorkunit} headerButtonProps={search.eclStore.data.length === 0 ? disabled : undefined} itemCount={search.eclStore.data.length} />
             <PivotItem itemKey="dfu" headerText={nlsHPCC.DFUWorkunit} headerButtonProps={search.dfuStore.data.length === 0 ? disabled : undefined} itemCount={search.dfuStore.data.length} />
             <PivotItem itemKey="file" headerText={nlsHPCC.LogicalFile} headerButtonProps={search.fileStore.data.length === 0 ? disabled : undefined} itemCount={search.fileStore.data.length} />
             <PivotItem itemKey="query" headerText={nlsHPCC.Query} headerButtonProps={search.queryStore.data.length === 0 ? disabled : undefined} itemCount={search.queryStore.data.length} />
-        </Pivot >}
+        </Pivot>}
         main={selectedKey === "all" ? <HolyGrail
             header={<>
                 <CommandBar items={buttons} farItems={copyButtons} />

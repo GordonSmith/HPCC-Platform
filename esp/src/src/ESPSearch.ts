@@ -1,13 +1,12 @@
 import * as Observable from "dojo/store/Observable";
-import * as ESPWorkunit from "src/ESPWorkunit";
-import * as ESPDFUWorkunit from "src/ESPDFUWorkunit";
-import * as ESPLogicalFile from "src/ESPLogicalFile";
-import * as ESPQuery from "src/ESPQuery";
+import { WorkunitsService, FileSprayService, DFUService, WsWorkunits, FileSpray, WsDfu, Workunit, DFUWorkunit, LogicalFile, Query, IOptions } from "@hpcc-js/comms";
 import { Memory } from "./store/Memory";
-import * as WsWorkunits from "./WsWorkunits";
-import * as FileSpray from "./FileSpray";
-import * as WsDfu from "./WsDfu";
 import nlsHPCC from "./nlsHPCC";
+
+const Opts: IOptions = { baseUrl: "" };
+const workunitsService = new WorkunitsService(Opts);
+const filesprayService = new FileSprayService(Opts);
+const dfuService = new DFUService(Opts);
 
 export type searchAllResponse = undefined | "ecl" | "dfu" | "file" | "query";
 
@@ -19,6 +18,34 @@ interface SearchParams {
     searchQuery: boolean;
     text: string;
     searchType?: string;
+}
+
+interface Row {
+    storeID: number;
+    id: string;
+    Type: string;
+    Reason: string;
+    Context: string;
+    Summary: string;
+    _type: string;
+}
+
+interface WuQueryRow extends Row {
+    _wuid: string;
+}
+
+interface GetDFUWorkunitRow extends Row {
+    _wuid: string;
+}
+
+interface DFUQueryRow extends Row {
+    _nodeGroup: string;
+    _name: string;
+}
+
+interface WUListQueriesRow extends Row {
+    _querySetId: string;
+    _id: string;
 }
 
 export class ESPSearch {
@@ -71,7 +98,7 @@ export class ESPSearch {
         return searchParams;
     }
 
-    searchAll(searchText: string): any {
+    searchAll(searchText: string): Promise<Row[][]> {
 
         this.store.setData([]);
         this.eclStore.setData([]);
@@ -79,69 +106,69 @@ export class ESPSearch {
         this.fileStore.setData([]);
         this.queryStore.setData([]);
 
-        const searchArray = [];
+        const searchArray: Array<Promise<Row[]>> = [];
         const searchParams = this.generateSearchParams(searchText);
 
         if (searchParams.searchECL) {
-            searchArray.push(WsWorkunits.WUQuery({ request: { Wuid: "*" + searchParams.text + "*" } }).then(response => {
+            searchArray.push(workunitsService.WUQuery({ Wuid: "*" + searchParams.text + "*" }).then(response => {
                 const results = this.parseWuQueryResponse(nlsHPCC.WUID, response);
                 this.loadWUQueryResponse(results);
                 return results;
             }));
-            searchArray.push(WsWorkunits.WUQuery({ request: { Jobname: "*" + searchText + "*" } }).then(response => {
+            searchArray.push(workunitsService.WUQuery({ Jobname: "*" + searchText + "*" }).then(response => {
                 const results = this.parseWuQueryResponse(nlsHPCC.JobName, response);
                 this.loadWUQueryResponse(results);
                 return results;
             }));
-            searchArray.push(WsWorkunits.WUQuery({ request: { Owner: searchText } }).then(response => {
+            searchArray.push(workunitsService.WUQuery({ Owner: searchText }).then(response => {
                 const results = this.parseWuQueryResponse(nlsHPCC.Owner, response);
                 this.loadWUQueryResponse(results);
                 return results;
             }));
         }
         if (searchParams.searchECLText) {
-            searchArray.push(WsWorkunits.WUQuery({ request: { ECL: searchParams.text } }).then(response => {
+            searchArray.push(workunitsService.WUQuery({ ECL: searchParams.text }).then(response => {
                 const results = this.parseWuQueryResponse(nlsHPCC.ECL, response);
                 this.loadWUQueryResponse(results);
                 return results;
             }));
         }
         if (searchParams.searchDFU) {
-            searchArray.push(FileSpray.GetDFUWorkunits({ request: { Wuid: "*" + searchText + "*" } }).then(response => {
+            searchArray.push(filesprayService.GetDFUWorkunits({ Wuid: "*" + searchText + "*" }).then(response => {
                 const results = this.parseGetDFUWorkunitsResponse(nlsHPCC.ECL, response);
                 this.loadGetDFUWorkunitsResponse(results);
                 return results;
             }));
-            searchArray.push(FileSpray.GetDFUWorkunits({ request: { Jobname: "*" + searchText + "*" } }).then(response => {
+            searchArray.push(filesprayService.GetDFUWorkunits({ Jobname: "*" + searchText + "*" }).then(response => {
                 const results = this.parseGetDFUWorkunitsResponse(nlsHPCC.JobName, response);
                 this.loadGetDFUWorkunitsResponse(results);
                 return results;
             }));
-            searchArray.push(FileSpray.GetDFUWorkunits({ request: { Owner: searchText } }).then(response => {
+            searchArray.push(filesprayService.GetDFUWorkunits({ Owner: searchText }).then(response => {
                 const results = this.parseGetDFUWorkunitsResponse(nlsHPCC.Owner, response);
                 this.loadGetDFUWorkunitsResponse(results);
                 return results;
             }));
         }
         if (searchParams.searchFile) {
-            searchArray.push(WsDfu.DFUQuery({ request: { LogicalName: "*" + searchParams.text + "*" } }).then(response => {
+            searchArray.push(dfuService.DFUQuery({ LogicalName: "*" + searchParams.text + "*" }).then(response => {
                 const results = this.parseDFUQueryResponse(nlsHPCC.LogicalName, response);
                 this.loadDFUQueryResponse(results);
                 return results;
             }));
-            searchArray.push(WsDfu.DFUQuery({ request: { Owner: searchParams.text } }).then(response => {
+            searchArray.push(dfuService.DFUQuery({ Owner: searchParams.text }).then(response => {
                 const results = this.parseDFUQueryResponse(nlsHPCC.Owner, response);
                 this.loadDFUQueryResponse(results);
                 return results;
             }));
         }
         if (searchParams.searchQuery) {
-            searchArray.push(WsWorkunits.WUListQueries({ request: { QueryID: "*" + searchParams.text + "*" } }).then(response => {
+            searchArray.push(workunitsService.WUListQueries({ QueryID: "*" + searchParams.text + "*" }).then(response => {
                 const results = this.parseWUListQueriesResponse(nlsHPCC.ID, response);
                 this.loadWUListQueriesResponse(results);
                 return results;
             }));
-            searchArray.push(WsWorkunits.WUListQueries({ request: { QueryName: "*" + searchParams.text + "*" } }).then(response => {
+            searchArray.push(workunitsService.WUListQueries({ QueryName: "*" + searchParams.text + "*" }).then(response => {
                 const results = this.parseWUListQueriesResponse(nlsHPCC.Name, response);
                 this.loadWUListQueriesResponse(results);
                 return results;
@@ -153,92 +180,144 @@ export class ESPSearch {
         return Promise.all(searchArray);
     }
 
-    parseWuQueryResponse(prefix, response) {
-        return response?.WUQueryResponse?.Workunits?.ECLWorkunit.map(item => {
+    parseWuQueryResponse(prefix: string, response: WsWorkunits.WUQueryResponse): WuQueryRow[] {
+        return response?.Workunits?.ECLWorkunit.map(item => {
+            let Context = "";
+            switch (prefix) {
+                case nlsHPCC.WUID:
+                    Context = item.Wuid;
+                    break;
+                case nlsHPCC.JobName:
+                    Context = item.Jobname;
+                    break;
+                case nlsHPCC.Owner:
+                    Context = item.Owner;
+                    break;
+                case nlsHPCC.ECL:
+                    Context = item.Query.Text;
+                    break;
+            }
+
             return {
                 storeID: ++this._rowID,
                 id: item.Wuid,
                 Type: nlsHPCC.ECLWorkunit,
                 Reason: prefix,
+                Context,
                 Summary: item.Wuid,
                 _type: "Wuid",
                 _wuid: item.Wuid,
                 ...item
-            };
+            } satisfies WuQueryRow;
         });
     }
 
-    parseGetDFUWorkunitResponse(prefix, response) {
-        const item = response?.GetDFUWorkunitResponse?.result;
+    parseGetDFUWorkunitResponse(prefix: string, response: FileSpray.GetDFUWorkunitResponse): GetDFUWorkunitRow | undefined {
+        const item = response?.result;
         return (item && item.State !== 999) ? {
             storeID: ++this._rowID,
             id: item.ID,
             Type: nlsHPCC.DFUWorkunit,
             Reason: prefix,
+            Context: "",
             Summary: item.ID,
             _type: "DFUWuid",
             _wuid: item.ID,
             ...item
-        } : undefined;
+        } satisfies GetDFUWorkunitRow : undefined;
     }
 
-    parseGetDFUWorkunitsResponse(prefix, response) {
-        return response?.GetDFUWorkunitsResponse?.results?.DFUWorkunit.map(item => {
+    parseGetDFUWorkunitsResponse(prefix: string, response: FileSpray.GetDFUWorkunitsResponse): GetDFUWorkunitRow[] {
+        return response?.results?.DFUWorkunit.map(item => {
+            let Context = "";
+            switch (prefix) {
+                case nlsHPCC.WUID:
+                    Context = item.ID;
+                    break;
+                case nlsHPCC.JobName:
+                    Context = item.JobName;
+                    break;
+                case nlsHPCC.Owner:
+                    Context = item.User;
+                    break;
+            }
             return {
                 storeID: ++this._rowID,
                 id: item.ID,
                 Type: nlsHPCC.DFUWorkunit,
                 Reason: prefix,
+                Context,
                 Summary: item.ID,
                 _type: "DFUWuid",
                 _wuid: item.ID,
                 ...item
-            };
+            } satisfies GetDFUWorkunitRow;
         });
     }
 
-    parseDFUQueryResponse(prefix, response) {
-        return response?.DFUQueryResponse?.DFULogicalFiles?.DFULogicalFile.map(item => {
+    parseDFUQueryResponse(prefix: string, response: WsDfu.DFUQueryResponse): DFUQueryRow[] {
+        return response?.DFULogicalFiles?.DFULogicalFile.map(item => {
+            let Context = "";
+            switch (prefix) {
+                case nlsHPCC.LogicalName:
+                    Context = item.Name;
+                    break;
+                case nlsHPCC.Owner:
+                    Context = item.Owner;
+                    break;
+            }
             if (item.isSuperfile) {
                 return {
                     storeID: ++this._rowID,
                     id: item.Name,
                     Type: nlsHPCC.SuperFile,
                     Reason: prefix,
+                    Context,
                     Summary: item.Name,
                     _type: "SuperFile",
                     _nodeGroup: item.NodeGroup,
                     _name: item.Name,
                     ...item
-                };
+                } satisfies DFUQueryRow;
             }
             return {
                 storeID: ++this._rowID,
                 id: item.NodeGroup + "::" + item.Name,
                 Type: nlsHPCC.LogicalFile,
                 Reason: prefix,
+                Context,
                 Summary: item.Name + " (" + item.NodeGroup + ")",
                 _type: "LogicalFile",
                 _nodeGroup: item.NodeGroup,
                 _name: item.Name,
                 ...item
-            };
+            } satisfies DFUQueryRow;
         });
     }
 
-    parseWUListQueriesResponse(prefix, response) {
-        return response?.WUListQueriesResponse?.QuerysetQueries?.QuerySetQuery.map(item => {
+    parseWUListQueriesResponse(prefix: string, response: WsWorkunits.WUListQueriesResponse): WUListQueriesRow[] {
+        return response?.QuerysetQueries?.QuerySetQuery.map(item => {
+            let Context = "";
+            switch (prefix) {
+                case nlsHPCC.ID:
+                    Context = item.Id;
+                    break;
+                case nlsHPCC.Name:
+                    Context = item.Name;
+                    break;
+            }
             return {
                 storeID: ++this._rowID,
                 id: item.QuerySetId + "::" + item.Id,
                 Type: nlsHPCC.Query,
                 Reason: prefix,
+                Context,
                 Summary: item.Name + " (" + item.QuerySetId + " - " + item.Id + ")",
                 _type: "Query",
                 _querySetId: item.QuerySetId,
                 _id: item.Id,
                 ...item
-            };
+            } satisfies WUListQueriesRow;
         });
     }
 
@@ -246,7 +325,7 @@ export class ESPSearch {
         if (results) {
             results.forEach((item, idx) => {
                 this.store.put(item, { overwrite: true });
-                this.eclStore.put(ESPWorkunit.Get(item._wuid, item), { overwrite: true });
+                this.eclStore.put(Workunit.attach(Opts, item._wuid, item), { overwrite: true });
             });
             return results.length;
         }
@@ -256,7 +335,7 @@ export class ESPSearch {
     loadGetDFUWorkunitResponse(workunit) {
         if (workunit) {
             this.store.put(workunit, { overwrite: true });
-            this.dfuStore.put(ESPDFUWorkunit.Get(workunit._wuid, workunit), { overwrite: true });
+            this.dfuStore.put(DFUWorkunit.attach(Opts, workunit._wuid, workunit), { overwrite: true });
             return 1;
         }
         return 0;
@@ -266,7 +345,7 @@ export class ESPSearch {
         if (results) {
             results.forEach((item, idx) => {
                 this.store.put(item, { overwrite: true });
-                this.dfuStore.put(ESPDFUWorkunit.Get(item._wuid, item), { overwrite: true });
+                this.dfuStore.put(DFUWorkunit.attach(Opts, item._wuid, item), { overwrite: true });
             });
             return results.length;
         }
@@ -277,7 +356,10 @@ export class ESPSearch {
         if (items) {
             items.forEach((item, idx) => {
                 this.store.put(item, { overwrite: true });
-                this.fileStore.put(ESPLogicalFile.Get(item._nodeGroup, item._name, item), { overwrite: true });
+                // TODO:  Move `lf.update` call into the attach method, needs:  https://github.com/hpcc-systems/Visualization/issues/4277
+                const lf = LogicalFile.attach(Opts, item._nodeGroup, item._name);
+                lf.update(item);
+                this.fileStore.put(lf, { overwrite: true });
             });
             return items.length;
         }
@@ -288,7 +370,10 @@ export class ESPSearch {
         if (items) {
             items.forEach((item, idx) => {
                 this.store.put(item, { overwrite: true });
-                this.queryStore.put(ESPQuery.Get(item._querySetId, item._id, item), { overwrite: true });
+                // TODO:  Move `query["set"]` call into the attach method, needs:  https://github.com/hpcc-systems/Visualization/issues/4277
+                const query = Query.attach(Opts, item._querySetId, item._id);
+                query["set"](item);
+                this.queryStore.put(query, { overwrite: true });
             });
             return items.length;
         }
@@ -349,45 +434,45 @@ export function searchAll(searchText: string,
     const searchParams = generateSearchParams(searchText);
 
     if (searchParams.searchECL) {
-        searchArray.push(WsWorkunits.WUQuery({ request: { Wuid: "*" + searchParams.text + "*" } }).then(response => {
+        searchArray.push(workunitsService.WUQuery({ Wuid: "*" + searchParams.text + "*" }).then(response => {
             loadWUQueryResponse(nlsHPCC.WUID, response);
         }));
-        searchArray.push(WsWorkunits.WUQuery({ request: { Jobname: "*" + searchText + "*" } }).then(response => {
+        searchArray.push(workunitsService.WUQuery({ Jobname: "*" + searchText + "*" }).then(response => {
             loadWUQueryResponse(nlsHPCC.JobName, response);
         }));
-        searchArray.push(WsWorkunits.WUQuery({ request: { Owner: searchText } }).then(response => {
+        searchArray.push(workunitsService.WUQuery({ Owner: searchText }).then(response => {
             loadWUQueryResponse(nlsHPCC.Owner, response);
         }));
     }
     if (searchParams.searchECLText) {
-        searchArray.push(WsWorkunits.WUQuery({ request: { ECL: searchParams.text } }).then(response => {
+        searchArray.push(workunitsService.WUQuery({ ECL: searchParams.text }).then(response => {
             loadWUQueryResponse(nlsHPCC.ECL, response);
         }));
     }
     if (searchParams.searchDFU) {
-        searchArray.push(FileSpray.GetDFUWorkunits({ request: { Wuid: "*" + searchText + "*" } }).then(response => {
+        searchArray.push(filesprayService.GetDFUWorkunits({ Wuid: "*" + searchText + "*" }).then(response => {
             loadGetDFUWorkunitsResponse(nlsHPCC.ECL, response);
         }));
-        searchArray.push(FileSpray.GetDFUWorkunits({ request: { Jobname: "*" + searchText + "*" } }).then(response => {
+        searchArray.push(filesprayService.GetDFUWorkunits({ Jobname: "*" + searchText + "*" }).then(response => {
             loadGetDFUWorkunitsResponse(nlsHPCC.JobName, response);
         }));
-        searchArray.push(FileSpray.GetDFUWorkunits({ request: { Owner: searchText } }).then(response => {
+        searchArray.push(filesprayService.GetDFUWorkunits({ Owner: searchText }).then(response => {
             loadGetDFUWorkunitsResponse(nlsHPCC.Owner, response);
         }));
     }
     if (searchParams.searchFile) {
-        searchArray.push(WsDfu.DFUQuery({ request: { LogicalName: "*" + searchParams.text + "*" } }).then(response => {
+        searchArray.push(dfuService.DFUQuery({ LogicalName: "*" + searchParams.text + "*" }).then(response => {
             loadDFUQueryResponse(nlsHPCC.LogicalName, response);
         }));
-        searchArray.push(WsDfu.DFUQuery({ request: { Owner: searchParams.text } }).then(response => {
+        searchArray.push(dfuService.DFUQuery({ Owner: searchParams.text }).then(response => {
             loadDFUQueryResponse(nlsHPCC.Owner, response);
         }));
     }
     if (searchParams.searchQuery) {
-        searchArray.push(WsWorkunits.WUListQueries({ request: { QueryID: "*" + searchParams.text + "*" } }).then(response => {
+        searchArray.push(workunitsService.WUListQueries({ QueryID: "*" + searchParams.text + "*" }).then(response => {
             loadWUListQueriesResponse(nlsHPCC.ID, response);
         }));
-        searchArray.push(WsWorkunits.WUListQueries({ request: { QueryName: "*" + searchParams.text + "*" } }).then(response => {
+        searchArray.push(workunitsService.WUListQueries({ QueryName: "*" + searchParams.text + "*" }).then(response => {
             loadWUListQueriesResponse(nlsHPCC.Name, response);
         }));
     }
