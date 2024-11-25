@@ -1,6 +1,6 @@
 import * as React from "react";
 import { IScope } from "@hpcc-js/comms";
-import { DuckDB } from "@hpcc-js/wasm/dist/duckdb";
+import { DuckDB } from "@hpcc-js/wasm-duckdb";
 
 type AsyncDuckDB = any;
 type AsyncDuckDBConnection = any;
@@ -16,7 +16,9 @@ export function useDuckDB(): [AsyncDuckDB] {
         });
 
         return () => {
-            duckdb?.db?.close();
+            duckdb.then(duckdb => {
+                duckdb?.db?.close();
+            });
         };
     }, []);
 

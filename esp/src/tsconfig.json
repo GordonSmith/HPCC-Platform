@@ -3,7 +3,7 @@
         "baseUrl": ".",
         "outDir": "./lib",
         "declarationDir": "./types",
-        "target": "ES5",
+        "target": "ES2022",
         "module": "AMD",
         "moduleResolution": "Node",
         "allowSyntheticDefaultImports": true,
@@ -28,15 +28,15 @@
         "typeRoots": [],
         "types": [],
         "paths": {
-            "@hpcc-js/wasm": [
-                "./node_modules/@hpcc-js/wasm",
-                "../../../hpcc-js-wasm"
-            ],
-            "@hpcc-js/*": [
-                "./node_modules/@hpcc-js/*",
-                "../../../hpcc-js/packages/*",
-                "../../../Visualization/packages/*"
-            ]
+            // "@hpcc-js/wasm": [
+            //     "./node_modules/@hpcc-js/wasm",
+            //     "../../../hpcc-js-wasm"
+            // ],
+            // "@hpcc-js/*": [
+            //     "./node_modules/@hpcc-js/*",
+            //     "../../../hpcc-js/packages/*",
+            //     "../../../Visualization/packages/*"
+            // ]
         }
     },
     "include": [

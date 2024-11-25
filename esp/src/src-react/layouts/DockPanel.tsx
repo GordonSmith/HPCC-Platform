@@ -127,7 +127,7 @@ export class ResetableDockPanel extends HPCCDockPanel {
         const retVal = this._visibility !== undefined ? super.render() : super.render(() => {
             if (this._visibility === undefined) {
                 this._visibility = {};
-                this.widgetAdapters().forEach(wa => {
+                this.widgetAdapters().forEach((wa: any) => {
                     this._visibility[wa.widget.id()] = wa.isVisible;
                 });
             }
