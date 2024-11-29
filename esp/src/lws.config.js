@@ -34,7 +34,7 @@ let rewrite = [
     { from: "/esp/unlock.json", to: protocol + "://" + ip + ":" + port + "/esp/unlock.json" },
     { from: "/esp/files/esp/logout", to: protocol + "://" + ip + ":" + port + "/esp/logout" },
     { from: "/esp/files/esp/reset_session_timeout", to: protocol + "://" + ip + ":" + port + "/esp/reset_session_timeout" },
-    { from: "/esp/files/node_modules/@hpcc-js/(.*)/dist/index.min.js", to: "/node_modules/@hpcc-js/$1/dist/index.js" },
+    // { from: "/esp/files/node_modules/@hpcc-js/(.*)/dist/index.min.js", to: "/node_modules/@hpcc-js/$1/dist/index.js" },
     { from: "/esp/files/dist/(.*)", to: "/build/dist/$1" },
     { from: "/esp/files/img/(.*)", to: "build/esp/files/img/$1" },
     { from: "/esp/files/(.*/*.css)", to: "/build/esp/files/$1" },
@@ -68,5 +68,5 @@ let rewrite = [
 module.exports = {
     port: 8080,
     rewrite: rewrite,
-    stack: ['lws-basic-auth', 'lws-request-monitor', 'lws-log', 'lws-cors', 'lws-json', 'lws-compress', 'lws-rewrite', 'lws-blacklist', 'lws-conditional-get', 'lws-mime', 'lws-range', 'lws-spa', 'lws-static', 'lws-index']
+    stack: ["lws-basic-auth", "lws-request-monitor", "lws-log", "lws-cors", "lws-json", "lws-compress", "lws-rewrite", "lws-blacklist", "lws-conditional-get", "lws-mime", "lws-range", "lws-spa", "lws-static", "lws-index"]
 };

@@ -22,14 +22,15 @@ proxyItems.forEach(item => {
 });
 
 module.exports = function (env) {
-    const isDev = (env && env.development) || env === "development";
+    const isDev = true;
+    // const isDev = (env && env.development) || env === "development";
     const isProduction = !isDev;
     console.log(isProduction ? "Production bundle" : "Debug bundle");
 
     const entry = {
         stub: "eclwatch/stub",
         dojoLib: "lib/src/dojoLib",
-        index: "lib/src-react/index"
+        // index: "lib/src-react/index"
     };
 
     const plugins = [
@@ -64,6 +65,9 @@ module.exports = function (env) {
             path: path.resolve(__dirname, "build/dist"),
             publicPath: "/esp/files/dist/",
             pathinfo: true
+        },
+        externals: {
+            "@hpcc-js/dgrid-shim": "@hpcc-js/dgrid-shim"
         },
         module: {
             rules: [

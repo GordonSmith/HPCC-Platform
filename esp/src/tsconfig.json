@@ -3,7 +3,7 @@
         "baseUrl": ".",
         "outDir": "./lib",
         "declarationDir": "./types",
-        "target": "ES2022",
+        "target": "ES5",
         "module": "AMD",
         "moduleResolution": "Node",
         "allowSyntheticDefaultImports": true,
@@ -17,31 +17,31 @@
         "experimentalDecorators": true,
         "allowJs": true,
         "skipLibCheck": true,
-        "noImplicitUseStrict": true,
         "ignoreDeprecations": "5.0",
         "downlevelIteration": true,
         "jsx": "react",
         "lib": [
             "DOM",
-            "ES2019"
+            "ES2022"
         ],
         "typeRoots": [],
         "types": [],
         "paths": {
-            // "@hpcc-js/wasm": [
-            //     "./node_modules/@hpcc-js/wasm",
-            //     "../../../hpcc-js-wasm"
-            // ],
-            // "@hpcc-js/*": [
-            //     "./node_modules/@hpcc-js/*",
-            //     "../../../hpcc-js/packages/*",
-            //     "../../../Visualization/packages/*"
-            // ]
+            "@hpcc-js/wasm-*": [
+                "./node_modules/@hpcc-js/wasm-*",
+                "../../../hpcc-js-wasm/packages/*"
+            ],
+            "@hpcc-js/*": [
+                "./node_modules/@hpcc-js/*",
+                "../../../Visualization/packages/*"
+            ]
         }
     },
     "include": [
         "src/**/*",
-        "src-react/**/*"
+        "src-react/components/About.tsx",
+        "src-react/components/controls/ComingSoon.tsx",
+        "src-react/hooks/platform.tsx",
     ],
     "watchOptions": {
         "watchFile": "useFsEvents",

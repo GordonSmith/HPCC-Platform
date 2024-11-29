@@ -44,7 +44,7 @@ async function loadUI() {
     const userStore = cookieKeyValStore();
     const userSession = await userStore.getAll();
     if (authType.indexOf("None") < 0 && (userSession["ESPAuthenticated"] === undefined || userSession["ESPAuthenticated"] === "false")) {
-        if ([...window.location.hash.matchAll(/login/gi)].length === 0) {
+        if ([...window.location.hash.match(/login/gi)].length === 0) {
             replaceUrl("/login");
         }
         import("./components/forms/Login").then(_ => {

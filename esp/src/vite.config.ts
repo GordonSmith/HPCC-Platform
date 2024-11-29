@@ -36,16 +36,17 @@ export default defineConfig({
     },
     resolve: {
         alias: [
-            { find: "src", replacement: resolve(__dirname, "src") },
-            { find: "eclwatch", replacement: resolve(__dirname, "eclwatch") },
-            { find: "@hpcc-js/wasm-duckdb", replacement: resolve(__dirname, "node_modules/@hpcc-js/wasm-duckdb/dist/index.js") },
-            { find: "@hpcc-js", replacement: resolve(__dirname, "../../../Visualization/packages") },
+            // { find: "src", replacement: resolve(__dirname, "src") },
+
+            // { find: "src", replacement: resolve(__dirname, "src") },
+            // { find: "eclwatch", replacement: resolve(__dirname, "eclwatch") },
+            // { find: "@hpcc-js/wasm-duckdb", replacement: resolve(__dirname, "node_modules/@hpcc-js/wasm-duckdb/dist/index.js") },
+            // { find: "@hpcc-js", replacement: resolve(__dirname, "../../../Visualization/packages") },
         ]
     },
     esbuild: {
         minifyIdentifiers: false
     },
-
     plugins: [
     ]
 });

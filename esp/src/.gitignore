@@ -2,6 +2,7 @@ build/
 dist/
 hpcc-js/
 lib/
+lib-es5/
 node_modules/
 types/
 .vscode/*

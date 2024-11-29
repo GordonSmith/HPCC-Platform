@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DefaultButton, Dropdown, PrimaryButton, Checkbox, Pivot, PivotItem, TextField, IDropdownOption, Stack, SelectionMode, Selection } from "@fluentui/react";
+import { DefaultButton, Dropdown, PrimaryButton, Checkbox, Pivot, PivotItem, TextField, IDropdownOption, Stack, SelectionMode, Selection, ISelection } from "@fluentui/react";
 import { useConst, useForceUpdate } from "@fluentui/react-hooks";
 import { Button } from "@fluentui/react-components";
 import { BookmarkAddRegular, DeleteRegular } from "@fluentui/react-icons";
@@ -47,7 +47,7 @@ const GridOptions: React.FunctionComponent<GridOptionsProps> = ({
         setData(strArray.map(str => ({ id: str })));
     }, [strArray]);
 
-    const selectionHandler = useConst(() => {
+    const selectionHandler: ISelection<any> = useConst(() => {
         return new Selection({
             getKey: (item: { id: string }) => item.id,
             onSelectionChanged: () => setSelection(selectionHandler.getSelection().map(item => item.id)),

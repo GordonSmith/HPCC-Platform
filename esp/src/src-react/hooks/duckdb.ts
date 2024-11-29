@@ -17,7 +17,7 @@ export function useDuckDB(): [AsyncDuckDB] {
 
         return () => {
             duckdb.then(duckdb => {
-                duckdb?.db?.close();
+                duckdb?.db?.terminate();
             });
         };
     }, []);
