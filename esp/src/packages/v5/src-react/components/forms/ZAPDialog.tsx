@@ -6,7 +6,7 @@ import { scopedLogger } from "@hpcc-js/util";
 import * as WsWorkunits from "src/WsWorkunits";
 import { useBuildInfo } from "../../hooks/platform";
 import { MessageBox } from "../../layouts/MessageBox";
-import { CloudContainerNameField } from "../forms/Fields";
+import { CloudContainerNameField } from "./Fields";
 import nlsHPCC from "src/nlsHPCC";
 import { useUserTheme } from "../../hooks/theme";
 
