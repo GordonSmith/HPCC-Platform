@@ -516,17 +516,20 @@ public:
             return wasmResults[0].i64();
         return static_cast<unsigned __int64>(wasmResults[0].i32());
     }
+    LiftLowerContext mk_cx() {
+        auto data = wasmStore->getData(wasmName);
+        Options opts(Encoding::utf8, data, [](const char *msg)
+                     { throw makeStringException(100, msg); });
+        return {opts};
+    }
     virtual void getStringResult(size32_t &chars, char *&result)
     {
         TRACE("WASM SE getStringResult %zu", wasmResults.size());
         auto ptr = wasmResults[0].i32();
+        auto cx = mk_cx();
         uint32_t strPtr;
         Encoding encoding;
         uint32_t bytes;
-        auto data = wasmStore->getData(wasmName);
-        Options opts(Encoding::utf8, data, [](const char *msg)
-                     { throw makeStringException(100, msg); });
-        LiftLowerContext cx(opts);
         std::tie(encoding, strPtr, bytes) = string::load(cx, ptr);
         size32_t codepoints = rtlUtf8Length(bytes, &cx.opts.memory[strPtr]);
         rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx.opts.memory[strPtr]));
@@ -535,10 +538,7 @@ public:
     {
         TRACE("WASM SE getUTF8Result");
         auto ptr = wasmResults[0].i32();
-        auto data = wasmStore->getData(wasmName);
-        Options opts(Encoding::utf8, data, [](const char *msg)
-                     { throw makeStringException(100, msg); });
-        LiftLowerContext cx(opts);
+        auto cx = mk_cx();
         Encoding encoding;
         offset offset;
         size size;
@@ -551,10 +551,7 @@ public:
     {
         TRACE("WASM SE getUnicodeResult");
         auto ptr = wasmResults[0].i32();
-        auto data = wasmStore->getData(wasmName);
-        Options opts(Encoding::utf8, data, [](const char *msg)
-                     { throw makeStringException(100, msg); });
-        LiftLowerContext cx(opts);
+        auto cx = mk_cx();
         Encoding encoding;
         offset offset;
         size size;
