@@ -25,21 +25,20 @@ class Options
 {
 public:
     const Encoding encoding;
-    const GuestMemory &memory;
-    const HostTrap &trap;
-
-    Options(Encoding encoding, const GuestMemory &memory, const HostTrap &trap);
-    Options(const Options &other);
+    const GuestMemory memory;
+    const HostTrap trap;
+    Options(Encoding encoding, const GuestMemory memory, const HostTrap trap)
+        : encoding(encoding), memory(memory), trap(trap) {}
+    Options(const Options &other) = default;
 };
 
 class LiftLowerContext
 {
 public:
-    const Options &opts;
+    const Options opts;
 
-    LiftLowerContext(const Options &opts);
-    LiftLowerContext(const LiftLowerContext &other);
-
+    LiftLowerContext(const Options opts): opts(opts) {}
+    LiftLowerContext(const LiftLowerContext &other) = default;
 };
 
 using offset = uint32_t;

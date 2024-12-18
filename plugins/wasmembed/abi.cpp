@@ -329,22 +329,6 @@ void trap_if(const Options &options, bool condition)
     }
 }
 
-Options::Options(Encoding encoding, const GuestMemory &memory, const HostTrap &trap) : encoding(encoding), memory(memory), trap(trap)
-{
-}
-
-Options::Options(const Options &other) : encoding(other.encoding), memory(other.memory), trap(other.trap)
-{
-}
-
-LiftLowerContext::LiftLowerContext(const Options &opts) : opts(opts)
-{
-}
-
-LiftLowerContext::LiftLowerContext(const LiftLowerContext &other) : opts(other.opts)
-{
-}
-
 template <typename T>
 T load_int(const LiftLowerContext &cx, ptr ptr, uint8_t nbytes)
 {
@@ -411,8 +395,8 @@ namespace string
 
     std::tuple<Encoding /*encoding*/, offset, ::size> load(const LiftLowerContext &cx, offset offset)
     {
-        ptr begin = load_int<ptr>(cx.opts.memory, offset + data_offset);
-        ::size tagged_code_units = load_int<::size>(cx.opts.memory, offset + codeUnits_offset);
+        ptr begin = load_int<ptr>(cx, offset + data_offset, 4);
+        ::size tagged_code_units = load_int<::size>(cx, offset + codeUnits_offset, 4);
          return loadFromRange(cx, begin, tagged_code_units);
     }
 };
