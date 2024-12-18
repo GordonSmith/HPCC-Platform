@@ -517,10 +517,7 @@ public:
         return static_cast<unsigned __int64>(wasmResults[0].i32());
     }
     LiftLowerContext mk_cx() {
-        auto data = wasmStore->getData(wasmName);
-        Options opts(Encoding::utf8, data, [](const char *msg)
-                     { throw makeStringException(100, msg); });
-        return {opts};
+        return {{Encoding::utf8, wasmStore->getData(wasmName), [](const char *msg) { throw makeStringException(100, msg); }}};
     }
     virtual void getStringResult(size32_t &chars, char *&result)
     {
