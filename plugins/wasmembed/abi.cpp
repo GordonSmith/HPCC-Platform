@@ -103,7 +103,7 @@ def load_int(cx, ptr, nbytes, signed = False):
 */
 
 template <typename T>
-T load_int(const wasmtime::Span<uint8_t> &data, uint32_t ptr)
+T load_int(const std::span<uint8_t> &data, uint32_t ptr)
 {
     T retVal = 0;
     if constexpr (sizeof(T) == 1)
@@ -170,7 +170,7 @@ def load_string_from_range(cx, ptr, tagged_code_units):
 //  More:  Not currently available from the wasmtime::context object, see https://github.com/bytecodealliance/wasmtime/issues/6719
 static const std::string global_encoding = "utf8";
 
-std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string_from_range(const wasmtime::Span<uint8_t> &data, uint32_t ptr, uint32_t tagged_code_units)
+std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string_from_range(const std::span<uint8_t> &data, uint32_t ptr, uint32_t tagged_code_units)
 {
     std::string encoding = "utf-8";
     uint32_t byte_length = tagged_code_units;
@@ -223,7 +223,7 @@ def load_string(cx, ptr):
   return load_string_from_range(cx, begin, tagged_code_units)
 
 */
-std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string(const wasmtime::Span<uint8_t> &data, uint32_t ptr)
+std::tuple<uint32_t /*ptr*/, std::string /*encoding*/, uint32_t /*byte length*/> load_string(const std::span<uint8_t> &data, uint32_t ptr)
 {
     uint32_t begin = load_int<uint32_t>(data, ptr);
     uint32_t tagged_code_units = load_int<uint32_t>(data, ptr + 4);
@@ -243,7 +243,7 @@ def load_list_from_range(cx, ptr, length, elem_type):
 */
 
 template <typename T>
-std::vector<T> load_list_from_range(const wasmtime::Span<uint8_t> &data, uint32_t ptr, uint32_t length)
+std::vector<T> load_list_from_range(const std::span<uint8_t> &data, uint32_t ptr, uint32_t length)
 {
     if (!isAligned(ptr, alignment(T{})))
         throw makeStringException(2, "Pointer is not aligned");
@@ -267,3 +267,152 @@ def load_list(cx, ptr, elem_type):
 */
 
 //  Storing  ---
+
+enum class ComponentModelTypeKind
+{
+    _bool,
+    u8,
+    u16,
+    u32,
+    u64,
+    s8,
+    s16,
+    s32,
+    s64,
+    float32,
+    float64,
+    _char,
+    string,
+    list,
+    record,
+    tuple,
+    variant,
+    _enum,
+    flags,
+    option,
+    result,
+    resource,
+    resourceHandle,
+    borrow,
+    own
+};
+
+enum class Alignment
+{
+    byte = 1,
+    halfWord = 2,
+    word = 4,
+    doubleWord = 8
+};
+
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
+using s8 = int8_t;
+using s16 = int16_t;
+using s32 = int32_t;
+using s64 = int64_t;
+using float32 = float;
+using float64 = double;
+// using char = char;
+
+using ptr = uint32_t;
+using size = uint32_t;
+using offset = uint32_t;
+
+void trap_if(const Options &options, bool condition)
+{
+    if (condition)
+    {
+        options.trap("Error");
+    }
+}
+
+Options::Options(Encoding encoding, const GuestMemory &memory, const HostTrap &trap) : encoding(encoding), memory(memory), trap(trap)
+{
+}
+
+Options::Options(const Options &other) : encoding(other.encoding), memory(other.memory), trap(other.trap)
+{
+}
+
+LiftLowerContext::LiftLowerContext(const Options &opts) : opts(opts)
+{
+}
+
+LiftLowerContext::LiftLowerContext(const LiftLowerContext &other) : opts(other.opts)
+{
+}
+
+template <typename T>
+T load_int(const LiftLowerContext &cx, ptr ptr, uint8_t nbytes)
+{
+    assert(nbytes == sizeof(T));
+    T retVal = 0;
+    for (size_t i = 0; i < sizeof(T); ++i)
+    {
+        retVal |= static_cast<T>(cx.opts.memory[ptr + i]) << (8 * i);
+    }
+    return retVal;
+}
+
+struct i32
+{
+};
+
+namespace string
+{
+    const offset data_offset = 0;
+    const offset codeUnits_offset = 4;
+
+    const ComponentModelTypeKind kind = ComponentModelTypeKind::string;
+    const ::size size = 8;
+    const Alignment alignment = Alignment::word;
+    const std::initializer_list<i32> flatTypes = {i32(), i32()};
+
+    std::tuple<Encoding /*encoding*/, offset, ::size> loadFromRange(const LiftLowerContext &cx, ptr ptr, ::size tagged_code_units)
+    {
+        uint32_t alignment;
+        uint32_t byte_length;
+        Encoding encoding;
+        switch (cx.opts.encoding)
+        {
+        case Encoding::utf8:
+            alignment = 1;
+            byte_length = tagged_code_units;
+            encoding = Encoding::utf8;
+            break;
+        case Encoding::utf16:
+            alignment = 2;
+            byte_length = 2 * tagged_code_units;
+            encoding = Encoding::utf16;
+            break;
+        case Encoding::latin1_utf16:
+            alignment = 2;
+            if (tagged_code_units & UTF16_TAG)
+            {
+                byte_length = 2 * (tagged_code_units ^ UTF16_TAG);
+                encoding = Encoding::utf16;
+            }
+            else
+            {
+                byte_length = tagged_code_units;
+                encoding = Encoding::latin1;
+            }
+            break;
+        default:
+            trap_if(cx.opts, false);
+        }
+        trap_if(cx.opts, ptr != align_to(ptr, alignment));
+        trap_if(cx.opts, ptr + byte_length > cx.opts.memory.size());
+        return std::make_tuple(encoding, ptr, byte_length);
+    }
+
+    std::tuple<Encoding /*encoding*/, offset, ::size> load(const LiftLowerContext &cx, offset offset)
+    {
+        ptr begin = load_int<ptr>(cx.opts.memory, offset + data_offset);
+        ::size tagged_code_units = load_int<::size>(cx.opts.memory, offset + codeUnits_offset);
+         return loadFromRange(cx, begin, tagged_code_units);
+    }
+};

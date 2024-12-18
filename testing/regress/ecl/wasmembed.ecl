@@ -54,6 +54,8 @@ s64Test(9223372036854775806, 1) = (integer8)(9223372036854775806 + 1);
 s64Test(-9223372036854775807, -1) = (integer8)(-9223372036854775807 - 1);
 // '--- string ---';
 varstringTest('1234567890', 'abcdefghij') = '1234567890' + 'abcdefghij';
+varstringTest('1234567890', 'abcdefghij');
+varstringTest('abcdefghij', '1234567890');
 stringTest('1234567890', 'abcdefghij') = '1234567890' + 'abcdefghij';
 unicodeTest(U'1234567890您好1231231230', U'abcdefghij欢迎光临abcdefghij') = U'1234567890您好1231231230' + U'abcdefghij欢迎光临abcdefghij';
 utf8Test(U8'您好', U8'欢迎光临') = U8'您好' + U8'欢迎光临';
