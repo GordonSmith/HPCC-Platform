@@ -60,11 +60,11 @@ namespace cmcpp
     using size = uint32_t;
     using offset = uint32_t;
 
-    void trap_if(const LiftLowerContext &cx, bool condition)
+    void trap_if(CallContext *cx, bool condition)
     {
         if (condition)
         {
-            cx.trap("Error");
+            cx->trap("Error");
         }
     }
 
@@ -74,13 +74,13 @@ namespace cmcpp
     }
 
     template <typename T>
-    T load_int(const LiftLowerContext &cx, ptr ptr, uint8_t nbytes)
+    T load_int(CallContext *cx, ptr ptr, uint8_t nbytes)
     {
         assert(nbytes == sizeof(T));
         T retVal = 0;
         for (size_t i = 0; i < sizeof(T); ++i)
         {
-            retVal |= static_cast<T>(cx.opts->memory[ptr + i]) << (8 * i);
+            retVal |= static_cast<T>(cx->memory[ptr + i]) << (8 * i);
         }
         return retVal;
     }
@@ -99,12 +99,12 @@ namespace cmcpp
         const Alignment alignment = Alignment::word;
         const std::initializer_list<i32> flatTypes = {i32(), i32()};
 
-        std::tuple<Encoding /*encoding*/, offset, cmcpp::size> loadFromRange(const LiftLowerContext &cx, ptr ptr, cmcpp::size tagged_code_units)
+        std::tuple<Encoding /*encoding*/, offset, cmcpp::size> loadFromRange(CallContext *cx, ptr ptr, cmcpp::size tagged_code_units)
         {
             uint32_t alignment;
             uint32_t byte_length;
             Encoding encoding;
-            switch (cx.opts->encoding)
+            switch (cx->encoding)
             {
             case Encoding::Utf8:
                 alignment = 1;
@@ -133,11 +133,11 @@ namespace cmcpp
                 trap_if(cx, false);
             }
             trap_if(cx, ptr != align_to(ptr, alignment));
-            trap_if(cx, ptr + byte_length > cx.opts->memory.size());
+            trap_if(cx, ptr + byte_length > cx->memory.size());
             return std::make_tuple(encoding, ptr, byte_length);
         }
 
-        std::tuple<Encoding /*encoding*/, offset, cmcpp::size> load(const LiftLowerContext &cx, offset offset)
+        std::tuple<Encoding /*encoding*/, offset, cmcpp::size> load(CallContext *cx, offset offset)
         {
             ptr begin = load_int<ptr>(cx, offset + data_offset, 4);
             cmcpp::size tagged_code_units = load_int<cmcpp::size>(cx, offset + codeUnits_offset, 4);

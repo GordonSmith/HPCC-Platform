@@ -11,7 +11,7 @@ namespace cmcpp
 
     namespace string
     {
-        std::tuple<cmcpp::Encoding /*encoding*/, cmcpp::offset, cmcpp::size> load(const cmcpp::LiftLowerContext &cx, offset offset);
+        std::tuple<cmcpp::Encoding /*encoding*/, cmcpp::offset, cmcpp::size> load(cmcpp::CallContext *cx, offset offset);
     }
 }
 
