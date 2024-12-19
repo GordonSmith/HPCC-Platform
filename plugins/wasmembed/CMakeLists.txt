@@ -1,6 +1,8 @@
 project(wasmembed)
 
 if(WASMEMBED)
+    add_subdirectory(component-model)
+
     ADD_PLUGIN(wasmembed)
     if(MAKE_WASMEMBED)
 
@@ -21,6 +23,7 @@ if(WASMEMBED)
         include_directories(
             ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-c-api
             ${WASMTIME_CPP_API_INCLUDE_DIRS}/wasmtime-cpp-api
+
             ./../../system/include
             ./../../system/jlib
             ./../../rtl/eclrtl
@@ -37,12 +40,12 @@ if(WASMEMBED)
         add_library(wasmembed SHARED 
             wasmembed.cpp
             secure-enclave.cpp
-            abi.cpp
             util.cpp
         )
 
         target_link_libraries(wasmembed
             ${WASMTIME_LIB}
+            component-model
             eclrtl
             jlib
         )

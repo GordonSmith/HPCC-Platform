@@ -6,8 +6,9 @@
 #include "eclhelper.hpp"
 #include "enginecontext.hpp"
 
-#include "abi.hpp"
 #include "util.hpp"
+#include "component-model/context.hpp"
+#include "component-model/string.hpp"
 
 #include <mutex>
 #include <filesystem>
@@ -25,6 +26,9 @@
     {                      \
     } while (0)
 #endif
+
+using namespace cmcpp;
+
 class WasmEngine
 {
 private:
@@ -257,6 +261,17 @@ public:
     {
         TRACE("WASM SE callRealloc");
         return call(createQualifiedID(wasmName, "cabi_realloc"), params);
+    }
+
+    cmcpp::GuestRealloc getRealloc(const std::string &wasmName)
+    {
+        TRACE("WASM SE getRealloc");
+        auto reallocFunc = getFunc(createQualifiedID(wasmName, "cabi_realloc"));
+        return [this, reallocFunc](int ptr, int old_size, int align, int new_size) -> int
+        {
+            auto retVal = reallocFunc.call(store, {ptr, old_size, align, new_size}).unwrap();
+            return retVal[0].i32();
+        };
     }
 
     wasmtime::Span<uint8_t> getData(const std::string &wasmName)
@@ -516,8 +531,10 @@ public:
             return wasmResults[0].i64();
         return static_cast<unsigned __int64>(wasmResults[0].i32());
     }
-    LiftLowerContext mk_cx() {
-        return {{Encoding::utf8, wasmStore->getData(wasmName), [](const char *msg) { throw makeStringException(100, msg); }}};
+    std::unique_ptr<cmcpp::LiftLowerContext> mk_cx() {
+        auto retVal = cmcpp::createHostContext([](const char *msg) { throw makeStringException(100, msg); }, wasmStore->getRealloc(wasmName));
+        retVal->createCallContext(wasmStore->getData(wasmName), Encoding::Utf8);
+        return retVal;
     }
     virtual void getStringResult(size32_t &chars, char *&result)
     {
@@ -527,9 +544,9 @@ public:
         uint32_t strPtr;
         Encoding encoding;
         uint32_t bytes;
-        std::tie(encoding, strPtr, bytes) = string::load(cx, ptr);
-        size32_t codepoints = rtlUtf8Length(bytes, &cx.opts.memory[strPtr]);
-        rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx.opts.memory[strPtr]));
+        std::tie(encoding, strPtr, bytes) = string::load(*cx, ptr);
+        size32_t codepoints = rtlUtf8Length(bytes, &cx->opts->memory[strPtr]);
+        rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx->opts->memory[strPtr]));
     }
     virtual void getUTF8Result(size32_t &chars, char *&result)
     {
@@ -539,10 +556,10 @@ public:
         Encoding encoding;
         offset offset;
         size size;
-        std::tie(encoding, offset, size) = string::load(cx, ptr);
-        chars = rtlUtf8Length(size, &cx.opts.memory[offset]);
+        std::tie(encoding, offset, size) = string::load(*cx, ptr);
+        chars = rtlUtf8Length(size, &cx->opts->memory[offset]);
         result = (char *)rtlMalloc(size);
-        memcpy(result, &cx.opts.memory[offset], size);
+        memcpy(result, &cx->opts->memory[offset], size);
     }
     virtual void getUnicodeResult(size32_t &chars, UChar *&result)
     {
@@ -552,9 +569,9 @@ public:
         Encoding encoding;
         offset offset;
         size size;
-        std::tie(encoding, offset, size) = string::load(cx, ptr);
-        size32_t codePoints = rtlUtf8Length(size, &cx.opts.memory[offset]);
-        rtlUtf8ToUnicodeX(chars, result, codePoints, reinterpret_cast<const char *>(&cx.opts.memory[offset]));
+        std::tie(encoding, offset, size) = string::load(*cx, ptr);
+        size32_t codePoints = rtlUtf8Length(size, &cx->opts->memory[offset]);
+        rtlUtf8ToUnicodeX(chars, result, codePoints, reinterpret_cast<const char *>(&cx->opts->memory[offset]));
     }
     virtual void getSetResult(bool &__isAllResult, size32_t &resultBytes, void *&result, int elemType, size32_t elemSize)
     {
