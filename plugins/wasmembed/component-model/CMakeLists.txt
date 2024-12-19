@@ -13,6 +13,8 @@ set(SRC
     context.cpp
     string.hpp
     string.cpp
+    integer.hpp
+    integer.cpp
     # flatten.hpp
     # flatten.cpp
     # lift.hpp

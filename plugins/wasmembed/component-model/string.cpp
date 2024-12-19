@@ -1,4 +1,5 @@
 #include "string.hpp"
+#include "integer.hpp"
 
 #include <cassert>
 
@@ -73,18 +74,6 @@ namespace cmcpp
         return (ptr + alignment - 1) & ~(alignment - 1);
     }
 
-    template <typename T>
-    T load_int(CallContext *cx, ptr ptr, uint8_t nbytes)
-    {
-        assert(nbytes == sizeof(T));
-        T retVal = 0;
-        for (size_t i = 0; i < sizeof(T); ++i)
-        {
-            retVal |= static_cast<T>(cx->memory[ptr + i]) << (8 * i);
-        }
-        return retVal;
-    }
-
     struct i32
     {
     };
@@ -99,7 +88,7 @@ namespace cmcpp
         const Alignment alignment = Alignment::word;
         const std::initializer_list<i32> flatTypes = {i32(), i32()};
 
-        std::tuple<Encoding /*encoding*/, offset, cmcpp::size> loadFromRange(CallContext *cx, ptr ptr, cmcpp::size tagged_code_units)
+        std::tuple<Encoding /*encoding*/, const char *, cmcpp::size> loadFromRange(CallContext *cx, ptr ptr, cmcpp::size tagged_code_units)
         {
             uint32_t alignment;
             uint32_t byte_length;
@@ -134,13 +123,13 @@ namespace cmcpp
             }
             trap_if(cx, ptr != align_to(ptr, alignment));
             trap_if(cx, ptr + byte_length > cx->memory.size());
-            return std::make_tuple(encoding, ptr, byte_length);
+            return std::make_tuple(encoding, reinterpret_cast<const char *>(&cx->memory[ptr]), byte_length);
         }
 
-        std::tuple<Encoding /*encoding*/, offset, cmcpp::size> load(CallContext *cx, offset offset)
+        std::tuple<Encoding /*encoding*/, const char *, cmcpp::size> load(CallContext *cx, offset offset)
         {
-            ptr begin = load_int<ptr>(cx, offset + data_offset, 4);
-            cmcpp::size tagged_code_units = load_int<cmcpp::size>(cx, offset + codeUnits_offset, 4);
+            ptr begin = integer::load<ptr>(cx, offset + data_offset, 4);
+            cmcpp::size tagged_code_units = integer::load<cmcpp::size>(cx, offset + codeUnits_offset, 4);
             return loadFromRange(cx, begin, tagged_code_units);
         }
     };

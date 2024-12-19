@@ -535,12 +535,11 @@ public:
     std::unique_ptr<cmcpp::CallContext> mk_cx()
     {
         TRACE("WASM SE mk_cx");
-        // TODO relocate createInstanceContext to the wasm instance?
+        // TODO relocate createInstanceContext to the wasm instance...
         auto icx = cmcpp::createInstanceContext([](const char *msg)
-                                                   { 
+                                                { 
                                                         TRACE("Trap");
-                                                        throw makeStringException(100, msg); 
-                                                   }, wasmStore->getRealloc(wasmName));
+                                                        throw makeStringException(100, msg); }, wasmStore->getRealloc(wasmName));
         auto mem = wasmStore->getData(wasmName);
         return icx->createCallContext(wasmStore->getData(wasmName), Encoding::Utf8);
     }
@@ -550,37 +549,28 @@ public:
         TRACE("WASM SE getStringResult %zu", wasmResults.size());
         auto ptr = wasmResults[0].i32();
         auto cx = mk_cx();
-        uint32_t strPtr;
-        Encoding encoding;
-        uint32_t bytes;
-        std::tie(encoding, strPtr, bytes) = string::load(cx.get(), ptr);
-        size32_t codepoints = rtlUtf8Length(bytes, &cx->memory[strPtr]);
-        rtlUtf8ToStrX(chars, result, codepoints, reinterpret_cast<const char *>(&cx->memory[strPtr]));
+        auto [encoding, strPtr, bytes] = string::load(cx.get(), ptr);
+        size32_t codePoints = rtlUtf8Length(bytes, strPtr);
+        rtlUtf8ToStrX(chars, result, codePoints, strPtr);
     }
     virtual void getUTF8Result(size32_t &chars, char *&result)
     {
         TRACE("WASM SE getUTF8Result");
         auto ptr = wasmResults[0].i32();
         auto cx = mk_cx();
-        Encoding encoding;
-        offset offset;
-        size size;
-        std::tie(encoding, offset, size) = string::load(cx.get(), ptr);
-        chars = rtlUtf8Length(size, &cx->memory[offset]);
-        result = (char *)rtlMalloc(size);
-        memcpy(result, &cx->memory[offset], size);
+        auto [encoding, strPtr, bytes] = string::load(cx.get(), ptr);
+        chars = rtlUtf8Length(bytes, strPtr);
+        result = (char *)rtlMalloc(bytes);
+        memcpy(result, strPtr, bytes);
     }
     virtual void getUnicodeResult(size32_t &chars, UChar *&result)
     {
         TRACE("WASM SE getUnicodeResult");
         auto ptr = wasmResults[0].i32();
         auto cx = mk_cx();
-        Encoding encoding;
-        offset offset;
-        size size;
-        std::tie(encoding, offset, size) = string::load(cx.get(), ptr);
-        size32_t codePoints = rtlUtf8Length(size, &cx->memory[offset]);
-        rtlUtf8ToUnicodeX(chars, result, codePoints, reinterpret_cast<const char *>(&cx->memory[offset]));
+        auto [encoding, strPtr, bytes] = string::load(cx.get(), ptr);
+        size32_t codePoints = rtlUtf8Length(bytes, strPtr);
+        rtlUtf8ToUnicodeX(chars, result, codePoints, strPtr);
     }
     virtual void getSetResult(bool &__isAllResult, size32_t &resultBytes, void *&result, int elemType, size32_t elemSize)
     {
