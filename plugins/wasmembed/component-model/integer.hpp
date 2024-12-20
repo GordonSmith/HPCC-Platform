@@ -8,21 +8,22 @@
 
 namespace cmcpp
 {
-    using ptr = uint32_t;
+    using offset = uint32_t;
 
     namespace integer
     {
         template <typename T>
-        void store(CallContext *cx, const T &v, uint32_t ptr, uint8_t nbytes)
+        void store(CallContext *cx, const T &v, offset ptr, uint8_t nbytes)
         {
-            for (size_t i = 0; i < nbytes; ++i)
+            uint8_t nbytes2 = sizeof(T);
+            for (size_t i = 0; i < nbytes2; ++i)
             {
                 cx->memory[ptr + i] = static_cast<uint8_t>(v >> (8 * i));
             }
         }
 
         template <typename T>
-        T load(CallContext *cx, ptr ptr, uint8_t nbytes)
+        T load(CallContext *cx, offset ptr, uint8_t nbytes)
         {
             assert(nbytes == sizeof(T));
             T retVal = 0;

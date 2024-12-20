@@ -21,11 +21,11 @@ namespace cmcpp
     {
 
         template <typename T>
-        std::pair<uint32_t, uint32_t> store_list_into_range(CallContext *cx, const list_t<T> &v)
+        std::tuple<offset, size> store_into_range(CallContext *cx, const list_t<T> &v)
         {
             auto elem_type = ValTrait<T>::type();
             size_t nbytes = elem_size(elem_type);
-            auto byte_length = v->vs.size() * nbytes;
+            auto byte_length = v.vs.size() * nbytes;
             if (byte_length >= std::numeric_limits<size>::max())
             {
                 throw std::runtime_error("byte_length exceeds limit");
@@ -39,19 +39,19 @@ namespace cmcpp
             {
                 throw std::runtime_error("memory overflow");
             }
-            for (size_t i = 0; i < v->vs.size(); ++i)
+            for (size_t i = 0; i < v.vs.size(); ++i)
             {
-                cmcpp::store<T>(cx, v->vs[i], ptr + i * nbytes);
+                cmcpp::store<T>(cx, v.vs[i], ptr + i * nbytes);
             }
-            return {ptr, v->vs.size()};
+            return {ptr, v.vs.size()};
         }
 
         template <typename T>
         void store(CallContext *cx, const list_t<T> &list, offset ptr)
         {
             auto [begin, length] = store_into_range(cx, list);
-            store_int(cx, begin, ptr, 4);
-            store_int(cx, length, ptr + 4, 4);
+            integer::store(cx, begin, ptr, 4);
+            integer::store(cx, length, ptr + 4, 4);
         }
 
         template <typename T>

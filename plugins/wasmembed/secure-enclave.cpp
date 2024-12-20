@@ -418,87 +418,23 @@ public:
     virtual void bindSetParam(const char *name, int elemType, size32_t elemSize, bool isAll, size32_t totalBytes, const void *setData)
     {
         TRACE("WASM SE bindSetParam %s %d %d %d %d %p", name, elemType, elemSize, isAll, totalBytes, setData);
-        const byte *inData = (const byte *) setData;
+        const byte *inData = (const byte *)setData;
         const byte *endData = inData + totalBytes;
 
         auto cx = mk_cx();
-        switch(elemType){
-            case type_unsigned:
-
-                list::store<uint32_t>(cx.get(), {std::vector<uint32>{inData, endData}});
-                break;
-        }
-
-        throw makeStringException(200, "bindSetParam not implemented");
-
-        type_vals typecode = (type_vals)elemType;
-        const byte *inData = (const byte *)setData;
-        const byte *endData = inData + totalBytes;
-        int numElems;
-        if (elemSize == UNKNOWN_LENGTH)
+        switch (elemType)
         {
-            numElems = 0;
-            // Will need 2 passes to work out how many elements there are in the set :(
-            while (inData < endData)
-            {
-                int thisSize;
-                switch (elemType)
-                {
-                case type_varstring:
-                    thisSize = strlen((const char *)inData) + 1;
-                    break;
-                case type_string:
-                    thisSize = *(size32_t *)inData + sizeof(size32_t);
-                    break;
-                case type_unicode:
-                    thisSize = (*(size32_t *)inData) * sizeof(UChar) + sizeof(size32_t);
-                    break;
-                case type_utf8:
-                    thisSize = rtlUtf8Size(*(size32_t *)inData, inData + sizeof(size32_t)) + sizeof(size32_t);
-                    break;
-                default:
-                    rtlFail(0, "wasmembed: Unsupported parameter type");
-                    break;
-                }
-                inData += thisSize;
-                numElems++;
-            }
-            inData = (const byte *)setData;
-        }
-        else
-            numElems = totalBytes / elemSize;
-
-        std::vector<wasmtime::Val> memIdxVar;
-        int32_t memIdx;
-
-        switch (typecode)
+        case type_unsigned:
         {
-        case type_boolean:
-            memIdxVar = wasmStore->callRealloc(wasmName, {0, 0, 1, (int32_t)numElems});
-            memIdx = memIdxVar[0].i32();
+            list_t<uint32_t> v = {std::vector<uint32_t>{inData, endData}};
+            auto [offset, size] = list::store_into_range<uint32_t>(cx.get(), v);
+            args.push_back(static_cast<int32_t>(offset));
+            args.push_back(static_cast<int32_t>(size));
             break;
+        }
         default:
-            rtlFail(0, "wasmembed: Unsupported parameter type");
-            break;
+            throw makeStringException(200, "bindSetParam not implemented");
         }
-
-        auto mem = wasmStore->getData(wasmName);
-        size32_t thisSize = elemSize;
-        for (int idx = 0; idx < numElems; idx++)
-        {
-            switch (typecode)
-            {
-            case type_boolean:
-                mem[memIdx + idx] = *(bool *)inData;
-                break;
-            default:
-                rtlFail(0, "v8embed: Unsupported parameter type");
-                break;
-            }
-            inData += thisSize;
-        }
-        args.push_back(memIdx);
-        args.push_back(numElems);
     }
 
     virtual void bindRowParam(const char *name, IOutputMetaData &metaVal, const byte *val) override

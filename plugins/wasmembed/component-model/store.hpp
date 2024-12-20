@@ -16,7 +16,7 @@ namespace cmcpp
     {
         auto t = ValTrait<T>::type();
         assert(ptr == align_to(ptr, alignment(t)));
-        assert(ptr + elem_size(v) <= cx->memory.size());
+        assert(ptr + elem_size(t) <= cx->memory.size());
         switch (t)
         {
         case ValType::U8:
