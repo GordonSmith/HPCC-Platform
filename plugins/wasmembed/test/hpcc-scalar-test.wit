@@ -28,6 +28,6 @@ world hpcc-scalar-test {
 
   export utf8-string-test: func(a: string, b: string) -> string
 
-  export list-test-zero: func() -> list<u32>
-  export list-test-one: func(a: list<u32>) -> list<u32>
+  export list-u32-test-zero: func() -> list<u32>
+  export list-u32-test-one: func(a: list<u32>) -> list<u32>
 }

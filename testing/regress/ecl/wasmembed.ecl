@@ -19,11 +19,11 @@ unicode12 unicode5Test (unicode5 a, unicode5 b) := IMPORT(wasm, 'wasmembed.utf8-
 unicode unicodeTest (unicode a, unicode b) := IMPORT(wasm, 'wasmembed.utf8-string-test');
 utf8_12 utf8_5Test (utf8_5 a, utf8_5 b) := IMPORT(wasm, 'wasmembed.utf8-string-test');
 utf8 utf8Test (utf8 a, utf8 b) := IMPORT(wasm, 'wasmembed.utf8-string-test');
-set of unsigned4 listTestZero () := IMPORT(wasm, 'wasmembed.list-test-zero');
-set of unsigned4 listTestOne (set of unsigned4 a) := IMPORT(wasm, 'wasmembed.list-test-one');
+set of unsigned4 listTestZero () := IMPORT(wasm, 'wasmembed.list-test-u32-zero');
+set of unsigned4 listTestOne (set of unsigned4 a) := IMPORT(wasm, 'wasmembed.list-u32-test-one');
 
 listTestZero() = [0, 1, 2, 3];
-listTestOne([0, 1, 2, 3]);
+listTestOne([0, 1, 2, 3]) = [3, 2, 1, 0];
 
 // '--- bool ---';
 boolAndTest(false, false) = (false AND false);

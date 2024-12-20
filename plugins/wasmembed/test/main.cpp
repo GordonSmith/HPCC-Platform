@@ -80,7 +80,7 @@ void hpcc_scalar_test_utf8_string_test(hpcc_scalar_test_string_t *a, hpcc_scalar
 // void hpcc_scalar_test_string_dup(hpcc_scalar_test_string_t *ret, const char*s);
 // void hpcc_scalar_test_string_free(hpcc_scalar_test_string_t *ret);
 
-void hpcc_scalar_test_list_test_zero(hpcc_scalar_test_list_u32_t *ret)
+void hpcc_scalar_test_list_u32_test_zero(hpcc_scalar_test_list_u32_t *ret)
 {
     ret->len = 4;
     ret->ptr = (uint32_t *)malloc(ret->len * sizeof(uint32_t));
@@ -90,7 +90,7 @@ void hpcc_scalar_test_list_test_zero(hpcc_scalar_test_list_u32_t *ret)
     }
 }
 
-void hpcc_scalar_test_list_test_one(hpcc_scalar_test_list_u32_t *a, hpcc_scalar_test_list_u32_t *ret)
+void hpcc_scalar_test_list_u32_test_one(hpcc_scalar_test_list_u32_t *a, hpcc_scalar_test_list_u32_t *ret)
 {
     std::vector<uint32_t> v1(a->ptr, a->ptr + a->len);
     hpcc_scalar_test_list_u32_free(a);

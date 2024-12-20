@@ -214,7 +214,7 @@ public:
 
     bool hasFunc(const std::string &qualifiedID) const
     {
-        TRACE("WASM SE hasFunc");
+        TRACE("WASM SE hasFunc %s", qualifiedID.c_str());
         return wasmFuncs.find(qualifiedID) != wasmFuncs.end();
     }
 
@@ -270,8 +270,9 @@ public:
         auto reallocFunc = getFunc(createQualifiedID(wasmName, "cabi_realloc"));
         return [this, reallocFunc](int ptr, int old_size, int align, int new_size) -> int
         {
-            TRACE("WASM SE realloc");
+            TRACE("WASM SE realloc %i %i %i %i", ptr, old_size, align, new_size);
             auto retVal = reallocFunc.call(store, {ptr, old_size, align, new_size}).unwrap();
+            TRACE("WASM SE realloc %i %i %i %i", ptr, old_size, align, new_size);
             return retVal[0].i32();
         };
     }
@@ -314,6 +315,7 @@ public:
         {
             for (auto &result : wasmResults)
             {
+                TRACE("WASM SE se:destructor %s", gc_func_name.c_str());
                 wasmStore->call(gc_func_name, {result});
             }
         }
@@ -418,16 +420,20 @@ public:
     virtual void bindSetParam(const char *name, int elemType, size32_t elemSize, bool isAll, size32_t totalBytes, const void *setData)
     {
         TRACE("WASM SE bindSetParam %s %d %d %d %d %p", name, elemType, elemSize, isAll, totalBytes, setData);
-        const byte *inData = (const byte *)setData;
-        const byte *endData = inData + totalBytes;
 
         auto cx = mk_cx();
         switch (elemType)
         {
         case type_unsigned:
         {
-            list_t<uint32_t> v = {std::vector<uint32_t>{inData, endData}};
+        TRACE("WASM SE bindSetParam 1111");
+            const byte *inData = (byte *)setData;
+            const byte *endData = inData + totalBytes;
+            auto itemCount = totalBytes / elemSize;
+            list_t<uint32_t> v = {std::vector<uint32_t>{reinterpret_cast<const uint32_t*>(inData), reinterpret_cast<const uint32_t*>(inData) + itemCount}};
+        TRACE("WASM SE bindSetParam 2222");
             auto [offset, size] = list::store_into_range<uint32_t>(cx.get(), v);
+        TRACE("WASM SE bindSetParam 3333");
             args.push_back(static_cast<int32_t>(offset));
             args.push_back(static_cast<int32_t>(size));
             break;

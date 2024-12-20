@@ -43,10 +43,14 @@ namespace cmcpp
         case ValType::S64:
             integer::store(cx, v, ptr, 8);
             break;
+        default:
+        {
+            char errorMsg[50];
+            snprintf(errorMsg, sizeof(errorMsg), "cmcpp::store Unknown type %i", static_cast<int>(t));
+            cx->trap(errorMsg);
         }
-        throw std::runtime_error("Unknown type");
+        }
     }
-
 }
 
 #endif
