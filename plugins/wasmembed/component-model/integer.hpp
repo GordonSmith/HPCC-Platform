@@ -13,6 +13,15 @@ namespace cmcpp
     namespace integer
     {
         template <typename T>
+        void store(CallContext *cx, const T &v, uint32_t ptr, uint8_t nbytes)
+        {
+            for (size_t i = 0; i < nbytes; ++i)
+            {
+                cx->memory[ptr + i] = static_cast<uint8_t>(v >> (8 * i));
+            }
+        }
+
+        template <typename T>
         T load(CallContext *cx, ptr ptr, uint8_t nbytes)
         {
             assert(nbytes == sizeof(T));

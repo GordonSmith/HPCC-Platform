@@ -418,6 +418,17 @@ public:
     virtual void bindSetParam(const char *name, int elemType, size32_t elemSize, bool isAll, size32_t totalBytes, const void *setData)
     {
         TRACE("WASM SE bindSetParam %s %d %d %d %d %p", name, elemType, elemSize, isAll, totalBytes, setData);
+        const byte *inData = (const byte *) setData;
+        const byte *endData = inData + totalBytes;
+
+        auto cx = mk_cx();
+        switch(elemType){
+            case type_unsigned:
+
+                list::store<uint32_t>(cx.get(), {std::vector<uint32>{inData, endData}});
+                break;
+        }
+
         throw makeStringException(200, "bindSetParam not implemented");
 
         type_vals typecode = (type_vals)elemType;
