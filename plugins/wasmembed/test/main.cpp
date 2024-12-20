@@ -1,6 +1,7 @@
 #include "hpcc_scalar_test.h"
 
 #include <string>
+#include <vector>
 
 void dbglog(const std::string str)
 {
@@ -9,9 +10,13 @@ void dbglog(const std::string str)
     hpcc_scalar_test_dbglog(&msg);
 }
 
-bool hpcc_scalar_test_bool_test(bool a, bool b)
+bool hpcc_scalar_test_bool_and_test(bool a, bool b)
 {
     return a && b;
+}
+bool hpcc_scalar_test_bool_or_test(bool a, bool b)
+{
+    return a || b;
 }
 float hpcc_scalar_test_float32_test(float a, float b)
 {
@@ -67,4 +72,32 @@ void hpcc_scalar_test_utf8_string_test(hpcc_scalar_test_string_t *a, hpcc_scalar
     std::string r = s1 + s2;
     dbglog(std::to_string(++tally) + ":  " + r);
     hpcc_scalar_test_string_dup(ret, r.c_str());
+}
+
+// Helper Functions
+// void hpcc_scalar_test_list_u32_free(hpcc_scalar_test_list_u32_t *ptr);
+// void hpcc_scalar_test_string_set(hpcc_scalar_test_string_t *ret, const char*s);
+// void hpcc_scalar_test_string_dup(hpcc_scalar_test_string_t *ret, const char*s);
+// void hpcc_scalar_test_string_free(hpcc_scalar_test_string_t *ret);
+
+void hpcc_scalar_test_list_test_zero(hpcc_scalar_test_list_u32_t *ret)
+{
+    ret->len = 4;
+    ret->ptr = (uint32_t *)malloc(ret->len * sizeof(uint32_t));
+    for (size_t i = 0; i < ret->len; ++i)
+    {
+        ret->ptr[i] = i;
+    }
+}
+
+void hpcc_scalar_test_list_test_one(hpcc_scalar_test_list_u32_t *a, hpcc_scalar_test_list_u32_t *ret)
+{
+    std::vector<uint32_t> v1(a->ptr, a->ptr + a->len);
+    hpcc_scalar_test_list_u32_free(a);
+    ret->len = v1.size();
+    ret->ptr = (uint32_t *)malloc(ret->len * sizeof(uint32_t));
+    for (size_t i = 0; i < ret->len; ++i)
+    {
+        ret->ptr[ret->len - i - 1] = v1[i];
+    }
 }

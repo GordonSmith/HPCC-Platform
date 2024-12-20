@@ -1,5 +1,5 @@
-#ifndef CMCPP_STRING_HPP
-#define CMCPP_STRING_HPP
+#ifndef CMCPP_XXX_HPP
+#define CMCPP_XXX_HPP
 
 #include "context.hpp"
 #include <tuple>

@@ -23,7 +23,7 @@ namespace cmcpp
         Latin1_Utf16
     };
 
-    using HostTrap = std::function<void(const char *msg)>;
+    using HostTrap = std::function<void(const char *msg) noexcept(false)>;
     using GuestRealloc = std::function<int(int ptr, int old_size, int align, int new_size)>;
     using GuestMemory = std::span<uint8_t>;
     using GuestPostReturn = std::function<void()>;

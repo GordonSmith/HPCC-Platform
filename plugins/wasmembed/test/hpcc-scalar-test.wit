@@ -13,7 +13,8 @@ world hpcc-scalar-test {
     guests dispose all params as needed
     hosts call cabi_post_XXX to dispose "results" as needed
 */
-  export bool-test: func(a: bool, b: bool) -> bool
+  export bool-and-test: func(a: bool, b: bool) -> bool
+  export bool-or-test: func(a: bool, b: bool) -> bool
   export float32-test: func(a: float32, b: float32) -> float32
   export float64-test: func(a: float64, b: float64) -> float64
   export u8-test: func(a: u8, b: u8) -> u8
@@ -24,5 +25,9 @@ world hpcc-scalar-test {
   export s16-test: func(a: s16, b: s16) -> s16
   export s32-test: func(a: s32, b: s32) -> s32
   export s64-test: func(a: s64, b: s64) -> s64
+
   export utf8-string-test: func(a: string, b: string) -> string
+
+  export list-test-zero: func() -> list<u32>
+  export list-test-one: func(a: list<u32>) -> list<u32>
 }

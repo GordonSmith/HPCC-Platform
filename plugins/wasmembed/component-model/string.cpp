@@ -1,12 +1,11 @@
 #include "string.hpp"
 #include "integer.hpp"
+#include "util.hpp"
 
 #include <cassert>
 
 namespace cmcpp
 {
-
-    auto UTF16_TAG = 1U << 31;
 
     enum class ComponentModelTypeKind
     {
@@ -60,19 +59,6 @@ namespace cmcpp
     using ptr = uint32_t;
     using size = uint32_t;
     using offset = uint32_t;
-
-    void trap_if(CallContext *cx, bool condition)
-    {
-        if (condition)
-        {
-            cx->trap("Error");
-        }
-    }
-
-    uint32_t align_to(uint32_t ptr, uint32_t alignment)
-    {
-        return (ptr + alignment - 1) & ~(alignment - 1);
-    }
 
     struct i32
     {

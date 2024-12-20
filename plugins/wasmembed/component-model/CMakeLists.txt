@@ -7,14 +7,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SRC
 #   component-model.cpp
-    # traits.hpp
-    # traits.cpp
+    traits.hpp
+    traits.cpp
     context.hpp
     context.cpp
     string.hpp
     string.cpp
     integer.hpp
     integer.cpp
+    list.hpp
+    list.cpp
     # flatten.hpp
     # flatten.cpp
     # lift.hpp
@@ -25,10 +27,8 @@ set(SRC
     # lower.cpp
     # store.hpp
     # store.cpp
-    # util.hpp
-    # util.cpp
-    # val.hpp
-    # val.cpp
+    util.hpp
+    util.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRC})

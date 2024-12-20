@@ -9,6 +9,7 @@
 #include "util.hpp"
 #include "component-model/context.hpp"
 #include "component-model/string.hpp"
+#include "component-model/list.hpp"
 
 #include <mutex>
 #include <filesystem>
@@ -576,8 +577,23 @@ public:
     {
         TRACE("WASM SE getSetResult %d %d %zu", elemType, elemSize, wasmResults.size());
         auto ptr = wasmResults[0].i32();
-        auto data = wasmStore->getData(wasmName);
-        throw makeStringException(200, "getSetResult not implemented");
+        auto cx = mk_cx();
+        switch (elemType)
+        {
+        case type_unsigned:
+        {
+            TRACE("WASM SE getSetResult type_unsigned");
+            auto list = cmcpp::list::load<uint32_t>(cx.get(), ptr);
+            TRACE("WASM SE getSetResult type_unsigned %zu", list->vs.size());
+            resultBytes = list->vs.size() * sizeof(uint32_t);
+            result = rtlMalloc(resultBytes);
+            memcpy(result, list->vs.data(), resultBytes);
+            break;
+        }
+        default:
+            rtlFail(0, "wasmembed: Unsupported parameter type");
+            break;
+        }
     }
     virtual IRowStream *getDatasetResult(IEngineRowAllocator *_resultAllocator)
     {
