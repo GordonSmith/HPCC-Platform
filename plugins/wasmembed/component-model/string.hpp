@@ -2,16 +2,17 @@
 #define CMCPP_STRING_HPP
 
 #include "context.hpp"
+
 #include <tuple>
 
 namespace cmcpp
 {
-    using offset = uint32_t;
-    using size = uint32_t;
-
     namespace string
     {
-        std::tuple<cmcpp::Encoding /*encoding*/, const char * /*strPtr*/, cmcpp::size /* byte_length*/> load(cmcpp::CallContext *cx, offset offset);
+        std::pair<offset, bytes> store_into_range(CallContext *cx, const string_t &v);
+        void store(CallContext *cx, const string_t &v, uint32_t ptr);
+
+        string_t load(const CallContext *cx, offset offset);
     }
 }
 

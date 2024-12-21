@@ -30,6 +30,24 @@
 
 using namespace cmcpp;
 
+HostTrap trap = [](const char *msg) -> void
+{
+    throw makeStringException(100, msg);
+};
+
+HostUnicodeConversion convert = [](char8_t *dest, const char8_t *src, uint32_t byte_len, Encoding from_encoding, Encoding to_encoding) -> std::pair<char8_t *, size_t>
+{
+    if (from_encoding == to_encoding)
+    {
+        memcpy(dest, src, byte_len);
+        return std::make_pair(dest, byte_len);
+    }
+    else
+    {
+        throw makeStringExceptionV(100, "Unsupported encoding conversion %d -> %d", static_cast<int>(from_encoding), static_cast<int>(to_encoding));
+    }
+};
+
 class WasmEngine
 {
 private:
@@ -400,12 +418,9 @@ public:
     virtual void bindUTF8Param(const char *name, size32_t chars, const char *val)
     {
         TRACE("WASM SE bindUTF8Param %s %d %s", name, chars, val);
-        auto bytes = rtlUtf8Size(chars, val);
-        auto memIdxVar = wasmStore->callRealloc(wasmName, {0, 0, 1, (int32_t)bytes});
-        auto memIdx = memIdxVar[0].i32();
-        auto mem = wasmStore->getData(wasmName);
-        memcpy(&mem[memIdx], val, bytes);
-        args.push_back(memIdx);
+        auto cx = mk_cx();
+        auto [offset, bytes] = string::store_into_range(cx.get(), {Encoding::Utf8, (const char8_t *)val, rtlUtf8Size(chars, val)});
+        args.push_back((int32_t)offset);
         args.push_back((int32_t)bytes);
     }
     virtual void bindUnicodeParam(const char *name, size32_t chars, const UChar *val)
@@ -422,18 +437,28 @@ public:
         TRACE("WASM SE bindSetParam %s %d %d %d %d %p", name, elemType, elemSize, isAll, totalBytes, setData);
 
         auto cx = mk_cx();
-        switch (elemType)
+        switch ((type_vals)elemType)
         {
         case type_unsigned:
         {
-        TRACE("WASM SE bindSetParam 1111");
-            const byte *inData = (byte *)setData;
-            const byte *endData = inData + totalBytes;
-            auto itemCount = totalBytes / elemSize;
-            list_t<uint32_t> v = {std::vector<uint32_t>{reinterpret_cast<const uint32_t*>(inData), reinterpret_cast<const uint32_t*>(inData) + itemCount}};
-        TRACE("WASM SE bindSetParam 2222");
-            auto [offset, size] = list::store_into_range<uint32_t>(cx.get(), v);
-        TRACE("WASM SE bindSetParam 3333");
+            assert(elemSize == sizeof(uint32_t));
+            auto [offset, size] = list::store_into_range<uint32_t>(cx.get(), {std::vector<uint32_t>{(const uint32_t *)setData, (const uint32_t *)setData + (totalBytes / elemSize)}});
+            args.push_back(static_cast<int32_t>(offset));
+            args.push_back(static_cast<int32_t>(size));
+            break;
+        }
+        case type_int:
+        {
+            assert(elemSize == sizeof(int32_t));
+            auto [offset, size] = list::store_into_range<int32_t>(cx.get(), {std::vector<int32_t>{(const int32_t *)setData, (const int32_t *)setData + (totalBytes / elemSize)}});
+            args.push_back(static_cast<int32_t>(offset));
+            args.push_back(static_cast<int32_t>(size));
+            break;
+        }
+        case type_string:
+        {
+            // assert(elemSize == sizeof(int32_t));
+            auto [offset, size] = list::store_into_range<string_t>(cx.get(), {std::vector<string_t>{(const string_t *)setData, (const string_t *)setData + (totalBytes / elemSize)}});
             args.push_back(static_cast<int32_t>(offset));
             args.push_back(static_cast<int32_t>(size));
             break;
@@ -490,10 +515,7 @@ public:
     {
         TRACE("WASM SE mk_cx");
         // TODO relocate createInstanceContext to the wasm instance...
-        auto icx = cmcpp::createInstanceContext([](const char *msg)
-                                                { 
-                                                        TRACE("Trap");
-                                                        throw makeStringException(100, msg); }, wasmStore->getRealloc(wasmName));
+        auto icx = cmcpp::createInstanceContext(trap, convert, wasmStore->getRealloc(wasmName));
         auto mem = wasmStore->getData(wasmName);
         return icx->createCallContext(wasmStore->getData(wasmName), Encoding::Utf8);
     }
@@ -505,7 +527,7 @@ public:
         auto cx = mk_cx();
         auto [encoding, strPtr, bytes] = string::load(cx.get(), ptr);
         size32_t codePoints = rtlUtf8Length(bytes, strPtr);
-        rtlUtf8ToStrX(chars, result, codePoints, strPtr);
+        rtlUtf8ToStrX(chars, result, codePoints, (const char *)strPtr);
     }
     virtual void getUTF8Result(size32_t &chars, char *&result)
     {
@@ -524,7 +546,7 @@ public:
         auto cx = mk_cx();
         auto [encoding, strPtr, bytes] = string::load(cx.get(), ptr);
         size32_t codePoints = rtlUtf8Length(bytes, strPtr);
-        rtlUtf8ToUnicodeX(chars, result, codePoints, strPtr);
+        rtlUtf8ToUnicodeX(chars, result, codePoints, (const char *)strPtr);
     }
     virtual void getSetResult(bool &__isAllResult, size32_t &resultBytes, void *&result, int elemType, size32_t elemSize)
     {
@@ -535,12 +557,28 @@ public:
         {
         case type_unsigned:
         {
-            TRACE("WASM SE getSetResult type_unsigned");
             auto list = cmcpp::list::load<uint32_t>(cx.get(), ptr);
-            TRACE("WASM SE getSetResult type_unsigned %zu", list->vs.size());
-            resultBytes = list->vs.size() * sizeof(uint32_t);
+            resultBytes = list->size() * sizeof(uint32_t);
             result = rtlMalloc(resultBytes);
-            memcpy(result, list->vs.data(), resultBytes);
+            memcpy(result, list->data(), resultBytes);
+            break;
+        }
+        case type_string:
+        {
+            auto list = cmcpp::list::load<string_t>(cx.get(), ptr);
+            rtlRowBuilder out;
+            size32_t outBytes = 0;
+            byte *outData = NULL;
+            for (auto &item : *list)
+            {
+                out.ensureAvailable(outBytes + item.byte_len + sizeof(size32_t));
+                outData = out.getbytes() + outBytes;
+                *reinterpret_cast<size32_t *>(outData) = item.byte_len;
+                rtlStrToStr(item.byte_len, outData + sizeof(size32_t), item.byte_len, item.ptr);
+                outBytes += item.byte_len + sizeof(size32_t);
+            }
+            resultBytes = outBytes;
+            result = out.detachdata();
             break;
         }
         default:

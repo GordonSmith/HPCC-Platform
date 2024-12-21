@@ -23,7 +23,7 @@ namespace cmcpp
         }
 
         template <typename T>
-        T load(CallContext *cx, offset ptr, uint8_t nbytes)
+        T load(const CallContext *cx, offset ptr, uint8_t nbytes)
         {
             assert(nbytes == sizeof(T));
             T retVal = 0;

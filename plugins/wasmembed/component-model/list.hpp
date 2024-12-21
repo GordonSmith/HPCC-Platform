@@ -25,7 +25,7 @@ namespace cmcpp
         {
             auto elem_type = ValTrait<T>::type();
             size_t nbytes = elem_size(elem_type);
-            auto byte_length = v.vs.size() * nbytes;
+            auto byte_length = v.size() * nbytes;
             if (byte_length >= std::numeric_limits<size>::max())
             {
                 throw std::runtime_error("byte_length exceeds limit");
@@ -39,11 +39,11 @@ namespace cmcpp
             {
                 throw std::runtime_error("memory overflow");
             }
-            for (size_t i = 0; i < v.vs.size(); ++i)
+            for (size_t i = 0; i < v.size(); ++i)
             {
-                cmcpp::store<T>(cx, v.vs[i], ptr + i * nbytes);
+                cmcpp::store<T>(cx, v[i], ptr + i * nbytes);
             }
-            return {ptr, v.vs.size()};
+            return {ptr, v.size()};
         }
 
         template <typename T>
@@ -55,15 +55,15 @@ namespace cmcpp
         }
 
         template <typename T>
-        std::shared_ptr<list_t<T>> load_from_range(CallContext *cx, offset ptr, size length)
+        std::unique_ptr<list_t<T>> load_from_range(CallContext *cx, offset ptr, size length)
         {
             auto t = ValTrait<T>::type();
             assert(ptr == align_to(ptr, alignment(t)));
             assert(ptr + length * elem_size(t) <= cx->memory.size());
-            auto list = std::make_shared<list_t<T>>();
+            auto list = std::make_unique<list_t<T>>();
             for (uint32_t i = 0; i < length; ++i)
             {
-                list->vs.push_back(cmcpp::load<T>(cx, ptr + i * elem_size(t)));
+                list->push_back(cmcpp::load<T>(cx, ptr + i * elem_size(t)));
             }
             return list;
         }

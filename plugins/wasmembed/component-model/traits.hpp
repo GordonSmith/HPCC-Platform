@@ -1,18 +1,15 @@
-#ifndef TRAITS_HPP
-#define TRAITS_HPP
+#ifndef CMCPP_TRAITS_HPP
+#define CMCPP_TRAITS_HPP
 
-#include "context.hpp"
-
+#include <cstdint>
+#include <vector>
 #include <optional>
 #include <variant>
+#include <memory>
 #include <stdexcept>
 
 namespace cmcpp
 {
-
-    using float32_t = float;
-    using float64_t = double;
-
     enum class ValType : uint8_t
     {
         Bool,
@@ -132,8 +129,9 @@ namespace cmcpp
         }
     };
 
+    using float32_t = float;
     template <>
-    struct ValTrait<float>
+    struct ValTrait<float32_t>
     {
         static ValType type()
         {
@@ -141,8 +139,9 @@ namespace cmcpp
         }
     };
 
+    using float64_t = double;
     template <>
-    struct ValTrait<double>
+    struct ValTrait<float64_t>
     {
         static ValType type()
         {
@@ -151,7 +150,7 @@ namespace cmcpp
     };
 
     template <>
-    struct ValTrait<wchar_t>
+    struct ValTrait<char8_t>
     {
         static ValType type()
         {
@@ -159,28 +158,30 @@ namespace cmcpp
         }
     };
 
-    class string_t;
-    using string_ptr = std::shared_ptr<string_t>;
+    enum class Encoding
+    {
+        Latin1,
+        Utf8,
+        Utf16,
+        Latin1_Utf16
+    };
+
+    struct string_t
+    {
+        Encoding encoding;
+        const char8_t *ptr;
+        size_t byte_len;
+    };
     template <>
-    struct ValTrait<string_ptr>
+    struct ValTrait<string_t>
     {
         static ValType type() { return ValType::String; }
     };
 
     template <typename T>
-    struct list_t
-    {
-        std::vector<T> vs;
-
-        static ValType type() {
-            return ValTrait<T>::type();
-        }
-
-    };
+    using list_t = std::vector<T>;
     template <typename T>
-    using list_ptr = std::shared_ptr<list_t<T>>;
-    template <typename T>
-    struct ValTrait<list_ptr<T>>
+    struct ValTrait<list_t<T>>
     {
         static ValType type() { return ValType::List; }
         static ValType of() { return ValTrait<T>::type(); }
@@ -276,6 +277,8 @@ namespace cmcpp
         }
     };
 
+    using offset = uint32_t;
+    using bytes = uint32_t;
 }
 
 #endif

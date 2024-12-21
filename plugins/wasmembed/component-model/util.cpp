@@ -3,7 +3,7 @@
 namespace cmcpp 
 {
 
-    void trap_if(CallContext *cx, bool condition, const char *message)
+    void trap_if(const CallContext *cx, bool condition, const char *message)
     {
         if (condition)
         {
