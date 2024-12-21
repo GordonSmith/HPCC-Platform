@@ -3,8 +3,6 @@
 
 #include "context.hpp"
 
-#include <tuple>
-
 namespace cmcpp
 {
     namespace string
