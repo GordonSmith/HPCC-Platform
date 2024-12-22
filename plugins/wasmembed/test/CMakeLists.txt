@@ -31,7 +31,3 @@ target_link_libraries(wasmembed
 install(TARGETS wasmembed
     RUNTIME DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/../install-target
 )
-
-install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/hpcc_scalar_test.c DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/../install-target
-)

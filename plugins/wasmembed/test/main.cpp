@@ -80,6 +80,28 @@ void hpcc_scalar_test_utf8_string_test(hpcc_scalar_test_string_t *a, hpcc_scalar
 // void hpcc_scalar_test_string_dup(hpcc_scalar_test_string_t *ret, const char*s);
 // void hpcc_scalar_test_string_free(hpcc_scalar_test_string_t *ret);
 
+void hpcc_scalar_test_list_test_bool(hpcc_scalar_test_list_bool_t *ret)
+{
+    ret->len = 8;
+    ret->ptr = (bool *)malloc(ret->len * sizeof(bool));
+    for (size_t i = 0; i < ret->len; ++i)
+    {
+        ret->ptr[i] = i % 2 == 0;
+    }
+}
+
+void hpcc_scalar_test_list_bool_test_bool(hpcc_scalar_test_list_bool_t *a, hpcc_scalar_test_list_bool_t *ret)
+{
+    std::vector<bool> v1(a->ptr, a->ptr + a->len);
+    hpcc_scalar_test_list_bool_free(a);
+    ret->len = v1.size();
+    ret->ptr = (bool *)malloc(ret->len * sizeof(bool));
+    for (size_t i = 0; i < ret->len; ++i)
+    {
+        ret->ptr[ret->len - i - 1] = v1[i];
+    }
+}
+
 void hpcc_scalar_test_list_test_u32(hpcc_scalar_test_list_u32_t *ret)
 {
     ret->len = 4;
@@ -121,7 +143,7 @@ void hpcc_scalar_test_list_string_test_string(hpcc_scalar_test_list_string_t *a,
     ret->ptr = (hpcc_scalar_test_string_t *)malloc(ret->len * sizeof(hpcc_scalar_test_string_t));
     for (size_t i = 0; i < ret->len; ++i)
     {
-        hpcc_scalar_test_string_dup(&ret->ptr[ret->len - i - 1], v1[i].ptr);
+        hpcc_scalar_test_string_dup(&ret->ptr[ret->len - i - 1], std::string(v1[i].ptr, v1[i].len).c_str());
     }
     hpcc_scalar_test_list_string_free(a);
 }

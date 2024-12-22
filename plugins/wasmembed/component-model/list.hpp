@@ -2,15 +2,14 @@
 #define CMCPP_LIST_HPP
 
 #include "context.hpp"
-#include "traits.hpp"
 #include "integer.hpp"
-#include "util.hpp"
-#include "store.hpp"
 #include "load.hpp"
+#include "store.hpp"
+#include "util.hpp"
 
 #include <tuple>
-#include <cassert>
 #include <limits>
+#include <cassert>
 
 namespace cmcpp
 {

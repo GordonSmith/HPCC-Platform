@@ -3,7 +3,7 @@
 
 #include "context.hpp"
 
-#include <tuple>
+#include <cstring>
 #include <cassert>
 
 namespace cmcpp
@@ -15,24 +15,19 @@ namespace cmcpp
         template <typename T>
         void store(CallContext *cx, const T &v, offset ptr, uint8_t nbytes)
         {
-            uint8_t nbytes2 = sizeof(T);
-            for (size_t i = 0; i < nbytes2; ++i)
-            {
-                cx->memory[ptr + i] = static_cast<uint8_t>(v >> (8 * i));
-            }
+            assert(nbytes == sizeof(T));
+            std::memcpy(&cx->memory[ptr], &v, nbytes);
         }
 
         template <typename T>
         T load(const CallContext *cx, offset ptr, uint8_t nbytes)
         {
             assert(nbytes == sizeof(T));
-            T retVal = 0;
-            for (size_t i = 0; i < sizeof(T); ++i)
-            {
-                retVal |= static_cast<T>(cx->memory[ptr + i]) << (8 * i);
-            }
+            T retVal;
+            std::memcpy(&retVal, &cx->memory[ptr], nbytes);
             return retVal;
         }
+
     }
 }
 

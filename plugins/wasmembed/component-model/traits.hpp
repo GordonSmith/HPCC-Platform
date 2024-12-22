@@ -48,8 +48,9 @@ namespace cmcpp
         }
     };
 
+    using bool_t = bool;
     template <>
-    struct ValTrait<bool>
+    struct ValTrait<bool_t>
     {
         static ValType type()
         {

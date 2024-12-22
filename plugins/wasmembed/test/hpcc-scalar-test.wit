@@ -28,6 +28,9 @@ world hpcc-scalar-test {
 
   export utf8-string-test: func(a: string, b: string) -> string
 
+  export list-test-bool: func() -> list<bool>
+  export list-bool-test-bool: func(a: list<bool>) -> list<bool>
+
   export list-test-u32: func() -> list<u32>
   export list-u32-test-u32: func(a: list<u32>) -> list<u32>
 

@@ -140,6 +140,7 @@ private:
     std::unordered_map<std::string, wasmtime::Instance> wasmInstances;
     std::unordered_map<std::string, wasmtime::Memory> wasmMems;
     std::unordered_map<std::string, wasmtime::Func> wasmFuncs;
+    std::unordered_map<std::string, std::unique_ptr<cmcpp::InstanceContext>> instanceContext;
 
 public:
     WasmStore() : store(wasmEngine->engine)
@@ -223,6 +224,7 @@ public:
                 }
             }
             wasmInstances.insert(std::make_pair(wasmName, newInstance));
+            instanceContext.insert(std::make_pair(wasmName, std::make_unique<cmcpp::InstanceContext>(trap, convert, getRealloc(wasmName))));
         }
         catch (const wasmtime::Error &e)
         {
@@ -302,6 +304,15 @@ public:
         if (found == wasmMems.end())
             throw makeStringExceptionV(100, "Wasm memory not found: %s", wasmName.c_str());
         return found->second.data(store.context());
+    }
+
+    std::unique_ptr<CallContext> createCallContext(const std::string &wasmName, Encoding encoding)
+    {
+        TRACE("WASM SE getInstanceContext");
+        auto found = instanceContext.find(wasmName);
+        if (found == instanceContext.end())
+            throw makeStringExceptionV(100, "Wasm instance context not found: %s", wasmName.c_str());
+        return found->second->createCallContext(getData(wasmName), encoding);
     }
 };
 thread_local std::unique_ptr<WasmStore> wasmStore = std::make_unique<WasmStore>();
@@ -431,18 +442,19 @@ public:
         rtlUnicodeToUtf8X(utfCharCount, utfText.refstr(), chars, val);
         bindUTF8Param(name, utfCharCount, utfText.getstr());
     }
-
     virtual void bindSetParam(const char *name, int elemType, size32_t elemSize, bool isAll, size32_t totalBytes, const void *setData)
     {
         TRACE("WASM SE bindSetParam %s %d %d %d %d %p", name, elemType, elemSize, isAll, totalBytes, setData);
+        if (isAll)
+            rtlFail(0, "wasmembed: Cannot pass ALL");
 
         auto cx = mk_cx();
         switch ((type_vals)elemType)
         {
-        case type_unsigned:
+        case type_boolean:
         {
-            assert(elemSize == sizeof(uint32_t));
-            auto [offset, size] = list::store_into_range<uint32_t>(cx.get(), {std::vector<uint32_t>{(const uint32_t *)setData, (const uint32_t *)setData + (totalBytes / elemSize)}});
+            assert(elemSize == sizeof(bool_t));
+            auto [offset, size] = list::store_into_range<bool_t>(cx.get(), list_t<bool_t>{reinterpret_cast<const bool_t*>(setData), reinterpret_cast<const bool_t*>(setData) + (totalBytes / elemSize)});
             args.push_back(static_cast<int32_t>(offset));
             args.push_back(static_cast<int32_t>(size));
             break;
@@ -450,15 +462,36 @@ public:
         case type_int:
         {
             assert(elemSize == sizeof(int32_t));
-            auto [offset, size] = list::store_into_range<int32_t>(cx.get(), {std::vector<int32_t>{(const int32_t *)setData, (const int32_t *)setData + (totalBytes / elemSize)}});
+            auto [offset, size] = list::store_into_range<int32_t>(cx.get(), list_t<int32_t>{(const int32_t *)setData, (const int32_t *)setData + (totalBytes / elemSize)});
+            args.push_back(static_cast<int32_t>(offset));
+            args.push_back(static_cast<int32_t>(size));
+            break;
+        }
+        case type_unsigned:
+        {
+            assert(elemSize == sizeof(uint32_t));
+            auto [offset, size] = list::store_into_range<uint32_t>(cx.get(), {list_t<uint32_t>{(const uint32_t *)setData, (const uint32_t *)setData + (totalBytes / elemSize)}});
             args.push_back(static_cast<int32_t>(offset));
             args.push_back(static_cast<int32_t>(size));
             break;
         }
         case type_string:
         {
-            // assert(elemSize == sizeof(int32_t));
-            auto [offset, size] = list::store_into_range<string_t>(cx.get(), {std::vector<string_t>{(const string_t *)setData, (const string_t *)setData + (totalBytes / elemSize)}});
+            list_t<string_t> strings;
+            const byte *inData = (const byte *)setData;
+            const byte *endData = inData + totalBytes;
+            while (inData < endData)
+            {
+                size32_t thisSize = elemSize;
+                if (elemSize == UNKNOWN_LENGTH)
+                {
+                    thisSize = *(size32_t *)inData;
+                    inData += sizeof(size32_t);
+                }
+                strings.push_back({Encoding::Utf8, (const char8_t *)inData, thisSize});
+                inData += thisSize;
+            }
+            auto [offset, size] = list::store_into_range<string_t>(cx.get(), strings);
             args.push_back(static_cast<int32_t>(offset));
             args.push_back(static_cast<int32_t>(size));
             break;
@@ -511,13 +544,11 @@ public:
             return wasmResults[0].i64();
         return static_cast<unsigned __int64>(wasmResults[0].i32());
     }
+
     std::unique_ptr<cmcpp::CallContext> mk_cx()
     {
         TRACE("WASM SE mk_cx");
-        // TODO relocate createInstanceContext to the wasm instance...
-        auto icx = cmcpp::createInstanceContext(trap, convert, wasmStore->getRealloc(wasmName));
-        auto mem = wasmStore->getData(wasmName);
-        return icx->createCallContext(wasmStore->getData(wasmName), Encoding::Utf8);
+        return wasmStore->createCallContext(wasmName, Encoding::Utf8);
     }
 
     virtual void getStringResult(size32_t &chars, char *&result)
@@ -555,6 +586,14 @@ public:
         auto cx = mk_cx();
         switch (elemType)
         {
+        case type_boolean:
+        {
+            auto list = list::load<bool_t>(cx.get(), ptr);
+            resultBytes = list->size();
+            result = rtlMalloc(resultBytes);
+            std::copy(list->begin(), list->end(), reinterpret_cast<bool *>(result));
+            break;
+        }
         case type_unsigned:
         {
             auto list = cmcpp::list::load<uint32_t>(cx.get(), ptr);

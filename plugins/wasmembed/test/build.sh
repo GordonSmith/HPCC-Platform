@@ -21,6 +21,3 @@ docker run --rm \
     cmake --build /hpcc-dev/build --target install"
 
 echo "docker run -it --mount source=\"${SCRIPT_DIR}\",target=/hpcc-dev/wasmembed,type=bind,consistency=cached wasm32-wasi:latest bash"
-
-
-

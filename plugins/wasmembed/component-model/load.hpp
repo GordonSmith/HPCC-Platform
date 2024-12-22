@@ -5,8 +5,6 @@
 #include "integer.hpp"
 #include "string.hpp"
 
-#include <tuple>
-
 namespace cmcpp
 {
     template <typename T>
@@ -16,56 +14,67 @@ namespace cmcpp
         throw std::runtime_error("trap not terminating execution");
     }
 
-    template<> 
+    bool convert_int_to_bool(uint8_t i)
+    {
+        return i > 0;
+    }
+
+    template <>
+    inline bool_t load<bool_t>(const CallContext *cx, uint32_t ptr)
+    {
+        return convert_int_to_bool(integer::load<uint8_t>(cx, ptr, 1));
+    }
+
+    template <>
     inline uint8_t load<uint8_t>(const CallContext *cx, uint32_t ptr)
     {
         return integer::load<uint8_t>(cx, ptr, 1);
     }
 
-    template<>
+    template <>
     inline int8_t load<int8_t>(const CallContext *cx, uint32_t ptr)
     {
         return integer::load<int8_t>(cx, ptr, 1);
     }
 
-    template<>
+    template <>
     inline uint16_t load<uint16_t>(const CallContext *cx, uint32_t ptr)
     {
         return integer::load<uint16_t>(cx, ptr, 2);
     }
 
-    template<>
+    template <>
     inline int16_t load<int16_t>(const CallContext *cx, uint32_t ptr)
     {
         return integer::load<int16_t>(cx, ptr, 2);
     }
 
-    template<>
+    template <>
     inline uint32_t load<uint32_t>(const CallContext *cx, uint32_t ptr)
     {
         return integer::load<uint32_t>(cx, ptr, 4);
     }
 
-    template<>
+    template <>
     inline int32_t load<int32_t>(const CallContext *cx, uint32_t ptr)
     {
         return integer::load<int32_t>(cx, ptr, 4);
     }
 
-    template<>
+    template <>
     inline uint64_t load<uint64_t>(const CallContext *cx, uint32_t ptr)
     {
         return integer::load<uint64_t>(cx, ptr, 8);
     }
 
-    template<>
+    template <>
     inline int64_t load<int64_t>(const CallContext *cx, uint32_t ptr)
     {
         return integer::load<int64_t>(cx, ptr, 8);
     }
 
     template <>
-    inline string_t load<string_t>(const CallContext *cx, uint32_t ptr) 
+    inline string_t load<string_t>(const CallContext *cx, uint32_t ptr)
     {
         return string::load(cx, ptr);
     }

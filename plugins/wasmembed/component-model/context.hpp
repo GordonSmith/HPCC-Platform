@@ -1,5 +1,5 @@
-#ifndef CMCPP_HPP
-#define CMCPP_HPP
+#ifndef CMCPP_CONTEXT_HPP
+#define CMCPP_CONTEXT_HPP
 
 #if __has_include(<span>)
 #include <span>
@@ -10,7 +10,6 @@
 
 #include "traits.hpp"
 
-#include <string>
 #include <functional>
 #include <memory>
 #include <optional>
