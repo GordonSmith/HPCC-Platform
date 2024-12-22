@@ -30,14 +30,14 @@ set of unsigned4 listUtf8TestUtf8 (set of unsigned4 a) := IMPORT(wasm, 'wasmembe
 set of string listTestString () := IMPORT(wasm, 'wasmembed.list-test-string');
 set of string listStringTestString (set of string a) := IMPORT(wasm, 'wasmembed.list-string-test-string');
 
-listTestBoolean();// = [0, 1, 2, 3];
-listBooleanTestBoolean([false, false, true, true, false, true]);// = [3, 2, 1, 0];
+listTestBoolean() = [true, false, true, false, true, false, true, false];
+listBooleanTestBoolean([false, false, true, true, false, true]) = [true, false, true, true, false, false];
 
 listTestUtf8() = [0, 1, 2, 3];
 listUtf8TestUtf8([0, 1, 2, 3]) = [3, 2, 1, 0];
 
-listTestString();
-listStringTestString(['aaa', 'bbb', 'ccc', 'ddd', 'eee', 'fff', 'ggg', 'hhh', 'iii']);
+listTestString()=['test-0', 'test-1', 'test-2', 'test-3'];
+listStringTestString(['aaa', 'bbb', 'ccc', 'ddd', 'eee', 'fff', 'ggg', 'hhh', 'iii']) = ['iii', 'hhh', 'ggg', 'fff', 'eee', 'ddd', 'ccc', 'bbb', 'aaa'];
 
 // '--- bool ---';
 boolAndTest(false, false) = (false AND false);

@@ -454,7 +454,16 @@ public:
         case type_boolean:
         {
             assert(elemSize == sizeof(bool_t));
-            auto [offset, size] = list::store_into_range<bool_t>(cx.get(), list_t<bool_t>{reinterpret_cast<const bool_t*>(setData), reinterpret_cast<const bool_t*>(setData) + (totalBytes / elemSize)});
+            list_t<bool_t> bools;
+            const byte *inData = (const byte *)setData;
+            const byte *endData = inData + totalBytes;
+            while (inData < endData)
+            {
+                size32_t thisSize = elemSize;
+                bools.push_back(*(const bool *)inData ? true : false);
+                inData += thisSize;
+            }
+            auto [offset, size] = list::store_into_range<bool_t>(cx.get(), bools);
             args.push_back(static_cast<int32_t>(offset));
             args.push_back(static_cast<int32_t>(size));
             break;
