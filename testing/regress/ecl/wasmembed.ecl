@@ -21,14 +21,20 @@ unicode unicodeTest (unicode a, unicode b) := IMPORT(wasm, 'wasmembed.utf8-strin
 utf8_12 utf8_5Test (utf8_5 a, utf8_5 b) := IMPORT(wasm, 'wasmembed.utf8-string-test');
 utf8 utf8Test (utf8 a, utf8 b) := IMPORT(wasm, 'wasmembed.utf8-string-test');
 
-set of unsigned4 listTestZero () := IMPORT(wasm, 'wasmembed.list-test-u32');
-set of unsigned4 listTestOne (set of unsigned4 a) := IMPORT(wasm, 'wasmembed.list-u32-test-u32');
+set of boolean listTestBoolean () := IMPORT(wasm, 'wasmembed.list-test-bool');
+set of boolean listBooleanTestBoolean (set of boolean a) := IMPORT(wasm, 'wasmembed.list-bool-test-bool');
+
+set of unsigned4 listTestUtf8 () := IMPORT(wasm, 'wasmembed.list-test-u32');
+set of unsigned4 listUtf8TestUtf8 (set of unsigned4 a) := IMPORT(wasm, 'wasmembed.list-u32-test-u32');
 
 set of string listTestString () := IMPORT(wasm, 'wasmembed.list-test-string');
 set of string listStringTestString (set of string a) := IMPORT(wasm, 'wasmembed.list-string-test-string');
 
-listTestZero() = [0, 1, 2, 3];
-listTestOne([0, 1, 2, 3]) = [3, 2, 1, 0];
+listTestBoolean();// = [0, 1, 2, 3];
+listBooleanTestBoolean([false, false, true, true, false, true]);// = [3, 2, 1, 0];
+
+listTestUtf8() = [0, 1, 2, 3];
+listUtf8TestUtf8([0, 1, 2, 3]) = [3, 2, 1, 0];
 
 listTestString();
 listStringTestString(['aaa', 'bbb', 'ccc', 'ddd', 'eee', 'fff', 'ggg', 'hhh', 'iii']);
