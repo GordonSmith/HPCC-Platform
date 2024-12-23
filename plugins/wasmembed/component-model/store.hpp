@@ -2,6 +2,7 @@
 #define CMCPP_STORE_HPP
 
 #include "context.hpp"
+#include "float.hpp"
 #include "integer.hpp"
 #include "string.hpp"
 #include "util.hpp"
@@ -70,6 +71,18 @@ namespace cmcpp
     inline void store<int64_t>(CallContext *cx, const int64_t &v, uint32_t ptr)
     {
         integer::store(cx, v, ptr, 8);
+    }
+
+    template <>
+    inline void store<float32_t>(CallContext *cx, const float32_t &v, uint32_t ptr)
+    {
+        float_::store(cx, v, ptr, 4);
+    }
+
+    template <>
+    inline void store<float64_t>(CallContext *cx, const float64_t &v, uint32_t ptr)
+    {
+        float_::store(cx, v, ptr, 8);
     }
 
     template <>

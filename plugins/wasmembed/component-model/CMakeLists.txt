@@ -7,16 +7,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SRC
 #   component-model.cpp
-    traits.hpp
-    traits.cpp
     context.hpp
     context.cpp
-    string.hpp
-    string.cpp
+    float.hpp
+    float.cpp
     integer.hpp
     integer.cpp
     list.hpp
     list.cpp
+    string.hpp
+    string.cpp
+    traits.hpp
+    traits.cpp
     # flatten.hpp
     # flatten.cpp
     # lift.hpp

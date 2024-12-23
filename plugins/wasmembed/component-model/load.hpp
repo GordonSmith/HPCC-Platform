@@ -4,6 +4,7 @@
 #include "context.hpp"
 #include "integer.hpp"
 #include "string.hpp"
+#include "float.hpp"
 
 namespace cmcpp
 {
@@ -71,6 +72,18 @@ namespace cmcpp
     inline int64_t load<int64_t>(const CallContext *cx, uint32_t ptr)
     {
         return integer::load<int64_t>(cx, ptr, 8);
+    }
+
+    template <>
+    inline float32_t load<float32_t>(const CallContext *cx, uint32_t ptr)
+    {
+        return float_::load<float32_t>(cx, ptr);
+    }
+
+    template <>
+    inline float64_t load<float64_t>(const CallContext *cx, uint32_t ptr)
+    {
+        return float_::load<float64_t>(cx, ptr);
     }
 
     template <>

@@ -8,6 +8,10 @@
 #include <memory>
 #include <stdexcept>
 
+//  See canonical ABI: 
+//  https://github.com/WebAssembly/component-model/blob/main/design/mvp/canonical-abi/definitions.py
+//  https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md
+
 namespace cmcpp
 {
     enum class ValType : uint8_t

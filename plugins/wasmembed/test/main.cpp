@@ -124,6 +124,28 @@ void hpcc_scalar_test_list_u32_test_u32(hpcc_scalar_test_list_u32_t *a, hpcc_sca
     }
 }
 
+void hpcc_scalar_test_list_test_float32(hpcc_scalar_test_list_float32_t *ret)
+{
+    ret->len = 4;
+    ret->ptr = (float *)malloc(ret->len * sizeof(float));
+    for (size_t i = 0; i < ret->len; ++i)
+    {
+        ret->ptr[i] = i + 0.33;
+    }
+}
+
+void hpcc_scalar_test_list_float32_test_float32(hpcc_scalar_test_list_float32_t *a, hpcc_scalar_test_list_float32_t *ret)
+{
+    std::vector<float> v1(a->ptr, a->ptr + a->len);
+    hpcc_scalar_test_list_float32_free(a);
+    ret->len = v1.size();
+    ret->ptr = (float *)malloc(ret->len * sizeof(float));
+    for (size_t i = 0; i < ret->len; ++i)
+    {
+        ret->ptr[ret->len - i - 1] = v1[i];
+    }
+}
+
 void hpcc_scalar_test_list_test_string(hpcc_scalar_test_list_string_t *ret)
 {
     ret->len = 4;
