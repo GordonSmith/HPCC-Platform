@@ -9,10 +9,25 @@ namespace cmcpp
 
     namespace float_
     {
-        float32_t decode_i32_as_float(int32_t i);
-        float64_t decode_i64_as_float(int64_t i);
-        int32_t encode_float_as_i32(float32_t f);
-        int64_t encode_float_as_i64(float64_t f);
+        inline float32_t decode_i32_as_float(int32_t i)
+        {
+            return *reinterpret_cast<float32_t*>(&i);
+        }
+
+        inline float64_t decode_i64_as_float(int64_t i)
+        {
+            return *reinterpret_cast<float64_t*>(&i);
+        }
+
+        inline int32_t encode_float_as_i32(float32_t f)
+        {
+            return *reinterpret_cast<int32_t*>(&f);
+        }
+
+        inline int64_t encode_float_as_i64(float64_t f)
+        {
+            return *reinterpret_cast<int64_t*>(&f);
+        }
 
         template <typename T>
         T load(const CallContext *cx, offset ptr)
@@ -34,7 +49,7 @@ namespace cmcpp
         }
 
         template <typename T>
-        void store(CallContext *cx, const T &v, offset ptr, uint8_t nbytes)
+        inline void store(CallContext *cx, const T &v, offset ptr, uint8_t nbytes)
         {
             cx->trap("store of unsupported type");
             throw std::runtime_error("trap not terminating execution");

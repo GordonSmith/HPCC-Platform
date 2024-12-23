@@ -23,21 +23,18 @@ utf8 utf8Test (utf8 a, utf8 b) := IMPORT(wasm, 'wasmembed.utf8-string-test');
 
 set of boolean listTestBoolean () := IMPORT(wasm, 'wasmembed.list-test-bool');
 set of boolean listBooleanTestBoolean (set of boolean a) := IMPORT(wasm, 'wasmembed.list-bool-test-bool');
-
 set of unsigned4 listTestU32 () := IMPORT(wasm, 'wasmembed.list-test-u32');
 set of unsigned4 listU32TestU32 (set of unsigned4 a) := IMPORT(wasm, 'wasmembed.list-u32-test-u32');
-
 set of real4 listTestFloat32 () := IMPORT(wasm, 'wasmembed.list-test-float32');
 set of real4 listFloat32TestFloat32 (set of real4 a) := IMPORT(wasm, 'wasmembed.list-float32-test-float32');
-
 set of string listTestString () := IMPORT(wasm, 'wasmembed.list-test-string');
 set of string listStringTestString (set of string a) := IMPORT(wasm, 'wasmembed.list-string-test-string');
 
 listTestBoolean() = [true, false, true, false, true, false, true, false];
 listBooleanTestBoolean([false, false, true, true, false, true]) = [true, false, true, true, false, false];
 
-listTestFloat32(); // = [0, 1, 2, 3];
-listFloat32TestFloat32([1.23, 2.34, 3.45, 4.56]); // = [0, 1, 2, 3];
+listTestFloat32() = [(real4)0.33, (real4)1.33, (real4)2.33, (real4)3.33];
+listFloat32TestFloat32([1.23, 2.34, 3.45, 4.56]) = [(real4)4.56, (real4)3.45, (real4)2.34, (real4)1.23];
 
 listTestU32() = [0, 1, 2, 3];
 listU32TestU32([0, 1, 2, 3]) = [3, 2, 1, 0];

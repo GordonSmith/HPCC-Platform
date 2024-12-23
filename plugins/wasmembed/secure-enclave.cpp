@@ -18,7 +18,7 @@
 // From deftype.hpp in common
 #define UNKNOWN_LENGTH 0xFFFFFFF1
 
-#define ENABLE_TRACE
+// #define ENABLE_TRACE
 #ifdef ENABLE_TRACE
 #define TRACE(format, ...) DBGLOG(format __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -123,7 +123,7 @@ public:
 
     wasmtime::Module getModule(const std::string &wasmName) const
     {
-        TRACE("WASM SE getModule");
+        TRACE("WASM SE getModule %s", wasmName.c_str());
         auto found = wasmModules.find(wasmName);
         if (found == wasmModules.end())
             throw makeStringExceptionV(100, "Wasm module not found: %s", wasmName.c_str());
@@ -132,50 +132,21 @@ public:
 };
 static std::unique_ptr<WasmEngine> wasmEngine = std::make_unique<WasmEngine>();
 
-class WasmStore
+class WasmModule
 {
-private:
+protected:
     wasmtime::Store store;
+    std::optional<wasmtime::Instance> instance;
+    cmcpp::GuestRealloc realloc;
 
-    std::unordered_map<std::string, wasmtime::Instance> wasmInstances;
     std::unordered_map<std::string, wasmtime::Memory> wasmMems;
     std::unordered_map<std::string, wasmtime::Func> wasmFuncs;
-    std::unordered_map<std::string, std::unique_ptr<cmcpp::InstanceContext>> instanceContext;
+    std::unique_ptr<cmcpp::InstanceContext> instanceContext;
 
 public:
-    WasmStore() : store(wasmEngine->engine)
+    WasmModule(const std::string &wasmName) : store(wasmEngine->engine)
     {
-        TRACE("WASM SE WasmStore");
-    }
-
-    ~WasmStore()
-    {
-        TRACE("WASM SE ~WasmStore");
-    }
-
-    bool hasInstance(const std::string &wasmName) const
-    {
-        TRACE("WASM SE hasInstance");
-        return wasmInstances.find(wasmName) != wasmInstances.end();
-    }
-
-    wasmtime::Instance getInstance(const std::string &wasmName) const
-    {
-        TRACE("WASM SE getInstance");
-        auto found = wasmInstances.find(wasmName);
-        if (found == wasmInstances.end())
-            throw makeStringExceptionV(100, "Wasm instance not found: %s", wasmName.c_str());
-        return found->second;
-    }
-
-    void registerInstance(const std::string &wasmName)
-    {
-        TRACE("WASM SE registerInstance %s", wasmName.c_str());
-        if (hasInstance(wasmName))
-        {
-            throw makeStringExceptionV(100, "Wasm instance already registered: %s", wasmName.c_str());
-        }
-        TRACE("WASM SE createInstance %s", wasmName.c_str());
+        TRACE("WASM SE WasmModule::WasmModule");
         auto module = wasmEngine->getModule(wasmName);
         try
         {
@@ -184,31 +155,40 @@ public:
 
             auto callback = [this, wasmName](wasmtime::Caller caller, uint32_t msg, uint32_t msg_len)
             {
-                auto data = this->getData(wasmName);
+                auto data = getData();
                 auto msg_ptr = (char *)&data[msg];
                 std::string str(msg_ptr, msg_len);
                 DBGLOG("from wasm: %s", str.c_str());
             };
-            auto host_func = linker.func_wrap("$root", "dbglog", callback).unwrap();
-
-            auto newInstance = linker.instantiate(store, module).unwrap();
-            linker.define_instance(store, "linking2", newInstance).unwrap();
+            linker.func_wrap("$root", "dbglog", callback).unwrap();
+            instance = linker.instantiate(store, module).unwrap();
+            linker.define_instance(store, "linking2", *instance).unwrap();
 
             for (auto exportItem : module.exports())
             {
                 auto externType = wasmtime::ExternType::from_export(exportItem);
                 std::string name(exportItem.name());
+                TRACE("WASM SE exportItem: %s", name.c_str());
                 if (std::holds_alternative<wasmtime::FuncType::Ref>(externType))
                 {
                     TRACE("WASM SE Exported function: %s", name.c_str());
-                    auto func = std::get<wasmtime::Func>(*newInstance.get(store, name));
-                    wasmFuncs.insert(std::make_pair(wasmName + "." + name, func));
+                    auto func = std::get<wasmtime::Func>(*instance->get(store, name));
+                    wasmFuncs.insert(std::make_pair(name, func));
+                    TRACE("WASM SE Exported function: %s", name.c_str());
+                    if (name=="cabi_realloc") {
+                        realloc = [this, func](int ptr, int old_size, int align, int new_size) -> int
+                        {
+                            auto retVal = func.call(store, {ptr, old_size, align, new_size}).unwrap();
+                            return retVal[0].i32();
+                        };
+                    }
                 }
                 else if (std::holds_alternative<wasmtime::MemoryType::Ref>(externType))
                 {
                     TRACE("WASM SE Exported memory: %s", name.c_str());
-                    auto memory = std::get<wasmtime::Memory>(*newInstance.get(store, name));
-                    wasmMems.insert(std::make_pair(wasmName + "." + name, memory));
+                    auto memory = std::get<wasmtime::Memory>(*instance->get(store, name));
+                    wasmMems.insert(std::make_pair(name, memory));
+                    TRACE("WASM SE Exported memory: %s", name.c_str());
                 }
                 else if (std::holds_alternative<wasmtime::TableType::Ref>(externType))
                 {
@@ -223,8 +203,6 @@ public:
                     TRACE("WASM SE Unknown export type");
                 }
             }
-            wasmInstances.insert(std::make_pair(wasmName, newInstance));
-            instanceContext.insert(std::make_pair(wasmName, std::make_unique<cmcpp::InstanceContext>(trap, convert, getRealloc(wasmName))));
         }
         catch (const wasmtime::Error &e)
         {
@@ -232,44 +210,62 @@ public:
         }
     }
 
-    bool hasFunc(const std::string &qualifiedID) const
+    wasmtime::Instance getInstance()
     {
-        TRACE("WASM SE hasFunc %s", qualifiedID.c_str());
-        return wasmFuncs.find(qualifiedID) != wasmFuncs.end();
+        return instance.value();
     }
 
-    wasmtime::Func getFunc(const std::string &qualifiedID) const
+    wasmtime::Span<uint8_t> getData()
     {
-        TRACE("WASM SE getFunc");
-        auto found = wasmFuncs.find(qualifiedID);
+        TRACE("WASM SE getData");
+        auto found = wasmMems.find("memory");
+        if (found == wasmMems.end())
+            throw makeStringException(100, "Wasm memory not found");
+        return found->second.data(store.context());
+    }
+
+    bool hasFunc(const std::string &name) const
+    {
+        auto found = wasmFuncs.find(name);
         if (found == wasmFuncs.end())
-            throw makeStringExceptionV(100, "Wasm function not found: %s", qualifiedID.c_str());
+            return false;
+        return true;
+    }
+
+    wasmtime::Func getFunc(const std::string &name) const
+    {
+        TRACE("WASM SE getFunc %s", name.c_str());
+        auto found = wasmFuncs.find(name);
+        if (found == wasmFuncs.end())
+            throw makeStringExceptionV(100, "Wasm function not found: %s", name.c_str());
         return found->second;
     }
 
-    wasmtime::ValType::ListRef getFuncParams(const std::string &qualifiedID)
+    wasmtime::ValType::ListRef getFuncParams(const std::string &name)
     {
-        TRACE("WASM SE getFuncParams");
-        auto func = getFunc(qualifiedID);
+        TRACE("WASM SE getFunc %s", name.c_str());
+        auto func = getFunc(name);
         wasmtime::FuncType funcType = func.type(store.context());
         return funcType->params();
     }
 
-    wasmtime::ValType::ListRef getFuncResults(const std::string &qualifiedID)
+    wasmtime::ValType::ListRef getFuncResults(const std::string &name)
     {
         TRACE("WASM SE getFuncResults");
-        auto func = getFunc(qualifiedID);
+        auto func = getFunc(name);
         wasmtime::FuncType funcType = func.type(store.context());
         return funcType->results();
     }
 
-    std::vector<wasmtime::Val> call(const std::string &qualifiedID, const std::vector<wasmtime::Val> &params)
+    std::vector<wasmtime::Val> call(const std::string &name, const std::vector<wasmtime::Val> &params)
     {
-        TRACE("WASM SE call");
-        auto func = getFunc(qualifiedID);
+        TRACE("WASM SE call %s", name.c_str());
+        auto func = getFunc(name);
         try
         {
+            TRACE("WASM SE call 111 %s", name.c_str());
             auto retVal = func.call(store, params).unwrap();
+            TRACE("WASM SE call 222 %s", name.c_str());
             return retVal;
         }
         catch (const wasmtime::Trap &e)
@@ -278,41 +274,117 @@ public:
         }
     }
 
-    std::vector<wasmtime::Val> callRealloc(const std::string &wasmName, const std::vector<wasmtime::Val> &params)
+    std::unique_ptr<CallContext> createCallContext(Encoding encoding)
     {
-        TRACE("WASM SE callRealloc");
-        return call(createQualifiedID(wasmName, "cabi_realloc"), params);
-    }
-
-    cmcpp::GuestRealloc getRealloc(const std::string &wasmName)
-    {
-        TRACE("WASM SE getRealloc");
-        auto reallocFunc = getFunc(createQualifiedID(wasmName, "cabi_realloc"));
-        return [this, reallocFunc](int ptr, int old_size, int align, int new_size) -> int
+        if (instanceContext == nullptr)
         {
-            TRACE("WASM SE realloc %i %i %i %i", ptr, old_size, align, new_size);
-            auto retVal = reallocFunc.call(store, {ptr, old_size, align, new_size}).unwrap();
-            TRACE("WASM SE realloc %i %i %i %i", ptr, old_size, align, new_size);
-            return retVal[0].i32();
-        };
+            instanceContext = std::make_unique<cmcpp::InstanceContext>(trap, convert, realloc);
+        }
+        return instanceContext->createCallContext(getData(), encoding);
+    }
+};
+
+class WasmStore
+{
+private:
+    std::unordered_map<std::string, std::unique_ptr<WasmModule>> wasmModules;
+
+public:
+    WasmStore()
+    {
+        TRACE("WASM SE WasmStore");
     }
 
-    wasmtime::Span<uint8_t> getData(const std::string &wasmName)
+    ~WasmStore()
     {
-        TRACE("WASM SE getData");
-        auto found = wasmMems.find(createQualifiedID(wasmName, "memory"));
-        if (found == wasmMems.end())
-            throw makeStringExceptionV(100, "Wasm memory not found: %s", wasmName.c_str());
-        return found->second.data(store.context());
+        TRACE("WASM SE ~WasmStore");
     }
 
-    std::unique_ptr<CallContext> createCallContext(const std::string &wasmName, Encoding encoding)
+    bool hasModule(const std::string &wasmName) const
     {
-        TRACE("WASM SE getInstanceContext");
-        auto found = instanceContext.find(wasmName);
-        if (found == instanceContext.end())
-            throw makeStringExceptionV(100, "Wasm instance context not found: %s", wasmName.c_str());
-        return found->second->createCallContext(getData(wasmName), encoding);
+        TRACE("WASM SE hasModule %s", wasmName.c_str());
+        return wasmModules.find(wasmName) != wasmModules.end();
+    }
+
+    WasmModule *getModule(const std::string &wasmName) const
+    {
+        TRACE("WASM SE getModule %s", wasmName.c_str());
+        auto found = wasmModules.find(wasmName);
+        if (found == wasmModules.end())
+            throw makeStringExceptionV(100, "Wasm module not found: %s", wasmName.c_str());
+        return found->second.get();
+    }
+
+    void registerModule(const std::string &wasmName)
+    {
+        TRACE("WASM SE registerModule %s", wasmName.c_str());
+        if (hasModule(wasmName))
+        {
+            throw makeStringExceptionV(100, "Wasm instance already registered: %s", wasmName.c_str());
+        }
+        TRACE("WASM SE registerModule 111 %s", wasmName.c_str());
+        wasmModules.insert(std::make_pair(wasmName, std::make_unique<WasmModule>(wasmName)));
+        TRACE("WASM SE registerModule 222 %s", wasmName.c_str());
+
+        // auto module = wasmEngine->getModule(wasmName);
+        // try
+        // {
+        //     wasmtime::Linker linker(wasmEngine->engine);
+        //     linker.define_wasi().unwrap();
+
+        //     auto callback = [this, wasmName](wasmtime::Caller caller, uint32_t msg, uint32_t msg_len)
+        //     {
+        //         auto data = this->getData(wasmName);
+        //         auto msg_ptr = (char *)&data[msg];
+        //         std::string str(msg_ptr, msg_len);
+        //         DBGLOG("from wasm: %s", str.c_str());
+        //     };
+        //     auto host_func = linker.func_wrap("$root", "dbglog", callback).unwrap();
+
+        //     wasmtime::Instance newInstance = linker.instantiate(store, module).unwrap();
+        //     linker.define_instance(store, "linking2", newInstance).unwrap();
+
+        //     TRACE("WASM SE --------------------111");
+        //     auto wasmComponent = std::make_unique<WasmModule>(wasmName);
+
+        //     for (auto exportItem : module.exports())
+        //     {
+        //         auto externType = wasmtime::ExternType::from_export(exportItem);
+        //         std::string name(exportItem.name());
+        //         if (std::holds_alternative<wasmtime::FuncType::Ref>(externType))
+        //         {
+        //             TRACE("WASM SE Exported function: %s", name.c_str());
+        //             auto func = std::get<wasmtime::Func>(*newInstance.get(store, name));
+        //             wasmFuncs.insert(std::make_pair(wasmName + "." + name, func));
+        //         }
+        //         else if (std::holds_alternative<wasmtime::MemoryType::Ref>(externType))
+        //         {
+        //             TRACE("WASM SE Exported memory: %s", name.c_str());
+        //             auto memory = std::get<wasmtime::Memory>(*newInstance.get(store, name));
+        //             wasmMems.insert(std::make_pair(wasmName + "." + name, memory));
+        //         }
+        //         else if (std::holds_alternative<wasmtime::TableType::Ref>(externType))
+        //         {
+        //             TRACE("WASM SE Exported table: %s", name.c_str());
+        //         }
+        //         else if (std::holds_alternative<wasmtime::GlobalType::Ref>(externType))
+        //         {
+        //             TRACE("WASM SE Exported global: %s", name.c_str());
+        //         }
+        //         else
+        //         {
+        //             TRACE("WASM SE Unknown export type");
+        //         }
+        //     }
+        //     TRACE("WASM SE --------------------222");
+        //     wasmInstances.insert(std::make_pair(wasmName, newInstance));
+        //     instanceContext.insert(std::make_pair(wasmName, std::make_unique<cmcpp::InstanceContext>(trap, convert, getRealloc(wasmName))));
+        //     // wasmModules.insert(std::make_pair(wasmName, wasmComponent.release()));
+        // }
+        // catch (const wasmtime::Error &e)
+        // {
+        //     throw makeStringExceptionV(100, "WASM SE createInstance: %s", e.message().c_str());
+        // }
     }
 };
 thread_local std::unique_ptr<WasmStore> wasmStore = std::make_unique<WasmStore>();
@@ -339,13 +411,14 @@ public:
 
         //  Garbage Collection  ---
         //    Function results  ---
-        auto gc_func_name = createQualifiedID(wasmName, "cabi_post_" + funcName);
-        if (wasmStore->hasFunc(gc_func_name))
+        auto mod = wasmStore->getModule(wasmName);
+        auto gc_func_name = "cabi_post_" + funcName;
+        if (mod->hasFunc(gc_func_name))
         {
             for (auto &result : wasmResults)
             {
                 TRACE("WASM SE se:destructor %s", gc_func_name.c_str());
-                wasmStore->call(gc_func_name, {result});
+                mod->call(gc_func_name, {result});
             }
         }
     }
@@ -573,7 +646,8 @@ public:
     std::unique_ptr<cmcpp::CallContext> mk_cx()
     {
         TRACE("WASM SE mk_cx");
-        return wasmStore->createCallContext(wasmName, Encoding::Utf8);
+        auto mod = wasmStore->getModule(wasmName);
+        return mod->createCallContext(Encoding::Utf8);
     }
 
     virtual void getStringResult(size32_t &chars, char *&result)
@@ -717,15 +791,16 @@ public:
         qualifiedID = std::string(qualifiedName, lenChars);
         std::tie(wasmName, funcName) = splitQualifiedID(qualifiedID);
 
-        if (!wasmStore->hasInstance(wasmName))
+        if (!wasmStore->hasModule(wasmName))
         {
-            wasmStore->registerInstance(wasmName);
+            wasmStore->registerModule(wasmName);
         }
     }
     virtual void callFunction()
     {
-        TRACE("WASM SE callFunction %s", qualifiedID.c_str());
-        wasmResults = wasmStore->call(qualifiedID, args);
+        TRACE("WASM SE callFunction %s.%s", wasmName.c_str(), funcName.c_str());
+        auto mod = wasmStore->getModule(wasmName);
+        wasmResults = mod->call(funcName, args);
     }
 };
 
