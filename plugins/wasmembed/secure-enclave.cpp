@@ -285,35 +285,18 @@ public:
     }
 };
 
-class WasmStores
+thread_local std::unordered_map<std::string, std::unique_ptr<WasmStore>> wasmStores;
+WasmStore *getWasmStore(const std::string &wasmName)
 {
-private:
-    std::unordered_map<std::string, std::unique_ptr<WasmStore>> wasmModules;
-
-public:
-    WasmStores()
+    TRACE("WASM SE getWasmStore %s", wasmName.c_str());
+    auto found = wasmStores.find(wasmName);
+    if (found == wasmStores.end())
     {
-        TRACE("WASM SE WasmStore");
+        auto result = wasmStores.insert(std::make_pair(wasmName, std::make_unique<WasmStore>(wasmName)));
+        return result.first->second.get();
     }
-
-    ~WasmStores()
-    {
-        TRACE("WASM SE ~WasmStore");
-    }
-
-    WasmStore *getModule(const std::string &wasmName)
-    {
-        TRACE("WASM SE getModule %s", wasmName.c_str());
-        auto found = wasmModules.find(wasmName);
-        if (found == wasmModules.end())
-        {
-            auto result = wasmModules.insert(std::make_pair(wasmName, std::make_unique<WasmStore>(wasmName)));
-            return result.first->second.get();
-        }
-        return found->second.get();
-    }
-};
-thread_local auto tlStores = std::make_unique<WasmStores>();
+    return found->second.get();
+}
 
 class SecureFunction : public CInterfaceOf<IEmbedFunctionContext>
 {
@@ -711,7 +694,7 @@ public:
     {
         TRACE("WASM SE importFunction: %s", qualifiedName);
         std::tie(wasmName, funcName) = splitQualifiedID({qualifiedName, lenChars});
-        wasmStore = tlStores->getModule(wasmName);
+        wasmStore = getWasmStore(wasmName);
     }
     virtual void callFunction()
     {
