@@ -18,7 +18,7 @@
 // From deftype.hpp in common
 #define UNKNOWN_LENGTH 0xFFFFFFF1
 
-// #define ENABLE_TRACE
+#define ENABLE_TRACE
 #ifdef ENABLE_TRACE
 #define TRACE(format, ...) DBGLOG(format __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -132,7 +132,7 @@ public:
 };
 static std::unique_ptr<WasmEngine> wasmEngine = std::make_unique<WasmEngine>();
 
-class WasmModule
+class WasmStore
 {
 protected:
     wasmtime::Store store;
@@ -144,9 +144,9 @@ protected:
     std::unique_ptr<cmcpp::InstanceContext> instanceContext;
 
 public:
-    WasmModule(const std::string &wasmName) : store(wasmEngine->engine)
+    WasmStore(const std::string &wasmName) : store(wasmEngine->engine)
     {
-        TRACE("WASM SE WasmModule::WasmModule");
+        TRACE("WASM SE WasmStore::WasmStore");
         auto module = wasmEngine->getModule(wasmName);
         try
         {
@@ -175,7 +175,8 @@ public:
                     auto func = std::get<wasmtime::Func>(*instance->get(store, name));
                     wasmFuncs.insert(std::make_pair(name, func));
                     TRACE("WASM SE Exported function: %s", name.c_str());
-                    if (name=="cabi_realloc") {
+                    if (name == "cabi_realloc")
+                    {
                         realloc = [this, func](int ptr, int old_size, int align, int new_size) -> int
                         {
                             auto retVal = func.call(store, {ptr, old_size, align, new_size}).unwrap();
@@ -284,51 +285,39 @@ public:
     }
 };
 
-class WasmModules
+class WasmStores
 {
 private:
-    std::unordered_map<std::string, std::unique_ptr<WasmModule>> wasmModules;
+    std::unordered_map<std::string, std::unique_ptr<WasmStore>> wasmModules;
 
 public:
-    WasmModules()
+    WasmStores()
     {
         TRACE("WASM SE WasmStore");
     }
 
-    ~WasmModules()
+    ~WasmStores()
     {
         TRACE("WASM SE ~WasmStore");
     }
 
-    bool hasModule(const std::string &wasmName) const
-    {
-        TRACE("WASM SE hasModule %s", wasmName.c_str());
-        return wasmModules.find(wasmName) != wasmModules.end();
-    }
-
-    WasmModule *getModule(const std::string &wasmName) const
+    WasmStore *getModule(const std::string &wasmName)
     {
         TRACE("WASM SE getModule %s", wasmName.c_str());
         auto found = wasmModules.find(wasmName);
         if (found == wasmModules.end())
-            throw makeStringExceptionV(100, "Wasm module not found: %s", wasmName.c_str());
+        {
+            auto result = wasmModules.insert(std::make_pair(wasmName, std::make_unique<WasmStore>(wasmName)));
+            return result.first->second.get();
+        }
         return found->second.get();
     }
-
-    void registerModule(const std::string &wasmName)
-    {
-        TRACE("WASM SE registerModule %s", wasmName.c_str());
-        if (hasModule(wasmName))
-        {
-            throw makeStringExceptionV(100, "Wasm instance already registered: %s", wasmName.c_str());
-        }
-        wasmModules.insert(std::make_pair(wasmName, std::make_unique<WasmModule>(wasmName)));
-    }
 };
-thread_local auto wasmModules = std::make_unique<WasmModules>();
+thread_local auto tlStores = std::make_unique<WasmStores>();
 
 class SecureFunction : public CInterfaceOf<IEmbedFunctionContext>
 {
+    WasmStore *wasmStore = nullptr;
     std::string wasmName;
     std::string funcName;
 
@@ -347,14 +336,13 @@ public:
         TRACE("WASM SE se:destructor");
 
         //  Garbage Collection  ---
-        auto mod = wasmModules->getModule(wasmName);
         auto gc_func_name = "cabi_post_" + funcName;
-        if (mod->hasFunc(gc_func_name))
+        if (wasmStore->hasFunc(gc_func_name))
         {
             for (auto &result : wasmResults)
             {
                 TRACE("WASM SE se:destructor %s", gc_func_name.c_str());
-                mod->call(gc_func_name, {result});
+                wasmStore->call(gc_func_name, {result});
             }
         }
     }
@@ -582,8 +570,7 @@ public:
     std::unique_ptr<cmcpp::CallContext> mk_cx()
     {
         TRACE("WASM SE mk_cx");
-        auto mod = wasmModules->getModule(wasmName);
-        return mod->createCallContext(Encoding::Utf8);
+        return wasmStore->createCallContext(Encoding::Utf8);
     }
 
     virtual void getStringResult(size32_t &chars, char *&result)
@@ -724,21 +711,17 @@ public:
     {
         TRACE("WASM SE importFunction: %s", qualifiedName);
         std::tie(wasmName, funcName) = splitQualifiedID({qualifiedName, lenChars});
-
-        if (!wasmModules->hasModule(wasmName))
-        {
-            wasmModules->registerModule(wasmName);
-        }
+        wasmStore = tlStores->getModule(wasmName);
     }
     virtual void callFunction()
     {
         TRACE("WASM SE callFunction %s.%s", wasmName.c_str(), funcName.c_str());
-        auto mod = wasmModules->getModule(wasmName);
-        wasmResults = mod->call(funcName, args);
+        wasmResults = wasmStore->call(funcName, args);
     }
 };
 
 IEmbedFunctionContext *createISecureEnclave(ICodeContext *codeCtx)
 {
+    TRACE("createISecureEnclave");
     return new SecureFunction(codeCtx);
 }
