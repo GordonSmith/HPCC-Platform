@@ -39,4 +39,7 @@ world hpcc-scalar-test {
 
   export list-test-string: func() -> list<string>
   export list-string-test-string: func(a: list<string>) -> list<string>
+
+  export list-test-list: func() -> list<list<string>>
+  // export list-list-test-list: func(a: list<list<string>>) -> list<list<string>>
 }

@@ -169,3 +169,20 @@ void hpcc_scalar_test_list_string_test_string(hpcc_scalar_test_list_string_t *a,
     }
     hpcc_scalar_test_list_string_free(a);
 }
+
+void hpcc_scalar_test_list_test_list(hpcc_scalar_test_list_list_string_t *ret)
+{
+    ret->len = 4;
+    ret->ptr = (hpcc_scalar_test_list_string_t *)malloc(ret->len * sizeof(hpcc_scalar_test_list_string_t));
+    for (size_t i = 0; i < ret->len; ++i)
+    {
+        ret->ptr->len = 4;
+        ret->ptr->ptr = (hpcc_scalar_test_string_t *)malloc(ret->ptr->len * sizeof(hpcc_scalar_test_string_t));
+        for (size_t i = 0; i < ret->ptr->len; ++i)
+        {
+            std::string str = "test-";
+            str += std::to_string(i);
+            hpcc_scalar_test_string_dup(&ret->ptr->ptr[i], str.c_str());
+        }
+    }
+}
