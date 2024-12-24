@@ -2,28 +2,22 @@
 #define CMCPP_BOOLEAN_HPP
 
 #include "context.hpp"
+#include "integer.hpp"
+#include "util.hpp"
 
 namespace cmcpp
 {
 
     namespace boolean
     {
-        bool_t load(const CallContext *cx, uint32_t ptr, uint8_t nbytes)
+        void store(CallContext *cx, const bool_t &v, offset ptr)
         {
-            uint8_t v = integer::load<uint8_t>(cx, ptr, nbytes);
-            if (v == 0)
-            {
-                return false;
-            }
-            else if (v == 1)
-            {
-                return true;
-            }
-            else
-            {
-                cx->trap("invalid boolean value");
-                throw std::runtime_error("trap not terminating execution");
-            }
+            integer::store<uint8_t>(cx, v, ptr);
+        }
+
+        bool_t load(const CallContext *cx, uint32_t ptr)
+        {
+            convert_int_to_bool(integer::load<uint8_t>(cx, ptr));
         }
     }
 }

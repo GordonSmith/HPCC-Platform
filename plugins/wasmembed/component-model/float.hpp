@@ -39,32 +39,32 @@ namespace cmcpp
         template <>
         inline float32_t load<float32_t>(const CallContext *cx, offset ptr)
         {
-            return decode_i32_as_float(integer::load<int32_t>(cx, ptr, 4));
+            return decode_i32_as_float(integer::load<int32_t>(cx, ptr));
         }
 
         template <>
         inline float64_t load<float64_t>(const CallContext *cx, offset ptr)
         {
-            return decode_i64_as_float(integer::load<int64_t>(cx, ptr, 8));
+            return decode_i64_as_float(integer::load<int64_t>(cx, ptr));
         }
 
         template <typename T>
-        inline void store(CallContext *cx, const T &v, offset ptr, uint8_t nbytes)
+        inline void store(CallContext *cx, const T &v, offset ptrnbytes)
         {
             cx->trap("store of unsupported type");
             throw std::runtime_error("trap not terminating execution");
         }
 
         template <>
-        inline void store<float32_t>(CallContext *cx, const float32_t &v, offset ptr, uint8_t nbytes)
+        inline void store<float32_t>(CallContext *cx, const float32_t &v, offset ptr)
         {
-            integer::store(cx, encode_float_as_i32(v), ptr, 4);
+            integer::store(cx, encode_float_as_i32(v), ptr);
         }
 
         template <>
-        inline void store<float64_t>(CallContext *cx, const float64_t &v, offset ptr, uint8_t nbytes)
+        inline void store<float64_t>(CallContext *cx, const float64_t &v, offset ptr)
         {
-            integer::store(cx, encode_float_as_i64(v), ptr, 8);
+            integer::store(cx, encode_float_as_i64(v), ptr);
         }
 
     }

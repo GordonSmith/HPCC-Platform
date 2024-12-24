@@ -90,4 +90,10 @@ namespace cmcpp
             throw std::runtime_error("Invalid type");
         }
     }
+
+    bool convert_int_to_bool(uint8_t i)
+    {
+        return i > 0;
+    }
+
 }

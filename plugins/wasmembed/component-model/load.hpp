@@ -5,6 +5,7 @@
 #include "integer.hpp"
 #include "string.hpp"
 #include "float.hpp"
+#include "util.hpp"
 
 namespace cmcpp
 {
@@ -15,63 +16,58 @@ namespace cmcpp
         throw std::runtime_error("trap not terminating execution");
     }
 
-    bool convert_int_to_bool(uint8_t i)
-    {
-        return i > 0;
-    }
-
     template <>
     inline bool_t load<bool_t>(const CallContext *cx, uint32_t ptr)
     {
-        return convert_int_to_bool(integer::load<uint8_t>(cx, ptr, 1));
+        return convert_int_to_bool(integer::load<uint8_t>(cx, ptr));
     }
 
     template <>
     inline uint8_t load<uint8_t>(const CallContext *cx, uint32_t ptr)
     {
-        return integer::load<uint8_t>(cx, ptr, 1);
+        return integer::load<uint8_t>(cx, ptr);
     }
 
     template <>
     inline int8_t load<int8_t>(const CallContext *cx, uint32_t ptr)
     {
-        return integer::load<int8_t>(cx, ptr, 1);
+        return integer::load<int8_t>(cx, ptr);
     }
 
     template <>
     inline uint16_t load<uint16_t>(const CallContext *cx, uint32_t ptr)
     {
-        return integer::load<uint16_t>(cx, ptr, 2);
+        return integer::load<uint16_t>(cx, ptr);
     }
 
     template <>
     inline int16_t load<int16_t>(const CallContext *cx, uint32_t ptr)
     {
-        return integer::load<int16_t>(cx, ptr, 2);
+        return integer::load<int16_t>(cx, ptr);
     }
 
     template <>
     inline uint32_t load<uint32_t>(const CallContext *cx, uint32_t ptr)
     {
-        return integer::load<uint32_t>(cx, ptr, 4);
+        return integer::load<uint32_t>(cx, ptr);
     }
 
     template <>
     inline int32_t load<int32_t>(const CallContext *cx, uint32_t ptr)
     {
-        return integer::load<int32_t>(cx, ptr, 4);
+        return integer::load<int32_t>(cx, ptr);
     }
 
     template <>
     inline uint64_t load<uint64_t>(const CallContext *cx, uint32_t ptr)
     {
-        return integer::load<uint64_t>(cx, ptr, 8);
+        return integer::load<uint64_t>(cx, ptr);
     }
 
     template <>
     inline int64_t load<int64_t>(const CallContext *cx, uint32_t ptr)
     {
-        return integer::load<int64_t>(cx, ptr, 8);
+        return integer::load<int64_t>(cx, ptr);
     }
 
     template <>

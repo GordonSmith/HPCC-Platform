@@ -13,18 +13,16 @@ namespace cmcpp
     namespace integer
     {
         template <typename T>
-        void store(CallContext *cx, const T &v, offset ptr, uint8_t nbytes)
+        void store(CallContext *cx, const T &v, offset ptr)
         {
-            assert(nbytes == sizeof(T));
-            std::memcpy(&cx->memory[ptr], &v, nbytes);
+            std::memcpy(&cx->memory[ptr], &v, sizeof(T));
         }
 
         template <typename T>
-        T load(const CallContext *cx, offset ptr, uint8_t nbytes)
+        T load(const CallContext *cx, offset ptr)
         {
-            assert(nbytes == sizeof(T));
             T retVal;
-            std::memcpy(&retVal, &cx->memory[ptr], nbytes);
+            std::memcpy(&retVal, &cx->memory[ptr], sizeof(T));
             return retVal;
         }
 

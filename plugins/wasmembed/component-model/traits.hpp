@@ -7,13 +7,22 @@
 #include <variant>
 #include <memory>
 #include <stdexcept>
+#include <array>
 
-//  See canonical ABI: 
+//  See canonical ABI:
 //  https://github.com/WebAssembly/component-model/blob/main/design/mvp/canonical-abi/definitions.py
 //  https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md
 
 namespace cmcpp
 {
+    enum class Encoding
+    {
+        Latin1,
+        Utf8,
+        Utf16,
+        Latin1_Utf16
+    };
+
     enum class ValType : uint8_t
     {
         Bool,
@@ -43,6 +52,56 @@ namespace cmcpp
         Borrow
     };
 
+    using bool_t = bool;
+    using float32_t = float;
+    using float64_t = double;
+
+    struct string_t
+    {
+        Encoding encoding;
+        const char8_t *ptr;
+        size_t byte_len;
+    };
+
+    template <typename T>
+    using list_t = std::vector<T>;
+
+    template <typename T>
+    struct field_t 
+    {
+        std::string label;
+        T v;
+    };
+
+    template <typename... Fields>
+    struct record_t 
+    {
+        std::array<field_t<Fields>...> fields;
+    };
+
+    template <typename... Ts>
+    using tuple_t = std::tuple<Ts...>;
+
+    template <typename T>
+    struct case_t 
+    {
+        std::string label;
+        std::optional<T> v;
+    };
+
+    template <typename... Ts>
+    using variant_t = std::variant<Ts...>;
+
+    using enum_t = std::vector<std::string>;
+
+    // template <typename T = variant_t<>>
+    // using VariantT = std::variant<bool, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float32_t, float64_t, string_t, variant_t<T>, list_t<T>, field_t<T>>;
+        //list_t<ReursiveVariantT>, field_t<ReursiveVariantT>>; // record_t>; //, tuple_ptr, case_ptr, variant_ptr, enum_ptr, option_ptr, result_ptr, flags_ptr>;
+    // struct ReursiveVariantT {
+    //     VariantT v;
+    // };
+    // ValType type(const VariantT &v);
+
     template <typename T>
     struct ValTrait
     {
@@ -52,7 +111,6 @@ namespace cmcpp
         }
     };
 
-    using bool_t = bool;
     template <>
     struct ValTrait<bool_t>
     {
@@ -134,7 +192,6 @@ namespace cmcpp
         }
     };
 
-    using float32_t = float;
     template <>
     struct ValTrait<float32_t>
     {
@@ -144,7 +201,6 @@ namespace cmcpp
         }
     };
 
-    using float64_t = double;
     template <>
     struct ValTrait<float64_t>
     {
@@ -163,20 +219,6 @@ namespace cmcpp
         }
     };
 
-    enum class Encoding
-    {
-        Latin1,
-        Utf8,
-        Utf16,
-        Latin1_Utf16
-    };
-
-    struct string_t
-    {
-        Encoding encoding;
-        const char8_t *ptr;
-        size_t byte_len;
-    };
     template <>
     struct ValTrait<string_t>
     {
@@ -184,58 +226,46 @@ namespace cmcpp
     };
 
     template <typename T>
-    using list_t = std::vector<T>;
-    template <typename T>
     struct ValTrait<list_t<T>>
     {
         static ValType type() { return ValType::List; }
         static ValType of() { return ValTrait<T>::type(); }
     };
 
-    class field_t;
-    using field_ptr = std::shared_ptr<field_t>;
-    template <>
-    struct ValTrait<field_ptr>
+    template <typename T>
+    struct ValTrait<field_t<T>>
     {
         static ValType type() { return ValType::Field; }
+        static ValType of() { return ValTrait<T>::type(); }
     };
 
-    class record_t;
-    using record_ptr = std::shared_ptr<record_t>;
-    template <>
-    struct ValTrait<record_ptr>
+    template <typename... Fields>
+    struct ValTrait<record_t<Fields...>>
     {
         static ValType type() { return ValType::Record; }
     };
 
-    class tuple_t;
-    using tuple_ptr = std::shared_ptr<tuple_t>;
-    template <>
-    struct ValTrait<tuple_ptr>
+    template <typename... Ts>
+    struct ValTrait<tuple_t<Ts...>>
     {
         static ValType type() { return ValType::Tuple; }
     };
 
-    class case_t;
-    using case_ptr = std::shared_ptr<case_t>;
-    template <>
-    struct ValTrait<case_ptr>
+    template <typename T>
+    struct ValTrait<case_t<T>>
     {
         static ValType type() { return ValType::Case; }
+        static ValType of() { return ValTrait<T>::type(); }
     };
 
-    class variant_t;
-    using variant_ptr = std::shared_ptr<variant_t>;
-    template <>
-    struct ValTrait<variant_ptr>
+    template <typename... Ts>
+    struct ValTrait<variant_t<Ts...>>
     {
         static ValType type() { return ValType::Variant; }
     };
 
-    class enum_t;
-    using enum_ptr = std::shared_ptr<enum_t>;
     template <>
-    struct ValTrait<enum_ptr>
+    struct ValTrait<enum_t>
     {
         static ValType type() { return ValType::Enum; }
     };

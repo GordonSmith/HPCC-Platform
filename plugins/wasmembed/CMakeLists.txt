@@ -1,6 +1,9 @@
 project(wasmembed)
 
 if(WASMEMBED)
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
     add_subdirectory(component-model)
 
     ADD_PLUGIN(wasmembed)

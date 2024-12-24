@@ -286,8 +286,8 @@ namespace cmcpp
         void store(CallContext *cx, const string_t &v, uint32_t ptr)
         {
             auto [begin, tagged_code_units] = store_into_range(cx, v);
-            integer::store(cx, begin, ptr, 4);
-            integer::store(cx, tagged_code_units, ptr + 4, 4);
+            integer::store(cx, begin, ptr);
+            integer::store(cx, tagged_code_units, ptr + 4);
         }
 
         string_t loadFromRange(const CallContext *cx, ptr ptr, cmcpp::size tagged_code_units)
@@ -330,8 +330,8 @@ namespace cmcpp
 
         string_t load(const CallContext *cx, offset offset)
         {
-            ptr begin = integer::load<ptr>(cx, offset + data_offset, 4);
-            cmcpp::size tagged_code_units = integer::load<cmcpp::size>(cx, offset + codeUnits_offset, 4);
+            ptr begin = integer::load<ptr>(cx, offset + data_offset);
+            cmcpp::size tagged_code_units = integer::load<cmcpp::size>(cx, offset + codeUnits_offset);
             return loadFromRange(cx, begin, tagged_code_units);
         }
     };

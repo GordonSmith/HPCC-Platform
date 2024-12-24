@@ -70,8 +70,8 @@ namespace cmcpp
         template <typename T>
         std::shared_ptr<list_t<T>> load(CallContext *cx, offset ptr)
         {
-            uint32_t begin = integer::load<uint32_t>(cx, ptr, 4);
-            uint32_t length = integer::load<uint32_t>(cx, ptr + 4, 4);
+            uint32_t begin = integer::load<uint32_t>(cx, ptr);
+            uint32_t length = integer::load<uint32_t>(cx, ptr + 4);
             return load_from_range<T>(cx, begin, length);
         }
 

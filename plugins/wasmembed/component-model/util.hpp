@@ -14,7 +14,10 @@ namespace cmcpp
 
     uint32_t align_to(uint32_t ptr, uint32_t alignment);
     int alignment(ValType t);
+
     uint8_t elem_size(ValType t);
+
+    bool convert_int_to_bool(uint8_t i);
 }
 
 #endif

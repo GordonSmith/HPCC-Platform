@@ -9,6 +9,7 @@ set(SRC
 #   component-model.cpp
     context.hpp
     context.cpp
+    boolean.hpp
     float.hpp
     float.cpp
     integer.hpp
