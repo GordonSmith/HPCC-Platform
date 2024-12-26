@@ -49,7 +49,8 @@ namespace cmcpp
         Result,
         Flags,
         Own,
-        Borrow
+        Borrow,
+        UNKNOWN
     };
 
     using bool_t = bool;
@@ -67,14 +68,14 @@ namespace cmcpp
     using list_t = std::vector<T>;
 
     template <typename T>
-    struct field_t 
+    struct field_t
     {
         std::string label;
         T v;
     };
 
     template <typename... Fields>
-    struct record_t 
+    struct record_t
     {
         std::array<field_t<Fields>...> fields;
     };
@@ -83,7 +84,7 @@ namespace cmcpp
     using tuple_t = std::tuple<Ts...>;
 
     template <typename T>
-    struct case_t 
+    struct case_t
     {
         std::string label;
         std::optional<T> v;
@@ -96,7 +97,7 @@ namespace cmcpp
 
     // template <typename T = variant_t<>>
     // using VariantT = std::variant<bool, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float32_t, float64_t, string_t, variant_t<T>, list_t<T>, field_t<T>>;
-        //list_t<ReursiveVariantT>, field_t<ReursiveVariantT>>; // record_t>; //, tuple_ptr, case_ptr, variant_ptr, enum_ptr, option_ptr, result_ptr, flags_ptr>;
+    // list_t<ReursiveVariantT>, field_t<ReursiveVariantT>>; // record_t>; //, tuple_ptr, case_ptr, variant_ptr, enum_ptr, option_ptr, result_ptr, flags_ptr>;
     // struct ReursiveVariantT {
     //     VariantT v;
     // };
@@ -107,8 +108,10 @@ namespace cmcpp
     {
         static ValType type()
         {
-            throw std::runtime_error(typeid(T).name());
+            return ValType::UNKNOWN;
         }
+
+        static_assert(ValTrait<T>::type() != ValType::UNKNOWN, "T must be valid ValType.");
     };
 
     template <>
@@ -303,12 +306,79 @@ namespace cmcpp
 
     //  --------------------------------------------------------------------
 
+    enum class WasmValType : uint8_t
+    {
+        i32,
+        i64,
+        f32,
+        f64,
+        UNKNOWN
+    };
+    using WasmVal = std::variant<int32_t, int64_t, float32_t, float64_t>;
+    using WasmValVector = std::vector<WasmVal>;
+    class WasmValVectorIterator
+    {
+        mutable WasmValVector::const_iterator it;
+        WasmValVector::const_iterator end;
+
+    public:
+        WasmValVectorIterator(const WasmValVector &v);
+
+        template <typename T>
+        T next() const
+        {
+            if (it == end)
+            {
+                throw std::out_of_range("Iterator is out of range");
+            }
+            return std::get<T>(*it++);
+        }
+    };
+
     template <typename T>
     struct WasmValTrait
     {
-        static const char *type()
+        static WasmValType type()
         {
-            throw std::runtime_error(typeid(T).name());
+            return WasmValType::UNKNOWN;
+        }
+
+        static_assert(WasmValTrait<T>::type() != WasmValType::UNKNOWN, "T must be valid WasmValType.");
+    };
+
+    template <>
+    struct WasmValTrait<int32_t>
+    {
+        static WasmValType type()
+        {
+            return WasmValType::i32;
+        }
+    };
+
+    template <>
+    struct WasmValTrait<int64_t>
+    {
+        static WasmValType type()
+        {
+            return WasmValType::i64;
+        }
+    };
+
+    template <>
+    struct WasmValTrait<float32_t>
+    {
+        static WasmValType type()
+        {
+            return WasmValType::f32;
+        }
+    };
+
+    template <>
+    struct WasmValTrait<float64_t>
+    {
+        static WasmValType type()
+        {
+            return WasmValType::f64;
         }
     };
 

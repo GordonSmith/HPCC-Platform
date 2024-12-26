@@ -54,6 +54,13 @@ namespace cmcpp
         }
 
         template <typename T>
+        WasmValVector lower_flat(CallContext *cx, const list_t<T> &v)
+        {
+            auto [ptr, length] = store_into_range(cx, v);
+            return {static_cast<int32_t>(ptr), static_cast<int32_t>(length)};
+        }
+
+        template <typename T>
         std::unique_ptr<list_t<T>> load_from_range(CallContext *cx, offset ptr, size length)
         {
             auto t = ValTrait<T>::type();

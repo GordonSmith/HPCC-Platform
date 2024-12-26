@@ -7,19 +7,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SRC
 #   component-model.cpp
-    context.hpp
-    context.cpp
-    boolean.hpp
-    float.hpp
-    float.cpp
-    integer.hpp
-    integer.cpp
-    list.hpp
-    list.cpp
-    string.hpp
-    string.cpp
-    traits.hpp
-    traits.cpp
+    src/context.hpp
+    src/context.cpp
+    src/boolean.hpp
+    src/float.hpp
+    src/float.cpp
+    src/integer.hpp
+    src/integer.cpp
+    src/list.hpp
+    src/list.cpp
+    src/string.hpp
+    src/string.cpp
+    src/traits.hpp
+    src/traits.cpp
     # flatten.hpp
     # flatten.cpp
     # lift.hpp
@@ -30,8 +30,8 @@ set(SRC
     # lower.cpp
     # store.hpp
     # store.cpp
-    util.hpp
-    util.cpp
+    src/util.hpp
+    src/util.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRC})
@@ -46,3 +46,5 @@ target_link_libraries(${PROJECT_NAME}
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 # target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
+
+add_subdirectory(tests)

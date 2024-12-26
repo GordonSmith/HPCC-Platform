@@ -290,7 +290,13 @@ namespace cmcpp
             integer::store(cx, tagged_code_units, ptr + 4);
         }
 
-        string_t loadFromRange(const CallContext *cx, ptr ptr, cmcpp::size tagged_code_units)
+        WasmValVector lower_flat(CallContext *cx, const string_t &v)
+        {
+            auto [ptr, packed_length] = store_into_range(cx, v);
+            return {(int32_t)ptr, (int32_t)packed_length};
+        }
+
+        string_t load_from_range(const CallContext *cx, ptr ptr, cmcpp::size tagged_code_units)
         {
             uint32_t alignment;
             uint32_t byte_length;
@@ -332,7 +338,14 @@ namespace cmcpp
         {
             ptr begin = integer::load<ptr>(cx, offset + data_offset);
             cmcpp::size tagged_code_units = integer::load<cmcpp::size>(cx, offset + codeUnits_offset);
-            return loadFromRange(cx, begin, tagged_code_units);
+            return load_from_range(cx, begin, tagged_code_units);
+        }
+
+        string_t lift_flat(const CallContext *cx, const WasmValVectorIterator &vi)
+        {
+            auto ptr = vi.next<int32_t>();
+            auto packed_length = vi.next<int32_t>();
+            return load_from_range(cx, ptr, packed_length);
         }
     };
 

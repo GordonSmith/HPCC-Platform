@@ -5,6 +5,7 @@
 #include "float.hpp"
 #include "integer.hpp"
 #include "string.hpp"
+#include "list.hpp"
 #include "util.hpp"
 
 #include <tuple>
@@ -90,7 +91,6 @@ namespace cmcpp
     {
         string::store(cx, v, ptr);
     }
-
 }
 
 #endif

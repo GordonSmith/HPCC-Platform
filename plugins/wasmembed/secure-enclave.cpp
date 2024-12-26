@@ -7,9 +7,9 @@
 #include "enginecontext.hpp"
 
 #include "util.hpp"
-#include "component-model/context.hpp"
-#include "component-model/string.hpp"
-#include "component-model/list.hpp"
+#include "component-model/src/context.hpp"
+#include "component-model/src/string.hpp"
+#include "component-model/src/list.hpp"
 
 #include <mutex>
 #include <filesystem>
