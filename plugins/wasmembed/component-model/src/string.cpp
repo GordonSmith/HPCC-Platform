@@ -6,74 +6,8 @@
 
 namespace cmcpp
 {
-
-    enum class ComponentModelTypeKind
-    {
-        _bool,
-        u8,
-        u16,
-        u32,
-        u64,
-        s8,
-        s16,
-        s32,
-        s64,
-        float32,
-        float64,
-        _char,
-        string,
-        list,
-        record,
-        tuple,
-        variant,
-        _enum,
-        flags,
-        option,
-        result,
-        resource,
-        resourceHandle,
-        borrow,
-        own
-    };
-
-    enum class Alignment
-    {
-        byte = 1,
-        halfWord = 2,
-        word = 4,
-        doubleWord = 8
-    };
-
-    using u8 = uint8_t;
-    using u16 = uint16_t;
-    using u32 = uint32_t;
-    using u64 = uint64_t;
-    using s8 = int8_t;
-    using s16 = int16_t;
-    using s32 = int32_t;
-    using s64 = int64_t;
-    using float32 = float;
-    using float64 = double;
-    // using char = char;
-
-    using ptr = uint32_t;
-    using size = uint32_t;
-    using offset = uint32_t;
-
-    struct i32
-    {
-    };
-
     namespace string
     {
-        const offset data_offset = 0;
-        const offset codeUnits_offset = 4;
-
-        const ComponentModelTypeKind kind = ComponentModelTypeKind::string;
-        const cmcpp::size size = 8;
-        const Alignment alignment = Alignment::word;
-        const std::initializer_list<i32> flatTypes = {i32(), i32()};
-
         const uint32_t MAX_STRING_BYTE_LENGTH = (1U << 31) - 1;
 
         std::pair<uint32_t, uint32_t> store_string_copy(CallContext *cx, const char8_t *src, uint32_t src_code_units, uint32_t dst_code_unit_size, uint32_t dst_alignment, Encoding dst_encoding)
@@ -296,7 +230,7 @@ namespace cmcpp
             return {(int32_t)ptr, (int32_t)packed_length};
         }
 
-        string_t load_from_range(const CallContext *cx, ptr ptr, cmcpp::size tagged_code_units)
+        string_t load_from_range(const CallContext *cx, uint32_t ptr, uint32_t tagged_code_units)
         {
             uint32_t alignment;
             uint32_t byte_length;
@@ -336,8 +270,8 @@ namespace cmcpp
 
         string_t load(const CallContext *cx, offset offset)
         {
-            ptr begin = integer::load<ptr>(cx, offset + data_offset);
-            cmcpp::size tagged_code_units = integer::load<cmcpp::size>(cx, offset + codeUnits_offset);
+            auto begin = integer::load<uint32_t>(cx, offset);
+            auto tagged_code_units = integer::load<uint32_t>(cx, offset + 4);
             return load_from_range(cx, begin, tagged_code_units);
         }
 

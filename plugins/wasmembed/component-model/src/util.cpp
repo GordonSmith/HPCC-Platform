@@ -68,6 +68,7 @@ namespace cmcpp
         switch (despecialize(t))
         {
         case ValType::Bool:
+            return 1;
         case ValType::S8:
         case ValType::U8:
             return 1;
@@ -76,13 +77,16 @@ namespace cmcpp
             return 2;
         case ValType::S32:
         case ValType::U32:
-        case ValType::F32:
-        case ValType::Char:
             return 4;
         case ValType::S64:
         case ValType::U64:
+        return 8;
+        case ValType::F32:
+            return 4;
         case ValType::F64:
             return 8;
+        case ValType::Char:
+            return 4;
         case ValType::String:
         case ValType::List:
             return 8;

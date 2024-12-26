@@ -3,8 +3,8 @@
 
 #include "context.hpp"
 #include "integer.hpp"
-#include "load.hpp"
 #include "store.hpp"
+#include "load.hpp"
 #include "util.hpp"
 
 #include <tuple>
@@ -16,13 +16,18 @@ namespace cmcpp
     using offset = uint32_t;
     using size = uint32_t;
 
+    // template <String T>
+    // inline list_t<T> load(const CallContext *cx, uint32_t ptr);
+
+    // template <List T>
+    // inline list_t<typename ValTrait<T>::inner_type> load(const CallContext *cx, uint32_t ptr);
+
     namespace list
     {
-
         template <typename T>
         std::tuple<offset, size> store_into_range(CallContext *cx, const list_t<T> &v)
         {
-            auto elem_type = ValTrait<T>::type();
+            auto elem_type = ValTrait<T>::type;
             size_t nbytes = elem_size(elem_type);
             auto byte_length = v.size() * nbytes;
             if (byte_length >= std::numeric_limits<size>::max())
@@ -61,27 +66,41 @@ namespace cmcpp
         }
 
         template <typename T>
-        std::unique_ptr<list_t<T>> load_from_range(CallContext *cx, offset ptr, size length)
+        list_t<T> load_from_range(const CallContext *cx, offset ptr, size length)
         {
-            auto t = ValTrait<T>::type();
-            assert(ptr == align_to(ptr, alignment(t)));
-            assert(ptr + length * elem_size(t) <= cx->memory.size());
-            auto list = std::make_unique<list_t<T>>();
+            auto elem_type = ValTrait<T>::type;
+            assert(ptr == align_to(ptr, alignment(elem_type)));
+            assert(ptr + length * elem_size(elem_type) <= cx->memory.size());
+            list_t<T> list = {};
             for (uint32_t i = 0; i < length; ++i)
             {
-                list->push_back(cmcpp::load<T>(cx, ptr + i * elem_size(t)));
+                auto xxx = cmcpp::load<T>(cx, ptr + i * elem_size(elem_type));
+                list.push_back(xxx);
             }
             return list;
         }
 
         template <typename T>
-        std::shared_ptr<list_t<T>> load(CallContext *cx, offset ptr)
+        list_t<T> load(const CallContext *cx, offset ptr)
         {
             uint32_t begin = integer::load<uint32_t>(cx, ptr);
             uint32_t length = integer::load<uint32_t>(cx, ptr + 4);
             return load_from_range<T>(cx, begin, length);
         }
 
+        template <typename T>
+        list_t<T> lift_flat(const CallContext *cx, const WasmValVectorIterator &vi)
+        {
+            auto ptr = vi.next<int32_t>();
+            auto length = vi.next<int32_t>();
+            return load_from_range<T>(cx, ptr, length);
+        }
+    }
+
+    template <List T>
+    inline list_t<typename ValTrait<T>::inner_type> load(const CallContext *cx, uint32_t ptr)
+    {
+        return list::load<typename ValTrait<T>::inner_type>(cx, ptr);
     }
 }
 

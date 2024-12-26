@@ -595,9 +595,9 @@ public:
         case type_boolean:
         {
             auto list = list::load<bool_t>(cx.get(), ptr);
-            resultBytes = list->size();
+            resultBytes = list.size();
             result = rtlMalloc(resultBytes);
-            std::copy(list->begin(), list->end(), reinterpret_cast<bool *>(result));
+            std::copy(list.begin(), list.end(), reinterpret_cast<bool *>(result));
             break;
         }
         case type_real:
@@ -605,26 +605,26 @@ public:
             if (elemSize == sizeof(float64_t))
             {
                 auto list = list::load<float64_t>(cx.get(), ptr);
-                resultBytes = list->size() * sizeof(float64_t);
+                resultBytes = list.size() * sizeof(float64_t);
                 result = rtlMalloc(resultBytes);
-                std::copy(list->begin(), list->end(), reinterpret_cast<float64_t *>(result));
+                std::copy(list.begin(), list.end(), reinterpret_cast<float64_t *>(result));
             }
             else
             {
                 assert(elemSize == sizeof(float32_t));
                 auto list = list::load<float32_t>(cx.get(), ptr);
-                resultBytes = list->size() * sizeof(float32_t);
+                resultBytes = list.size() * sizeof(float32_t);
                 result = rtlMalloc(resultBytes);
-                std::copy(list->begin(), list->end(), reinterpret_cast<float32_t *>(result));
+                std::copy(list.begin(), list.end(), reinterpret_cast<float32_t *>(result));
             }
             break;
         }
         case type_unsigned:
         {
             auto list = cmcpp::list::load<uint32_t>(cx.get(), ptr);
-            resultBytes = list->size() * sizeof(uint32_t);
+            resultBytes = list.size() * sizeof(uint32_t);
             result = rtlMalloc(resultBytes);
-            memcpy(result, list->data(), resultBytes);
+            memcpy(result, list.data(), resultBytes);
             break;
         }
         case type_string:
@@ -633,7 +633,7 @@ public:
             rtlRowBuilder out;
             size32_t outBytes = 0;
             byte *outData = NULL;
-            for (auto &item : *list)
+            for (auto &item : list)
             {
                 out.ensureAvailable(outBytes + item.byte_len + sizeof(size32_t));
                 outData = out.getbytes() + outBytes;

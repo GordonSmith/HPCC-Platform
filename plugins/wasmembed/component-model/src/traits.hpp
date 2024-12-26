@@ -106,202 +106,187 @@ namespace cmcpp
     template <typename T>
     struct ValTrait
     {
-        static ValType type()
-        {
-            return ValType::UNKNOWN;
-        }
-
-        static_assert(ValTrait<T>::type() != ValType::UNKNOWN, "T must be valid ValType.");
+        typedef void inner_type;
+        static constexpr ValType type = ValType::UNKNOWN;
+        static_assert(ValTrait<T>::type != ValType::UNKNOWN, "T must be valid ValType.");
     };
 
     template <>
     struct ValTrait<bool_t>
     {
-        static ValType type()
-        {
-            return ValType::Bool;
-        }
+        static constexpr ValType type = ValType::Bool;
     };
 
     template <>
     struct ValTrait<int8_t>
     {
-        static ValType type()
-        {
-            return ValType::S8;
-        }
+        static constexpr ValType type = ValType::S8;
     };
 
     template <>
     struct ValTrait<uint8_t>
     {
-        static ValType type()
-        {
-            return ValType::U8;
-        }
+        static constexpr ValType type = ValType::U8;
     };
 
     template <>
     struct ValTrait<int16_t>
     {
-        static ValType type()
-        {
-            return ValType::S16;
-        }
+        static constexpr ValType type = ValType::S16;
     };
 
     template <>
     struct ValTrait<uint16_t>
     {
-        static ValType type()
-        {
-            return ValType::U16;
-        }
+        static constexpr ValType type = ValType::U16;
     };
 
     template <>
     struct ValTrait<int32_t>
     {
-        static ValType type()
-        {
-            return ValType::S32;
-        }
+        static constexpr ValType type = ValType::S32;
     };
 
     template <>
     struct ValTrait<uint32_t>
     {
-        static ValType type()
-        {
-            return ValType::U32;
-        }
+        static constexpr ValType type = ValType::U32;
     };
 
     template <>
     struct ValTrait<int64_t>
     {
-        static ValType type()
-        {
-            return ValType::S64;
-        }
+        static constexpr ValType type = ValType::S64;
     };
 
     template <>
     struct ValTrait<uint64_t>
     {
-        static ValType type()
-        {
-            return ValType::U64;
-        }
+        static constexpr ValType type = ValType::U64;
     };
 
     template <>
     struct ValTrait<float32_t>
     {
-        static ValType type()
-        {
-            return ValType::F32;
-        }
+        static constexpr ValType type = ValType::F32;
     };
 
     template <>
     struct ValTrait<float64_t>
     {
-        static ValType type()
-        {
-            return ValType::F64;
-        }
+        static constexpr ValType type = ValType::F64;
     };
 
     template <>
     struct ValTrait<char8_t>
     {
-        static ValType type()
-        {
-            return ValType::Char;
-        }
+        static constexpr ValType type = ValType::Char;
     };
 
     template <>
     struct ValTrait<string_t>
     {
-        static ValType type() { return ValType::String; }
+        static constexpr ValType type = ValType::String;
     };
 
     template <typename T>
     struct ValTrait<list_t<T>>
     {
-        static ValType type() { return ValType::List; }
-        static ValType of() { return ValTrait<T>::type(); }
+        typedef T inner_type;
+        static constexpr ValType type = ValType::List;
     };
 
     template <typename T>
     struct ValTrait<field_t<T>>
     {
-        static ValType type() { return ValType::Field; }
-        static ValType of() { return ValTrait<T>::type(); }
+        static constexpr ValType type = ValType::Field;
+        static constexpr ValType of = ValTrait<T>::type;
     };
 
     template <typename... Fields>
     struct ValTrait<record_t<Fields...>>
     {
-        static ValType type() { return ValType::Record; }
+        static constexpr ValType type = ValType::Record;
     };
 
     template <typename... Ts>
     struct ValTrait<tuple_t<Ts...>>
     {
-        static ValType type() { return ValType::Tuple; }
+        static constexpr ValType type = ValType::Tuple;
     };
 
     template <typename T>
     struct ValTrait<case_t<T>>
     {
-        static ValType type() { return ValType::Case; }
-        static ValType of() { return ValTrait<T>::type(); }
+        static constexpr ValType type = ValType::Case;
+        static constexpr ValType of = ValTrait<T>::type;
     };
 
     template <typename... Ts>
     struct ValTrait<variant_t<Ts...>>
     {
-        static ValType type() { return ValType::Variant; }
+        static constexpr ValType type = ValType::Variant;
     };
 
     template <>
     struct ValTrait<enum_t>
     {
-        static ValType type() { return ValType::Enum; }
+        static constexpr ValType type = ValType::Enum;
     };
 
-    class option_t;
-    using option_ptr = std::shared_ptr<option_t>;
-    template <>
-    struct ValTrait<option_ptr>
-    {
-        static ValType type() { return ValType::Option; }
-    };
+    // class option_t;
+    // using option_ptr = std::shared_ptr<option_t>;
+    // template <>
+    // struct ValTrait<option_ptr>
+    // {
+    //     static ValType type() { return ValType::Option; }
+    // };
 
-    class result_t;
-    using result_ptr = std::shared_ptr<result_t>;
-    template <>
-    struct ValTrait<result_ptr>
-    {
-        static ValType type() { return ValType::Result; }
-    };
+    // class result_t;
+    // using result_ptr = std::shared_ptr<result_t>;
+    // template <>
+    // struct ValTrait<result_ptr>
+    // {
+    //     static ValType type() { return ValType::Result; }
+    // };
 
-    class flags_t;
-    using flags_ptr = std::shared_ptr<flags_t>;
-    template <>
-    struct ValTrait<flags_ptr>
-    {
-        static ValType type() { return ValType::Flags; }
-    };
+    // class flags_t;
+    // using flags_ptr = std::shared_ptr<flags_t>;
+    // template <>
+    // struct ValTrait<flags_ptr>
+    // {
+    //     static ValType type() { return ValType::Flags; }
+    // };
+
+    template <typename T> 
+    concept Boolean = ValTrait<T>::type == ValType::Bool;
+
+    template <typename T> 
+    concept Signed = ValTrait<T>::type == ValType::S8 || ValTrait<T>::type == ValType::S16 || ValTrait<T>::type == ValType::S32 || ValTrait<T>::type == ValType::S64;
+
+    template <typename T> 
+    concept Unsigned = ValTrait<T>::type == ValType::U8 || ValTrait<T>::type == ValType::U16 || ValTrait<T>::type == ValType::U32 || ValTrait<T>::type == ValType::U64;
+
+    template <typename T> 
+    concept Integer = Signed<T> || Unsigned<T>;
+
+    template <typename T> 
+    concept Float = ValTrait<T>::type == ValType::F32 || ValTrait<T>::type == ValType::F64;
+
+    template <typename T> 
+    concept W64 = ValTrait<T>::type == ValType::S64 || ValTrait<T>::type == ValType::U64 || ValTrait<T>::type == ValType::F64;
+
+    template <typename T> 
+    concept String = ValTrait<T>::type == ValType::String;
+
+    template <typename T> 
+    concept List = ValTrait<T>::type == ValType::List;
 
     //  --------------------------------------------------------------------
     template <typename T>
     ValType type(const T &v)
     {
-        return ValTrait<T>::type();
+        return ValTrait<T>::type;
     }
 
     //  --------------------------------------------------------------------
@@ -338,48 +323,32 @@ namespace cmcpp
     template <typename T>
     struct WasmValTrait
     {
-        static WasmValType type()
-        {
-            return WasmValType::UNKNOWN;
-        }
-
-        static_assert(WasmValTrait<T>::type() != WasmValType::UNKNOWN, "T must be valid WasmValType.");
+        static constexpr WasmValType type = WasmValType::UNKNOWN;
+        static_assert(WasmValTrait<T>::type != WasmValType::UNKNOWN, "T must be valid WasmValType.");
     };
 
     template <>
     struct WasmValTrait<int32_t>
     {
-        static WasmValType type()
-        {
-            return WasmValType::i32;
-        }
+        static constexpr WasmValType type = WasmValType::i32;
     };
 
     template <>
     struct WasmValTrait<int64_t>
     {
-        static WasmValType type()
-        {
-            return WasmValType::i64;
-        }
+        static constexpr WasmValType type = WasmValType::i64;
     };
 
     template <>
     struct WasmValTrait<float32_t>
     {
-        static WasmValType type()
-        {
-            return WasmValType::f32;
-        }
+        static constexpr WasmValType type = WasmValType::f32;
     };
 
     template <>
     struct WasmValTrait<float64_t>
     {
-        static WasmValType type()
-        {
-            return WasmValType::f64;
-        }
+        static constexpr WasmValType type = WasmValType::f64;
     };
 
     using offset = uint32_t;
