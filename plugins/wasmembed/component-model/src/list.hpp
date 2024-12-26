@@ -16,12 +16,6 @@ namespace cmcpp
     using offset = uint32_t;
     using size = uint32_t;
 
-    // template <String T>
-    // inline list_t<T> load(const CallContext *cx, uint32_t ptr);
-
-    // template <List T>
-    // inline list_t<typename ValTrait<T>::inner_type> load(const CallContext *cx, uint32_t ptr);
-
     namespace list
     {
         template <typename T>
@@ -95,12 +89,6 @@ namespace cmcpp
             auto length = vi.next<int32_t>();
             return load_from_range<T>(cx, ptr, length);
         }
-    }
-
-    template <List T>
-    inline list_t<typename ValTrait<T>::inner_type> load(const CallContext *cx, uint32_t ptr)
-    {
-        return list::load<typename ValTrait<T>::inner_type>(cx, ptr);
     }
 }
 

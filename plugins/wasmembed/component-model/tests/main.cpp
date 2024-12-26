@@ -139,10 +139,25 @@ TEST_CASE("List")
 {
     Heap heap(1024*1024);
     auto cx = createCallContext(&heap, Encoding::Utf8);
-    list_t<string_t> strings = {string_t{Encoding::Utf8, (const char8_t*)hw, 5}, string_t{Encoding::Utf8, (const char8_t*)hw, 5}};
+    list_t<string_t> strings = {string_t{Encoding::Utf8, (const char8_t*)hw, 5}, string_t{Encoding::Utf8, (const char8_t*)hw, 3}};
     auto v = lower_flat(cx.get(), strings);
     auto strs = lift_flat<list_t<string_t>>(cx.get(), v);
     CHECK(strs.size() == 2);
+    CHECK(strs[0].encoding == Encoding::Utf8);
+    CHECK(strs[0].byte_len == 5);
+    CHECK(std::string((const char *)strs[0].ptr, strs[0].byte_len) == std::string(hw, strs[0].byte_len));
+    CHECK(strs[1].encoding == Encoding::Utf8);
+    CHECK(strs[1].byte_len == 3);
+    CHECK(std::string((const char *)strs[1].ptr, strs[1].byte_len) == std::string(hw, strs[1].byte_len));  
+    v = lower_flat(cx.get(), strings);
+    strs = lift_flat<list_t<string_t>>(cx.get(), v);
+    CHECK(strs.size() == 2);
+    CHECK(strs[0].encoding == Encoding::Utf8);
+    CHECK(strs[0].byte_len == 5);
+    CHECK(std::string((const char *)strs[0].ptr, strs[0].byte_len) == std::string(hw, strs[0].byte_len));
+    CHECK(strs[1].encoding == Encoding::Utf8);
+    CHECK(strs[1].byte_len == 3);
+    CHECK(std::string((const char *)strs[1].ptr, strs[1].byte_len) == std::string(hw, strs[1].byte_len));  
 }
 
 // TEST_CASE("Tuple")
