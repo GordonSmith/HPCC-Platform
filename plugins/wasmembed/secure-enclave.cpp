@@ -410,7 +410,7 @@ public:
     {
         TRACE("WASM SE bindUTF8Param %s %d %s", name, chars, val);
         auto cx = mk_cx();
-        auto [offset, bytes] = string::store_into_range(cx.get(), {Encoding::Utf8, (const char8_t *)val, rtlUtf8Size(chars, val)});
+        auto [offset, bytes] = string::store_into_range(*cx, {Encoding::Utf8, (const char8_t *)val, rtlUtf8Size(chars, val)});
         args.push_back((int32_t)offset);
         args.push_back((int32_t)bytes);
     }
@@ -443,7 +443,7 @@ public:
                 bools.push_back(*(const bool *)inData ? true : false);
                 inData += thisSize;
             }
-            auto [offset, size] = list::store_into_range<bool_t>(cx.get(), bools);
+            auto [offset, size] = list::store_into_range<bool_t>(*cx, bools);
             args.push_back(static_cast<int32_t>(offset));
             args.push_back(static_cast<int32_t>(size));
             break;
@@ -451,7 +451,7 @@ public:
         case type_int:
         {
             assert(elemSize == sizeof(int32_t));
-            auto [offset, size] = list::store_into_range<int32_t>(cx.get(), list_t<int32_t>{(const int32_t *)setData, (const int32_t *)setData + (totalBytes / elemSize)});
+            auto [offset, size] = list::store_into_range<int32_t>(*cx, list_t<int32_t>{(const int32_t *)setData, (const int32_t *)setData + (totalBytes / elemSize)});
             args.push_back(static_cast<int32_t>(offset));
             args.push_back(static_cast<int32_t>(size));
             break;
@@ -459,7 +459,7 @@ public:
         case type_unsigned:
         {
             assert(elemSize == sizeof(uint32_t));
-            auto [offset, size] = list::store_into_range<uint32_t>(cx.get(), list_t<uint32_t>{(const uint32_t *)setData, (const uint32_t *)setData + (totalBytes / elemSize)});
+            auto [offset, size] = list::store_into_range<uint32_t>(*cx, list_t<uint32_t>{(const uint32_t *)setData, (const uint32_t *)setData + (totalBytes / elemSize)});
             args.push_back(static_cast<int32_t>(offset));
             args.push_back(static_cast<int32_t>(size));
             break;
@@ -468,13 +468,13 @@ public:
         {
             if (elemSize == sizeof(double))
             {
-                auto [offset, size] = list::store_into_range<float64_t>(cx.get(), list_t<float64_t>{(const float64_t *)setData, (const float64_t *)setData + (totalBytes / elemSize)});
+                auto [offset, size] = list::store_into_range<float64_t>(*cx, list_t<float64_t>{(const float64_t *)setData, (const float64_t *)setData + (totalBytes / elemSize)});
                 args.push_back(static_cast<int32_t>(offset));
                 args.push_back(static_cast<int32_t>(size));
             }
             else
             {
-                auto [offset, size] = list::store_into_range<float32_t>(cx.get(), list_t<float32_t>{(const float32_t *)setData, (const float32_t *)setData + (totalBytes / elemSize)});
+                auto [offset, size] = list::store_into_range<float32_t>(*cx, list_t<float32_t>{(const float32_t *)setData, (const float32_t *)setData + (totalBytes / elemSize)});
                 args.push_back(static_cast<int32_t>(offset));
                 args.push_back(static_cast<int32_t>(size));
             }
@@ -496,7 +496,7 @@ public:
                 strings.push_back({Encoding::Utf8, (const char8_t *)inData, thisSize});
                 inData += thisSize;
             }
-            auto [offset, size] = list::store_into_range<string_t>(cx.get(), strings);
+            auto [offset, size] = list::store_into_range<string_t>(*cx, strings);
             args.push_back(static_cast<int32_t>(offset));
             args.push_back(static_cast<int32_t>(size));
             break;
@@ -561,7 +561,7 @@ public:
         TRACE("WASM SE getStringResult %zu", wasmResults.size());
         auto ptr = wasmResults[0].i32();
         auto cx = mk_cx();
-        auto [encoding, strPtr, bytes] = string::load(cx.get(), ptr);
+        auto [encoding, strPtr, bytes] = string::load(*cx, ptr);
         size32_t codePoints = rtlUtf8Length(bytes, strPtr);
         rtlUtf8ToStrX(chars, result, codePoints, (const char *)strPtr);
     }
@@ -570,7 +570,7 @@ public:
         TRACE("WASM SE getUTF8Result");
         auto ptr = wasmResults[0].i32();
         auto cx = mk_cx();
-        auto [encoding, strPtr, bytes] = string::load(cx.get(), ptr);
+        auto [encoding, strPtr, bytes] = string::load(*cx, ptr);
         chars = rtlUtf8Length(bytes, strPtr);
         result = (char *)rtlMalloc(bytes);
         memcpy(result, strPtr, bytes);
@@ -580,7 +580,7 @@ public:
         TRACE("WASM SE getUnicodeResult");
         auto ptr = wasmResults[0].i32();
         auto cx = mk_cx();
-        auto [encoding, strPtr, bytes] = string::load(cx.get(), ptr);
+        auto [encoding, strPtr, bytes] = string::load(*cx, ptr);
         size32_t codePoints = rtlUtf8Length(bytes, strPtr);
         rtlUtf8ToUnicodeX(chars, result, codePoints, (const char *)strPtr);
     }
@@ -594,7 +594,7 @@ public:
         {
         case type_boolean:
         {
-            auto list = list::load<bool_t>(cx.get(), ptr);
+            auto list = list::load<bool_t>(*cx, ptr);
             resultBytes = list.size();
             result = rtlMalloc(resultBytes);
             std::copy(list.begin(), list.end(), reinterpret_cast<bool *>(result));
@@ -604,7 +604,7 @@ public:
         {
             if (elemSize == sizeof(float64_t))
             {
-                auto list = list::load<float64_t>(cx.get(), ptr);
+                auto list = list::load<float64_t>(*cx, ptr);
                 resultBytes = list.size() * sizeof(float64_t);
                 result = rtlMalloc(resultBytes);
                 std::copy(list.begin(), list.end(), reinterpret_cast<float64_t *>(result));
@@ -612,7 +612,7 @@ public:
             else
             {
                 assert(elemSize == sizeof(float32_t));
-                auto list = list::load<float32_t>(cx.get(), ptr);
+                auto list = list::load<float32_t>(*cx, ptr);
                 resultBytes = list.size() * sizeof(float32_t);
                 result = rtlMalloc(resultBytes);
                 std::copy(list.begin(), list.end(), reinterpret_cast<float32_t *>(result));
@@ -621,7 +621,7 @@ public:
         }
         case type_unsigned:
         {
-            auto list = cmcpp::list::load<uint32_t>(cx.get(), ptr);
+            auto list = cmcpp::list::load<uint32_t>(*cx, ptr);
             resultBytes = list.size() * sizeof(uint32_t);
             result = rtlMalloc(resultBytes);
             memcpy(result, list.data(), resultBytes);
@@ -629,7 +629,7 @@ public:
         }
         case type_string:
         {
-            auto list = cmcpp::list::load<string_t>(cx.get(), ptr);
+            auto list = cmcpp::list::load<string_t>(*cx, ptr);
             rtlRowBuilder out;
             size32_t outBytes = 0;
             byte *outData = NULL;

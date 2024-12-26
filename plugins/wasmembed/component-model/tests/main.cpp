@@ -98,10 +98,10 @@ std::unique_ptr<CallContext> createCallContext(Heap *heap, Encoding encoding)
 //         CHECK(lower_v.value() == v.value());
 //     }
 
-//     Heap heap(5 * cx->opts->memory.size());
+//     Heap heap(5 * cx.opts->memory.size());
 //     if (!dst_encoding.has_value())
 //     {
-//         dst_encoding = cx->opts->string_encoding;
+//         dst_encoding = cx.opts->string_encoding;
 //     }
 //     auto cx2 = mk_cx(heap.memory, dst_encoding.value(), [&heap](int original_ptr, int original_size, int alignment, int new_size) -> int
 //                      { return heap.realloc(original_ptr, original_size, alignment, new_size); });
@@ -119,8 +119,8 @@ TEST_CASE("Boolean")
 {
     Heap heap(1024*1024);
     auto cx = createCallContext(&heap, Encoding::Utf8);
-    auto v = lower_flat(cx.get(), true);
-    auto b = lift_flat<bool_t>(cx.get(), v);
+    auto v = lower_flat(*cx, true);
+    auto b = lift_flat<bool_t>(*cx, v);
     CHECK(b == true);
 }
 
@@ -128,8 +128,8 @@ TEST_CASE("String")
 {
     Heap heap(1024*1024);
     auto cx = createCallContext(&heap, Encoding::Utf8);
-    auto v = lower_flat(cx.get(), string_t{Encoding::Utf8, (const char8_t*)hw, strlen(hw)});
-    auto str = lift_flat<string_t>(cx.get(), v);
+    auto v = lower_flat(*cx, string_t{Encoding::Utf8, (const char8_t*)hw, strlen(hw)});
+    auto str = lift_flat<string_t>(*cx, v);
     CHECK(str.encoding == Encoding::Utf8);
     CHECK(str.byte_len == strlen(hw));
     CHECK(std::string((const char *)str.ptr, str.byte_len) == hw);
@@ -140,8 +140,8 @@ TEST_CASE("List")
     Heap heap(1024*1024);
     auto cx = createCallContext(&heap, Encoding::Utf8);
     list_t<string_t> strings = {string_t{Encoding::Utf8, (const char8_t*)hw, 5}, string_t{Encoding::Utf8, (const char8_t*)hw, 3}};
-    auto v = lower_flat(cx.get(), strings);
-    auto strs = lift_flat<list_t<string_t>>(cx.get(), v);
+    auto v = lower_flat(*cx, strings);
+    auto strs = lift_flat<list_t<string_t>>(*cx, v);
     CHECK(strs.size() == 2);
     CHECK(strs[0].encoding == Encoding::Utf8);
     CHECK(strs[0].byte_len == 5);
@@ -149,8 +149,8 @@ TEST_CASE("List")
     CHECK(strs[1].encoding == Encoding::Utf8);
     CHECK(strs[1].byte_len == 3);
     CHECK(std::string((const char *)strs[1].ptr, strs[1].byte_len) == std::string(hw, strs[1].byte_len));  
-    v = lower_flat(cx.get(), strings);
-    strs = lift_flat<list_t<string_t>>(cx.get(), v);
+    v = lower_flat(*cx, strings);
+    strs = lift_flat<list_t<string_t>>(*cx, v);
     CHECK(strs.size() == 2);
     CHECK(strs[0].encoding == Encoding::Utf8);
     CHECK(strs[0].byte_len == 5);

@@ -19,7 +19,7 @@ namespace cmcpp
     namespace list
     {
         template <typename T>
-        std::tuple<offset, size> store_into_range(CallContext *cx, const list_t<T> &v)
+        std::tuple<offset, size> store_into_range(CallContext &cx, const list_t<T> &v)
         {
             auto elem_type = ValTrait<T>::type;
             size_t nbytes = elem_size(elem_type);
@@ -28,12 +28,12 @@ namespace cmcpp
             {
                 throw std::runtime_error("byte_length exceeds limit");
             }
-            uint32_t ptr = cx->realloc(0, 0, alignment(elem_type), byte_length);
+            uint32_t ptr = cx.realloc(0, 0, alignment(elem_type), byte_length);
             if (ptr != align_to(ptr, alignment(elem_type)))
             {
                 throw std::runtime_error("ptr not aligned");
             }
-            if (ptr + byte_length > cx->memory.size())
+            if (ptr + byte_length > cx.memory.size())
             {
                 throw std::runtime_error("memory overflow");
             }
@@ -45,7 +45,7 @@ namespace cmcpp
         }
 
         template <typename T>
-        void store(CallContext *cx, const list_t<T> &list, offset ptr)
+        void store(CallContext &cx, const list_t<T> &list, offset ptr)
         {
             auto [begin, length] = store_into_range(cx, list);
             integer::store(cx, begin, ptr, 4);
@@ -53,18 +53,18 @@ namespace cmcpp
         }
 
         template <typename T>
-        WasmValVector lower_flat(CallContext *cx, const list_t<T> &v)
+        WasmValVector lower_flat(CallContext &cx, const list_t<T> &v)
         {
             auto [ptr, length] = store_into_range(cx, v);
             return {static_cast<int32_t>(ptr), static_cast<int32_t>(length)};
         }
 
         template <typename T>
-        list_t<T> load_from_range(const CallContext *cx, offset ptr, size length)
+        list_t<T> load_from_range(const CallContext &cx, offset ptr, size length)
         {
             auto elem_type = ValTrait<T>::type;
             assert(ptr == align_to(ptr, alignment(elem_type)));
-            assert(ptr + length * elem_size(elem_type) <= cx->memory.size());
+            assert(ptr + length * elem_size(elem_type) <= cx.memory.size());
             list_t<T> list = {};
             for (uint32_t i = 0; i < length; ++i)
             {
@@ -75,7 +75,7 @@ namespace cmcpp
         }
 
         template <typename T>
-        list_t<T> load(const CallContext *cx, offset ptr)
+        list_t<T> load(const CallContext &cx, offset ptr)
         {
             uint32_t begin = integer::load<uint32_t>(cx, ptr);
             uint32_t length = integer::load<uint32_t>(cx, ptr + 4);
@@ -83,7 +83,7 @@ namespace cmcpp
         }
 
         template <typename T>
-        list_t<T> lift_flat(const CallContext *cx, const WasmValVectorIterator &vi)
+        list_t<T> lift_flat(const CallContext &cx, const WasmValVectorIterator &vi)
         {
             auto ptr = vi.next<int32_t>();
             auto length = vi.next<int32_t>();

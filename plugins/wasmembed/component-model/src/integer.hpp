@@ -13,9 +13,9 @@ namespace cmcpp
     namespace integer
     {
         template <typename T>
-        void store(CallContext *cx, const T &v, offset ptr)
+        void store(CallContext &cx, const T &v, offset ptr)
         {
-            std::memcpy(&cx->memory[ptr], &v, sizeof(T));
+            std::memcpy(&cx.memory[ptr], &v, sizeof(T));
         }
 
         template <typename T>
@@ -29,10 +29,10 @@ namespace cmcpp
         }
 
         template <typename T>
-        T load(const CallContext *cx, offset ptr)
+        T load(const CallContext &cx, offset ptr)
         {
             T retVal;
-            std::memcpy(&retVal, &cx->memory[ptr], sizeof(T));
+            std::memcpy(&retVal, &cx.memory[ptr], sizeof(T));
             return retVal;
         }
 

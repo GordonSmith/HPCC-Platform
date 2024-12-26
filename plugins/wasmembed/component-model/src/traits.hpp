@@ -8,6 +8,7 @@
 #include <memory>
 #include <stdexcept>
 #include <array>
+#include <cassert>
 
 //  See canonical ABI:
 //  https://github.com/WebAssembly/component-model/blob/main/design/mvp/canonical-abi/definitions.py
@@ -15,6 +16,69 @@
 
 namespace cmcpp
 {
+    using float32_t = float;
+    using float64_t = double;
+
+    enum class WasmValType : uint8_t
+    {
+        UNKNOWN,
+        i32,
+        i64,
+        f32,
+        f64,
+        LAST
+    };
+    using WasmVal = std::variant<int32_t, int64_t, float32_t, float64_t>;
+    using WasmValVector = std::vector<WasmVal>;
+    class WasmValVectorIterator
+    {
+        mutable WasmValVector::const_iterator it;
+        WasmValVector::const_iterator end;
+
+    public:
+        WasmValVectorIterator(const WasmValVector &v);
+
+        template <typename T>
+        T next() const
+        {
+            assert(it != end);
+            return std::get<T>(*it++);
+        }
+    };
+
+    template <typename T>
+    struct WasmValTrait
+    {
+        static constexpr WasmValType type = WasmValType::UNKNOWN;
+        // static_assert(WasmValTrait<T>::type != WasmValType::UNKNOWN, "T must be valid WasmValType.");
+    };
+
+    template <>
+    struct WasmValTrait<int32_t>
+    {
+        static constexpr WasmValType type = WasmValType::i32;
+    };
+
+    template <>
+    struct WasmValTrait<int64_t>
+    {
+        static constexpr WasmValType type = WasmValType::i64;
+    };
+
+    template <>
+    struct WasmValTrait<float32_t>
+    {
+        static constexpr WasmValType type = WasmValType::f32;
+    };
+
+    template <>
+    struct WasmValTrait<float64_t>
+    {
+        static constexpr WasmValType type = WasmValType::f64;
+    };
+
+    //  --------------------------------------------------------------------
+
     enum class Encoding
     {
         Latin1,
@@ -25,6 +89,7 @@ namespace cmcpp
 
     enum class ValType : uint8_t
     {
+        UNKNOWN,
         Bool,
         S8,
         U8,
@@ -50,131 +115,159 @@ namespace cmcpp
         Flags,
         Own,
         Borrow,
-        UNKNOWN
+        LAST
     };
 
     using bool_t = bool;
-    using float32_t = float;
-    using float64_t = double;
 
-    struct string_t
+    enum class Alignment : uint8_t
     {
-        Encoding encoding;
-        const char8_t *ptr;
-        size_t byte_len;
+        UNKNOWN = 0,
+        byte = 1,
+        halfWord = 2,
+        word = 4,
+        doubleWord = 8
     };
-
-    template <typename T>
-    using list_t = std::vector<T>;
-
-    template <typename T>
-    struct field_t
-    {
-        std::string label;
-        T v;
-    };
-
-    template <typename... Fields>
-    struct record_t
-    {
-        std::array<field_t<Fields>...> fields;
-    };
-
-    template <typename... Ts>
-    using tuple_t = std::tuple<Ts...>;
-
-    template <typename T>
-    struct case_t
-    {
-        std::string label;
-        std::optional<T> v;
-    };
-
-    template <typename... Ts>
-    using variant_t = std::variant<Ts...>;
-
-    using enum_t = std::vector<std::string>;
-
-    // template <typename T = variant_t<>>
-    // using VariantT = std::variant<bool, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float32_t, float64_t, string_t, variant_t<T>, list_t<T>, field_t<T>>;
-    // list_t<ReursiveVariantT>, field_t<ReursiveVariantT>>; // record_t>; //, tuple_ptr, case_ptr, variant_ptr, enum_ptr, option_ptr, result_ptr, flags_ptr>;
-    // struct ReursiveVariantT {
-    //     VariantT v;
-    // };
-    // ValType type(const VariantT &v);
 
     template <typename T>
     struct ValTrait
     {
-        typedef void inner_type;
         static constexpr ValType type = ValType::UNKNOWN;
-        static_assert(ValTrait<T>::type != ValType::UNKNOWN, "T must be valid ValType.");
+        using inner_type = void;
+        static constexpr size_t size = 0;
+        static constexpr Alignment alignment = Alignment::UNKNOWN;
+        static constexpr std::initializer_list<WasmValType> flat_types = {};
     };
 
     template <>
     struct ValTrait<bool_t>
     {
         static constexpr ValType type = ValType::Bool;
+        static constexpr size_t size = 1;
+        static constexpr Alignment alignment = Alignment::byte;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
     };
 
     template <>
     struct ValTrait<int8_t>
     {
         static constexpr ValType type = ValType::S8;
+        static constexpr size_t size = 1;
+        static constexpr Alignment alignment = Alignment::byte;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+
+        static constexpr int8_t LOW_VALUE = -(2 ^ 7);
+        static constexpr int8_t HIGH_VALUE = (2 ^ 7) - 1;
     };
 
     template <>
     struct ValTrait<uint8_t>
     {
         static constexpr ValType type = ValType::U8;
+        static constexpr size_t size = 1;
+        static constexpr Alignment alignment = Alignment::byte;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+
+        static constexpr int8_t LOW_VALUE = 0;
+        static constexpr int8_t HIGH_VALUE = (2 ^ 8) - 1;
     };
 
     template <>
     struct ValTrait<int16_t>
     {
         static constexpr ValType type = ValType::S16;
+        static constexpr size_t size = 2;
+        static constexpr Alignment alignment = Alignment::halfWord;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+
+        static constexpr int16_t LOW_VALUE = -(2 ^ 15);
+        static constexpr int16_t HIGH_VALUE = (2 ^ 15) - 1;
     };
 
     template <>
     struct ValTrait<uint16_t>
     {
         static constexpr ValType type = ValType::U16;
+        static constexpr size_t size = 2;
+        static constexpr Alignment alignment = Alignment::halfWord;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+
+        static constexpr uint16_t LOW_VALUE = 0;
+        static constexpr uint16_t HIGH_VALUE = (2 ^ 32) - 1;
     };
 
     template <>
     struct ValTrait<int32_t>
     {
         static constexpr ValType type = ValType::S32;
+        static constexpr size_t size = 4;
+        static constexpr Alignment alignment = Alignment::word;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+
+        static constexpr int32_t LOW_VALUE = -(2 ^ 31);
+        static constexpr int32_t HIGH_VALUE = (2 ^ 31) - 1;
     };
 
     template <>
     struct ValTrait<uint32_t>
     {
         static constexpr ValType type = ValType::U32;
+        static constexpr size_t size = 4;
+        static constexpr Alignment alignment = Alignment::word;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+
+        static constexpr uint32_t LOW_VALUE = 0;
+        static constexpr uint32_t HIGH_VALUE = (2 ^ 32) - 1;
     };
 
     template <>
     struct ValTrait<int64_t>
     {
         static constexpr ValType type = ValType::S64;
+        static constexpr size_t size = 8;
+        static constexpr Alignment alignment = Alignment::doubleWord;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+
+        static constexpr int64_t LOW_VALUE = -(2 ^ 63);
+        static constexpr int64_t HIGH_VALUE = (2 ^ 63) - 1;
     };
 
     template <>
     struct ValTrait<uint64_t>
     {
         static constexpr ValType type = ValType::U64;
+        static constexpr size_t size = 8;
+        static constexpr Alignment alignment = Alignment::doubleWord;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+
+        static constexpr uint64_t LOW_VALUE = 0;
+        static constexpr uint64_t HIGH_VALUE = (2 ^ 64) - 1;
     };
 
     template <>
     struct ValTrait<float32_t>
     {
         static constexpr ValType type = ValType::F32;
+        static constexpr size_t size = 4;
+        static constexpr Alignment alignment = Alignment::word;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::f32};
+
+        static constexpr float32_t LOW_VALUE = -3.4028234663852886e+38;
+        static constexpr float32_t HIGH_VALUE = 3.4028234663852886e+38;
+        static constexpr float32_t NAN = 0x7fc00000;
     };
 
     template <>
     struct ValTrait<float64_t>
     {
         static constexpr ValType type = ValType::F64;
+        static constexpr size_t size = 8;
+        static constexpr Alignment alignment = Alignment::doubleWord;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::f64};
+
+        static constexpr float64_t LOW_VALUE = -1.7976931348623157e+308;
+        static constexpr float64_t HIGH_VALUE = 1.7976931348623157e+308;
+        static constexpr float64_t NAN = 0x7ff8000000000000;
     };
 
     template <>
@@ -183,6 +276,12 @@ namespace cmcpp
         static constexpr ValType type = ValType::Char;
     };
 
+    struct string_t
+    {
+        Encoding encoding;
+        const char8_t *ptr;
+        size_t byte_len;
+    };
     template <>
     struct ValTrait<string_t>
     {
@@ -190,19 +289,32 @@ namespace cmcpp
     };
 
     template <typename T>
+    using list_t = std::vector<T>;
+    template <typename T>
     struct ValTrait<list_t<T>>
     {
-        typedef T inner_type;
         static constexpr ValType type = ValType::List;
+        using inner_type = T;
     };
 
+    template <typename T>
+    struct field_t
+    {
+        std::string label;
+        T v;
+    };
     template <typename T>
     struct ValTrait<field_t<T>>
     {
         static constexpr ValType type = ValType::Field;
-        static constexpr ValType of = ValTrait<T>::type;
+        using inner_type = T;
     };
 
+    template <typename... Fields>
+    struct record_t
+    {
+        std::array<field_t<Fields>...> fields;
+    };
     template <typename... Fields>
     struct ValTrait<record_t<Fields...>>
     {
@@ -210,24 +322,35 @@ namespace cmcpp
     };
 
     template <typename... Ts>
+    using tuple_t = std::tuple<Ts...>;
+    template <typename... Ts>
     struct ValTrait<tuple_t<Ts...>>
     {
         static constexpr ValType type = ValType::Tuple;
     };
 
     template <typename T>
+    struct case_t
+    {
+        std::string label;
+        std::optional<T> v;
+    };
+    template <typename T>
     struct ValTrait<case_t<T>>
     {
         static constexpr ValType type = ValType::Case;
-        static constexpr ValType of = ValTrait<T>::type;
+        using inner_type = T;
     };
 
+    template <typename... Ts>
+    using variant_t = std::variant<Ts...>;
     template <typename... Ts>
     struct ValTrait<variant_t<Ts...>>
     {
         static constexpr ValType type = ValType::Variant;
     };
 
+    using enum_t = std::vector<std::string>;
     template <>
     struct ValTrait<enum_t>
     {
@@ -258,98 +381,32 @@ namespace cmcpp
     //     static ValType type() { return ValType::Flags; }
     // };
 
-    template <typename T> 
+    //  --------------------------------------------------------------------
+    template <typename T>
     concept Boolean = ValTrait<T>::type == ValType::Bool;
 
-    template <typename T> 
+    template <typename T>
     concept Signed = ValTrait<T>::type == ValType::S8 || ValTrait<T>::type == ValType::S16 || ValTrait<T>::type == ValType::S32 || ValTrait<T>::type == ValType::S64;
 
-    template <typename T> 
+    template <typename T>
     concept Unsigned = ValTrait<T>::type == ValType::U8 || ValTrait<T>::type == ValType::U16 || ValTrait<T>::type == ValType::U32 || ValTrait<T>::type == ValType::U64;
 
-    template <typename T> 
+    template <typename T>
     concept Integer = Signed<T> || Unsigned<T>;
 
-    template <typename T> 
+    template <typename T>
     concept Float = ValTrait<T>::type == ValType::F32 || ValTrait<T>::type == ValType::F64;
 
-    template <typename T> 
+    template <typename T>
     concept W64 = ValTrait<T>::type == ValType::S64 || ValTrait<T>::type == ValType::U64 || ValTrait<T>::type == ValType::F64;
 
-    template <typename T> 
+    template <typename T>
     concept String = ValTrait<T>::type == ValType::String;
 
-    template <typename T> 
+    template <typename T>
     concept List = ValTrait<T>::type == ValType::List;
 
     //  --------------------------------------------------------------------
-    template <typename T>
-    ValType type(const T &v)
-    {
-        return ValTrait<T>::type;
-    }
-
-    //  --------------------------------------------------------------------
-
-    enum class WasmValType : uint8_t
-    {
-        i32,
-        i64,
-        f32,
-        f64,
-        UNKNOWN
-    };
-    using WasmVal = std::variant<int32_t, int64_t, float32_t, float64_t>;
-    using WasmValVector = std::vector<WasmVal>;
-    class WasmValVectorIterator
-    {
-        mutable WasmValVector::const_iterator it;
-        WasmValVector::const_iterator end;
-
-    public:
-        WasmValVectorIterator(const WasmValVector &v);
-
-        template <typename T>
-        T next() const
-        {
-            if (it == end)
-            {
-                throw std::out_of_range("Iterator is out of range");
-            }
-            return std::get<T>(*it++);
-        }
-    };
-
-    template <typename T>
-    struct WasmValTrait
-    {
-        static constexpr WasmValType type = WasmValType::UNKNOWN;
-        static_assert(WasmValTrait<T>::type != WasmValType::UNKNOWN, "T must be valid WasmValType.");
-    };
-
-    template <>
-    struct WasmValTrait<int32_t>
-    {
-        static constexpr WasmValType type = WasmValType::i32;
-    };
-
-    template <>
-    struct WasmValTrait<int64_t>
-    {
-        static constexpr WasmValType type = WasmValType::i64;
-    };
-
-    template <>
-    struct WasmValTrait<float32_t>
-    {
-        static constexpr WasmValType type = WasmValType::f32;
-    };
-
-    template <>
-    struct WasmValTrait<float64_t>
-    {
-        static constexpr WasmValType type = WasmValType::f64;
-    };
 
     using offset = uint32_t;
     using bytes = uint32_t;
