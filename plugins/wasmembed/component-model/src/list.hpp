@@ -16,20 +16,26 @@ namespace cmcpp
     using offset = uint32_t;
     using size = uint32_t;
 
+    template <List T>
+    inline void store(CallContext &cx, const list_t<typename ValTrait<T>::inner_type> &v, uint32_t ptr);
+
+    template <List T>
+    inline list_t<typename ValTrait<T>::inner_type> load(const CallContext &cx, uint32_t ptr);
+
     namespace list
     {
         template <typename T>
         std::tuple<offset, size> store_into_range(CallContext &cx, const list_t<T> &v)
         {
             auto elem_type = ValTrait<T>::type;
-            size_t nbytes = elem_size(elem_type);
+            size_t nbytes = ValTrait<T>::size;
             auto byte_length = v.size() * nbytes;
             if (byte_length >= std::numeric_limits<size>::max())
             {
                 throw std::runtime_error("byte_length exceeds limit");
             }
-            uint32_t ptr = cx.realloc(0, 0, alignment(elem_type), byte_length);
-            if (ptr != align_to(ptr, alignment(elem_type)))
+            uint32_t ptr = cx.realloc(0, 0, ValTrait<T>::alignment, byte_length);
+            if (ptr != align_to(ptr, ValTrait<T>::alignment))
             {
                 throw std::runtime_error("ptr not aligned");
             }
@@ -48,8 +54,8 @@ namespace cmcpp
         void store(CallContext &cx, const list_t<T> &list, offset ptr)
         {
             auto [begin, length] = store_into_range(cx, list);
-            integer::store(cx, begin, ptr, 4);
-            integer::store(cx, length, ptr + 4, 4);
+            integer::store(cx, begin, ptr);
+            integer::store(cx, length, ptr + 4);
         }
 
         template <typename T>
@@ -62,14 +68,12 @@ namespace cmcpp
         template <typename T>
         list_t<T> load_from_range(const CallContext &cx, offset ptr, size length)
         {
-            auto elem_type = ValTrait<T>::type;
-            assert(ptr == align_to(ptr, alignment(elem_type)));
-            assert(ptr + length * elem_size(elem_type) <= cx.memory.size());
+            assert(ptr == align_to(ptr, ValTrait<T>::alignment));
+            assert(ptr + length * ValTrait<T>::size <= cx.memory.size());
             list_t<T> list = {};
             for (uint32_t i = 0; i < length; ++i)
             {
-                auto xxx = cmcpp::load<T>(cx, ptr + i * elem_size(elem_type));
-                list.push_back(xxx);
+                list.push_back(cmcpp::load<T>(cx, ptr + i * ValTrait<T>::size));
             }
             return list;
         }
@@ -89,6 +93,18 @@ namespace cmcpp
             auto length = vi.next<int32_t>();
             return load_from_range<T>(cx, ptr, length);
         }
+    }
+
+    template <List T>
+    inline void store(CallContext &cx, const list_t<typename ValTrait<T>::inner_type> &v, uint32_t ptr)
+    {
+        list::store(cx, v, ptr);
+    }
+
+    template <List T>
+    inline list_t<typename ValTrait<T>::inner_type> load(const CallContext &cx, uint32_t ptr)
+    {
+        return list::load<typename ValTrait<T>::inner_type>(cx, ptr);
     }
 }
 

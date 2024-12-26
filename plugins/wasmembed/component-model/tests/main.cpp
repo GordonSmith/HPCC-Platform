@@ -160,6 +160,31 @@ TEST_CASE("List")
     CHECK(std::string((const char *)strs[1].ptr, strs[1].byte_len) == std::string(hw, strs[1].byte_len));  
 }
 
+TEST_CASE("List2")
+{
+    Heap heap(1024*1024);
+    auto cx = createCallContext(&heap, Encoding::Utf8);
+    list_t<list_t<string_t>> strings = {{string_t{Encoding::Utf8, (const char8_t*)hw, 5}, string_t{Encoding::Utf8, (const char8_t*)hw, 3}}, {string_t{Encoding::Utf8, (const char8_t*)hw, 5}, string_t{Encoding::Utf8, (const char8_t*)hw, 3}}, {string_t{Encoding::Utf8, (const char8_t*)hw, 5}, string_t{Encoding::Utf8, (const char8_t*)hw, 3}}};
+    auto v = lower_flat(*cx, strings);
+    auto strs = lift_flat<list_t<list_t<string_t>>>(*cx, v);
+    CHECK(strs.size() == 3);
+    CHECK(strs[0][0].encoding == Encoding::Utf8);
+    CHECK(strs[0][0].byte_len == 5);
+    CHECK(std::string((const char *)strs[0][0].ptr, strs[0][0].byte_len) == std::string(hw, strs[0][0].byte_len));
+    CHECK(strs[1][0].encoding == Encoding::Utf8);
+    CHECK(strs[1][0].byte_len == 5);
+    CHECK(std::string((const char *)strs[0][1].ptr, strs[0][1].byte_len) == std::string(hw, strs[0][1].byte_len));  
+    v = lower_flat(*cx, strings);
+    strs = lift_flat<list_t<list_t<string_t>>>(*cx, v);
+    CHECK(strs.size() == 3);
+    CHECK(strs[0][0].encoding == Encoding::Utf8);
+    CHECK(strs[0][0].byte_len == 5);
+    CHECK(std::string((const char *)strs[0][0].ptr, strs[0][0].byte_len) == std::string(hw, strs[0][0].byte_len));
+    CHECK(strs[1][0].encoding == Encoding::Utf8);
+    CHECK(strs[1][0].byte_len == 5);
+    CHECK(std::string((const char *)strs[0][1].ptr, strs[0][1].byte_len) == std::string(hw, strs[0][1].byte_len));  
+}
+
 // TEST_CASE("Tuple")
 // {
 //     auto tt = std::make_shared<tuple_t>(std::vector<Val>{std::make_shared<tuple_t>(std::vector<Val>{uint8_t(), uint8_t()}),

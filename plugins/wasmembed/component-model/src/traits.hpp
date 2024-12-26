@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <array>
 #include <cassert>
+#include <limits>
 
 //  See canonical ABI:
 //  https://github.com/WebAssembly/component-model/blob/main/design/mvp/canonical-abi/definitions.py
@@ -120,22 +121,13 @@ namespace cmcpp
 
     using bool_t = bool;
 
-    enum class Alignment : uint8_t
-    {
-        UNKNOWN = 0,
-        byte = 1,
-        halfWord = 2,
-        word = 4,
-        doubleWord = 8
-    };
-
     template <typename T>
     struct ValTrait
     {
         static constexpr ValType type = ValType::UNKNOWN;
         using inner_type = void;
         static constexpr size_t size = 0;
-        static constexpr Alignment alignment = Alignment::UNKNOWN;
+        static constexpr uint32_t alignment = 0;
         static constexpr std::initializer_list<WasmValType> flat_types = {};
     };
 
@@ -144,7 +136,7 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::Bool;
         static constexpr size_t size = 1;
-        static constexpr Alignment alignment = Alignment::byte;
+        static constexpr uint32_t alignment = 1;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
     };
 
@@ -153,11 +145,11 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::S8;
         static constexpr size_t size = 1;
-        static constexpr Alignment alignment = Alignment::byte;
+        static constexpr uint32_t alignment = 1;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
 
-        static constexpr int8_t LOW_VALUE = -(2 ^ 7);
-        static constexpr int8_t HIGH_VALUE = (2 ^ 7) - 1;
+        static constexpr int8_t LOW_VALUE = std::numeric_limits<int8_t>::lowest();
+        static constexpr int8_t HIGH_VALUE = std::numeric_limits<int8_t>::max();
     };
 
     template <>
@@ -165,11 +157,11 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::U8;
         static constexpr size_t size = 1;
-        static constexpr Alignment alignment = Alignment::byte;
+        static constexpr uint32_t alignment = 1;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
 
-        static constexpr int8_t LOW_VALUE = 0;
-        static constexpr int8_t HIGH_VALUE = (2 ^ 8) - 1;
+        static constexpr int8_t LOW_VALUE = std::numeric_limits<uint8_t>::lowest();
+        static constexpr int8_t HIGH_VALUE = std::numeric_limits<uint8_t>::max();
     };
 
     template <>
@@ -177,11 +169,11 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::S16;
         static constexpr size_t size = 2;
-        static constexpr Alignment alignment = Alignment::halfWord;
+        static constexpr uint32_t alignment = 2;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
 
-        static constexpr int16_t LOW_VALUE = -(2 ^ 15);
-        static constexpr int16_t HIGH_VALUE = (2 ^ 15) - 1;
+        static constexpr int16_t LOW_VALUE = std::numeric_limits<int16_t>::lowest();
+        static constexpr int16_t HIGH_VALUE = std::numeric_limits<int16_t>::max();
     };
 
     template <>
@@ -189,11 +181,11 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::U16;
         static constexpr size_t size = 2;
-        static constexpr Alignment alignment = Alignment::halfWord;
+        static constexpr uint32_t alignment = 2;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
 
-        static constexpr uint16_t LOW_VALUE = 0;
-        static constexpr uint16_t HIGH_VALUE = (2 ^ 32) - 1;
+        static constexpr uint16_t LOW_VALUE = std::numeric_limits<uint16_t>::lowest();
+        static constexpr uint16_t HIGH_VALUE = std::numeric_limits<uint16_t>::max();
     };
 
     template <>
@@ -201,11 +193,11 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::S32;
         static constexpr size_t size = 4;
-        static constexpr Alignment alignment = Alignment::word;
+        static constexpr uint32_t alignment = 4;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
 
-        static constexpr int32_t LOW_VALUE = -(2 ^ 31);
-        static constexpr int32_t HIGH_VALUE = (2 ^ 31) - 1;
+        static constexpr int32_t LOW_VALUE = std::numeric_limits<int32_t>::lowest();
+        static constexpr int32_t HIGH_VALUE = std::numeric_limits<int32_t>::max();
     };
 
     template <>
@@ -213,11 +205,11 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::U32;
         static constexpr size_t size = 4;
-        static constexpr Alignment alignment = Alignment::word;
+        static constexpr uint32_t alignment = 4;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
 
-        static constexpr uint32_t LOW_VALUE = 0;
-        static constexpr uint32_t HIGH_VALUE = (2 ^ 32) - 1;
+        static constexpr uint32_t LOW_VALUE = std::numeric_limits<uint32_t>::lowest();
+        static constexpr uint32_t HIGH_VALUE = std::numeric_limits<uint32_t>::max();
     };
 
     template <>
@@ -225,11 +217,11 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::S64;
         static constexpr size_t size = 8;
-        static constexpr Alignment alignment = Alignment::doubleWord;
+        static constexpr uint32_t alignment = 8;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
 
-        static constexpr int64_t LOW_VALUE = -(2 ^ 63);
-        static constexpr int64_t HIGH_VALUE = (2 ^ 63) - 1;
+        static constexpr int64_t LOW_VALUE = std::numeric_limits<int64_t>::lowest();
+        static constexpr int64_t HIGH_VALUE = std::numeric_limits<int64_t>::max();
     };
 
     template <>
@@ -237,11 +229,11 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::U64;
         static constexpr size_t size = 8;
-        static constexpr Alignment alignment = Alignment::doubleWord;
+        static constexpr uint32_t alignment = 8;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
 
-        static constexpr uint64_t LOW_VALUE = 0;
-        static constexpr uint64_t HIGH_VALUE = (2 ^ 64) - 1;
+        static constexpr uint64_t LOW_VALUE = std::numeric_limits<uint64_t>::lowest();
+        static constexpr uint64_t HIGH_VALUE = std::numeric_limits<uint64_t>::max();
     };
 
     template <>
@@ -249,11 +241,11 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::F32;
         static constexpr size_t size = 4;
-        static constexpr Alignment alignment = Alignment::word;
+        static constexpr uint32_t alignment = 4;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::f32};
 
-        static constexpr float32_t LOW_VALUE = -3.4028234663852886e+38;
-        static constexpr float32_t HIGH_VALUE = 3.4028234663852886e+38;
+        static constexpr float32_t LOW_VALUE = std::numeric_limits<float32_t>::lowest();
+        static constexpr float32_t HIGH_VALUE = std::numeric_limits<float32_t>::max();
         static constexpr float32_t NAN = 0x7fc00000;
     };
 
@@ -262,11 +254,11 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::F64;
         static constexpr size_t size = 8;
-        static constexpr Alignment alignment = Alignment::doubleWord;
+        static constexpr uint32_t alignment = 8;
         static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::f64};
 
-        static constexpr float64_t LOW_VALUE = -1.7976931348623157e+308;
-        static constexpr float64_t HIGH_VALUE = 1.7976931348623157e+308;
+        static constexpr float64_t LOW_VALUE = std::numeric_limits<float64_t>::lowest();
+        static constexpr float64_t HIGH_VALUE = std::numeric_limits<float64_t>::max();
         static constexpr float64_t NAN = 0x7ff8000000000000;
     };
 
@@ -286,6 +278,9 @@ namespace cmcpp
     struct ValTrait<string_t>
     {
         static constexpr ValType type = ValType::String;
+        static constexpr size_t size = 8;
+        static constexpr uint32_t alignment = 4;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32, WasmValType::i32};
     };
 
     template <typename T>
@@ -295,6 +290,9 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::List;
         using inner_type = T;
+        static constexpr size_t size = 8;
+        static constexpr uint32_t alignment = 4;
+        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32, WasmValType::i32};
     };
 
     template <typename T>
@@ -308,6 +306,7 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::Field;
         using inner_type = T;
+        
     };
 
     template <typename... Fields>

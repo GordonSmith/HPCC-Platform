@@ -232,9 +232,9 @@ namespace cmcpp
 
         string_t load_from_range(const CallContext &cx, uint32_t ptr, uint32_t tagged_code_units)
         {
-            uint32_t alignment;
-            uint32_t byte_length;
-            Encoding encoding;
+            uint32_t alignment = 0;
+            uint32_t byte_length = 0;
+            Encoding encoding = Encoding::Utf8;
             switch (cx.guest_encoding)
             {
             case Encoding::Utf8:
