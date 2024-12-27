@@ -4,6 +4,7 @@
 #include "context.hpp"
 
 #include <cstring>
+#include <iostream>
 #include <cassert>
 
 namespace cmcpp
@@ -19,13 +20,11 @@ namespace cmcpp
         }
 
         template <typename T>
-        WasmValVector lower_flat_signed(T v, int core_bits)
+        WasmValVector lower_flat_signed(const T &v, uint32_t core_bits)
         {
-            if (v < 0)
-            {
-                v += 1 << core_bits;
-            }
-            return {static_cast<int32_t>(v)};
+            using WasmValType = ValTrait<T>::flat_type;
+            WasmValType retVal = v;
+            return {v};
         }
 
         template <typename T>
@@ -36,24 +35,22 @@ namespace cmcpp
             return retVal;
         }
 
-        template <typename R, typename T>
-        T lift_flat_unsigned(const WasmValVectorIterator &vi, int core_width, int t_width)
+        template <typename T>
+        T lift_flat_unsigned(const WasmValVectorIterator &vi, uint32_t core_width, uint32_t t_width)
         {
-            auto i = vi.next<T>();
-            assert(0 <= i && i < (1 << core_width));
-            return i % (1 << t_width);
+            using WasmValType = ValTrait<T>::flat_type;
+            auto retVal = vi.next<WasmValType>();
+            assert(ValTrait<WasmValType>::LOW_VALUE <= retVal && retVal < ValTrait<WasmValType>::HIGH_VALUE);
+            return retVal;
         }
 
-        template <typename R, typename T>
-        T lift_flat_signed(const WasmValVectorIterator &vi, int core_width, int t_width)
+        template <typename T>
+        T lift_flat_signed(const WasmValVectorIterator &vi, uint32_t core_width, uint32_t t_width)
         {
-            auto i = vi.next<T>();
-            assert(0 <= i && i < (1 << core_width));
-            if (i >= (1 << (t_width - 1)))
-            {
-                return i - (1 << t_width);
-            }
-            return i;
+            using WasmValType = ValTrait<T>::flat_type;
+            auto retVal = static_cast<T>(vi.next<WasmValType>());
+            assert(ValTrait<T>::LOW_VALUE <= retVal && retVal <= ValTrait<T>::HIGH_VALUE);
+            return retVal;
         }
     }
 }

@@ -39,7 +39,7 @@ public:
         if (last_alloc > memory.size())
         {
             std::cout << "oom: have " << memory.size() << " need " << last_alloc << std::endl;
-            trap("oom"); 
+            trap("oom");
         }
         std::memcpy(&memory[ret], &memory[original_ptr], original_size);
         return ret;
@@ -48,12 +48,11 @@ public:
 
 std::unique_ptr<CallContext> createCallContext(Heap *heap, Encoding encoding)
 {
-    std::unique_ptr<cmcpp::InstanceContext> instanceContext = std::make_unique<cmcpp::InstanceContext>(trap, convert, 
-        [heap](int original_ptr, int original_size, int alignment, int new_size) -> int
-        { 
-            return heap->realloc(original_ptr, original_size, alignment, new_size); 
-        }
-    );
+    std::unique_ptr<cmcpp::InstanceContext> instanceContext = std::make_unique<cmcpp::InstanceContext>(trap, convert,
+                                                                                                       [heap](int original_ptr, int original_size, int alignment, int new_size) -> int
+                                                                                                       {
+                                                                                                           return heap->realloc(original_ptr, original_size, alignment, new_size);
+                                                                                                       });
     return instanceContext->createCallContext(heap->memory, encoding);
 }
 
@@ -113,22 +112,72 @@ std::unique_ptr<CallContext> createCallContext(Heap *heap, Encoding encoding)
 //     // CHECK(!equal_modulo_string_encoding(got, lower_v));
 // }
 
-const char * const hw = "hello world";
-
 TEST_CASE("Boolean")
 {
-    Heap heap(1024*1024);
+    Heap heap(1024 * 1024);
     auto cx = createCallContext(&heap, Encoding::Utf8);
-    auto v = lower_flat(*cx, true);
+    auto v = lower_flat<bool_t>(*cx, true);
     auto b = lift_flat<bool_t>(*cx, v);
     CHECK(b == true);
+    v = lower_flat<bool_t>(*cx, false);
+    b = lift_flat<bool_t>(*cx, v);
+    CHECK(b == false);
 }
 
+template <typename T>
+void test_numeric(const std::unique_ptr<CallContext> &cx, T v = 42)
+{
+    auto flat_v = lower_flat<T>(*cx, v);
+    auto b = lift_flat<T>(*cx, flat_v);
+    CHECK(b == v);
+    v = ValTrait<T>::LOW_VALUE;
+    flat_v = lower_flat<T>(*cx, v);
+    b = lift_flat<T>(*cx, flat_v);
+    CHECK(b == v);
+    v = ValTrait<T>::HIGH_VALUE;
+    flat_v = lower_flat<T>(*cx, v);
+    b = lift_flat<T>(*cx, flat_v);
+    CHECK(b == v);
+}
+
+TEST_CASE("Signed Integer")
+{
+    Heap heap(1024 * 1024);
+    auto cx = createCallContext(&heap, Encoding::Utf8);
+    test_numeric<int8_t>(cx);
+    test_numeric<int16_t>(cx);
+    test_numeric<int32_t>(cx);
+    test_numeric<int64_t>(cx);
+    test_numeric<int8_t>(cx, -42);
+    test_numeric<int16_t>(cx, -42);
+    test_numeric<int32_t>(cx, -42);
+    test_numeric<int64_t>(cx, -42);
+}
+
+TEST_CASE("Unigned Integer")
+{
+    Heap heap(1024 * 1024);
+    auto cx = createCallContext(&heap, Encoding::Utf8);
+    test_numeric<uint8_t>(cx);
+    test_numeric<uint16_t>(cx);
+    test_numeric<uint32_t>(cx);
+    test_numeric<uint64_t>(cx);
+}
+
+TEST_CASE("Float")
+{
+    Heap heap(1024 * 1024);
+    auto cx = createCallContext(&heap, Encoding::Utf8);
+    test_numeric<float32_t>(cx);
+    test_numeric<float64_t>(cx);
+}
+
+const char *const hw = "hello world";
 TEST_CASE("String")
 {
-    Heap heap(1024*1024);
+    Heap heap(1024 * 1024);
     auto cx = createCallContext(&heap, Encoding::Utf8);
-    auto v = lower_flat(*cx, string_t{Encoding::Utf8, (const char8_t*)hw, strlen(hw)});
+    auto v = lower_flat(*cx, string_t{Encoding::Utf8, (const char8_t *)hw, strlen(hw)});
     auto str = lift_flat<string_t>(*cx, v);
     CHECK(str.encoding == Encoding::Utf8);
     CHECK(str.byte_len == strlen(hw));
@@ -137,9 +186,9 @@ TEST_CASE("String")
 
 TEST_CASE("List")
 {
-    Heap heap(1024*1024);
+    Heap heap(1024 * 1024);
     auto cx = createCallContext(&heap, Encoding::Utf8);
-    list_t<string_t> strings = {string_t{Encoding::Utf8, (const char8_t*)hw, 5}, string_t{Encoding::Utf8, (const char8_t*)hw, 3}};
+    list_t<string_t> strings = {string_t{Encoding::Utf8, (const char8_t *)hw, 5}, string_t{Encoding::Utf8, (const char8_t *)hw, 3}};
     auto v = lower_flat(*cx, strings);
     auto strs = lift_flat<list_t<string_t>>(*cx, v);
     CHECK(strs.size() == 2);
@@ -148,7 +197,7 @@ TEST_CASE("List")
     CHECK(std::string((const char *)strs[0].ptr, strs[0].byte_len) == std::string(hw, strs[0].byte_len));
     CHECK(strs[1].encoding == Encoding::Utf8);
     CHECK(strs[1].byte_len == 3);
-    CHECK(std::string((const char *)strs[1].ptr, strs[1].byte_len) == std::string(hw, strs[1].byte_len));  
+    CHECK(std::string((const char *)strs[1].ptr, strs[1].byte_len) == std::string(hw, strs[1].byte_len));
     v = lower_flat(*cx, strings);
     strs = lift_flat<list_t<string_t>>(*cx, v);
     CHECK(strs.size() == 2);
@@ -157,14 +206,14 @@ TEST_CASE("List")
     CHECK(std::string((const char *)strs[0].ptr, strs[0].byte_len) == std::string(hw, strs[0].byte_len));
     CHECK(strs[1].encoding == Encoding::Utf8);
     CHECK(strs[1].byte_len == 3);
-    CHECK(std::string((const char *)strs[1].ptr, strs[1].byte_len) == std::string(hw, strs[1].byte_len));  
+    CHECK(std::string((const char *)strs[1].ptr, strs[1].byte_len) == std::string(hw, strs[1].byte_len));
 }
 
 TEST_CASE("List2")
 {
-    Heap heap(1024*1024);
+    Heap heap(1024 * 1024);
     auto cx = createCallContext(&heap, Encoding::Utf8);
-    list_t<list_t<string_t>> strings = {{string_t{Encoding::Utf8, (const char8_t*)hw, 5}, string_t{Encoding::Utf8, (const char8_t*)hw, 3}}, {string_t{Encoding::Utf8, (const char8_t*)hw, 5}, string_t{Encoding::Utf8, (const char8_t*)hw, 3}}, {string_t{Encoding::Utf8, (const char8_t*)hw, 5}, string_t{Encoding::Utf8, (const char8_t*)hw, 3}}};
+    list_t<list_t<string_t>> strings = {{string_t{Encoding::Utf8, (const char8_t *)hw, 5}, string_t{Encoding::Utf8, (const char8_t *)hw, 3}}, {string_t{Encoding::Utf8, (const char8_t *)hw, 5}, string_t{Encoding::Utf8, (const char8_t *)hw, 3}}, {string_t{Encoding::Utf8, (const char8_t *)hw, 5}, string_t{Encoding::Utf8, (const char8_t *)hw, 3}}};
     auto v = lower_flat(*cx, strings);
     auto strs = lift_flat<list_t<list_t<string_t>>>(*cx, v);
     CHECK(strs.size() == 3);
@@ -173,7 +222,7 @@ TEST_CASE("List2")
     CHECK(std::string((const char *)strs[0][0].ptr, strs[0][0].byte_len) == std::string(hw, strs[0][0].byte_len));
     CHECK(strs[1][0].encoding == Encoding::Utf8);
     CHECK(strs[1][0].byte_len == 5);
-    CHECK(std::string((const char *)strs[0][1].ptr, strs[0][1].byte_len) == std::string(hw, strs[0][1].byte_len));  
+    CHECK(std::string((const char *)strs[0][1].ptr, strs[0][1].byte_len) == std::string(hw, strs[0][1].byte_len));
     v = lower_flat(*cx, strings);
     strs = lift_flat<list_t<list_t<string_t>>>(*cx, v);
     CHECK(strs.size() == 3);
@@ -182,7 +231,7 @@ TEST_CASE("List2")
     CHECK(std::string((const char *)strs[0][0].ptr, strs[0][0].byte_len) == std::string(hw, strs[0][0].byte_len));
     CHECK(strs[1][0].encoding == Encoding::Utf8);
     CHECK(strs[1][0].byte_len == 5);
-    CHECK(std::string((const char *)strs[0][1].ptr, strs[0][1].byte_len) == std::string(hw, strs[0][1].byte_len));  
+    CHECK(std::string((const char *)strs[0][1].ptr, strs[0][1].byte_len) == std::string(hw, strs[0][1].byte_len));
 }
 
 // TEST_CASE("Tuple")

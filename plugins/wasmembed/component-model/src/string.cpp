@@ -277,8 +277,8 @@ namespace cmcpp
 
         string_t lift_flat(const CallContext &cx, const WasmValVectorIterator &vi)
         {
-            auto ptr = vi.next<int32_t>();
-            auto packed_length = vi.next<int32_t>();
+            auto ptr = vi.next<ValTrait<string_t>::flat_type_0>();
+            auto packed_length = vi.next<ValTrait<string_t>::flat_type_1>();
             return load_from_range(cx, ptr, packed_length);
         }
     };

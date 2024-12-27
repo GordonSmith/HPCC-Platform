@@ -4,48 +4,42 @@
 #include "context.hpp"
 #include "integer.hpp"
 
+#include <cmath>
+
 namespace cmcpp
 {
 
     namespace float_
     {
-        inline float32_t decode_i32_as_float(int32_t i)
+        int32_t encode_float_as_i32(float32_t f);
+        int64_t encode_float_as_i64(float64_t f);
+        float32_t decode_i32_as_float(int32_t i);
+        float64_t decode_i64_as_float(int64_t i);
+        float32_t core_f32_reinterpret_i32(int32_t i)
         {
-            return *reinterpret_cast<float32_t*>(&i);
+            float f;
+            std::memcpy(&f, &i, sizeof f);
+            return f;
         }
 
-        inline float64_t decode_i64_as_float(int64_t i)
+        template <Float T>
+        T canonicalize_nan(T f)
         {
-            return *reinterpret_cast<float64_t*>(&i);
+            if (!std::isfinite(f))
+            {
+                f = std::numeric_limits<T>::quiet_NaN();
+            }
+            return f;
         }
 
-        inline int32_t encode_float_as_i32(float32_t f)
+        template <Float T>
+        T maybe_scramble_nan(T f)
         {
-            return *reinterpret_cast<int32_t*>(&f);
-        }
-
-        inline int64_t encode_float_as_i64(float64_t f)
-        {
-            return *reinterpret_cast<int64_t*>(&f);
-        }
-
-        template <typename T>
-        T load(const CallContext &cx, offset ptr)
-        {
-            cx.trap("load of unsupported type");
-            throw std::runtime_error("trap not terminating execution");
-        }
-
-        template <>
-        inline float32_t load<float32_t>(const CallContext &cx, offset ptr)
-        {
-            return decode_i32_as_float(integer::load<int32_t>(cx, ptr));
-        }
-
-        template <>
-        inline float64_t load<float64_t>(const CallContext &cx, offset ptr)
-        {
-            return decode_i64_as_float(integer::load<int64_t>(cx, ptr));
+            if (!std::isfinite(f))
+            {
+                f = std::numeric_limits<T>::quiet_NaN();
+            }
+            return f;
         }
 
         template <typename T>
@@ -67,6 +61,24 @@ namespace cmcpp
             integer::store(cx, encode_float_as_i64(v), ptr);
         }
 
+        template <typename T>
+        T load(const CallContext &cx, offset ptr)
+        {
+            cx.trap("load of unsupported type");
+            throw std::runtime_error("trap not terminating execution");
+        }
+
+        template <>
+        inline float32_t load<float32_t>(const CallContext &cx, offset ptr)
+        {
+            return decode_i32_as_float(integer::load<int32_t>(cx, ptr));
+        }
+
+        template <>
+        inline float64_t load<float64_t>(const CallContext &cx, offset ptr)
+        {
+            return decode_i64_as_float(integer::load<int64_t>(cx, ptr));
+        }
     }
 }
 

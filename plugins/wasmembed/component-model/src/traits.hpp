@@ -78,6 +78,13 @@ namespace cmcpp
         static constexpr WasmValType type = WasmValType::f64;
     };
 
+    template <typename T>
+    concept WasmValT =
+        WasmValTrait<T>::type == WasmValType::i32 ||
+        WasmValTrait<T>::type == WasmValType::i64 ||
+        WasmValTrait<T>::type == WasmValType::f32 ||
+        WasmValTrait<T>::type == WasmValType::f64;
+
     //  --------------------------------------------------------------------
 
     enum class Encoding
@@ -126,27 +133,27 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::UNKNOWN;
         using inner_type = void;
-        static constexpr size_t size = 0;
+        static constexpr uint32_t size = 0;
         static constexpr uint32_t alignment = 0;
-        static constexpr std::initializer_list<WasmValType> flat_types = {};
+        using flat_types = void;
     };
 
     template <>
     struct ValTrait<bool_t>
     {
         static constexpr ValType type = ValType::Bool;
-        static constexpr size_t size = 1;
+        static constexpr uint32_t size = 1;
         static constexpr uint32_t alignment = 1;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+        using flat_type = int32_t;
     };
 
     template <>
     struct ValTrait<int8_t>
     {
         static constexpr ValType type = ValType::S8;
-        static constexpr size_t size = 1;
+        static constexpr uint32_t size = 1;
         static constexpr uint32_t alignment = 1;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+        using flat_type = int32_t;
 
         static constexpr int8_t LOW_VALUE = std::numeric_limits<int8_t>::lowest();
         static constexpr int8_t HIGH_VALUE = std::numeric_limits<int8_t>::max();
@@ -156,9 +163,9 @@ namespace cmcpp
     struct ValTrait<uint8_t>
     {
         static constexpr ValType type = ValType::U8;
-        static constexpr size_t size = 1;
+        static constexpr uint32_t size = 1;
         static constexpr uint32_t alignment = 1;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+        using flat_type = int32_t;
 
         static constexpr int8_t LOW_VALUE = std::numeric_limits<uint8_t>::lowest();
         static constexpr int8_t HIGH_VALUE = std::numeric_limits<uint8_t>::max();
@@ -168,9 +175,9 @@ namespace cmcpp
     struct ValTrait<int16_t>
     {
         static constexpr ValType type = ValType::S16;
-        static constexpr size_t size = 2;
+        static constexpr uint32_t size = 2;
         static constexpr uint32_t alignment = 2;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+        using flat_type = int32_t;
 
         static constexpr int16_t LOW_VALUE = std::numeric_limits<int16_t>::lowest();
         static constexpr int16_t HIGH_VALUE = std::numeric_limits<int16_t>::max();
@@ -180,9 +187,9 @@ namespace cmcpp
     struct ValTrait<uint16_t>
     {
         static constexpr ValType type = ValType::U16;
-        static constexpr size_t size = 2;
+        static constexpr uint32_t size = 2;
         static constexpr uint32_t alignment = 2;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+        using flat_type = int32_t;
 
         static constexpr uint16_t LOW_VALUE = std::numeric_limits<uint16_t>::lowest();
         static constexpr uint16_t HIGH_VALUE = std::numeric_limits<uint16_t>::max();
@@ -192,9 +199,9 @@ namespace cmcpp
     struct ValTrait<int32_t>
     {
         static constexpr ValType type = ValType::S32;
-        static constexpr size_t size = 4;
+        static constexpr uint32_t size = 4;
         static constexpr uint32_t alignment = 4;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+        using flat_type = int32_t;
 
         static constexpr int32_t LOW_VALUE = std::numeric_limits<int32_t>::lowest();
         static constexpr int32_t HIGH_VALUE = std::numeric_limits<int32_t>::max();
@@ -204,9 +211,9 @@ namespace cmcpp
     struct ValTrait<uint32_t>
     {
         static constexpr ValType type = ValType::U32;
-        static constexpr size_t size = 4;
+        static constexpr uint32_t size = 4;
         static constexpr uint32_t alignment = 4;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+        using flat_type = int32_t;
 
         static constexpr uint32_t LOW_VALUE = std::numeric_limits<uint32_t>::lowest();
         static constexpr uint32_t HIGH_VALUE = std::numeric_limits<uint32_t>::max();
@@ -216,9 +223,9 @@ namespace cmcpp
     struct ValTrait<int64_t>
     {
         static constexpr ValType type = ValType::S64;
-        static constexpr size_t size = 8;
+        static constexpr uint32_t size = 8;
         static constexpr uint32_t alignment = 8;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+        using flat_type = int64_t;
 
         static constexpr int64_t LOW_VALUE = std::numeric_limits<int64_t>::lowest();
         static constexpr int64_t HIGH_VALUE = std::numeric_limits<int64_t>::max();
@@ -228,9 +235,9 @@ namespace cmcpp
     struct ValTrait<uint64_t>
     {
         static constexpr ValType type = ValType::U64;
-        static constexpr size_t size = 8;
+        static constexpr uint32_t size = 8;
         static constexpr uint32_t alignment = 8;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32};
+        using flat_type = int64_t;
 
         static constexpr uint64_t LOW_VALUE = std::numeric_limits<uint64_t>::lowest();
         static constexpr uint64_t HIGH_VALUE = std::numeric_limits<uint64_t>::max();
@@ -240,26 +247,24 @@ namespace cmcpp
     struct ValTrait<float32_t>
     {
         static constexpr ValType type = ValType::F32;
-        static constexpr size_t size = 4;
+        static constexpr uint32_t size = 4;
         static constexpr uint32_t alignment = 4;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::f32};
+        using flat_type = float32_t;
 
         static constexpr float32_t LOW_VALUE = std::numeric_limits<float32_t>::lowest();
         static constexpr float32_t HIGH_VALUE = std::numeric_limits<float32_t>::max();
-        static constexpr float32_t NAN = 0x7fc00000;
     };
 
     template <>
     struct ValTrait<float64_t>
     {
         static constexpr ValType type = ValType::F64;
-        static constexpr size_t size = 8;
+        static constexpr uint32_t size = 8;
         static constexpr uint32_t alignment = 8;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::f64};
+        using flat_type = float64_t;
 
         static constexpr float64_t LOW_VALUE = std::numeric_limits<float64_t>::lowest();
         static constexpr float64_t HIGH_VALUE = std::numeric_limits<float64_t>::max();
-        static constexpr float64_t NAN = 0x7ff8000000000000;
     };
 
     template <>
@@ -278,9 +283,10 @@ namespace cmcpp
     struct ValTrait<string_t>
     {
         static constexpr ValType type = ValType::String;
-        static constexpr size_t size = 8;
+        static constexpr uint32_t size = 8;
         static constexpr uint32_t alignment = 4;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32, WasmValType::i32};
+        using flat_type_0 = int32_t;
+        using flat_type_1 = int32_t;
     };
 
     template <typename T>
@@ -290,9 +296,10 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::List;
         using inner_type = T;
-        static constexpr size_t size = 8;
+        static constexpr uint32_t size = 8;
         static constexpr uint32_t alignment = 4;
-        static constexpr std::initializer_list<WasmValType> flat_types = {WasmValType::i32, WasmValType::i32};
+        using flat_type_0 = int32_t;
+        using flat_type_1 = int32_t;
     };
 
     template <typename T>
@@ -306,7 +313,6 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::Field;
         using inner_type = T;
-        
     };
 
     template <typename... Fields>
