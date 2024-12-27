@@ -6,6 +6,7 @@
 #include "float.hpp"
 #include "string.hpp"
 #include "list.hpp"
+#include "record.hpp"
 #include "util.hpp"
 
 #include <tuple>
@@ -49,7 +50,13 @@ namespace cmcpp
     template <List T>
     inline WasmValVector lower_flat(CallContext &cx, const T &v)
     {
-        return list::lower_flat<typename ValTrait<T>::inner_type>(cx, v);
+        return list::lower_flat(cx, v);
+    }
+
+    template <Record T>
+    inline WasmValVector lower_flat(CallContext &cx, const T &v)
+    {
+        return record::lower_flat(cx, v);
     }
 }
 

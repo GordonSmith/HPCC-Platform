@@ -302,28 +302,39 @@ namespace cmcpp
         using flat_type_1 = int32_t;
     };
 
-    template <typename T>
-    struct field_t
+    template <std::size_t N>
+    struct StringLiteral
     {
-        std::string label;
-        T v;
-    };
-    template <typename T>
-    struct ValTrait<field_t<T>>
-    {
-        static constexpr ValType type = ValType::Field;
-        using inner_type = T;
+        constexpr StringLiteral(const char (&str)[N])
+        {
+            std::copy(str, str + N, value);
+        }
+        char value[N];
     };
 
-    template <typename... Fields>
-    struct record_t
+    template <StringLiteral L, typename T>
+    struct field_t
     {
-        std::array<field_t<Fields>...> fields;
+        T v;
+        std::string_view label=L.value;
     };
-    template <typename... Fields>
-    struct ValTrait<record_t<Fields...>>
+    template <StringLiteral L, typename T>
+    struct ValTrait<field_t<L, T>>
+    {
+        static constexpr ValType type = ValType::Field;
+        static constexpr const char *label = L.value;
+        using inner_type = T;
+    };
+    template <typename T>
+    concept Field = ValTrait<T>::type == ValType::Field;
+
+    template <Field... Ts>
+    using record_t = std::tuple<Ts...>;
+    template <Field... Ts>
+    struct ValTrait<record_t<Ts...>>
     {
         static constexpr ValType type = ValType::Record;
+        using inner_type = typename std::tuple<Ts...>;
     };
 
     template <typename... Ts>
@@ -410,6 +421,9 @@ namespace cmcpp
 
     template <typename T>
     concept List = ValTrait<T>::type == ValType::List;
+
+    template <typename T>
+    concept Record = ValTrait<T>::type == ValType::Record;
 
     //  --------------------------------------------------------------------
 

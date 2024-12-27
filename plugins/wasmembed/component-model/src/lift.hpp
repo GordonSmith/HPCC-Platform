@@ -6,6 +6,7 @@
 #include "float.hpp"
 #include "string.hpp"
 #include "list.hpp"
+#include "record.hpp"
 #include "util.hpp"
 
 namespace cmcpp
@@ -44,6 +45,13 @@ namespace cmcpp
     inline T lift_flat(const CallContext &cx, const WasmValVectorIterator &vi)
     {
         return list::lift_flat<typename ValTrait<T>::inner_type>(cx, vi);
+    }
+
+    template <Record T>
+    T lift_flat(const CallContext &cx, const WasmValVectorIterator &vi)
+    {
+        T result;
+        return record::lift_flat(cx, vi, result);
     }
 }
 

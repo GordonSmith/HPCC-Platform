@@ -15,12 +15,7 @@ namespace cmcpp
         int64_t encode_float_as_i64(float64_t f);
         float32_t decode_i32_as_float(int32_t i);
         float64_t decode_i64_as_float(int64_t i);
-        float32_t core_f32_reinterpret_i32(int32_t i)
-        {
-            float f;
-            std::memcpy(&f, &i, sizeof f);
-            return f;
-        }
+        float32_t core_f32_reinterpret_i32(int32_t i);
 
         template <Float T>
         T canonicalize_nan(T f)

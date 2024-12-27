@@ -23,5 +23,12 @@ namespace cmcpp
         {
             return *reinterpret_cast<float64_t*>(&i);
         }
+
+        float32_t core_f32_reinterpret_i32(int32_t i)
+        {
+            float f;
+            std::memcpy(&f, &i, sizeof f);
+            return f;
+        }
     }
 }
