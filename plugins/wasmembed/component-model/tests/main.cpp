@@ -234,37 +234,44 @@ TEST_CASE("List2")
     CHECK(std::string((const char *)strs[0][1].ptr, strs[0][1].byte_len) == std::string(hw, strs[0][1].byte_len));
 }
 
+struct MyRecord0 {
+    uint16_t age;
+    uint32_t weight;
+};
+
 TEST_CASE("Records")
 {
     Heap heap(1024 * 1024);
     auto cx = createCallContext(&heap, Encoding::Utf8);
-    field_t<"name", string_t> name = {{Encoding::Utf8, (const char8_t *)hw, 5}};
-    CHECK (ValTrait<decltype(name)>::label == std::string("name"));
-    CHECK (ValTrait<decltype(name)>::type == ValType::Field);
-    CHECK (ValTrait<ValTrait<decltype(name)>::inner_type>::type == ValType::String);
-    field_t<"age", uint8_t> age = {42};
-    CHECK (ValTrait<decltype(age)>::label == std::string("age"));
-    CHECK (ValTrait<decltype(age)>::type == ValType::Field);
-    CHECK (ValTrait<ValTrait<decltype(age)>::inner_type>::type == ValType::U8);
-    record_t<field_t<"name", string_t>, field_t<"age", uint8_t>> r = {{Encoding::Utf8, (const char8_t *)hw, 5}, {42}};
-    auto v = lower_flat<record_t<field_t<"name", string_t>, field_t<"age", uint8_t>>>(*cx, {{Encoding::Utf8, (const char8_t *)hw, 5}, {42}});
-    auto rr = lift_flat<record_t<field_t<"name", string_t>, field_t<"age", uint8_t>>>(*cx, v);
-    CHECK(std::get<0>(rr).label == "name");
-    CHECK(std::get<0>(rr).v.encoding == Encoding::Utf8);
-    CHECK(std::get<0>(rr).v.byte_len == 5);
-    CHECK(std::get<1>(rr).label == "age");
-    CHECK(std::get<1>(rr).v == 42);
-    record_t<field_t<"ages", list_t<uint32_t>>> ages = {{list_t<uint32_t>{42, 43, 44}}};
-    auto v2 = lower_flat(*cx, ages);
-    auto rr2 = lift_flat<decltype(ages)>(*cx, v2);
-    CHECK(std::get<0>(rr2).label == "ages");
-    CHECK(std::get<0>(rr2).v[0] == 42);
-    CHECK(std::get<0>(rr2).v[1] == 43);
-    CHECK(std::get<0>(rr2).v[2] == 44);
+
+    using R0 = record_t<uint16_t, uint32_t>;
+    R0 r0 = {42, 43};
+    auto v = lower_flat(*cx, r0);
+    auto rr = lift_flat<R0>(*cx, v);
+    CHECK(r0 == rr);
+    auto rr0 = to_struct<MyRecord0>(rr);
+    // CHECK(r2.age == rr0.age);
+    // CHECK(r2.weight == rr0.weight);
+
+    // StructWithFields<string_t, uint16_t> r2 = {string_t{Encoding::Utf8, (const char8_t *)"name", 5}, {42}};
+
+    // auto v = lower_flat<record_t<MyRecord1>>(*cx, r0);
+    // auto rr = lift_flat<MyRecord1>(*cx, v);
+    // CHECK(std::get<0>(rr).label == "name");
+    // CHECK(std::get<0>(rr).v.encoding == Encoding::Utf8);
+    // CHECK(std::get<0>(rr).v.byte_len == 5);
+    // CHECK(std::get<1>(rr).label == "age");
+    // CHECK(std::get<1>(rr).v == 42);
+    // record_t<field_t<"ages", list_t<uint32_t>>> ages = {{list_t<uint32_t>{42, 43, 44}}};
+    // auto v2 = lower_flat(*cx, ages);
+    // auto rr2 = lift_flat<decltype(ages)>(*cx, v2);
+    // CHECK(std::get<0>(rr2).label == "ages");
+    // CHECK(std::get<0>(rr2).v[0] == 42);
+    // CHECK(std::get<0>(rr2).v[1] == 43);
+    // CHECK(std::get<0>(rr2).v[2] == 44);
     // record_t<field_t<"ages", list_t<uint32_t>>> ages_record = record_t{list_t<uint32_t>{42, 43, 44}};
     // auto v2 = lower_flat<record_t<field_t<"ages", list_t<uint32_t>>>>(*cx, ages_record);
 
-    
     // record_t<string_t, uint32_t> r = { {"name", {Encoding::Utf8, (const char8_t *)hw, 5}}, {"age", 42} };
     // auto v = lower_flat<record_t<string_t, uint32_t>>(*cx, r);
     // auto rr = lift_flat<record_t<string_t, uint32_t>>(*cx, v);
@@ -272,7 +279,7 @@ TEST_CASE("Records")
     // CHECK(std::get<1>(rr).label == "age");
     // CHECK(std::get<1>(rr).v == 42);
     // record_t<string_t, uint32_t> r2 = { {"name", {Encoding::Utf8, (const char8_t *)hw, 5}}, {"age", 42} };
-    
+
     // CHECK(rr.fields[0].v.byte_len == 5);
     // CHECK(std::string((const char *)rr.fields[0].v.ptr, rr.fields[0].v.byte_len) == std::string(hw, rr.fields[0].v.byte_len));
     // CHECK(rr.fields[1].v == 42);

@@ -126,8 +126,7 @@ namespace cmcpp
         LAST
     };
 
-    using bool_t = bool;
-
+    //  ValTrait ---------------------------------------------------------------
     template <typename T>
     struct ValTrait
     {
@@ -138,6 +137,9 @@ namespace cmcpp
         using flat_types = void;
     };
 
+    //  Boolean  --------------------------------------------------------------------
+    using bool_t = bool;
+
     template <>
     struct ValTrait<bool_t>
     {
@@ -146,6 +148,10 @@ namespace cmcpp
         static constexpr uint32_t alignment = 1;
         using flat_type = int32_t;
     };
+    template <typename T>
+    concept Boolean = ValTrait<T>::type == ValType::Bool;
+
+    //  Numerics  --------------------------------------------------------------------
 
     template <>
     struct ValTrait<int8_t>
@@ -243,6 +249,16 @@ namespace cmcpp
         static constexpr uint64_t HIGH_VALUE = std::numeric_limits<uint64_t>::max();
     };
 
+    template <typename T>
+    concept Integer = ValTrait<T>::type == ValType::S8 || ValTrait<T>::type == ValType::S16 || ValTrait<T>::type == ValType::S32 || ValTrait<T>::type == ValType::S64 ||
+                      ValTrait<T>::type == ValType::U8 || ValTrait<T>::type == ValType::U16 || ValTrait<T>::type == ValType::U32 || ValTrait<T>::type == ValType::U64;
+
+    template <typename T>
+    concept SignedInteger = std::is_signed_v<T> && Integer<T>;
+
+    template <typename T>
+    concept UnsignedInteger = !std::is_signed_v<T> && Integer<T>;
+
     template <>
     struct ValTrait<float32_t>
     {
@@ -267,6 +283,26 @@ namespace cmcpp
         static constexpr float64_t HIGH_VALUE = std::numeric_limits<float64_t>::max();
     };
 
+    template <typename T>
+    concept Float = ValTrait<T>::type == ValType::F32 || ValTrait<T>::type == ValType::F64;
+
+    template <typename T>
+    concept Numeric = Integer<T> || Float<T>;
+
+    template <typename T>
+    concept Byte = ValTrait<T>::type == ValType::U8 || ValTrait<T>::type == ValType::S8;
+
+    template <typename T>
+    concept HalfWord = ValTrait<T>::type == ValType::U16 || ValTrait<T>::type == ValType::S16;
+
+    template <typename T>
+    concept Word = ValTrait<T>::type == ValType::U32 || ValTrait<T>::type == ValType::S32 || ValTrait<T>::type == ValType::F32;
+
+    template <typename T>
+    concept DoubleWord = ValTrait<T>::type == ValType::U64 || ValTrait<T>::type == ValType::S64 || ValTrait<T>::type == ValType::F64;
+
+    //  Strings --------------------------------------------------------------------
+
     template <>
     struct ValTrait<char8_t>
     {
@@ -288,6 +324,10 @@ namespace cmcpp
         using flat_type_0 = int32_t;
         using flat_type_1 = int32_t;
     };
+    template <typename T>
+    concept String = ValTrait<T>::type == ValType::String;
+
+    //  List  --------------------------------------------------------------------
 
     template <typename T>
     using list_t = std::vector<T>;
@@ -296,37 +336,19 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::List;
         using inner_type = T;
+        static constexpr std::size_t maybe_length = 0;
         static constexpr uint32_t size = 8;
         static constexpr uint32_t alignment = 4;
-        using flat_type_0 = int32_t;
+        // static constexpr WasmValTypeVector() using flat_type_0 = int32_t;
         using flat_type_1 = int32_t;
     };
-
-    template <std::size_t N>
-    struct StringLiteral
-    {
-        constexpr StringLiteral(const char (&str)[N])
-        {
-            std::copy(str, str + N, value);
-        }
-        char value[N];
-    };
-
-    template <StringLiteral L, typename T>
-    struct field_t
-    {
-        T v;
-        std::string_view label=L.value;
-    };
-    template <StringLiteral L, typename T>
-    struct ValTrait<field_t<L, T>>
-    {
-        static constexpr ValType type = ValType::Field;
-        static constexpr const char *label = L.value;
-        using inner_type = T;
-    };
     template <typename T>
-    concept Field = ValTrait<T>::type == ValType::Field;
+    concept List = ValTrait<T>::type == ValType::List;
+
+    //  Record  --------------------------------------------------------------------
+
+    template <typename T>
+    concept Field = ValTrait<T>::type != ValType::UNKNOWN;
 
     template <Field... Ts>
     using record_t = std::tuple<Ts...>;
@@ -336,42 +358,71 @@ namespace cmcpp
         static constexpr ValType type = ValType::Record;
         using inner_type = typename std::tuple<Ts...>;
     };
-
-    template <typename... Ts>
-    using tuple_t = std::tuple<Ts...>;
-    template <typename... Ts>
-    struct ValTrait<tuple_t<Ts...>>
-    {
-        static constexpr ValType type = ValType::Tuple;
-    };
-
     template <typename T>
-    struct case_t
-    {
-        std::string label;
-        std::optional<T> v;
-    };
-    template <typename T>
-    struct ValTrait<case_t<T>>
-    {
-        static constexpr ValType type = ValType::Case;
-        using inner_type = T;
-    };
+    concept Record = ValTrait<T>::type == ValType::Record;
 
-    template <typename... Ts>
+    template <typename T, Record R, std::size_t... I>
+    T to_struct_impl(const R &t, std::index_sequence<I...>)
+    {
+        return T{std::get<I>(t)...};
+    }
+
+    template <typename T, Record R>
+    T to_struct(const R &t)
+    {
+        return to_struct_impl<T>(t, std::make_index_sequence<std::tuple_size_v<R>>{});
+    }
+
+    //  Variant  ------------------------------------------------------------------
+
+    template <Field... Ts>
     using variant_t = std::variant<Ts...>;
-    template <typename... Ts>
+    template <Field... Ts>
     struct ValTrait<variant_t<Ts...>>
     {
         static constexpr ValType type = ValType::Variant;
+        using inner_type = typename std::variant<Ts...>;
     };
+    template <typename T>
+    concept Variant = ValTrait<T>::type == ValType::Variant;
 
-    using enum_t = std::vector<std::string>;
-    template <>
-    struct ValTrait<enum_t>
-    {
-        static constexpr ValType type = ValType::Enum;
-    };
+    //  Other  --------------------------------------------------------------------
+
+    // template <typename... Ts>
+    // using tuple_t = std::tuple<Ts...>;
+    // template <typename... Ts>
+    // struct ValTrait<tuple_t<Ts...>>
+    // {
+    //     static constexpr ValType type = ValType::Tuple;
+    // };
+
+    // template <typename T>
+    // struct case_t
+    // {
+    //     std::string label;
+    //     std::optional<T> v;
+    // };
+    // template <typename T>
+    // struct ValTrait<case_t<T>>
+    // {
+    //     static constexpr ValType type = ValType::Case;
+    //     using inner_type = T;
+    // };
+
+    // template <typename... Ts>
+    // using variant_t = std::variant<Ts...>;
+    // template <typename... Ts>
+    // struct ValTrait<variant_t<Ts...>>
+    // {
+    //     static constexpr ValType type = ValType::Variant;
+    // };
+
+    // using enum_t = std::vector<std::string>;
+    // template <>
+    // struct ValTrait<enum_t>
+    // {
+    //     static constexpr ValType type = ValType::Enum;
+    // };
 
     // class option_t;
     // using option_ptr = std::shared_ptr<option_t>;
@@ -396,34 +447,6 @@ namespace cmcpp
     // {
     //     static ValType type() { return ValType::Flags; }
     // };
-
-    //  --------------------------------------------------------------------
-    template <typename T>
-    concept Boolean = ValTrait<T>::type == ValType::Bool;
-
-    template <typename T>
-    concept Signed = ValTrait<T>::type == ValType::S8 || ValTrait<T>::type == ValType::S16 || ValTrait<T>::type == ValType::S32 || ValTrait<T>::type == ValType::S64;
-
-    template <typename T>
-    concept Unsigned = ValTrait<T>::type == ValType::U8 || ValTrait<T>::type == ValType::U16 || ValTrait<T>::type == ValType::U32 || ValTrait<T>::type == ValType::U64;
-
-    template <typename T>
-    concept Integer = Signed<T> || Unsigned<T>;
-
-    template <typename T>
-    concept Float = ValTrait<T>::type == ValType::F32 || ValTrait<T>::type == ValType::F64;
-
-    template <typename T>
-    concept W64 = ValTrait<T>::type == ValType::S64 || ValTrait<T>::type == ValType::U64 || ValTrait<T>::type == ValType::F64;
-
-    template <typename T>
-    concept String = ValTrait<T>::type == ValType::String;
-
-    template <typename T>
-    concept List = ValTrait<T>::type == ValType::List;
-
-    template <typename T>
-    concept Record = ValTrait<T>::type == ValType::Record;
 
     //  --------------------------------------------------------------------
 

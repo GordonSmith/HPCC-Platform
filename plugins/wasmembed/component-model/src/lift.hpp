@@ -17,13 +17,13 @@ namespace cmcpp
         return convert_int_to_bool(vi.next<int32_t>());
     }
 
-    template <Unsigned T>
+    template <UnsignedInteger T>
     inline T lift_flat(const CallContext &cx, const WasmValVectorIterator &vi)
     {
         return integer::lift_flat_unsigned<T>(vi, ValTrait<T>::size * 8, 8);
     }
 
-    template <Signed T>
+    template <SignedInteger T>
     inline T lift_flat(const CallContext &cx, const WasmValVectorIterator &vi)
     {
         return integer::lift_flat_signed<T>(vi, ValTrait<T>::size * 8, 8);
@@ -42,6 +42,12 @@ namespace cmcpp
     }
 
     template <List T>
+    inline T lift_flat(const CallContext &cx, const WasmValVectorIterator &vi, std::size_t maybe_length)
+    {
+        return list::lift_flat<typename ValTrait<T>::inner_type>(cx, vi, maybe_length);
+    }
+
+    template <List T>
     inline T lift_flat(const CallContext &cx, const WasmValVectorIterator &vi)
     {
         return list::lift_flat<typename ValTrait<T>::inner_type>(cx, vi);
@@ -50,8 +56,8 @@ namespace cmcpp
     template <Record T>
     T lift_flat(const CallContext &cx, const WasmValVectorIterator &vi)
     {
-        T result;
-        return record::lift_flat(cx, vi, result);
+        auto x = record::lift_flat<T>(cx, vi);
+        return x;
     }
 }
 

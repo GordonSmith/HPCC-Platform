@@ -36,5 +36,4 @@ namespace cmcpp
     {
         return i > 0;
     }
-
 }

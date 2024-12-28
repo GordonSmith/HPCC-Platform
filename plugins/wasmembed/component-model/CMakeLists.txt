@@ -22,6 +22,8 @@ set(SRC
     src/string.cpp
     src/traits.hpp
     src/traits.cpp
+    src/variant.hpp
+    src/variant.cpp
     # flatten.hpp
     # flatten.cpp
     # lift.hpp

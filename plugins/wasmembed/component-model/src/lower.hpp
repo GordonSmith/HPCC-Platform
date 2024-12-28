@@ -20,7 +20,7 @@ namespace cmcpp
         return {static_cast<ValTrait<T>::flat_type>(v)};
     }
 
-    template <Unsigned T>
+    template <UnsignedInteger T>
     inline WasmValVector lower_flat(CallContext &cx, const T &v)
     {
         using FT = ValTrait<T>::flat_type;
@@ -28,7 +28,7 @@ namespace cmcpp
         return {fv};
     }
 
-    template <Signed T>
+    template <SignedInteger T>
     inline WasmValVector lower_flat(CallContext &cx, const T &v)
     {
         using FT = ValTrait<T>::flat_type;
