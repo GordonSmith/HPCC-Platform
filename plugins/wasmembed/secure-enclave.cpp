@@ -35,19 +35,6 @@ HostTrap trap = [](const char *msg) -> void
     throw makeStringException(100, msg);
 };
 
-HostUnicodeConversion convert = [](char8_t *dest, const char8_t *src, uint32_t byte_len, Encoding from_encoding, Encoding to_encoding) -> std::pair<char8_t *, size_t>
-{
-    if (from_encoding == to_encoding)
-    {
-        memcpy(dest, src, byte_len);
-        return std::make_pair(dest, byte_len);
-    }
-    else
-    {
-        throw makeStringExceptionV(100, "Unsupported encoding conversion %d -> %d", static_cast<int>(from_encoding), static_cast<int>(to_encoding));
-    }
-};
-
 class WasmEngine
 {
 private:
@@ -410,7 +397,7 @@ public:
     {
         TRACE("WASM SE bindUTF8Param %s %d %s", name, chars, val);
         auto cx = mk_cx();
-        auto [offset, bytes] = string::store_into_range(*cx, {Encoding::Utf8, (const char8_t *)val, rtlUtf8Size(chars, val)});
+        auto [offset, bytes] = string::store_into_range(*cx, cmcpp::string_t{val, rtlUtf8Size(chars, val)});
         args.push_back((int32_t)offset);
         args.push_back((int32_t)bytes);
     }
@@ -493,7 +480,7 @@ public:
                     thisSize = *(size32_t *)inData;
                     inData += sizeof(size32_t);
                 }
-                strings.push_back({Encoding::Utf8, (const char8_t *)inData, thisSize});
+                strings.push_back({(const char *)inData, thisSize});
                 inData += thisSize;
             }
             auto [offset, size] = list::store_into_range<string_t>(*cx, strings);
@@ -561,28 +548,28 @@ public:
         TRACE("WASM SE getStringResult %zu", wasmResults.size());
         auto ptr = wasmResults[0].i32();
         auto cx = mk_cx();
-        auto [encoding, strPtr, bytes] = string::load(*cx, ptr);
-        size32_t codePoints = rtlUtf8Length(bytes, strPtr);
-        rtlUtf8ToStrX(chars, result, codePoints, (const char *)strPtr);
+        auto str = cmcpp::string::load<cmcpp::string_t>(*cx, ptr);
+        size32_t codePoints = rtlUtf8Length(str.size(), str.data());
+        rtlUtf8ToStrX(chars, result, codePoints, str.c_str());
     }
     virtual void getUTF8Result(size32_t &chars, char *&result)
     {
         TRACE("WASM SE getUTF8Result");
         auto ptr = wasmResults[0].i32();
         auto cx = mk_cx();
-        auto [encoding, strPtr, bytes] = string::load(*cx, ptr);
-        chars = rtlUtf8Length(bytes, strPtr);
-        result = (char *)rtlMalloc(bytes);
-        memcpy(result, strPtr, bytes);
+        auto str = cmcpp::string::load<cmcpp::string_t>(*cx, ptr);
+        size32_t codePoints = rtlUtf8Length(str.size(), str.data());
+        result = (char *)rtlMalloc(codePoints);
+        memcpy(result, str.data(), codePoints);
     }
     virtual void getUnicodeResult(size32_t &chars, UChar *&result)
     {
         TRACE("WASM SE getUnicodeResult");
         auto ptr = wasmResults[0].i32();
         auto cx = mk_cx();
-        auto [encoding, strPtr, bytes] = string::load(*cx, ptr);
-        size32_t codePoints = rtlUtf8Length(bytes, strPtr);
-        rtlUtf8ToUnicodeX(chars, result, codePoints, (const char *)strPtr);
+        auto str = cmcpp::string::load<cmcpp::string_t>(*cx, ptr);
+        size32_t codePoints = rtlUtf8Length(str.size(), str.data());
+        rtlUtf8ToUnicodeX(chars, result, codePoints, str.c_str());
     }
     virtual void getSetResult(bool &isAllResult, size32_t &resultBytes, void *&result, int elemType, size32_t elemSize)
     {
@@ -635,11 +622,11 @@ public:
             byte *outData = NULL;
             for (auto &item : list)
             {
-                out.ensureAvailable(outBytes + item.byte_len + sizeof(size32_t));
+                out.ensureAvailable(outBytes + item.size() + sizeof(size32_t));
                 outData = out.getbytes() + outBytes;
-                *reinterpret_cast<size32_t *>(outData) = item.byte_len;
-                rtlStrToStr(item.byte_len, outData + sizeof(size32_t), item.byte_len, item.ptr);
-                outBytes += item.byte_len + sizeof(size32_t);
+                *reinterpret_cast<size32_t *>(outData) = item.size();
+                rtlStrToStr(item.size(), outData + sizeof(size32_t), item.size(), item.data());
+                outBytes += item.size() + sizeof(size32_t);
             }
             resultBytes = outBytes;
             result = out.detachdata();
