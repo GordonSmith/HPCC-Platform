@@ -10,60 +10,60 @@ void dbglog(const std::string str)
     hpcc_test_dbglog(&msg);
 }
 
-bool hpcc_test_bool_and_test(bool a, bool b)
+bool hpcc_test_bool_and(bool a, bool b)
 {
     return a && b;
 }
-bool hpcc_test_bool_or_test(bool a, bool b)
+bool hpcc_test_bool_or(bool a, bool b)
 {
     return a || b;
 }
-float hpcc_test_f32_test(float a, float b)
+float hpcc_test_f32_add(float a, float b)
 {
     return a + b;
 }
-double hpcc_test_f64_test(double a, double b)
+double hpcc_test_f64_add(double a, double b)
 {
     return a + b;
 }
-uint8_t hpcc_test_u8_test(uint8_t a, uint8_t b)
+uint8_t hpcc_test_u8_add(uint8_t a, uint8_t b)
 {
     return a + b;
 }
-uint16_t hpcc_test_u16_test(uint16_t a, uint16_t b)
+uint16_t hpcc_test_u16_add(uint16_t a, uint16_t b)
 {
     return a + b;
 }
-uint32_t hpcc_test_u32_test(uint32_t a, uint32_t b)
+uint32_t hpcc_test_u32_add(uint32_t a, uint32_t b)
 {
     return a + b;
 }
-uint64_t hpcc_test_u64_test(uint64_t a, uint64_t b)
+uint64_t hpcc_test_u64_add(uint64_t a, uint64_t b)
 {
     return a + b;
 }
-int8_t hpcc_test_s8_test(int8_t a, int8_t b)
+int8_t hpcc_test_s8_add(int8_t a, int8_t b)
 {
     return a + b;
 }
-int16_t hpcc_test_s16_test(int16_t a, int16_t b)
+int16_t hpcc_test_s16_add(int16_t a, int16_t b)
 {
     return a + b;
 }
-int32_t hpcc_test_s32_test(int32_t a, int32_t b)
+int32_t hpcc_test_s32_add(int32_t a, int32_t b)
 {
     return a + b;
 }
-int64_t hpcc_test_s64_test(int64_t a, int64_t b)
+int64_t hpcc_test_s64_add(int64_t a, int64_t b)
 {
     return a + b;
 }
-uint32_t hpcc_test_char_test(uint32_t a, uint32_t b)
+uint32_t hpcc_test_char_add(uint32_t a, uint32_t b)
 {
     return a + b;
 }
 static uint32_t tally = 0;
-void hpcc_test_utf8_string_test(hpcc_test_string_t *a, hpcc_test_string_t *b, hpcc_test_string_t *ret)
+void hpcc_test_utf8_string_append(hpcc_test_string_t *a, hpcc_test_string_t *b, hpcc_test_string_t *ret)
 {
     std::string s1((const char *)a->ptr, a->len);
     hpcc_test_string_free(a);
@@ -80,7 +80,7 @@ void hpcc_test_utf8_string_test(hpcc_test_string_t *a, hpcc_test_string_t *b, hp
 // void hpcc_test_string_dup(hpcc_test_string_t *ret, const char*s);
 // void hpcc_test_string_free(hpcc_test_string_t *ret);
 
-void hpcc_test_list_test_bool(hpcc_test_list_bool_t *ret)
+void hpcc_test_list_generate_bool(hpcc_test_list_bool_t *ret)
 {
     ret->len = 8;
     ret->ptr = (bool *)malloc(ret->len * sizeof(bool));
@@ -90,7 +90,7 @@ void hpcc_test_list_test_bool(hpcc_test_list_bool_t *ret)
     }
 }
 
-void hpcc_test_list_bool_test_bool(hpcc_test_list_bool_t *a, hpcc_test_list_bool_t *ret)
+void hpcc_test_list_reverse_bool(hpcc_test_list_bool_t *a, hpcc_test_list_bool_t *ret)
 {
     std::vector<bool> v1(a->ptr, a->ptr + a->len);
     hpcc_test_list_bool_free(a);
@@ -102,7 +102,7 @@ void hpcc_test_list_bool_test_bool(hpcc_test_list_bool_t *a, hpcc_test_list_bool
     }
 }
 
-void hpcc_test_list_test_u32(hpcc_test_list_u32_t *ret)
+void hpcc_test_list_generate_u32(hpcc_test_list_u32_t *ret)
 {
     ret->len = 4;
     ret->ptr = (uint32_t *)malloc(ret->len * sizeof(uint32_t));
@@ -112,7 +112,7 @@ void hpcc_test_list_test_u32(hpcc_test_list_u32_t *ret)
     }
 }
 
-void hpcc_test_list_u32_test_u32(hpcc_test_list_u32_t *a, hpcc_test_list_u32_t *ret)
+void hpcc_test_list_reverse_u32(hpcc_test_list_u32_t *a, hpcc_test_list_u32_t *ret)
 {
     std::vector<uint32_t> v1(a->ptr, a->ptr + a->len);
     hpcc_test_list_u32_free(a);
@@ -124,7 +124,7 @@ void hpcc_test_list_u32_test_u32(hpcc_test_list_u32_t *a, hpcc_test_list_u32_t *
     }
 }
 
-void hpcc_test_list_test_f32(hpcc_test_list_f32_t *ret)
+void hpcc_test_list_generate_f32(hpcc_test_list_f32_t *ret)
 {
     ret->len = 4;
     ret->ptr = (float *)malloc(ret->len * sizeof(float));
@@ -134,7 +134,7 @@ void hpcc_test_list_test_f32(hpcc_test_list_f32_t *ret)
     }
 }
 
-void hpcc_test_list_f32_test_f32(hpcc_test_list_f32_t *a, hpcc_test_list_f32_t *ret)
+void hpcc_test_list_reverse_f32(hpcc_test_list_f32_t *a, hpcc_test_list_f32_t *ret)
 {
     std::vector<float> v1(a->ptr, a->ptr + a->len);
     hpcc_test_list_f32_free(a);
@@ -146,7 +146,7 @@ void hpcc_test_list_f32_test_f32(hpcc_test_list_f32_t *a, hpcc_test_list_f32_t *
     }
 }
 
-void hpcc_test_list_test_string(hpcc_test_list_string_t *ret)
+void hpcc_test_list_generate_string(hpcc_test_list_string_t *ret)
 {
     ret->len = 4;
     ret->ptr = (hpcc_test_string_t *)malloc(ret->len * sizeof(hpcc_test_string_t));
@@ -158,7 +158,7 @@ void hpcc_test_list_test_string(hpcc_test_list_string_t *ret)
     }
 }
 
-void hpcc_test_list_string_test_string(hpcc_test_list_string_t *a, hpcc_test_list_string_t *ret)
+void hpcc_test_list_reverse_string(hpcc_test_list_string_t *a, hpcc_test_list_string_t *ret)
 {
     std::vector<hpcc_test_string_t> v1(a->ptr, a->ptr + a->len);
     ret->len = v1.size();
@@ -170,7 +170,7 @@ void hpcc_test_list_string_test_string(hpcc_test_list_string_t *a, hpcc_test_lis
     hpcc_test_list_string_free(a);
 }
 
-void hpcc_test_list_test_list(hpcc_test_list_list_string_t *ret)
+void hpcc_test_list_generate_list_string(hpcc_test_list_list_string_t *ret)
 {
     ret->len = 4;
     ret->ptr = (hpcc_test_list_string_t *)malloc(ret->len * sizeof(hpcc_test_list_string_t));

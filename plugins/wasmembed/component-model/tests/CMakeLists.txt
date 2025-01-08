@@ -1,6 +1,7 @@
 project(component-model-tests)
 
 find_package(doctest CONFIG REQUIRED)
+find_package(ICU REQUIRED COMPONENTS uc i18n io)
 
 include_directories(
     ../src

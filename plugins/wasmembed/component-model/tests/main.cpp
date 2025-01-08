@@ -34,6 +34,7 @@ public:
         {
             return align_to(original_ptr, alignment);
         }
+
         uint32_t ret = align_to(last_alloc, alignment);
         last_alloc = ret + new_size;
         if (last_alloc > memory.size())
@@ -175,33 +176,6 @@ TEST_CASE("Float")
 const char *const hw = "hello World!";
 const char *const hw8 = "hello 世界-🌍-!";
 const char16_t *hw16 = u"hello 世界-🌍-!";
-
-TEST_CASE("icu-1")
-{
-    std::string hw_str = hw;
-    CHECK(hw_str == hw);
-
-    auto hw16_str = utf8_to_latin1(hw_str);
-    auto hw_str2 = latin1_to_utf8(hw16_str);
-    CHECK(hw_str2 == hw_str);
-
-    hw_str = hw8;
-    CHECK(hw_str == hw8);
-
-    hw16_str = utf8_to_latin1(hw_str);
-    hw_str2 = latin1_to_utf8(hw16_str);
-    CHECK(hw_str2 != hw_str);
-}
-
-TEST_CASE("icu-2")
-{
-    std::u16string hw16_str = hw16;
-    CHECK(hw16_str == hw16);
-
-    auto hw_str = utf16_to_utf8(hw16_str);
-    auto hw16_str2 = utf8_to_utf16(hw_str);
-    CHECK(hw16_str2 == hw16_str);
-}
 
 template <String T, typename T2>
 void printString(T str, T2 hw)

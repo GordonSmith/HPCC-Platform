@@ -12,12 +12,14 @@ namespace cmcpp
         {
             uint32_t dst_byte_length = dst_code_unit_size * src_code_units;
             trap_if(cx, dst_byte_length > MAX_STRING_BYTE_LENGTH);
-            uint32_t ptr = cx.realloc(0, 0, dst_alignment, dst_byte_length);
-            trap_if(cx, ptr != align_to(ptr, dst_alignment));
-            trap_if(cx, ptr + dst_byte_length > cx.memory.size());
-            std::memcpy(&cx.memory[ptr], src, dst_byte_length);
-            // auto encoded = cx.convert(&cx.memory[ptr], dst_byte_length, src, src_code_units, cx.guest_encoding, dst_encoding);
-            return std::make_pair(ptr, src_code_units);
+            if (dst_byte_length > 0) {
+                uint32_t ptr = cx.realloc(0, 0, dst_alignment, dst_byte_length);
+                trap_if(cx, ptr != align_to(ptr, dst_alignment));
+                trap_if(cx, ptr + dst_byte_length > cx.memory.size());
+                std::memcpy(&cx.memory[ptr], src, dst_byte_length);
+                return std::make_pair(ptr, src_code_units);
+            }
+            return std::make_pair(0, 0);
         }
 
         std::pair<uint32_t, uint32_t> store_string_to_utf8(CallContext &cx, Encoding src_encoding, const void *src, uint32_t src_byte_len, uint32_t worst_case_size)

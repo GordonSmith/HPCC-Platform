@@ -8,6 +8,4 @@ void trap(const char *msg = "");
 const char * encodingToICU(const Encoding encoding);
 
 std::pair<void *, size_t> convert(void *dest, uint32_t dest_byte_len, const void *src, uint32_t src_byte_len, Encoding from_encoding, Encoding to_encoding);
-
-// std::u8string u16_u8(const std::u16string &src);
-// std::u16string u8_u16(const std::u8string &str);
+ 
