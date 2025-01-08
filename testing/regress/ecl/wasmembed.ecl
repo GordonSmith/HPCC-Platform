@@ -2,8 +2,8 @@ import wasm;
 
 boolean boolAndTest (boolean a, boolean b) := IMPORT(wasm, 'wasmembed.bool-and-test');
 boolean boolOrTest (boolean a, boolean b) := IMPORT(wasm, 'wasmembed.bool-or-test');
-real4 float32Test (real4 a, real4 b) := IMPORT(wasm, 'wasmembed.float32-test');
-real8 float64Test (real8 a, real8 b) := IMPORT(wasm, 'wasmembed.float64-test');
+real4 f32Test (real4 a, real4 b) := IMPORT(wasm, 'wasmembed.f32-test');
+real8 f64Test (real8 a, real8 b) := IMPORT(wasm, 'wasmembed.f64-test');
 unsigned1 u8Test (unsigned1 a, unsigned1 b) := IMPORT(wasm, 'wasmembed.u8-test');
 unsigned2 u16Test (unsigned2 a, unsigned2 b) := IMPORT(wasm, 'wasmembed.u16-test');
 unsigned4 u32Test (unsigned4 a, unsigned4 b) := IMPORT(wasm, 'wasmembed.u32-test');
@@ -25,16 +25,16 @@ set of boolean listTestBoolean () := IMPORT(wasm, 'wasmembed.list-test-bool');
 set of boolean listBooleanTestBoolean (set of boolean a) := IMPORT(wasm, 'wasmembed.list-bool-test-bool');
 set of unsigned4 listTestU32 () := IMPORT(wasm, 'wasmembed.list-test-u32');
 set of unsigned4 listU32TestU32 (set of unsigned4 a) := IMPORT(wasm, 'wasmembed.list-u32-test-u32');
-set of real4 listTestFloat32 () := IMPORT(wasm, 'wasmembed.list-test-float32');
-set of real4 listFloat32TestFloat32 (set of real4 a) := IMPORT(wasm, 'wasmembed.list-float32-test-float32');
+set of real4 listTestf32 () := IMPORT(wasm, 'wasmembed.list-test-f32');
+set of real4 listf32Testf32 (set of real4 a) := IMPORT(wasm, 'wasmembed.list-f32-test-f32');
 set of string listTestString () := IMPORT(wasm, 'wasmembed.list-test-string');
 set of string listStringTestString (set of string a) := IMPORT(wasm, 'wasmembed.list-string-test-string');
 
 listTestBoolean() = [true, false, true, false, true, false, true, false];
 listBooleanTestBoolean([false, false, true, true, false, true]) = [true, false, true, true, false, false];
 
-listTestFloat32() = [(real4)0.33, (real4)1.33, (real4)2.33, (real4)3.33];
-listFloat32TestFloat32([1.23, 2.34, 3.45, 4.56]) = [(real4)4.56, (real4)3.45, (real4)2.34, (real4)1.23];
+listTestf32() = [(real4)0.33, (real4)1.33, (real4)2.33, (real4)3.33];
+listf32Testf32([1.23, 2.34, 3.45, 4.56]) = [(real4)4.56, (real4)3.45, (real4)2.34, (real4)1.23];
 
 listTestU32() = [0, 1, 2, 3];
 listU32TestU32([0, 1, 2, 3]) = [3, 2, 1, 0];
@@ -52,8 +52,8 @@ boolOrTest(false, true) = (false OR true);
 boolOrTest(true, false) = (true OR false);
 boolOrTest(true, true) = (true OR true);
 // '--- float ---';
-ROUND(float32Test((real4)1234.1234, (real4)2345.2345), 3) = ROUND((real4)((real4)1234.1234 + (real4)2345.2345), 3);
-float64Test(123456789.123456789, 23456789.23456789) = (real8)((real8)123456789.123456789 + (real8)23456789.23456789);
+ROUND(f32Test((real4)1234.1234, (real4)2345.2345), 3) = ROUND((real4)((real4)1234.1234 + (real4)2345.2345), 3);
+f64Test(123456789.123456789, 23456789.23456789) = (real8)((real8)123456789.123456789 + (real8)23456789.23456789);
 // '--- unsigned ---';
 u8Test(1, 2) = (unsigned1)(1 + 2);
 u8Test(254, 1) = (unsigned1)(254 + 1);

@@ -303,30 +303,44 @@ namespace cmcpp
 
     //  Strings --------------------------------------------------------------------
 
+    using latin1_string_t = std::string;
     template <>
-    struct ValTrait<char8_t>
+    struct ValTrait<latin1_string_t>
     {
-        static constexpr ValType type = ValType::Char;
-    };
-
-    struct string_t
-    {
-        Encoding encoding;
-        const char8_t *ptr;
-        size_t byte_len;
-    };
-    template <>
-    struct ValTrait<string_t>
-    {
+        static constexpr Encoding encoding = Encoding::Latin1;
         static constexpr ValType type = ValType::String;
         static constexpr uint32_t size = 8;
         static constexpr uint32_t alignment = 4;
         using flat_type_0 = int32_t;
         using flat_type_1 = int32_t;
     };
+
+    using utf8_string_t = std::u8string;
+    template <>
+    struct ValTrait<utf8_string_t>
+    {
+        static constexpr Encoding encoding = Encoding::Utf8;
+        static constexpr ValType type = ValType::String;
+        static constexpr uint32_t size = 8;
+        static constexpr uint32_t alignment = 4;
+        using flat_type_0 = int32_t;
+        using flat_type_1 = int32_t;
+    };
+
+    using utf16_string_t = std::u16string;
+    template <>
+    struct ValTrait<utf16_string_t>
+    {
+        static constexpr Encoding encoding = Encoding::Utf16;
+        static constexpr ValType type = ValType::String;
+        static constexpr uint32_t size = 8;
+        static constexpr uint32_t alignment = 4;
+        using flat_type_0 = int32_t;
+        using flat_type_1 = int32_t;
+    };
+
     template <typename T>
     concept String = ValTrait<T>::type == ValType::String;
-
     //  List  --------------------------------------------------------------------
 
     template <typename T>
@@ -336,7 +350,6 @@ namespace cmcpp
     {
         static constexpr ValType type = ValType::List;
         using inner_type = T;
-        static constexpr std::size_t maybe_length = 0;
         static constexpr uint32_t size = 8;
         static constexpr uint32_t alignment = 4;
         // static constexpr WasmValTypeVector() using flat_type_0 = int32_t;

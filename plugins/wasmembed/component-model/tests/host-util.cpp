@@ -1,60 +1,79 @@
 #include "host-util.hpp"
+#include <iostream>
 #include <cstring>
 #include <cassert>
-// #include "utf8.h"
+#include <iconv.h>
 
 void trap(const char *msg)
 {
     throw new std::runtime_error(msg);
 }
 
-// bool isLatin1(const std::string &str)
-// {
-//     return utf8::is_valid(str);
-// }
-
-std::pair<char8_t *, size_t> convert(char8_t *dest, const char8_t *src, uint32_t byte_len, Encoding from_encoding, Encoding to_encoding)
+std::pair<char8_t *, size_t> convert(char8_t *dest, uint32_t dest_byte_len, const char8_t *src, uint32_t byte_len, Encoding from_encoding, Encoding to_encoding)
 {
+    iconv_t conv;
     switch (from_encoding)
     {
     case Encoding::Latin1:
+        switch (to_encoding)
+        {
+        case Encoding::Latin1:
+            std::memcpy(dest, src, byte_len);
+            return std::make_pair(reinterpret_cast<char8_t *>(dest), byte_len);
+        case Encoding::Utf8:
+            conv = iconv_open("UTF-8", "ISO-8859-1");
+            break;
+        case Encoding::Utf16:
+            conv = iconv_open("UTF-16", "ISO-8859-1");
+            break;
+        }
+        break;
     case Encoding::Utf8:
         switch (to_encoding)
         {
         case Encoding::Latin1:
+            conv = iconv_open("ISO-8859-1", "UTF-8");
+            break;
         case Encoding::Utf8:
             std::memcpy(dest, src, byte_len);
             return std::make_pair(reinterpret_cast<char8_t *>(dest), byte_len);
         case Encoding::Utf16:
-        case Encoding::Latin1_Utf16:
-        // {
-        //     std::u16string s = utf8::utf8to16(std::string_view((const char *)src, byte_len));
-        //     std::memcpy(dest, s.data(), s.size() * 2);
-        //     return std::make_pair(reinterpret_cast<char8_t *>(dest), s.size() * 2);
-        // }
-        default:
-            throw std::runtime_error("Invalid encoding");
+            conv = iconv_open("UTF-16", "UTF-8");
+            break;
         }
         break;
     case Encoding::Utf16:
-    case Encoding::Latin1_Utf16:
         switch (to_encoding)
         {
         case Encoding::Latin1:
+            conv = iconv_open("ISO-8859-1", "UTF-16");
+            break;
         case Encoding::Utf8:
-        // {
-        //     std::string s = utf8::utf16to8(std::u16string_view((const char16_t *)src, byte_len));
-        //     std::memcpy(dest, s.data(), s.size());
-        //     return std::make_pair(reinterpret_cast<char8_t *>(dest), byte_len);
-        // }
+            conv = iconv_open("UTF-8", "UTF-16");
+            break;
         case Encoding::Utf16:
-        case Encoding::Latin1_Utf16:
             std::memcpy(dest, src, byte_len);
             return std::make_pair(reinterpret_cast<char8_t *>(dest), byte_len);
-        default:
-            throw std::runtime_error("Invalid encoding");
         }
         break;
     }
-    throw std::runtime_error("Invalid encoding");
+
+    if (conv == (iconv_t)-1)
+    {
+        std::cerr << "iconv_open failed" << std::endl;
+        return std::make_pair(nullptr, 0);
+    }
+    char *in_buf = const_cast<char *>(reinterpret_cast<const char *>(src));
+    size_t in_bytes_left = byte_len;
+    size_t out_bytes_left = dest_byte_len; 
+    char *out_buf = reinterpret_cast<char *>(dest);
+    char *out_ptr = out_buf;
+    if (iconv(conv, &in_buf, &in_bytes_left, &out_ptr, &out_bytes_left) == (size_t)-1)
+    {
+        std::cerr << "iconv failed" << std::endl;
+        iconv_close(conv);
+        return std::make_pair(nullptr, 0);
+    }
+    iconv_close(conv);
+    return std::make_pair(dest, dest_byte_len - out_bytes_left);
 }

@@ -17,7 +17,7 @@ namespace cmcpp
             uint32_t ptr = cx.realloc(0, 0, dst_alignment, dst_byte_length);
             trap_if(cx, ptr != align_to(ptr, dst_alignment));
             trap_if(cx, ptr + dst_byte_length > cx.memory.size());
-            auto encoded = cx.convert((char8_t *)&cx.memory[ptr], src, src_code_units, cx.guest_encoding, dst_encoding);
+            auto encoded = cx.convert((char8_t *)&cx.memory[ptr], dst_byte_length, src, src_code_units, cx.guest_encoding, dst_encoding);
             // Python test case is a utf8 str pretending to be a utf16  ---  assert(dst_byte_length == encoded.second);
             return std::make_pair(ptr, src_code_units);
         }
@@ -27,7 +27,7 @@ namespace cmcpp
             assert(worst_case_size <= MAX_STRING_BYTE_LENGTH);
             uint32_t ptr = cx.realloc(0, 0, 1, worst_case_size);
             trap_if(cx, ptr + src_code_units > cx.memory.size());
-            auto encoded = cx.convert((char8_t *)&cx.memory[ptr], src, src_code_units, src_encoding, Encoding::Utf8);
+            auto encoded = cx.convert((char8_t *)&cx.memory[ptr], worst_case_size, src, src_code_units, src_encoding, Encoding::Utf8);
             if (worst_case_size > encoded.second)
             {
                 ptr = cx.realloc(ptr, worst_case_size, 1, encoded.second);
@@ -55,7 +55,7 @@ namespace cmcpp
             uint32_t ptr = cx.realloc(0, 0, 2, worst_case_size);
             trap_if(cx, ptr != align_to(ptr, 2));
             trap_if(cx, ptr + worst_case_size > cx.memory.size());
-            auto encoded = cx.convert((char8_t *)&cx.memory[ptr], src, src_code_units, Encoding::Utf8, Encoding::Utf16);
+            auto encoded = cx.convert((char8_t *)&cx.memory[ptr], worst_case_size, src, src_code_units, Encoding::Utf8, Encoding::Utf16);
             if (encoded.second < worst_case_size)
             {
                 ptr = cx.realloc(ptr, worst_case_size, 2, encoded.second);
@@ -96,7 +96,7 @@ namespace cmcpp
                         cx.memory[ptr + 2 * j] = cx.memory[ptr + j];
                         cx.memory[ptr + 2 * j + 1] = 0;
                     }
-                    auto encoded = cx.convert((char8_t *)&cx.memory[ptr + 2 * dst_byte_length], src, src_code_units, cx.guest_encoding, Encoding::Utf16);
+                    auto encoded = cx.convert((char8_t *)&cx.memory[ptr + 2 * dst_byte_length], src_code_units* 2, src, src_code_units, cx.guest_encoding, Encoding::Utf16);
                     if (worst_case_size > encoded.second)
                     {
                         ptr = cx.realloc(ptr, worst_case_size, 2, encoded.second);
@@ -127,7 +127,7 @@ namespace cmcpp
             uint32_t ptr = cx.realloc(0, 0, 2, src_byte_length);
             trap_if(cx, ptr != align_to(ptr, 2));
             trap_if(cx, ptr + src_byte_length > cx.memory.size());
-            auto encoded = cx.convert((char8_t *)&cx.memory[ptr], src, src_code_units, Encoding::Utf16, Encoding::Utf16);
+            auto encoded = cx.convert((char8_t *)&cx.memory[ptr], src_byte_length, src, src_code_units, Encoding::Utf16, Encoding::Utf16);
             const uint8_t *enc_src_ptr = &cx.memory[ptr];
             if (std::any_of(enc_src_ptr, enc_src_ptr + encoded.second,
                             [](uint8_t c)

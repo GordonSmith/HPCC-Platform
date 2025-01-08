@@ -184,6 +184,18 @@ TEST_CASE("String")
     CHECK(std::string((const char *)str.ptr, str.byte_len) == hw);
 }
 
+const wchar_t *const hw_unicode = L"hello world";
+TEST_CASE("Unicode String")
+{
+    Heap heap(1024 * 1024);
+    auto cx = createCallContext(&heap, Encoding::Utf8);
+    auto v = lower_flat(*cx, string_t{Encoding::Utf16, (const char8_t *)hw_unicode, wcslen(hw_unicode) * 2});
+    auto str = lift_flat<string_t>(*cx, v);
+    CHECK(str.encoding == Encoding::Utf16);
+    CHECK(str.byte_len == strlen(hw) * 2);
+    CHECK(std::wstring((const wchar_t *)str.ptr, str.byte_len) == hw_unicode);
+}
+
 TEST_CASE("List")
 {
     Heap heap(1024 * 1024);
@@ -234,7 +246,8 @@ TEST_CASE("List2")
     CHECK(std::string((const char *)strs[0][1].ptr, strs[0][1].byte_len) == std::string(hw, strs[0][1].byte_len));
 }
 
-struct MyRecord0 {
+struct MyRecord0
+{
     uint16_t age;
     uint32_t weight;
 };

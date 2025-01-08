@@ -7,7 +7,8 @@ namespace cmcpp
 {
     namespace string
     {
-        std::pair<offset, bytes> store_into_range(CallContext &cx, const string_t &v);
+        template <String T>
+        std::pair<offset, bytes> store_into_range(CallContext &cx, const T &v);
         void store(CallContext &cx, const string_t &v, uint32_t ptr);
         WasmValVector lower_flat(CallContext &cx, const string_t &v);
 

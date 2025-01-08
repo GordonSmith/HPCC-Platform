@@ -35,11 +35,11 @@ HostTrap trap = [](const char *msg) -> void
     throw makeStringException(100, msg);
 };
 
-HostUnicodeConversion convert = [](char8_t *dest, const char8_t *src, uint32_t byte_len, Encoding from_encoding, Encoding to_encoding) -> std::pair<char8_t *, size_t>
+HostUnicodeConversion convert = [](char8_t *dest, uint32_t dest_byte_len, const char8_t *src, uint32_t src_byte_len, Encoding from_encoding, Encoding to_encoding) -> std::pair<char8_t *, size_t>
 {
     if (from_encoding == to_encoding)
     {
-        memcpy(dest, src, byte_len);
+        memcpy(dest, src, src_byte_len);
         return std::make_pair(dest, byte_len);
     }
     else

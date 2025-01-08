@@ -38,7 +38,7 @@ namespace cmcpp
     template <Float T>
     inline WasmValVector lower_flat(CallContext &cx, const T &v)
     {
-        return {float_::maybe_scramble_nan<T>(v)};
+        return {float_::lower_flat<T>(v)};
     }
 
     template <String T>
