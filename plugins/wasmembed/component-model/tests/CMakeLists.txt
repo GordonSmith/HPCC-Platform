@@ -1,10 +1,12 @@
 project(component-model-tests)
 
 find_package(doctest CONFIG REQUIRED)
+find_package(ICU REQUIRED COMPONENTS uc i18n io)
 
 include_directories(
     ../src
 )
+include_directories(${ICU_INCLUDE_DIR})
 
 add_executable(${PROJECT_NAME} 
   main.cpp
@@ -15,6 +17,7 @@ add_executable(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} 
   PRIVATE doctest::doctest
   PRIVATE component-model
+  PRIVATE ${ICU_LIBRARIES}
 )
 
 add_test(

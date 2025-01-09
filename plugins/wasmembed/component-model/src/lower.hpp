@@ -44,7 +44,7 @@ namespace cmcpp
     template <String T>
     inline WasmValVector lower_flat(CallContext &cx, const T &v)
     {
-        return string::lower_flat(cx, v);
+        return string::lower_flat<T>(cx, v);
     }
 
     template <List T>
