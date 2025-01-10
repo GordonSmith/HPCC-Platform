@@ -8,8 +8,6 @@ namespace cmcpp
 {
     namespace string
     {
-        const uint32_t MAX_STRING_BYTE_LENGTH = (1U << 31) - 1;
-
         std::pair<uint32_t, uint32_t> store_string_copy(CallContext &cx, const void *src, uint32_t src_code_units, uint32_t dst_code_unit_size, uint32_t dst_alignment, Encoding dst_encoding)
         {
             uint32_t dst_byte_length = dst_code_unit_size * src_code_units;
@@ -17,16 +15,17 @@ namespace cmcpp
             uint32_t ptr = cx.realloc(0, 0, dst_alignment, dst_byte_length);
             trap_if(cx, ptr != align_to(ptr, dst_alignment));
             trap_if(cx, ptr + dst_byte_length > cx.memory.size());
-            auto encoded = cx.convert(&cx.memory[ptr], dst_byte_length, src, src_code_units, cx.guest_encoding, dst_encoding);
+            std::memcpy(&cx.memory[ptr], src, dst_byte_length);
+            // auto encoded = cx.convert(&cx.memory[ptr], dst_byte_length, src, src_code_units, cx.guest_encoding, dst_encoding);
             return std::make_pair(ptr, src_code_units);
         }
 
-        std::pair<uint32_t, uint32_t> store_string_to_utf8(CallContext &cx, Encoding src_encoding, const void *src, uint32_t src_code_units, uint32_t worst_case_size)
+        std::pair<uint32_t, uint32_t> store_string_to_utf8(CallContext &cx, Encoding src_encoding, const void *src, uint32_t src_byte_len, uint32_t worst_case_size)
         {
             assert(worst_case_size <= MAX_STRING_BYTE_LENGTH);
             uint32_t ptr = cx.realloc(0, 0, 1, worst_case_size);
-            trap_if(cx, ptr + src_code_units > cx.memory.size());
-            auto encoded = cx.convert(&cx.memory[ptr], worst_case_size, src, src_code_units, src_encoding, Encoding::Utf8);
+            trap_if(cx, ptr + src_byte_len > cx.memory.size());
+            auto encoded = cx.convert(&cx.memory[ptr], worst_case_size, src, src_byte_len, src_encoding, Encoding::Utf8);
             if (worst_case_size > encoded.second)
             {
                 ptr = cx.realloc(ptr, worst_case_size, 1, encoded.second);
@@ -38,7 +37,7 @@ namespace cmcpp
         std::pair<uint32_t, uint32_t> store_utf16_to_utf8(CallContext &cx, const void *src, uint32_t src_code_units)
         {
             uint32_t worst_case_size = src_code_units * 3;
-            return store_string_to_utf8(cx, Encoding::Utf16, src, src_code_units, worst_case_size);
+            return store_string_to_utf8(cx, Encoding::Utf16, src, src_code_units * 2, worst_case_size);
         }
 
         std::pair<uint32_t, uint32_t> store_latin1_to_utf8(CallContext &cx, const void *src, uint32_t src_code_units)
@@ -63,60 +62,6 @@ namespace cmcpp
             }
             uint32_t code_units = static_cast<uint32_t>(encoded.second / 2);
             return std::make_pair(ptr, code_units);
-        }
-
-        std::pair<uint32_t, uint32_t> store_string_to_latin1_or_utf16(CallContext &cx, Encoding src_encoding, const void *src, uint32_t src_code_units)
-        {
-            assert(src_code_units <= MAX_STRING_BYTE_LENGTH);
-            uint32_t ptr = cx.realloc(0, 0, 2, src_code_units);
-            trap_if(cx, ptr != align_to(ptr, 2));
-            trap_if(cx, ptr + src_code_units > cx.memory.size());
-            uint32_t dst_byte_length = 0;
-            for (size_t i = 0; i < src_code_units; ++i)
-            {
-                uint32_t usv = *reinterpret_cast<const uint32_t*>(src);
-                if (usv < (1 << 8))
-                {
-                    cx.memory[ptr + dst_byte_length] = static_cast<uint32_t>(usv);
-                    dst_byte_length += 1;
-                }
-                else
-                {
-                    uint32_t worst_case_size = 2 * src_code_units;
-                    if (worst_case_size > MAX_STRING_BYTE_LENGTH)
-                        throw std::runtime_error("Worst case size exceeds maximum string byte length");
-                    ptr = cx.realloc(ptr, src_code_units, 2, worst_case_size);
-                    if (ptr != align_to(ptr, 2))
-                        throw std::runtime_error("Pointer misaligned");
-                    if (ptr + worst_case_size > cx.memory.size())
-                        throw std::runtime_error("Out of bounds access");
-                    for (int j = dst_byte_length - 1; j >= 0; --j)
-                    {
-                        cx.memory[ptr + 2 * j] = cx.memory[ptr + j];
-                        cx.memory[ptr + 2 * j + 1] = 0;
-                    }
-                    auto encoded = cx.convert(&cx.memory[ptr + 2 * dst_byte_length], src_code_units* 2, src, src_code_units, cx.guest_encoding, Encoding::Utf16);
-                    if (worst_case_size > encoded.second)
-                    {
-                        ptr = cx.realloc(ptr, worst_case_size, 2, encoded.second);
-                        if (ptr != align_to(ptr, 2))
-                            throw std::runtime_error("Pointer misaligned");
-                        if (ptr + encoded.second > cx.memory.size())
-                            throw std::runtime_error("Out of bounds access");
-                    }
-                    uint32_t tagged_code_units = static_cast<uint32_t>(encoded.second / 2) | UTF16_TAG;
-                    return std::make_pair(ptr, tagged_code_units);
-                }
-            }
-            if (dst_byte_length < src_code_units)
-            {
-                ptr = cx.realloc(ptr, src_code_units, 2, dst_byte_length);
-                if (ptr != align_to(ptr, 2))
-                    throw std::runtime_error("Pointer misaligned");
-                if (ptr + dst_byte_length > cx.memory.size())
-                    throw std::runtime_error("Out of bounds access");
-            }
-            return std::make_pair(ptr, dst_byte_length);
         }
 
         std::pair<uint32_t, uint32_t> store_probably_utf16_to_latin1_or_utf16(CallContext &cx, const void *src, uint32_t src_code_units)

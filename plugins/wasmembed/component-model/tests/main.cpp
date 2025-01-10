@@ -176,7 +176,7 @@ const char *const hw = "hello World!";
 const char *const hw8 = "hello 世界-🌍-!";
 const char16_t *hw16 = u"hello 世界-🌍-!";
 
-TEST_CASE("icu-0")
+TEST_CASE("icu-1")
 {
     std::string hw_str = hw;
     CHECK(hw_str == hw);
@@ -203,51 +203,162 @@ TEST_CASE("icu-2")
     CHECK(hw16_str2 == hw16_str);
 }
 
-TEST_CASE("String")
+template <String T, typename T2>
+void printString(T str, T2 hw)
 {
-    Heap heap(1024 * 1024);
-    auto cx = createCallContext(&heap, Encoding::Utf8);
-    string_t hw8_str = hw8;
-    auto v = lower_flat(*cx, hw8_str);
-    auto str = lift_flat<string_t>(*cx, v);
-    // std::cout << "str: \"" << str << "\"" << std::endl;
-    // std::cout << "hw8: \"" << hw8 << "\"" << std::endl;
-    CHECK(str.length() == hw8_str.length());
-    CHECK(str == hw8);
-}
-
-TEST_CASE("Unicode String")
-{
-    Heap heap(1024 * 1024);
-    auto cx = createCallContext(&heap, Encoding::Utf8);
-    u16string_t hw16_str = hw16;
-    auto v = lower_flat(*cx, hw16_str);
-    auto str = lift_flat<string_t>(*cx, v);
-    // std::cout << "str: \"" << str << "\"" << std::endl;
-    // std::cout << "hw8: \"" << hw8 << "\"" << std::endl;
-    string_t hw8_str = hw8;
-    CHECK(str.length() == hw8_str.length());
-    CHECK(str == hw8);
-
-    auto str16 = lift_flat<u16string_t>(*cx, v);
-    // CHECK(std::wcscmp(whw, wstr.c_str()) == 0);
-    CHECK(str16.length() == hw16_str.length());
-    // CHECK(std::wcscmp(wstr.c_str(), whw) == 0);
-    // std::wcout << "wstr: \"" << wstr << "\"" << std::endl;
-    // std::wcout << "whw: \"" << whw << "\"" << std::endl;
-    // std::wcout << L"wstr length: " << wstr.length() << std::endl;
-    // std::wcout << L"whw length: " << wcslen(whw) << std::endl;
-
-    for (size_t i = 0; i < str16.length(); ++i)
+    for (size_t i = 0; i < str.length(); ++i)
     {
-        std::wcout << L"Character " << i << L": wstr=" << static_cast<wchar_t>(str16[i]) << L", whw=" << static_cast<wchar_t>(hw16[i]) << std::endl;
-        if (str16[i] != hw16[i])
+        std::wcout << L"Character " << i << L": wstr=" << static_cast<wchar_t>(str[i]) << L", whw=" << static_cast<wchar_t>(hw[i]) << std::endl;
+        if (str[i] != hw[i])
         {
             std::wcout << L"Mismatch at position " << i << std::endl;
         }
     }
+}
+const char *const unicode_test_strings[] = {"", "a", "\x00", "hello", "こんにちは", "你好", "안녕하세요", "Здравствуйте", "مرحبا", "שלום", "नमस्ते", "สวัสดี", "γειά σου", "hola", "bonjour", "hallo", "ciao", "Olá", "hello 世界-🌍-!", "ہیلو", "ሰላም", "ہیلو", "ਸਤ ਸ੍ਰੀ ਅਕਾਲ", "வணக்கம்", "హలో", "ಹಲೋ", "ഹലോ", "ສະບາຍດີ", "မင်္ဂလာပါ", "សួស្តី", "ສະບາຍດີ", "ສະບາຍດີ", "ສະບາຍດີ"};
+const char16_t *const unicode_test_u16strings[] = {u"", u"a", u"\x00", u"hello", u"こんにちは", u"你好", u"안녕하세요", u"Здравствуйте", u"مرحبا", u"שלום", u"नमस्ते", u"สวัสดี", u"γειά σου", u"hola", u"bonjour", u"hallo", u"ciao", u"Olá", u"hello 世界-🌍-!", u"ہیلو", u"ሰላም", u"ہیلو", u"ਸਤ ਸ੍ਰੀ ਅਕਾਲ", u"வணக்கம்", u"హలో", u"ಹಲೋ", u"ഹലോ", u"ສະບາຍດີ", u"မင်္ဂလာပါ", u"សួស្តី", u"ສະບາຍດີ", u"ສະບາຍດີ", u"ສະບາຍດີ"};
+const char *const boundary_test_strings[] = {
+    "\x7F",             // DEL character in ASCII
+    "\xC2\x80",         // First 2-byte UTF-8 character
+    "\xDF\xBF",         // Last 2-byte UTF-8 character
+    "\xE0\xA0\x80",     // First 3-byte UTF-8 character
+    "\xEF\xBF\xBF",     // Last 3-byte UTF-8 character
+    "\xF0\x90\x80\x80", // First 4-byte UTF-8 character
+    "\xF4\x8F\xBF\xBF", // Last 4-byte UTF-8 character
+    "\xED\x9F\xBF",     // Last valid UTF-16 character before surrogates
+    "\xEE\x80\x80",     // First character after surrogates
+    "\xEF\xBF\xBD",     // Replacement character (U+FFFD)
+    "\xED\xA0\x7F",     // First high surrogate - 1 (Invalid UTF-8)
+    "\xED\xA0\x80",     // First high surrogate (Invalid UTF-8)
+    "\xED\xBF\xBF",     // Last high surrogate (Invalid UTF-8)
+    "\xED\xBF\xC0",     // Last high surrogate + 1 (Invalid UTF-8)
+    "\xF4\x90\x80\x80"  // Beyond U+10FFFF (Invalid UTF-8)
+};
+const char16_t *const boundary_test_u16strings[] = {
+    u"\x7F",             // DEL character in ASCII
+    u"\xC2\x80",         // First 2-byte UTF-8 character
+    u"\xDF\xBF",         // Last 2-byte UTF-8 character
+    u"\xE0\xA0\x80",     // First 3-byte UTF-8 character
+    u"\xEF\xBF\xBF",     // Last 3-byte UTF-8 character
+    u"\xF0\x90\x80\x80", // First 4-byte UTF-8 character
+    u"\xF4\x8F\xBF\xBF", // Last 4-byte UTF-8 character
+    u"\xED\x9F\xBF",     // Last valid UTF-16 character before surrogates
+    u"\xED\xA0\x7F",     // First high surrogate - 1
+    u"\xED\xA0\x80",     // First high surrogate
+    u"\xED\xBF\xBF",     // Last high surrogate
+    u"\xED\xBF\xC0",     // Last high surrogate + 1
+    u"\xEE\x80\x80",     // First character after surrogates
+    u"\xEF\xBF\xBD",     // Replacement character (U+FFFD)
+    u"\xF4\x90\x80\x80"  // Invalid UTF-8 (beyond U+10FFFF)
+};
 
-    CHECK(str16 == hw16);
+TEST_CASE("String-Utf16")
+{
+    Heap heap(1024 * 1024);
+    auto cx = createCallContext(&heap, Encoding::Utf16);
+    u16string_t hw16 = u"Hello World!";
+    auto v = lower_flat(*cx, hw16);
+    auto hw16_ret = lift_flat<u16string_t>(*cx, v);
+    CHECK(hw16_ret == hw16);
+
+    string_t hw = "Hello World!";
+    v = lower_flat(*cx, hw);
+    auto hw_ret = lift_flat<string_t>(*cx, v);
+    CHECK(hw_ret == hw);
+}
+
+TEST_CASE("String-Utf8")
+{
+    Heap heap(1024 * 1024);
+    auto cx = createCallContext(&heap, Encoding::Utf8);
+    string_t hw = "Hello World!";
+    auto v = lower_flat(*cx, hw);
+    auto hw_ret = lift_flat<string_t>(*cx, v);
+    CHECK(hw_ret == hw);
+
+    u16string_t hw16 = u"Hello World!";
+    v = lower_flat(*cx, hw16);
+    auto hw16_ret = lift_flat<u16string_t>(*cx, v);
+    CHECK(hw16_ret == hw16);
+}
+
+TEST_CASE("String-Latin1_Utf16")
+{
+    Heap heap(1024 * 1024);
+    auto cx = createCallContext(&heap, Encoding::Latin1_Utf16);
+    string_t hw = "Hello World!";
+    auto v = lower_flat(*cx, hw);
+    auto hw_ret = lift_flat<string_t>(*cx, v);
+    CHECK(hw_ret == hw);
+
+    u16string_t hw16 = u"Hello World!";
+    v = lower_flat(*cx, hw16);
+    auto hw16_ret = lift_flat<u16string_t>(*cx, v);
+    CHECK(hw16_ret == hw16);
+
+    hw = "Hello 🌍!";
+    v = lower_flat(*cx, hw);
+    hw_ret = lift_flat<string_t>(*cx, v);
+    CHECK(hw_ret == hw);
+
+    hw16 = u"Hello 🌍!";
+    v = lower_flat(*cx, hw16);
+    hw16_ret = lift_flat<u16string_t>(*cx, v);
+    CHECK(hw16_ret == hw16);
+}
+
+void testString(Encoding guestEncoding)
+{
+    Heap heap(1024 * 1024);
+    auto cx = createCallContext(&heap, guestEncoding);
+
+    for (auto hw : unicode_test_strings)
+    {
+        string_t hw_str = hw;
+        auto v = lower_flat(*cx, hw_str);
+        auto hw_str_ret = lift_flat<string_t>(*cx, v);
+        // printString(hw_str_ret, hw);
+        CHECK(hw_str_ret == hw_str);
+    }
+
+    for (uint i = 0; i < sizeof(boundary_test_strings) / sizeof(boundary_test_strings[0]); ++i)
+    {
+        string_t hw_str = boundary_test_strings[i];
+        auto v = lower_flat(*cx, hw_str);
+        auto hw_str_ret = lift_flat<string_t>(*cx, v);
+        // printString(hw_str_ret, hw);
+
+        if (guestEncoding != Encoding::Utf8 && i >= 10)
+            CHECK(hw_str_ret != hw_str);
+        else
+            CHECK(hw_str_ret == hw_str);
+    }
+
+    for (auto hw : unicode_test_u16strings)
+    {
+        u16string_t hw_str = hw;
+        auto v = lower_flat(*cx, hw_str);
+        auto hw_str_ret = lift_flat<u16string_t>(*cx, v);
+        CHECK(hw_str_ret.length() == hw_str.length());
+        // printString(hw_str_ret, hw);
+        CHECK(hw_str_ret == hw_str);
+    }
+
+    for (uint i = 0; i < sizeof(boundary_test_u16strings) / sizeof(boundary_test_u16strings[0]); ++i)
+    {
+        u16string_t hw_str = boundary_test_u16strings[i];
+        auto v = lower_flat(*cx, hw_str);
+        auto hw_str_ret = lift_flat<u16string_t>(*cx, v);
+        // printString(hw_str_ret, hw);
+        CHECK(hw_str_ret == hw_str);
+    }
+}
+
+TEST_CASE("String-complex")
+{
+    testString(Encoding::Utf8);
+    testString(Encoding::Utf16);
+    testString(Encoding::Latin1_Utf16);
 }
 
 // TEST_CASE("List")

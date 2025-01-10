@@ -94,6 +94,7 @@ namespace cmcpp
         Utf16,
         Latin1_Utf16
     };
+    
 
     enum class ValType : uint8_t
     {

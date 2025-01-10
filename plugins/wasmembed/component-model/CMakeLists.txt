@@ -3,7 +3,7 @@ project(component-model)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# find_package(fmt CONFIG REQUIRED)
+# find_package(ICU REQUIRED COMPONENTS uc i18n io)
 
 set(SRC
 #   component-model.cpp
@@ -41,12 +41,12 @@ set(SRC
 add_library(${PROJECT_NAME} STATIC ${SRC})
 
 # target_include_directories(${PROJECT_NAME}
-#   ...
+#     PRIVATE ${ICU_INCLUDE_DIR}
 # )
 
-target_link_libraries(${PROJECT_NAME} 
-#   PRIVATE fmt::fmt
-)
+# target_link_libraries(${PROJECT_NAME} 
+#     PRIVATE ${ICU_LIBRARIES}
+# )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 # target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
