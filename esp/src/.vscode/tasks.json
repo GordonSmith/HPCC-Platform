@@ -24,6 +24,17 @@
             }
         },
         {
+            "label": "vite-dev",
+            "type": "npm",
+            "script": "vite-dev",
+            "problemMatcher": [
+                "$tsc-watch"
+            ],
+            "presentation": {
+                "group": "group-build"
+            }
+        },
+        {
             "label": "serve",
             "type": "npm",
             "script": "serve",
@@ -37,6 +48,7 @@
             "dependsOn": [
                 "compile-watch",
                 "bundle-watch",
+                "vite-dev",
                 "serve",
             ],
             "group": {

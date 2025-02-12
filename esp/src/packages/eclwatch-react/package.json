@@ -4,7 +4,7 @@
   "version": "9.0.0",
   "type": "module",
   "scripts": {
-    "bundle-watch": "vite --port 8081 --base /esp/files/",
+    "vite-dev": "vite --port 8081 --base /esp/files/",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

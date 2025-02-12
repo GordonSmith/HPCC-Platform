@@ -15,6 +15,7 @@
     "lint": "lerna run lint",
     "compile-watch": "lerna run compile-watch",
     "bundle-watch": "lerna run bundle-watch",
+    "vite-dev": "lerna run vite-dev",
     "build": "lerna run build",
     "serve": "ws",
     "serve-verbose": "ws --verbose.include request response",
