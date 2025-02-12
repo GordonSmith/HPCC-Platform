@@ -28,8 +28,7 @@ module.exports = function (env) {
 
     const entry = {
         stub: "eclwatch/stub",
-        dojoLib: "lib/src/dojoLib",
-        index: "lib/src-react/index"
+        dojoLib: "lib/src/dojoLib"
     };
 
     const plugins = [
