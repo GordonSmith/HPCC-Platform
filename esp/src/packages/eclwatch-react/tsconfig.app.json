@@ -24,6 +24,10 @@
     // "noUncheckedSideEffectImports": true
   },
   "include": [
-    "src"
+    "src",
+    "../eclwatch-dojo/src-react/hooks/platform.ts",
+    "../eclwatch-dojo/src-react/hooks/cloud.ts",
+    "../eclwatch-dojo/src-react/hooks/util.ts",
+    "../eclwatch-dojo/src-react/components/controls/ComingSoon.tsx"
   ]
 }
