@@ -1,0 +1,31 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+{
+	"name": "ubuntu-22.04:hpcc-platform-9.12.x-arm",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"image": "hpccsystems/platform-build-base-ubuntu-22.04:hpcc-platform-9.12.x-arm",
+	"remoteEnv": {},
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "uname -a",
+	// Configure tool-specific properties.
+	// "customizations": {},
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"ms-vscode.cpptools-extension-pack"
+			],
+			"settings": {
+				"cmake.buildDirectory": "${workspaceFolder}/build/ubuntu-22.04/hpcc-platform-9.12.x-arm"
+			}
+		}
+	},
+	// "remoteUser": "vscode",
+	"postStartCommand": "cmake -G Ninja -S . -B ${workspaceFolder}/build/ubuntu-22.04/hpcc-platform-9.12.x-arm -DVCPKG_FILES_DIR=/hpcc-dev -DCONTAINERIZED=OFF -DUSE_OPTIONAL=OFF -DUSE_CPPUNIT=ON"
+}
