@@ -358,7 +358,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         }
     }, [scopesTable, selectedMetricsSource]);
 
-    //  Props Table  ---
+    //  Cross Tab Table  ---
     const crossTabTable = useConst(() => new Table()
         .columns([nlsHPCC.Property, nlsHPCC.Value])
         .columnWidth("auto")
