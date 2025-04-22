@@ -1,7 +1,6 @@
 {
   "name": "hpcc-platform",
   "private": true,
-  "type": "module",
   "scripts": {
     "clean": "rimraf ./devdoc/.vitepress/cache ./devdoc/.vitepress/dist",
     "copy-res": "cp ./devdoc/*.png ./devdoc/.vitepress/dist/devdoc",

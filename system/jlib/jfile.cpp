@@ -30,7 +30,7 @@
 #include <sys/stat.h>
 #include <algorithm>
 
-#if defined (__linux__) || defined (__APPLE__)
+#if defined (__linux__) || defined (__APPLE__) || defined (__EMSCRIPTEN__)
 #include <time.h>
 #include <dirent.h>
 #include <utime.h>
@@ -508,6 +508,10 @@ bool CFile::getTime(CDateTime * createTime, CDateTime * modifiedTime, CDateTime 
 #endif
     return true;
 }
+
+#if defined (__EMSCRIPTEN__)
+#define _utimbuf utimbuf
+#endif
 
 bool CFile::setTime(const CDateTime * createTime, const CDateTime * modifiedTime, const CDateTime * accessedTime)
 {
@@ -2592,7 +2596,6 @@ IFileAsyncResult *CFileAsyncIO::writeAsync(offset_t pos, size32_t len, const voi
 #else
 
 //-- Unix implementation ----------------------------------------------------
-
 class CFileAsyncResult: implements IFileAsyncResult, public CInterface
 {
 protected: 
@@ -2621,6 +2624,9 @@ public:
 
     bool getResult(size32_t &ret,bool wait)
     {
+#if defined(__EMSCRIPTEN__)
+    throw makeErrnoException(ECANCELED, "TODO:  Add EMSCRIPTEN support");
+#else
         if (value==(size32_t)-1) {
             for (;;) {
                 int aio_errno = aio_error(&cb);
@@ -2652,10 +2658,10 @@ public:
             }
         }
         ret = value;
+#endif
         return true;
     }
 };
-
 
 CFileAsyncIO::CFileAsyncIO(HANDLE handle, IFSHmode _sharemode)
 {
@@ -2674,7 +2680,11 @@ void CFileAsyncIO::close()
         HANDLE tmpHandle = NULLFILE;
         std::swap(tmpHandle, file);
 
+#if defined(__EMSCRIPTEN__)
+    throw makeErrnoException(ECANCELED, "TODO:  Add EMSCRIPTEN support");
+#else
         aio_cancel(tmpHandle, NULL);
+#endif
         if (_lclose(tmpHandle) < 0)
             throw makeErrnoException(errno, "CFileAsyncIO::close");
     }
@@ -2728,9 +2738,14 @@ IFileAsyncResult *CFileAsyncIO::readAsync(offset_t pos, size32_t len, void * dat
     res->cb.aio_nbytes = len;
     res->cb.aio_sigevent.sigev_notify = SIGEV_NONE;
 
+#if defined(__EMSCRIPTEN__)
+    throw makeErrnoException(ECANCELED, "TODO:  Add EMSCRIPTEN support");
+#else
+
     int retval = aio_read(&(res->cb));
     if (retval==-1)
         throw makeErrnoException(errno, "CFileAsyncIO::readAsync");
+#endif
     return res;
 }
 
@@ -2747,9 +2762,14 @@ IFileAsyncResult *CFileAsyncIO::writeAsync(offset_t pos, size32_t len, const voi
     res->cb.aio_sigevent.sigev_notify = SIGEV_NONE;
     res->cb.aio_sigevent.sigev_value.sival_ptr = (void*)res;
 
+#if defined(__EMSCRIPTEN__)
+    throw makeErrnoException(ECANCELED, "TODO:  Add EMSCRIPTEN support");
+#else
+
     int retval = aio_write(&(res->cb));
     if (retval==-1)
         throw makeErrnoException(errno, "CFileAsyncIO::writeAsync");
+#endif
     return res;
 }
 
@@ -3267,7 +3287,7 @@ void doCopyFile(IFile * target, IFile * source, size32_t buffersize, ICopyFilePr
     if (!sourceIO)
         throw MakeStringException(-1, "copyFile: source '%s' not found", source->queryFilename());
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
 
     // this is not really needed in windows - if it is we will have to
     // test the file extenstion - .exe, .bat
@@ -6841,7 +6861,7 @@ public:
 #else
         close(hfile);
 #endif
-#if defined(__linux__)
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
         if (ptr)
         {
             munmap(realptr(),realsize());
@@ -6868,7 +6888,7 @@ public:
         if (ptr) {
 #ifdef _WIN32
             FlushViewOfFile(realptr(),0);
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__EMSCRIPTEN__)
             msync(realptr(),realsize(),MS_SYNC);
 #else
             UNIMPLEMENTED;
@@ -6916,7 +6936,7 @@ public:
                 CloseHandle(hmap);
                 hmap = INVALID_HANDLE_VALUE;
             }
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__EMSCRIPTEN__)
             munmap(realptr(),realsize());
             // error checking TBD
 #else
@@ -6954,7 +6974,7 @@ public:
             DWORD err = GetLastError();
             throw makeOsException(err,"CMemoryMappedFile::reinit");
         }
-#elif defined (__linux__)
+#elif defined (__linux__) || defined(__EMSCRIPTEN__)
         ptr = (byte *) mmap(NULL, mapsz, writeaccess?(PROT_READ|PROT_WRITE):PROT_READ, MAP_SHARED|MAP_NORESERVE, hfile, realofs);
         if (ptr == MAP_FAILED)
             throw makeOsException(errno, "CMemoryMappedFile::reinit");

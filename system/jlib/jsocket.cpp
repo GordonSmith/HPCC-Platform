@@ -350,7 +350,7 @@ struct MCASTREQ
 #define CHECKSOCKRANGE(s)
 #define _USE_SELECT // Windows bug 309411 - WSAPoll does not report failed connections - wont fix
 // #define poll(a, b, c) WSAPoll((a), (b), (c))
-#elif defined(__FreeBSD__) || defined(__APPLE__)
+#elif defined(__FreeBSD__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
 #define XFD_SETSIZE FD_SETSIZE
 #define T_FD_SET fd_set
 #define XFD_ZERO(s) FD_ZERO(s)
@@ -3622,7 +3622,7 @@ static bool lookupHostAddress(const char *name, unsigned *netaddr, unsigned time
     // if IP4only or using MS V6 can only resolve IPv4 using 
     int retry=10;
 
-#if defined(__linux__) || defined (__APPLE__) || defined(getaddrinfo)
+#if defined(__linux__) || defined (__APPLE__) || defined(__EMSCRIPTEN__)
     if (IP4only) {
 #else
     {
@@ -3664,7 +3664,7 @@ static bool lookupHostAddress(const char *name, unsigned *netaddr, unsigned time
         return false;
     }
 
-#if defined(__linux__) || defined (__APPLE__) || defined(getaddrinfo)
+#if defined(__linux__) || defined (__APPLE__) || defined(__EMSCRIPTEN__) || defined(getaddrinfo)
     int retCode = 0;
     if ( (timeoutms != INFINITE) && (useDNSTimeout()) ) // could addrInfoPool be NULL ?
     {
@@ -6802,7 +6802,7 @@ bool SocketEndpointArray::fromName(const char *name, unsigned defport)
     default:
         throw MakeStringException(-1, "Invalid name %s SocketEndpointArray::fromName", name);
     }
-#if defined(__linux__) || defined (__APPLE__) || defined(getaddrinfo)
+#if defined(__linux__) || defined (__APPLE__) || defined(__EMSCRIPTEN__) || defined(getaddrinfo)
     if (IP4only)
 #endif
     {
@@ -6824,7 +6824,7 @@ bool SocketEndpointArray::fromName(const char *name, unsigned defport)
         }
         return ordinality()>0;
     }
-#if defined(__linux__) || defined (__APPLE__) || defined(getaddrinfo)
+#if defined(__linux__) || defined (__APPLE__) || defined(__EMSCRIPTEN__) || defined(getaddrinfo)
     unsigned netaddr[4];
     int retCode = getAddressInfo(name, netaddr, true);
     if (0 == retCode)

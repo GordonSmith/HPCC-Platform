@@ -265,7 +265,7 @@ void Thread::adjustNiceLevel()
     else if(nicelevel >15)
         priority = THREAD_PRIORITY_IDLE;
     SetThreadPriority(hThread, priority);
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__EMSCRIPTEN__)
     setpriority(PRIO_PROCESS, 0, nicelevel);
 #else
     UNIMPLEMENTED;
@@ -2626,7 +2626,7 @@ void PerfTracer::setInterval(double _interval)
 
 void PerfTracer::start()
 {
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
     dostart(1000000);
 #else
     UNIMPLEMENTED;
@@ -2635,7 +2635,7 @@ void PerfTracer::start()
 
 void PerfTracer::dostart(unsigned seconds)
 {
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
     pipe.setown(createPipeProcess());
     pipe->setAllowTrace();
     VStringBuffer cmd("doperf %u %u %f", GetCurrentProcessId(), seconds, interval);
@@ -2651,7 +2651,7 @@ void PerfTracer::dostart(unsigned seconds)
 
 void PerfTracer::stop()
 {
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
     assertex(pipe);
     ::kill(pipe->getProcessHandle(), SIGINT);
     dostop();
@@ -2662,7 +2662,7 @@ void PerfTracer::stop()
 
 void PerfTracer::traceFor(unsigned seconds)
 {
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
     dostart(seconds);
     dostop();
 #else
@@ -2672,7 +2672,7 @@ void PerfTracer::traceFor(unsigned seconds)
 
 void PerfTracer::dostop()
 {
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
     char buf[1024];
     while (true)
     {

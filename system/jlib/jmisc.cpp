@@ -37,7 +37,7 @@
 
 #ifdef _WIN32
  #include <stdlib.h>
-#elif defined(__linux__) || defined(__FreeBSD__)
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__EMSCRIPTEN__)
  extern char **environ;
 #elif defined(__APPLE__)
 #include <crt_externs.h>
@@ -768,7 +768,7 @@ BOOL WINAPI ModuleExitHandler ( DWORD dwCtrlType )
     }
     return FALSE; 
 } 
-#elif defined(__linux__) || defined(__APPLE__)
+#elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
 static void UnixAbortHandler(int signo)
 {
     ahType type = ahInterrupt;
@@ -790,7 +790,7 @@ void queryInstallAbortHandler()
 
 #if defined(_WIN32)
     SetConsoleCtrlHandler( WindowsAbortHandler, TRUE ); 
-#elif defined(__linux__) || defined(__APPLE__)
+#elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
     struct sigaction action;
     sigemptyset(&action.sa_mask);
     action.sa_flags = SA_RESTART;
@@ -827,7 +827,7 @@ MODULE_INIT(INIT_PRIORITY_JMISC2)
     // NOTE: handlers are called in LIFO order and hence any handler that returns false
     // (e.g CTRL-C not wanting to abort)) will stop this handler being called also (correctly).
     SetConsoleCtrlHandler( ModuleExitHandler, TRUE);
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__EMSCRIPTEN__)
     queryInstallAbortHandler();
 #endif
     return true;

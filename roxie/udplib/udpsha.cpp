@@ -294,7 +294,7 @@ bool queue_t::dataQueued(const void *key, PKT_CMP_FUN pkCmpFn)
 
 int check_set(const char *path, int value)
 {
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
     FILE *f = fopen(path,"r");
     char res[32];
     char *r = 0;
@@ -323,7 +323,7 @@ int check_max_socket_write_buffer(int size) {
     return check_set("/proc/sys/net/core/wmem_max", size);
 }
 
-#if defined( __linux__) || defined(__APPLE__)
+#if defined( __linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
 void setLinuxThreadPriority(int level)
 {
     if (!udpAdjustThreadPriorities)

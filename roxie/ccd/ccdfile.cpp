@@ -36,10 +36,10 @@
 #include "rmtfile.hpp"
 #include "ccdqueue.ipp"
 #include "ccdcache.hpp"
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
 #include <sys/mman.h>
 #endif
-#if defined (__linux__)
+#if defined (__linux__) || defined(__EMSCRIPTEN__)
 #include <sys/syscall.h>
 #include "ioprio.h"
 #endif

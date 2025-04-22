@@ -1,0 +1,38 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"cmake.cmakePath": "${workspaceFolder}/third-party/cmake.sh",
+		"cmake.generator": "Ninja",
+		"cmake.configureArgs": [
+			"-DEMSCRIPTEN=ON",
+			"-DCONTAINERIZED=OFF",
+			"-DUSE_OPTIONAL=OFF",
+			"-DUSE_CPPUNIT=ON",
+			"-DINCLUDE_PLUGINS=ON",
+			"-DSUPPRESS_V8EMBED=ON",
+			"-DSUPPRESS_REMBED=ON"
+		],
+		"editor.formatOnSave": false,
+		"files.associations": {
+			"*.json": "json",
+			"*.mod": "ecl",
+			"*.inc": "cpp",
+			"aio.h": "c",
+			"malloc.h": "c",
+			"*.ipp": "cpp"
+		},
+		"ecl.launchConfiguration": "localhost",
+		"ecl.targetCluster": {}
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-vscode.cpptools",
+			"ms-vscode.cpptools-extension-pack",
+			"ms-vscode.cmake-tools"
+		]
+	}
+}

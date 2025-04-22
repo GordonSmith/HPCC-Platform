@@ -155,7 +155,7 @@ static void doSetCompilerPath(const char * path, const char * includes, const ch
             finger++;
         }
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
         StringBuffer clbin_dir;
         const char* dir_end = strrchr(fname, '/');
         if(dir_end == NULL)
@@ -183,7 +183,7 @@ static void doSetCompilerPath(const char * path, const char * includes, const ch
     if (_access(fname.str(), 4))
     {
 #else
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
     struct stat filestatus;
     int r = stat(fname.str(), &filestatus);
     if (    (r != 0)
@@ -201,7 +201,7 @@ static void doSetCompilerPath(const char * path, const char * includes, const ch
     if(tmpdir && *tmpdir)
     {
         //MORE: this should be done for the child process instead of the parent but invoke does not let me do it
-#if defined(__linux__)
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
         setenv("TMPDIR", tmpdir, 1);
 #endif
 

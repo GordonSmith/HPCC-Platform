@@ -526,7 +526,7 @@ public:
             toSend.push_back(buffer);
             maxPackets--;
             totalSent += header->length;
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
             if (isLocal && (totalSent> 100000))  // Avoids sending too fast to local node, for reasons lost in the mists of time
                 break;
 #endif
@@ -984,7 +984,7 @@ class CSendManager : implements ISendManager, public CInterface
         {
             if (udpTraceLevel > 0)
                 DBGLOG("UdpSender[%s]: send_receive_flow started", parent.myId);
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
             setLinuxThreadPriority(2);
 #endif
             while(running) 
@@ -1120,7 +1120,7 @@ class CSendManager : implements ISendManager, public CInterface
         {
             if (udpTraceLevel > 0)
                 DBGLOG("UdpSender[%s]: send_data started", parent.myId);
-        #ifdef __linux__
+        #if defined(__linux__) || defined(__EMSCRIPTEN__)
             setLinuxThreadPriority(1); // MORE - windows? Is this even a good idea? Must not send faster than receiver can pull off the socket
         #endif
             UdpPermitToSendMsg permit;

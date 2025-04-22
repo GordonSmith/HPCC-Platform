@@ -4,3 +4,6 @@
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/hpcc-systems/vcpkg.git
+[submodule "third-party/emsdk"]
+	path = third-party/emsdk
+	url = https://github.com/emscripten-core/emsdk.git

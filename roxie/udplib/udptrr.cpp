@@ -1218,7 +1218,7 @@ class CReceiveManager : implements IReceiveManager, public CInterface
         virtual int run() override
         {
             DBGLOG("UdpReceiver: receive_receive_flow started");
-        #ifdef __linux__
+        #if defined(__linux__) || defined(__EMSCRIPTEN__)
             setLinuxThreadPriority(3);
         #else
             adjustPriority(1);
@@ -1348,7 +1348,7 @@ class CReceiveManager : implements IReceiveManager, public CInterface
         virtual int run() 
         {
             DBGLOG("UdpReceiver: receive_data started");
-        #ifdef __linux__
+        #if defined(__linux__) || defined(__EMSCRIPTEN__)
             setLinuxThreadPriority(4);
         #else
             adjustPriority(2);

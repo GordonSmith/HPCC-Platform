@@ -32,7 +32,7 @@
 #ifdef _WIN32
 #include "psapi.h"
 #include <eh.h>
-#elif defined (__linux__) || defined(__FreeBSD__)  || defined(__APPLE__)
+#elif defined (__linux__) || defined(__FreeBSD__)  || defined(__APPLE__) || defined(__EMSCRIPTEN__)
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <stddef.h>
@@ -1672,7 +1672,7 @@ void  jlib_decl disableSEHtoExceptionMapping()
 
 void jlib_decl raiseSignalInFuture(int signo, unsigned timeoutSec)
 {
-#if defined(__linux__)
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
     int ret;
     timer_t timerId;
     struct sigevent sigev;
