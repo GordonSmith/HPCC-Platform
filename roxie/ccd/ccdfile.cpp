@@ -1370,7 +1370,7 @@ public:
             if (cacheTrackSize == (offset_t) -1)
             {
                 const char *memLimit = nullptr;
-#ifdef __linux__                        
+#if defined (__linux__) || defined(__EMSCRIPTEN__)
                 StringBuffer contents;
                 try
                 {

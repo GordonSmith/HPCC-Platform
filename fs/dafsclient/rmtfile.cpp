@@ -258,7 +258,7 @@ public:
             if (storageSecret.length())
                 return createDaliServixFile(filename, storageSecret);
 
-#ifdef __linux__
+#if defined (__linux__) || defined(__EMSCRIPTEN__)
 #ifndef USE_SAMBA
             if (noport && filters.ordinality())
             {

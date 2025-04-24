@@ -1430,7 +1430,7 @@ public:
     virtual void checkAbort() override
     {
         // MORE - really should try to apply limits at agent end too
-#ifdef __linux__
+#if defined (__linux__) || defined(__EMSCRIPTEN__)
         if (linuxYield)
             sched_yield();
 #endif

@@ -50,7 +50,7 @@
 #include "securesocket.hpp"
 #endif
 
-#if defined (__linux__)
+#if defined (__linux__) || defined(__EMSCRIPTEN__)
 #include <sys/syscall.h>
 #include "ioprio.h"
 #endif
