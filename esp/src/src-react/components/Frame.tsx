@@ -9,6 +9,7 @@ import { hashHistory } from "../util/history";
 import { router } from "../routes";
 import { DevTitle } from "./Title";
 import { MainNavigation, SubNavigation } from "./Menu";
+import { Basic } from "./Menu2";
 import { CookieConsent } from "./forms/CookieConsent";
 import { userKeyValStore } from "src/KeyValStore";
 import { fireIdle, initSession, lock, unlock } from "src/Session";
@@ -111,11 +112,12 @@ export const Frame: React.FunctionComponent<FrameProps> = () => {
         <ThemeProvider theme={theme} style={{ height: "100%" }}>
             <HolyGrail
                 header={<DevTitle />}
-                left={<MainNavigation hashPath={locationPathname} />}
+                right={<MainNavigation hashPath={locationPathname} />}
                 main={<HolyGrail
                     header={<SubNavigation hashPath={locationPathname} />}
                     main={body}
                 />}
+                left={<Basic />}
             />
             <CookieConsent showCookieConsent={showCookieConsent} onApply={(n: boolean) => {
                 userKeyValStore().set(USER_COOKIE_CONSENT, n ? "1" : "0");
