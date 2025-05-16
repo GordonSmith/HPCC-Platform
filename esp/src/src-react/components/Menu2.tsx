@@ -21,13 +21,13 @@ const useStyles = makeStyles({
     root: {
         overflow: "hidden",
         display: "flex",
-        height: "100%",
+        height: "100%"
     },
     nav: {
         maxWidth: "200px",
     },
     navSmall: {
-        maxWidth: "56px",
+        maxWidth: "52px",
     },
     content: {
         flex: "1",
