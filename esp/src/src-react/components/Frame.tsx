@@ -9,7 +9,7 @@ import { hashHistory } from "../util/history";
 import { router } from "../routes";
 import { DevTitle } from "./Title";
 import { MainNavigation, SubNavigation } from "./Menu";
-import { Basic } from "./Menu2";
+import { MainNavigation2 } from "./Menu2";
 import { CookieConsent } from "./forms/CookieConsent";
 import { userKeyValStore } from "src/KeyValStore";
 import { fireIdle, initSession, lock, unlock } from "src/Session";
@@ -117,7 +117,7 @@ export const Frame: React.FunctionComponent<FrameProps> = () => {
                     header={<SubNavigation hashPath={locationPathname} />}
                     main={body}
                 />}
-                left={<Basic />}
+                left={<MainNavigation2 hashPath={locationPathname} />}
             />
             <CookieConsent showCookieConsent={showCookieConsent} onApply={(n: boolean) => {
                 userKeyValStore().set(USER_COOKIE_CONSENT, n ? "1" : "0");

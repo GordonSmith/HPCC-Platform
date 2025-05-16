@@ -1,9 +1,21 @@
-import { DrawerProps } from "@fluentui/react-components";
+import { ToggleButton } from "@fluentui/react-components";
 import * as React from "react";
-import { AppItem, Hamburger, NavCategory, NavCategoryItem, NavDivider, NavDrawer, NavDrawerBody, NavDrawerHeader, NavDrawerProps, NavItem, NavSectionHeader, NavSubItem, NavSubItemGroup } from "@fluentui/react-nav-preview";
-import { Label, Radio, RadioGroup, Switch, Tooltip, makeStyles, tokens, useId, useRestoreFocusTarget } from "@fluentui/react-components";
-import { Home20Regular, Board20Filled, Board20Regular, BoxMultiple20Filled, BoxMultiple20Regular, DataArea20Filled, DataArea20Regular, DocumentBulletListMultiple20Filled, DocumentBulletListMultiple20Regular, HeartPulse20Filled, HeartPulse20Regular, MegaphoneLoud20Filled, MegaphoneLoud20Regular, NotePin20Filled, NotePin20Regular, People20Filled, People20Regular, PeopleStar20Filled, PeopleStar20Regular, Person20Filled, PersonLightbulb20Filled, PersonLightbulb20Regular, Person20Regular, PersonSearch20Filled, PersonSearch20Regular, PreviewLink20Filled, PreviewLink20Regular, bundleIcon, PersonCircle32Regular } from "@fluentui/react-icons";
+import { Hamburger, NavDrawer, NavDrawerBody, NavDrawerHeader, NavDrawerFooter, NavItem, NavDivider } from "@fluentui/react-nav-preview";
+import { Tooltip, makeStyles, tokens } from "@fluentui/react-components";
+import {
+    Home20Filled, Home20Regular, TextGrammarLightning20Filled, TextGrammarLightning20Regular,
+    DatabaseWindow20Filled, DatabaseWindow20Regular,
+    Globe20Filled, Globe20Regular,
+    Organization20Filled, Organization20Regular,
+    ShieldBadge20Filled, ShieldBadge20Regular,
+    WeatherSunnyRegular, WeatherMoonRegular,
+    bundleIcon, FluentIcon
+} from "@fluentui/react-icons";
 import nlsHPCC from "src/nlsHPCC";
+import { containerized, bare_metal } from "src/BuildInfo";
+import { navCategory } from "../util/history";
+import { MainNav, routes } from "../routes";
+import { useUserTheme } from "../hooks/theme";
 
 const useStyles = makeStyles({
     root: {
@@ -12,7 +24,7 @@ const useStyles = makeStyles({
         height: "100%",
     },
     nav: {
-        minWidth: "200px",
+        maxWidth: "200px",
     },
     navSmall: {
         maxWidth: "56px",
@@ -33,165 +45,162 @@ const useStyles = makeStyles({
     },
 });
 
-const Person = bundleIcon(Person20Filled, Person20Regular);
-const Dashboard = bundleIcon(Board20Filled, Board20Regular);
-const Announcements = bundleIcon(MegaphoneLoud20Filled, MegaphoneLoud20Regular);
-const EmployeeSpotlight = bundleIcon(
-    PersonLightbulb20Filled,
-    PersonLightbulb20Regular
-);
-const Search = bundleIcon(PersonSearch20Filled, PersonSearch20Regular);
-const PerformanceReviews = bundleIcon(
-    PreviewLink20Filled,
-    PreviewLink20Regular
-);
-const JobPostings = bundleIcon(NotePin20Filled, NotePin20Regular);
-const Interviews = bundleIcon(People20Filled, People20Regular);
-const HealthPlans = bundleIcon(HeartPulse20Filled, HeartPulse20Regular);
-const TrainingPrograms = bundleIcon(BoxMultiple20Filled, BoxMultiple20Regular);
-const CareerDevelopment = bundleIcon(PeopleStar20Filled, PeopleStar20Regular);
-const Analytics = bundleIcon(DataArea20Filled, DataArea20Regular);
-const Reports = bundleIcon(
-    DocumentBulletListMultiple20Filled,
-    DocumentBulletListMultiple20Regular
-);
+interface NavItem {
+    name: string;
+    href: string;
+    icon: FluentIcon;
+    key: string;
+    value: string;
+}
 
-type DrawerType = Required<DrawerProps>["type"];
+const Home = bundleIcon(Home20Filled, Home20Regular);
+const TextGrammarLightning = bundleIcon(TextGrammarLightning20Filled, TextGrammarLightning20Regular);
+const DatabaseWindow = bundleIcon(DatabaseWindow20Filled, DatabaseWindow20Regular);
+const Globe = bundleIcon(Globe20Filled, Globe20Regular);
+const Organization = bundleIcon(Organization20Filled, Organization20Regular);
+const ShieldBadge = bundleIcon(ShieldBadge20Filled, ShieldBadge20Regular);
 
-export const Basic = (props: Partial<NavDrawerProps>) => {
+function navLinkGroups(): NavItem[] {
+    let links: NavItem[] = [
+        {
+            name: nlsHPCC.Activities,
+            href: "#/activities",
+            icon: Home,
+            key: "activities",
+            value: "activities"
+        },
+        {
+            name: nlsHPCC.ECL,
+            href: "#/workunits",
+            icon: TextGrammarLightning,
+            key: "workunits",
+            value: "workunits"
+        },
+        {
+            name: nlsHPCC.Files,
+            href: "#/files",
+            icon: DatabaseWindow,
+            key: "files",
+            value: "files"
+        },
+        {
+            name: nlsHPCC.PublishedQueries,
+            href: "#/queries",
+            icon: Globe,
+            key: "queries",
+            value: "queries"
+        },
+        {
+            name: nlsHPCC.Topology,
+            href: "#/topology",
+            icon: Organization,
+            key: "topology",
+            value: "topology"
+        },
+        {
+            name: nlsHPCC.Operations,
+            href: "#/operations",
+            icon: ShieldBadge,
+            key: "operations",
+            value: "operations"
+        }
+    ];
+    if (!containerized) {
+        links = links.filter(l => l.key !== "topology");
+    }
+    if (!bare_metal) {
+        links = links.filter(l => l.key !== "operations");
+    }
+    return links;
+}
+
+const _navIdx: { [id: string]: MainNav[] } = {};
+
+function navIdx(id) {
+    id = id.split("!")[0];
+    if (!_navIdx[id]) {
+        _navIdx[id] = [];
+    }
+    return _navIdx[id];
+}
+
+function append(route, path) {
+    route.mainNav?.forEach(item => {
+        navIdx(path).push(item);
+    });
+}
+
+routes.forEach((route: any) => {
+    if (Array.isArray(route.path)) {
+        route.path.forEach(path => {
+            append(route, path);
+        });
+    } else {
+        append(route, route.path);
+    }
+});
+
+function navSelectedKey(hashPath) {
+    const rootPath = navIdx(`/${navCategory(hashPath)?.split("/")[1]}`);
+    if (rootPath?.length) {
+        return rootPath[0];
+    }
+    return null;
+}
+
+interface MainNavigation2Props {
+    hashPath: string;
+}
+
+export const MainNavigation2: React.FunctionComponent<MainNavigation2Props> = ({
+    hashPath
+}) => {
     const styles = useStyles();
 
-    const typeLableId = useId("type-label");
-    const linkLabelId = useId("link-label");
-    const multipleLabelId = useId("multiple-label");
+    const selKey = React.useMemo(() => {
+        return navSelectedKey(hashPath);
+    }, [hashPath]);
 
     const [isOpen, setIsOpen] = React.useState(true);
-    const [enabledLinks, setEnabledLinks] = React.useState(false);
-    const [type, setType] = React.useState<DrawerType>("inline");
-    const [isMultiple, setIsMultiple] = React.useState(true);
 
-    // Tabster prop used to restore focus to the navigation trigger for overlay nav drawers
-    const restoreFocusTargetAttributes = useRestoreFocusTarget();
-
-    const linkDestination = enabledLinks ? "https://www.bing.com" : "";
+    const { setTheme, isDark } = useUserTheme();
 
     return (
         <div className={styles.root}>
-            <NavDrawer
-                defaultSelectedValue="2"
-                defaultSelectedCategoryValue=""
-                open={true}
-                type={type}
-                multiple={isMultiple}
-                className={isOpen ? styles.nav : styles.navSmall}
-            >
+            <NavDrawer selectedValue={selKey} open={true} type={"inline"} density="medium" className={isOpen ? styles.nav : styles.navSmall} >
                 <NavDrawerHeader>
-                    <Tooltip content="Close Navigation" relationship="label">
-                        <Hamburger onClick={() => setIsOpen(!isOpen)} />
-                    </Tooltip>
+                    {
+                        true ? <Tooltip content="Close Navigation" relationship="label">
+                            <Hamburger onClick={() => setIsOpen(!isOpen)} />
+                        </Tooltip> : <></>
+                    }
                 </NavDrawerHeader>
 
                 <NavDrawerBody>
-                    <NavItem href={linkDestination} icon={<Home20Regular />} value="1">
-                        {isOpen ? nlsHPCC.Activities : ""}
-                    </NavItem>
-                    <NavItem href={linkDestination} icon={<Dashboard />} value="1">
-                        {isOpen ? nlsHPCC.ECL : ""}
-                    </NavItem>
-                    <NavItem href={linkDestination} icon={<Dashboard />} value="1">
-                        {isOpen ? nlsHPCC.Files : ""}
-                    </NavItem>
-                    <NavItem href={linkDestination} icon={<Dashboard />} value="1">
-                        {isOpen ? nlsHPCC.PublishedQueries : ""}
-                    </NavItem>
-                    <NavItem href={linkDestination} icon={<Dashboard />} value="1">
-                        {isOpen ? nlsHPCC.Topology : ""}
-                    </NavItem>
-                    <NavItem href={linkDestination} icon={<Dashboard />} value="1">
-                        {isOpen ? nlsHPCC.Operations : ""}
-                    </NavItem>
-                    <NavItem href={linkDestination} icon={<Announcements />} value="2">
-
-                    </NavItem>
-                    <NavItem
-                        href={linkDestination}
-                        icon={<EmployeeSpotlight />}
-                        value="3"
-                    >
-                        Employee Spotlight
-                    </NavItem>
-                    <NavItem icon={<Search />} href={linkDestination} value="4">
-                        Profile Search
-                    </NavItem>
-                    <NavItem
-                        icon={<PerformanceReviews />}
-                        href={linkDestination}
-                        value="5"
-                    >
-                        Performance Reviews
-                    </NavItem>
-                    <NavSectionHeader>Employee Management</NavSectionHeader>
-                    <NavCategory value="6">
-                        <NavCategoryItem icon={<JobPostings />}>
-                            Job Postings
-                        </NavCategoryItem>
-                        <NavSubItemGroup>
-                            <NavSubItem href={linkDestination} value="7">
-                                Openings
-                            </NavSubItem>
-                            <NavSubItem href={linkDestination} value="8">
-                                Submissions
-                            </NavSubItem>
-                        </NavSubItemGroup>
-                    </NavCategory>
-                    <NavItem icon={<Interviews />} value="9">
-                        Interviews
-                    </NavItem>
-
-                    <NavSectionHeader>Benefits</NavSectionHeader>
-                    <NavItem icon={<HealthPlans />} value="10">
-                        Health Plans
-                    </NavItem>
-                    <NavCategory value="11">
-                        <NavCategoryItem icon={<Person />} value="12">
-                            Retirement
-                        </NavCategoryItem>
-                        <NavSubItemGroup>
-                            <NavSubItem href={linkDestination} value="13">
-                                Plan Information
-                            </NavSubItem>
-                            <NavSubItem href={linkDestination} value="14">
-                                Fund Performance
-                            </NavSubItem>
-                        </NavSubItemGroup>
-                    </NavCategory>
-
-                    <NavSectionHeader>Learning</NavSectionHeader>
-                    <NavItem icon={<TrainingPrograms />} value="15">
-                        Training Programs
-                    </NavItem>
-                    <NavCategory value="16">
-                        <NavCategoryItem icon={<CareerDevelopment />}>
-                            Career Development
-                        </NavCategoryItem>
-                        <NavSubItemGroup>
-                            <NavSubItem href={linkDestination} value="17">
-                                Career Paths
-                            </NavSubItem>
-                            <NavSubItem href={linkDestination} value="18">
-                                Planning
-                            </NavSubItem>
-                        </NavSubItemGroup>
-                    </NavCategory>
+                    {
+                        navLinkGroups().map((item: NavItem) => (
+                            <NavItem key={item.key} href={item.href} icon={<item.icon href={item.href} />} value={item.value} >
+                                {isOpen ? item.name : ""}
+                            </NavItem>
+                        ))
+                    }
                     <NavDivider />
-                    <NavItem target="_blank" icon={<Analytics />} value="19">
-                        Workforce Data
-                    </NavItem>
-                    <NavItem href={linkDestination} icon={<Reports />} value="20">
-                        Reports
-                    </NavItem>
+
                 </NavDrawerBody>
+
+                <NavDrawerFooter>
+                    <ToggleButton appearance="transparent" icon={isDark ? < WeatherSunnyRegular /> : <WeatherMoonRegular />} style={{ justifyContent: "flex-start", width: "100%" }} onClick={() => {
+                        setTheme(isDark ? "light" : "dark");
+                        const themeChangeEvent = new CustomEvent("eclwatch-theme-toggle", {
+                            detail: { dark: !isDark }
+                        });
+                        document.dispatchEvent(themeChangeEvent);
+                    }} >
+                        {isOpen ? nlsHPCC.Theme : ""}
+                    </ToggleButton>
+                </NavDrawerFooter>
             </NavDrawer>
         </div>
     );
 };
+
