@@ -108,9 +108,7 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
             onClick: () => {
                 file?.update({
                     UpdateDescription: true,
-                    FileDesc: description,
-                    Protect: _protected ? WsDfu.DFUChangeProtection.Protect : WsDfu.DFUChangeProtection.Unprotect,
-                    Restrict: restricted ? WsDfu.DFUChangeRestriction.Restrict : WsDfu.DFUChangeRestriction.Unrestricted,
+                    FileDesc: description
                 })
                     .then(_ => {
                         setShowMessageBar(true);
