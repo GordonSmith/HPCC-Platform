@@ -88,6 +88,7 @@
   "devDependencies": {
     "@eslint/js": "9.29.0",
     "@playwright/test": "1.53.0",
+    "@playwright/mcp":"0.0.29",
     "@simbathesailor/use-what-changed": "2.0.0",
     "@types/dojo": "1.9.48",
     "@types/node": "22.15.32",

@@ -14,13 +14,24 @@
 			"-DSUPPRESS_V8EMBED=ON",
 			"-DSUPPRESS_REMBED=ON"
 		],
-		"editor.formatOnSave": false
+		"editor.formatOnSave": false,
+		"mcp": {
+			"servers": {
+				"playwright": {
+					"command": "npx",
+					"args": [
+						"@playwright/mcp@latest"
+					]
+				}
+			}
+		},
 	},
 	"extensions": {
 		"recommendations": [
 			"ms-vscode.cpptools",
 			"ms-vscode.cpptools-extension-pack",
-			"ms-vscode.cmake-tools"
+			"ms-vscode.cmake-tools",
+			"ms-playwright.playwright"
 		]
 	}
 }
