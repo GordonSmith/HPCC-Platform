@@ -19,6 +19,32 @@ const logger = scopedLogger("src-react/components/MetricsGraph.tsx");
 const LineageIcon = bundleIcon(Folder20Filled, Folder20Regular);
 const SelectedLineageIcon = bundleIcon(FolderOpen20Filled, FolderOpen20Regular);
 
+export function calcLineages(metricGraph: MetricGraph, selection?: IScope[]): IScope[] {
+    const retVal: IScope[] = [];
+
+    let minLen = Number.MAX_SAFE_INTEGER;
+    const lineages = selection?.map(item => {
+        const retVal = metricGraph.lineage(item);
+        minLen = Math.min(minLen, retVal.length);
+        return retVal;
+    });
+
+    if (lineages.length) {
+        for (let i = 0; i < minLen; ++i) {
+            const item = lineages[0][i];
+            if (lineages.every(lineage => lineage[i] === item)) {
+                if (item.id && item.type !== "child" && metricGraph.isSubgraph(item) && !metricGraph.isVertex(item)) {
+                    retVal.push(item);
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    return retVal;
+}
+
 export interface MetricGraphData {
     metricGraph: MetricGraph;
     selectedMetrics: IScope[];
@@ -63,29 +89,7 @@ export function useMetricsGraphData(metrics: IScope[], view: MetricsView, lineag
     }, [metricGraph, view]);
 
     const updateLineage = React.useCallback((selection?: IScope[]) => {
-        const newLineage: IScope[] = [];
-
-        let minLen = Number.MAX_SAFE_INTEGER;
-        const lineages = selection?.map(item => {
-            const retVal = metricGraph.lineage(item);
-            minLen = Math.min(minLen, retVal.length);
-            return retVal;
-        });
-
-        if (lineages.length) {
-            for (let i = 0; i < minLen; ++i) {
-                const item = lineages[0][i];
-                if (lineages.every(lineage => lineage[i] === item)) {
-                    if (item.id && item.type !== "child" && metricGraph.isSubgraph(item) && !metricGraph.isVertex(item)) {
-                        newLineage.push(item);
-                    }
-                } else {
-                    break;
-                }
-            }
-        }
-
-        setLineage(newLineage);
+        setLineage(calcLineages(metricGraph, selection));
     }, [metricGraph]);
 
     React.useEffect(() => {
@@ -116,7 +120,7 @@ export interface MetricsGraphProps {
     selectedMetricsSource: string;
     status: FetchStatus;
     onLineageSelectionChange: (selection?: string) => void;
-    onSelectionChange: (selection?: string[]) => void;
+    onSelectionChange: (selection?: IScope[]) => void;
 }
 
 export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
@@ -148,7 +152,7 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
     React.useEffect(() => {
         metricGraphWidget
             .on("selectionChanged", () => {
-                const selection = metricGraphWidget.selection().filter(id => metricGraph.item(id)).map(id => metricGraph.item(id).id);
+                const selection = metricGraphWidget.selection().filter(id => metricGraph.item(id)).map(id => metricGraph.item(id));
                 onSelectionChange(selection);
             }, true)
             ;

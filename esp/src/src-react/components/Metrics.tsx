@@ -21,7 +21,8 @@ import { MetricsOptions } from "./MetricsOptions";
 import { MetricsPropertiesTables } from "./MetricsPropertiesTables";
 import { MetricsSQL } from "./MetricsSQL";
 import { ScopesTable } from "./MetricsScopes";
-import { useMetricsGraphData, MetricsGraph } from "./MetricsGraph";
+import { calcLineages, useMetricsGraphData, MetricsGraph } from "./MetricsGraph";
+import type { MetricGraph } from "../util/metricGraph";
 
 const logger = scopedLogger("src-react/components/Metrics.tsx");
 
@@ -30,7 +31,12 @@ const filterIcon: IIconProps = { iconName: "Filter" };
 type SelectedMetricsSource = "" | "scopesTable" | "scopesSqlTable" | "metricGraphWidget" | "hotspot" | "reset";
 const TIMELINE_FIXEDHEIGHT = 152;
 
-const pushSelectionUrl = (parentUrl: string, lineageSelection?: string, selection?: string[]) => {
+const pushSelectionUrl = (parentUrl: string, metricGraph: MetricGraph, lineageSelection?: string, selectedScopes?: IScope[]) => {
+    const selection = selectedScopes?.map(row => row.id) ?? [];
+    const lineageSelections = calcLineages(metricGraph, selectedScopes);
+    if (lineageSelections.length && lineageSelection && !selectedScopes.some(row => row.name.indexOf(lineageSelection) >= 0)) {
+        lineageSelection = lineageSelections[lineageSelections.length - 1].name;
+    }
     const lineageSelectionStr = lineageSelection?.length ? `/${lineageSelection}` : "";
     const selectionStr = selection?.length ? `/${selection.join(",")}` : "";
     pushUrl(`${parentUrl}${lineageSelectionStr}${selectionStr}`);
@@ -96,8 +102,8 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
 
     const onHotspot = React.useCallback(() => {
         setSelectedMetricsSource("hotspot");
-        pushSelectionUrl(parentUrl, lineageSelection, selection);
-    }, [lineageSelection, parentUrl, selection]);
+        pushSelectionUrl(parentUrl, metricGraph, lineageSelection, selectedMetrics);
+    }, [lineageSelection, metricGraph, parentUrl, selectedMetrics]);
 
     //  Timeline ---
     const timeline = useConst(() => new WUTimelineNoFetch()
@@ -112,11 +118,11 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                     timeline.selection([]);
                     setSelectedMetricsSource("scopesTable");
                     setScopeFilter(`name:${row[7].__hpcc_id}`);
-                    pushSelectionUrl(parentUrl, lineageSelection, [row[7].id]);
+                    pushSelectionUrl(parentUrl, metricGraph, lineageSelection, [row[7]]);
                 }
             }, true)
             ;
-    }, [timeline, lineageSelection, parentUrl]);
+    }, [timeline, lineageSelection, parentUrl, metrics, metricGraph]);
 
     React.useEffect(() => {
         if (view.showTimeline) {
@@ -135,8 +141,8 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
 
     const scopesSelectionChanged = React.useCallback((source: SelectedMetricsSource, lineageSelection?: string, selection: IScope[] = []) => {
         setSelectedMetricsSource(source);
-        pushSelectionUrl(parentUrl, lineageSelection, selection.map(row => row.__lparam?.id ?? row.id));
-    }, [parentUrl]);
+        pushSelectionUrl(parentUrl, metricGraph, lineageSelection, selection.map(row => row.__lparam ?? row));
+    }, [metricGraph, parentUrl]);
 
     const scopesTable = useConst(() => new ScopesTable()
         .multiSelect(true)
@@ -321,13 +327,13 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
     }, []);
 
     const onLineageSelectionChange = React.useCallback((lineageSelection: string) => {
-        pushSelectionUrl(parentUrl, lineageSelection, selection);
-    }, [parentUrl, selection]);
+        pushSelectionUrl(parentUrl, metricGraph, lineageSelection, selectedMetrics);
+    }, [parentUrl, metricGraph, selectedMetrics]);
 
-    const onSelectionChange = React.useCallback((selection: string[]) => {
+    const onSelectionChange = React.useCallback((selectedMetrics: IScope[]) => {
         setSelectedMetricsSource("metricGraphWidget");
-        pushSelectionUrl(parentUrl, lineageSelection, selection);
-    }, [lineageSelection, parentUrl]);
+        pushSelectionUrl(parentUrl, metricGraph, lineageSelection, selectedMetrics);
+    }, [lineageSelection, metricGraph, parentUrl]);
 
     return <HolyGrail
         header={<>
