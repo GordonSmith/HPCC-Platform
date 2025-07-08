@@ -69,8 +69,7 @@ if(PHONENUMBER)
                 libphonenumber::phonenumber
                 absl::base
                 absl::strings
-                absl::log_internal_check_op
-                absl::log_internal_message
+                absl::log
         )
     endif()
 endif()

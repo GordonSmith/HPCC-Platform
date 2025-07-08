@@ -15,13 +15,13 @@
     limitations under the License.
 ############################################################################## */
 
+EXPORT phonenumber_type := ENUM(INTEGER, FIXED_LINE=0, MOBILE=1, FIXED_LINE_OR_MOBILE=2, TOLL_FREE=3, PREMIUM_RATE=4, SHARED_COST=5, VOIP=6, PERSONAL_NUMBER=7, PAGER=8, UAN=9, VOICEMAIL=10, UNKNOWN=11);
+
+
 // Service definition
-EXPORT phonenumber := SERVICE : plugin('phonenumber'), library('phonenumber'), namespace('HPCCPhoneNumber'), CPP, PURE
-
-    // TODO: Optimize for size for known values
-
+EXPORT phonenumber := SERVICE : plugin('phonenumberplugin'), library('phonenumber'), namespace('phonenumber'), CPP, PURE
     BOOLEAN isValidNumber(CONST STRING phonenumber, CONST STRING countryCode) : cpp,action,context,fold,entrypoint='checkValidity';
-    STRING getType(CONST STRING phonenumber, CONST STRING countryCode) : cpp,action,context,fold,entrypoint='phonenumberType';
+    INTEGER getType(CONST STRING phonenumber, CONST STRING countryCode) : cpp,action,context,fold,entrypoint='phonenumberType';
     STRING getRegionCode(CONST STRING phonenumber, CONST STRING countryCode) : cpp,action,context,fold,entrypoint='regionCode';
     INTEGER getCountryCode(CONST STRING phonenumber, CONST STRING countryCode) : cpp,action,context,fold,entrypoint='countryCode';
 END;

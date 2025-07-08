@@ -39,10 +39,4 @@ extern "C"
     ECL_PHONENUMBER_API void setPluginContext(IPluginContext * _ctx);
 }
 
-namespace HPCCPhoneNumber{
-    ECL_PHONENUMBER_API bool ECL_PHONENUMBER_CALL checkValidity(ICodeContext * _ctx, size32_t lenNumber, const char *number, size32_t lenCountryCode, const char *countryCode);
-    ECL_PHONENUMBER_API void ECL_PHONENUMBER_CALL phonenumberType(ICodeContext * _ctx, size32_t &lenResult, char *&result, size32_t lenNumber, const char *number, size32_t lenCountryCode, const char *countryCode);
-    ECL_PHONENUMBER_API void ECL_PHONENUMBER_CALL regionCode(ICodeContext * _ctx, size32_t &lenResult, char *&result, size32_t lenNumber, const char *number, size32_t lenCountryCode, const char *countryCode);
-    ECL_PHONENUMBER_API unsigned ECL_PHONENUMBER_CALL countryCode(ICodeContext * _ctx, size32_t lenNumber, const char *number, size32_t lenCountryCode, const char *countryCode);
-}
 #endif

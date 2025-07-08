@@ -49,21 +49,33 @@ ECL_PHONENUMBER_API bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
 #undef ForEach
 #undef verify
 #include <phonenumbers/phonenumberutil.h>
-#define verify(p) ((void) (p))
-#define ForEach(i) for((i).first();(i).isValid();(i).next())
+
+enum phoneNumberType : int
+{
+    FIXED_LINE,
+    MOBILE,
+    FIXED_LINE_OR_MOBILE,
+    TOLL_FREE,
+    PREMIUM_RATE,
+    SHARED_COST,
+    VOIP,
+    PERSONAL_NUMBER,
+    PAGER,
+    UAN,
+    VOICEMAIL,
+    UNKNOWN
+};
 
 static void parseNumber(size32_t lenNumber,const char *number, size32_t lenCountryCode, const char *countryCode, i18n::phonenumbers::PhoneNumber &phoneNumber)
 {
     const i18n::phonenumbers::PhoneNumberUtil* phoneUtil = i18n::phonenumbers::PhoneNumberUtil::GetInstance();
-    std::string numberStr(number);
-    std::string countryCodeStr(countryCode);
+    std::string numberStr(number, lenNumber);
+    std::string countryCodeStr(countryCode, lenCountryCode);
     phoneUtil->Parse(numberStr, countryCodeStr, &phoneNumber);
 }
 
-namespace HPCCPhoneNumber
+namespace phonenumber
 {
-
-IPluginContext * parentCtx = NULL;
 
 ECL_PHONENUMBER_API bool ECL_PHONENUMBER_CALL checkValidity(ICodeContext *_ctx, size32_t lenNumber, const char *number, size32_t lenCountryCode, const char *countryCode)
 {
@@ -80,67 +92,27 @@ ECL_PHONENUMBER_API bool ECL_PHONENUMBER_CALL checkValidity(ICodeContext *_ctx, 
     }
 }
 
-ECL_PHONENUMBER_API void ECL_PHONENUMBER_CALL phonenumberType(ICodeContext *_ctx, size32_t &lenResult, char *&result, size32_t lenNumber, const char *number, size32_t lenCountryCode, const char *countryCode)
+ECL_PHONENUMBER_API phoneNumberType ECL_PHONENUMBER_CALL phonenumberType(ICodeContext *_ctx, size32_t lenNumber, const char *number, size32_t lenCountryCode, const char *countryCode)
 {
     const i18n::phonenumbers::PhoneNumberUtil* phoneUtil = i18n::phonenumbers::PhoneNumberUtil::GetInstance();
     i18n::phonenumbers::PhoneNumber phoneNumber;
-    std::string resultStr;
-    
+
     try
     {
         parseNumber(lenNumber, number, lenCountryCode, countryCode, phoneNumber);
         i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType type = phoneUtil->GetNumberType(phoneNumber);
-        switch (type)
+        phoneNumberType localType = UNKNOWN;
+        if (type >= i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::FIXED_LINE &&
+            type <= i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::UNKNOWN)
         {
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::FIXED_LINE:
-            resultStr = "FIXED_LINE";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::MOBILE:
-            resultStr = "MOBILE";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::FIXED_LINE_OR_MOBILE:
-            resultStr = "FIXED_LINE_OR_MOBILE";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::TOLL_FREE:
-            resultStr = "TOLL_FREE";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::PREMIUM_RATE:
-            resultStr = "PREMIUM_RATE";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::SHARED_COST:
-            resultStr = "SHARED_COST";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::VOIP:
-            resultStr = "VOIP";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::PERSONAL_NUMBER:
-            resultStr = "PERSONAL_NUMBER";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::PAGER:
-            resultStr = "PAGER";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::UAN:
-            resultStr = "UAN";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::VOICEMAIL:
-            resultStr = "VOICEMAIL";
-            break;
-        case i18n::phonenumbers::PhoneNumberUtil::PhoneNumberType::UNKNOWN:
-            resultStr = "UNKNOWN";
-            break;
-        default:
-            resultStr = "INVALID";
-            break;
+            localType = static_cast<phoneNumberType>(static_cast<int>(type));
         }
+        return localType;
     }
     catch (...)
     {
-        resultStr = "INVALID";
+        return UNKNOWN;
     }
-    
-    lenResult = resultStr.length();
-    result = static_cast<char *>(rtlMalloc(lenResult));
-    memcpy(result, resultStr.c_str(), lenResult);
 }
 
 ECL_PHONENUMBER_API void ECL_PHONENUMBER_CALL regionCode(ICodeContext *_ctx, size32_t &lenResult, char *&result, size32_t lenNumber, const char *number, size32_t lenCountryCode, const char *countryCode)
@@ -181,4 +153,4 @@ ECL_PHONENUMBER_API unsigned ECL_PHONENUMBER_CALL countryCode(ICodeContext *_ctx
     }
 }
 
-} // namespace HPCCPhoneNumber
+} // namespace phonenumber
