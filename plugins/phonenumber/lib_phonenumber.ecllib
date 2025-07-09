@@ -1,0 +1,27 @@
+/*##############################################################################
+
+    HPCC SYSTEMS software Copyright (C) 2025 HPCC Systems®.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+############################################################################## */
+
+EXPORT phonenumber_type := ENUM(INTEGER, FIXED_LINE=0, MOBILE=1, FIXED_LINE_OR_MOBILE=2, TOLL_FREE=3, PREMIUM_RATE=4, SHARED_COST=5, VOIP=6, PERSONAL_NUMBER=7, PAGER=8, UAN=9, VOICEMAIL=10, UNKNOWN=11);
+
+
+// Service definition
+EXPORT phonenumber := SERVICE : plugin('phonenumberplugin'), library('phonenumber'), namespace('phonenumber'), CPP, PURE
+    BOOLEAN isValidNumber(CONST STRING phonenumber, CONST STRING countryCode) : cpp,action,context,fold,entrypoint='checkValidity';
+    INTEGER getType(CONST STRING phonenumber, CONST STRING countryCode) : cpp,action,context,fold,entrypoint='phonenumberType';
+    STRING getRegionCode(CONST STRING phonenumber, CONST STRING countryCode) : cpp,action,context,fold,entrypoint='regionCode';
+    INTEGER getCountryCode(CONST STRING phonenumber, CONST STRING countryCode) : cpp,action,context,fold,entrypoint='countryCode';
+END;
