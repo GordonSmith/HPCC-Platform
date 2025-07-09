@@ -30,7 +30,6 @@ if(PHONENUMBER)
     if(MAKE_PHONENUMBER)
         find_package(libphonenumber CONFIG REQUIRED)
         find_package(Boost REQUIRED COMPONENTS date_time system thread)
-        find_package(absl CONFIG REQUIRED)
 
         set(SRCS
             phonenumber.hpp
@@ -43,7 +42,6 @@ if(PHONENUMBER)
             ${HPCC_SOURCE_DIR}/rtl/include
             ${HPCC_SOURCE_DIR}/common/deftype
             ${HPCC_SOURCE_DIR}/system/jlib
-            ${libphonenumber_INCLUDE_DIRS}
         )
 
         add_definitions(-D_USRDLL -DECL_PHONENUMBER_EXPORTS)
@@ -53,7 +51,7 @@ if(PHONENUMBER)
             set_target_properties(phonenumber PROPERTIES NO_SONAME 1)
         endif()
 
-        target_compile_definitions(phonenumber PUBLIC PHONENUMBER_HAVE_ALLOCA)
+        # target_compile_definitions(phonenumber PRIVATE PHONENUMBER_HAVE_ALLOCA)
 
         install(
             TARGETS phonenumber
@@ -62,14 +60,11 @@ if(PHONENUMBER)
         )
 
         target_link_libraries(phonenumber
-            PUBLIC
+            PRIVATE
                 eclrtl
                 jlib
                 ${Boost_LIBRARIES}
                 libphonenumber::phonenumber
-                absl::base
-                absl::strings
-                absl::log
         )
     endif()
 endif()
