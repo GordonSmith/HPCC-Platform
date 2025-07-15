@@ -1,8 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./coverage-fixtures";
 
-test.describe("V5-Basic", () => {
-
-    test.beforeEach(async ({ page }) => {
+test.describe("V5-Basic (Auto Coverage)", () => {
+    test.beforeEach(async ({ autoCoverage: page }) => {
+        // Coverage is automatically started
         await page.goto("index.html");
         await page.waitForLoadState("networkidle");
         await page.evaluate(() => {
@@ -10,17 +10,16 @@ test.describe("V5-Basic", () => {
         });
     });
 
-    test.afterEach(async ({ page }) => {
-    });
+    // No afterEach needed - coverage is automatically stopped
 
-    test("Basic Frame", async ({ page }) => {
+    test("Basic Frame", async ({ autoCoverage: page }) => {
         await page.goto("stub.htm");
         await page.waitForLoadState("networkidle");
         await expect(page.locator("#stubStackController_stub_Main span").first()).toBeVisible();
         await expect(page.getByLabel("Advanced")).toBeVisible();
     });
 
-    test("Activities", async ({ page }) => {
+    test("Activities", async ({ autoCoverage: page }) => {
         await page.goto("stub.htm");
         await page.waitForLoadState("networkidle");
         await expect(page.locator("#stub_Main-DLStackController_stub_Main-DL_Activity_label")).toBeVisible();

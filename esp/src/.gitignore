@@ -1,5 +1,7 @@
 blob-report/
 build/
+coverage/
+.nyc_output/
 hpcc-js/
 lib/
 node_modules/

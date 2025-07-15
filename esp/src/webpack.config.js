@@ -138,7 +138,7 @@ module.exports = function (env) {
 
         target: "web",
         mode: isProduction ? "production" : "development",
-        devtool: isProduction ? undefined : "cheap-module-source-map",
+        devtool: isProduction ? undefined : (process.env.COVERAGE ? false : "cheap-module-source-map"),
 
         watchOptions: isProduction ? undefined : {
             aggregateTimeout: 600

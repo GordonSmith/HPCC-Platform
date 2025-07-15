@@ -3,6 +3,8 @@ import { baseURL, setBaseURL } from "./tests/global";
 
 const isCI = !!process.env.CI;
 const isFull = !!process.env.FULL;
+const isCoverage = process.argv.includes("c8") || !!process.env.COVERAGE;
+
 if (isCI) {
     setBaseURL("http://127.0.0.1:8010");
 } else {
@@ -10,6 +12,9 @@ if (isCI) {
 }
 
 console.log("target URL", baseURL);
+if (isCoverage) {
+    console.log("Coverage collection enabled");
+}
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -30,7 +35,12 @@ export default defineConfig({
         trace: "on-first-retry",
         screenshot: "on-first-failure",
         video: isCI ? undefined : "on-first-retry",
-        ignoreHTTPSErrors: true
+        ignoreHTTPSErrors: true,
+        ...(isCoverage && {
+            extraHTTPHeaders: {
+                "X-Coverage-Enabled": "true"
+            }
+        })
     },
 
     projects: [
