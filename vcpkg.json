@@ -1,0 +1,204 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+    "name": "hpcc-platform",
+    "version": "9.10.0",
+    "dependencies": [
+        {
+            "name": "apr",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "apr-util",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "arrow",
+            "default-features": false,
+            "features": [
+                "acero",
+                "dataset",
+                "filesystem",
+                "parquet"
+            ],
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "aws-sdk-cpp",
+            "default-features": false,
+            "features": [
+                "s3",
+                "sqs"
+            ],
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "azure-storage-blobs-cpp",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "azure-storage-files-shares-cpp",
+            "platform": "(windows | osx | linux)"
+        },
+        "boost-property-tree",
+        {
+            "name": "cpp-driver",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "cppunit",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "cpr",
+            "platform": "(windows | osx | linux)"
+        },
+        "curl",
+        {
+            "name": "elasticlient",
+            "platform": "(windows | osx | linux) & !windows"
+        },
+        {
+            "name": "h3",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "hiredis",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "icu",
+            "platform": "(windows | osx | linux)",
+            "features": [
+                "tools"
+            ]
+        },
+        {
+            "name": "jsoncpp",
+            "platform": "(windows | osx | linux)"
+        },
+        "jwt-cpp",
+        {
+            "name": "libarchive",
+            "default-features": false,
+            "features": [
+                "bzip2"
+            ]
+        },
+        {
+            "name": "libcouchbase-cxx",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "libgit2",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "libiconv",
+            "platform": "osx"
+        },
+        {
+            "name": "libmemcached",
+            "platform": "(windows | osx | linux) & !windows & !osx"
+        },
+        {
+            "name": "libmysql",
+            "platform": "(windows | osx | linux) & !(windows & x86)",
+            "default-features": false,
+            "features": []
+        },
+        {
+            "name": "librdkafka",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "libuv",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "libxml2",
+            "platform": "(!windows & !osx & !linux)"
+        },
+        {
+            "name": "libxslt",
+            "default-features": false,
+            "features": [],
+            "platform": "(windows | osx | linux)"
+        },
+        "libyaml",
+        "lz4",
+        {
+            "name": "minizip",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "mongo-cxx-driver",
+            "platform": "(windows | osx | linux)"
+        },
+        "nlohmann-json",
+        {
+            "name": "nlp-engine",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "numactl",
+            "platform": "!windows & !osx"
+        },
+        {
+            "name": "openblas",
+            "features": [
+                "dynamic-arch",
+                "threads"
+            ],
+            "platform": "(windows | osx | linux) & !windows"
+        },
+        {
+            "name": "openblas",
+            "features": [
+                "threads"
+            ],
+            "platform": "(windows | osx | linux) & windows"
+        },
+        {
+            "name": "openldap",
+            "platform": "(windows | osx | linux) & !windows"
+        },
+        {
+            "name": "openssl",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "opentelemetry-cpp",
+            "default-features": false,
+            "features": [
+                "otlp-http",
+                "otlp-grpc"
+            ]
+        },
+        "pcre2",
+        {
+            "name": "python3",
+            "platform": "(windows | osx | linux) & windows"
+        },
+        "rapidjson",
+        {
+            "name": "sqlite3",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "tbb",
+            "platform": "(!windows & !osx & !linux)"
+        },
+        {
+            "name": "wasmtime-cpp-api",
+            "platform": "(windows | osx | linux)"
+        },
+        {
+            "name": "winflexbison",
+            "platform": "windows"
+        },
+        {
+            "name": "zlib",
+            "platform": "(windows | osx | linux)"
+        }
+    ]
+}
