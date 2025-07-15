@@ -16,10 +16,12 @@
     "build": "npm run build-docs && npm run copy-res",
     "serve": "npm run preview-docs",
     "update": "npx npm-check-updates -u -t minor",
-    "update-major": "npx npm-check-updates -u"
+    "update-major": "npx npm-check-updates -u",
+    "merge-spdx": "node merge-spdx.js"
   },
   "devDependencies": {
     "@hpcc-js/markdown-it-plugins": "1.1.2",
+    "license-checker-rseidelsohn": "^4.4.2",
     "rimraf": "6.0.1",
     "vitepress": "1.4.1"
   },
