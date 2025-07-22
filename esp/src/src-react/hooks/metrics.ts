@@ -451,7 +451,6 @@ export function useMetricsGraphLayout(dot: string): { svg: string, layoutStatus:
                     setSvg(response.svg);
                 }
             } else {
-                logger.warning("Invalid DOT: " + response.errorDot);
                 throw new Error(response.error);
             }
         }).catch(err => {

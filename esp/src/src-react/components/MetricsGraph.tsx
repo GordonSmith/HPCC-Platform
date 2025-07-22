@@ -256,8 +256,10 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
                     return nlsHPCC.PerformingLayoutLongRunning;
                 case LayoutStatus.STARTED:
                 default:
-                    return nlsHPCC.PerformingLayout.replace("NNN", "");
+                    return nlsHPCC.PerformingLayout;
             }
+        } else if (layoutStatus === LayoutStatus.FAILED) {
+            return nlsHPCC.PerformingLayoutFailed;
         } else if (!isRenderComplete) {
             return nlsHPCC.RenderSVG;
         }
@@ -283,7 +285,11 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
         </>}
         main={<>
             <AutosizeComponent hidden={!spinnerLabel}>
-                <Spinner size="extra-large" label={spinnerLabel} labelPosition="below" ></Spinner>
+                {
+                    layoutStatus === LayoutStatus.FAILED ?
+                        <Label style={{ ...typographyStyles.subtitle2 }}>{spinnerLabel}</Label> :
+                        <Spinner size="extra-large" label={spinnerLabel} labelPosition="below"></Spinner>
+                }
             </AutosizeComponent>
             <AutosizeComponent hidden={!!spinnerLabel || selection?.length > 0}>
                 <Label style={{ ...typographyStyles.subtitle2 }}>{nlsHPCC.NoContentPleaseSelectItem}</Label>
