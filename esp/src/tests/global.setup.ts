@@ -11,13 +11,13 @@ async function submit(browserName, ecl: string): Promise<Workunit> {
 
 const browsers = ["chromium", "firefox", "webkit"];
 
-setup("Setup", async ({ browserName }) => {
+setup("Setup", async () => {
     console.log("Setup:");
     const jobs: Promise<Workunit>[] = [];
     browsers.forEach(browserName => {
         jobs.push(submit(browserName, ecl.helloWorld));
         jobs.push(submit(browserName, ecl.normDenorm));
     });
-    await Promise.all(jobs);
+    const wus = await Promise.all(jobs);
     console.log("");
 });

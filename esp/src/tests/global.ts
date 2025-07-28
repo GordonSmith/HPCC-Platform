@@ -1,6 +1,17 @@
+import { Workunit } from "@hpcc-js/comms";
+
 export let baseURL = "http://127.0.0.1:8080";
 export function setBaseURL(baseUrl: string) {
     baseURL = baseUrl;
+}
+
+export let wus: { [browser: string]: Workunit[] } = {};
+export function setWU(wu: Workunit) {
+    if (!wus[wu.Owner]) {
+        wus[wu.Owner] = [];
+    }
+    wus[wu.Owner].push(wu);
+    console.log(`   ${wu.Owner} ${wu.Wuid}`);
 }
 
 export namespace ecl {
