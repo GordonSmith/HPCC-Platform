@@ -26,6 +26,8 @@ import { VariableImportForm } from "./forms/landing-zone/VariableImportForm";
 import { XmlImportForm } from "./forms/landing-zone/XmlImportForm";
 import { FileListForm } from "./forms/landing-zone/FileListForm";
 import { QueryRequest } from "src/store/Memory";
+import { useGlobalStore } from "../hooks/store";
+
 
 function formatQuery(targetDropzones, filter): QueryRequest {
     const dropzones = targetDropzones.filter(row => row.Name === filter?.DropZoneName);
@@ -82,6 +84,26 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
 
     const hasFilter = React.useMemo(() => Object.keys(filter).length > 0, [filter]);
 
+    const landingZoneDescriptions = useGlobalStore(state => state.landingZoneDescriptions ?? {});
+    const setState = useGlobalStore(state => state.setState);
+
+    const updateDescriptionRef = React.useRef<(path: string, desc: string) => void>();
+    
+    updateDescriptionRef.current = React.useCallback((path: string, desc: string) => {
+        console.log('Updating description:', path, desc);
+        
+        const currentState = useGlobalStore.getState();
+        const currentDescriptions = currentState.landingZoneDescriptions ?? {};
+        
+        if (currentDescriptions[path] !== desc) {
+            currentState.setState("landingZoneDescriptions", {
+                ...currentDescriptions,
+                [path]: desc
+            });
+            console.log('Description updated successfully');
+        }
+    }, []);
+
     const [showFilter, setShowFilter] = React.useState(false);
     const [showAddFile, setShowAddFile] = React.useState(false);
     const [showFixed, setShowFixed] = React.useState(false);
@@ -115,7 +137,7 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
         filename: "landingZones",
         getSelected: function () {
             if (filter?.__dropZone) {
-                return this.inherited(arguments, [FileSpray.CreateLandingZonesFilterStore( filter.__dropZone )]);
+                return this.inherited(arguments, [FileSpray.CreateLandingZonesFilterStore(filter.__dropZone)]);
             }
             return this.inherited(arguments, [FileSpray.CreateFileListStore()]);
         },
@@ -178,7 +200,104 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
                     node.innerText = Utility.convertedSize(value);
                 }, []),
             },
-            modifiedtime: { label: nlsHPCC.Date, width: 162, sortable: false }
+            modifiedtime: {
+                label: nlsHPCC.Date, width: 162, sortable: false
+            },
+            description: {
+                label: nlsHPCC.Description,
+                width: 250,
+                sortable: false,
+                renderCell: function (object, value, node) {
+                    const path = object.fullFolderPath || object.displayName;
+                    
+                    const getCurrentDescription = () => {
+                        const currentState = useGlobalStore.getState();
+                        const descriptions = currentState.landingZoneDescriptions ?? {};
+                        return descriptions[path] ?? "";
+                    };
+                    
+                    const currentDesc = getCurrentDescription();
+
+                    const input = document.createElement("input");
+                    input.type = "text";
+                    input.value = currentDesc;
+                    input.style.width = "100%";
+                    input.placeholder = "Add a description";
+                    input.style.border = "1px solid #ccc";
+                    input.style.padding = "4px";
+
+                    let originalValue = currentDesc;
+                    
+                    const saveDescription = () => {
+                        const newValue = input.value.trim();
+                        console.log('Attempting to save description:', path, 'from', originalValue, 'to', newValue);
+                        
+                        if (newValue !== originalValue) {
+                            try {
+                                if (updateDescriptionRef.current) {
+                                    updateDescriptionRef.current(path, newValue);
+                                    originalValue = newValue;
+                                    console.log('Save attempt completed');
+                                } else {
+                                    console.error('updateDescriptionRef.current is not available');
+                                }
+                            } catch (error) {
+                                console.error('Error saving description:', error);
+                            }
+                        } else {
+                            console.log('No changes detected, skipping save');
+                        }
+                    };
+
+                    let saveTimer;
+                    input.oninput = () => {
+                        clearTimeout(saveTimer);
+                        saveTimer = setTimeout(saveDescription, 1000);
+                    };
+
+                    input.onblur = () => {
+                        clearTimeout(saveTimer);
+                        saveDescription();
+                    };
+
+                    input.onkeydown = (event) => {
+                        if (event.key === "Enter") {
+                            clearTimeout(saveTimer);
+                            saveDescription();
+                            input.blur();
+                        }
+                        if (event.key === "Escape") {
+                            clearTimeout(saveTimer);
+                            input.value = originalValue;
+                            input.blur();
+                        }
+                    };
+
+                    const observer = new MutationObserver((mutations) => {
+                        mutations.forEach((mutation) => {
+                            if (mutation.type === 'childList') {
+                                mutation.removedNodes.forEach((removedNode) => {
+                                    if (removedNode.contains && removedNode.contains(input)) {
+                                        clearTimeout(saveTimer);
+                                    }
+                                });
+                            }
+                        });
+                    });
+                    
+                    observer.observe(node.parentElement || document.body, {
+                        childList: true,
+                        subtree: true
+                    });
+
+                    node._cleanup = () => {
+                        clearTimeout(saveTimer);
+                        observer.disconnect();
+                    };
+
+                    node.appendChild(input);
+                }
+            }
         }
     });
 
