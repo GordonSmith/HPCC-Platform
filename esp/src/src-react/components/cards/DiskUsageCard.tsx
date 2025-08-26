@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Text, Tooltip, ToolbarButton, makeStyles, tokens } from "@fluentui/react-components";
-import { OverflowItem } from "@fluentui/react-components";
+import { Text, Tooltip, ToolbarButton, makeStyles, tokens, OverflowItem } from "@fluentui/react-components";
+import { useConst } from "@fluentui/react-hooks";
 import { FolderOpen16Regular, Storage20Regular } from "@fluentui/react-icons";
 import { Gauge } from "@hpcc-js/chart";
 import { ClusterGauge as ClusterGaugeWidget } from "src/DiskUsage";
@@ -8,7 +8,7 @@ import * as Utility from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { AutosizeHpccJSComponent } from "../../layouts/HpccJSAdapter";
 import { pushUrl } from "../../util/history";
-import { useAllClustersDiskUsage, useClusterDiskUsage, useTargetClusterUsageEx } from "../../hooks/diskUsage";
+import { ComponentAggregateStats, useAllClustersDiskUsage, useClusterDiskUsage, useTargetClusterUsageEx } from "../../hooks/diskUsage";
 import { GenericCard } from "./GenericCard";
 import { CardGroup } from "./CardGroup";
 
@@ -217,89 +217,42 @@ export const DiskUsageCards: React.FC<DiskUsageCardsProps> = ({
 
 interface FolderDiskUsageCardProps {
     folder: string;
-    inUse: number;    // bytes
-    total: number;    // bytes
+    stats: ComponentAggregateStats;
     className?: string;
     style?: React.CSSProperties;
-    defaultMinimized?: boolean;
     expandInGrid?: boolean;
 }
 
 const FolderDiskUsageCard: React.FC<FolderDiskUsageCardProps> = ({
     folder,
-    inUse,
-    total,
+    stats,
     className,
     style,
-    defaultMinimized = true,
     expandInGrid = false
 }) => {
     const styles = useStyles();
-    const [minimized, setMinimized] = React.useState<boolean>(defaultMinimized);
 
-    const percent = total > 0 ? Math.round((inUse / total) * 100) : 0;
-    const widthStyle = { width: `${Math.min(100, Math.max(0, percent))}%` } as React.CSSProperties;
+    const inUsePercent = stats.total > 0 ? Math.round((stats.inUse / stats.total) * 100) : 0;
+    const meanPercent = stats.totalMean > 0 ? Math.round((stats.inUseMean / stats.totalMean) * 100) : 0;
 
-    // Gauge for minimized view (static value, no service calls)
-    const gauge = React.useMemo(() => {
-        const g = new Gauge()
-            .title(folder)
-            .showTick(false)
-            .value(percent / 100)
-            .valueDescription(`${percent}%`);
-        return g;
-    }, [folder, percent]);
+    const gauge = useConst(() => {
+        return new Gauge()
+            .showTick(true)
+            ;
+    });
 
     React.useEffect(() => {
-        // Keep gauge value/title in sync when props change
         gauge
             .title(folder)
-            .value(percent / 100)
-            .valueDescription(`${percent}%`)
-            .render();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [folder, percent]);
+            .value(inUsePercent / 100)
+            .valueDescription(`${inUsePercent}%`)
+            .tickValue(meanPercent / 100)
+            .lazyRender()
+            ;
+    }, [folder, gauge, inUsePercent, meanPercent]);
 
-    return <GenericCard
-        className={className}
-        style={style}
-        expandInGrid={expandInGrid}
-        headerOverlay={minimized}
-        minimizable
-        minimized={minimized}
-        onToggleMinimize={() => setMinimized(m => !m)}
-        headerIcon={!minimized ? (
-            <Tooltip content={nlsHPCC.Folder ?? "Folder"} relationship="label">
-                <FolderOpen16Regular />
-            </Tooltip>
-        ) : undefined}
-        headerText={!minimized ? (
-            <Tooltip content={folder} relationship="label">
-                <Text weight="semibold">{folder}</Text>
-            </Tooltip>
-        ) : undefined}
-        headerActions={<></>}
-        contentClassName={minimized ? styles.content : styles.details}
-    >
-        {minimized ? (
-            // Minimized view: use a radial gauge like cluster cards
-            <AutosizeHpccJSComponent widget={gauge} padding={6} />
-        ) : (
-            // Expanded view: detailed numbers
-            <>
-                <Text weight="semibold">{folder}</Text>
-                <Text weight="semibold">{percent}%</Text>
-                <div className={styles.meterWrap}>
-                    <div className={meterClass(styles, percent)} style={widthStyle} />
-                </div>
-                <div>
-                    <Text>{nlsHPCC.InUse}: {Utility.convertedSize(inUse)}</Text>
-                </div>
-                <div>
-                    <Text>{nlsHPCC.Total}: {Utility.convertedSize(total)}</Text>
-                </div>
-            </>
-        )}
+    return <GenericCard className={className} style={style} expandInGrid={expandInGrid} minimizable={false} minimized={true} contentClassName={styles.content}>
+        <AutosizeHpccJSComponent widget={gauge} padding={6} />
     </GenericCard>;
 };
 
@@ -321,7 +274,7 @@ export const FolderUsageCards: React.FC<FolderUsageCardsProps> = ({
     }, [refreshToken, refresh]);
 
     return <CardGroup minColumnWidth={140} autoRows={140} columnGap={tokens.spacingHorizontalS} rowGap={tokens.spacingHorizontalS} paddingInline={tokens.spacingHorizontalS} paddingBlock={tokens.spacingVerticalS} style={{ gridTemplateColumns: "repeat(auto-fit, 140px)", justifyContent: "center", justifyItems: "stretch", alignItems: "stretch" }}     >
-        {data.map(d => <FolderDiskUsageCard key={d.name} folder={d.name} inUse={d.stats.inUse} total={d.stats.total} expandInGrid />)}
+        {data.map(d => <FolderDiskUsageCard key={d.name} folder={d.name} stats={d.stats} expandInGrid />)}
         {(data?.length ?? 0) === 0 && (loading ? <Text>{nlsHPCC.FetchingData}</Text> : <Text />)}
     </CardGroup>;
 };

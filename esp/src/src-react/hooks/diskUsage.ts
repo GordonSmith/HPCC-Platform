@@ -116,18 +116,20 @@ export function useAllClustersDiskUsage(bypassCachedResult: boolean = false): Ho
     return useMemo(() => ({ data: rows, loading, error: error ?? null, refresh }), [rows, loading, error, refresh]);
 }
 
+export interface ComponentAggregateStats {
+    rowCount: number;
+    inUse: number;
+    total: number;
+    maxPct: number;       // 0..100
+    inUseMean: number;    // average inUse across rows
+    totalMean: number;    // average total across rows
+}
+
 export interface ComponentAggregateDatum {
     name: string;             // Component/Disk name (du.Name)
     value: number;            // 0..1 (max%)
     tick: number;             // 0..1 (inUseMean / totalMean)
-    stats: {
-        rowCount: number;
-        inUse: number;
-        total: number;
-        maxPct: number;       // 0..100
-        inUseMean: number;    // average inUse across rows
-        totalMean: number;    // average total across rows
-    }
+    stats: ComponentAggregateStats;
 }
 
 export function useClusterDiskUsage(cluster: string, bypassCachedResult: boolean = false): HookState<ComponentAggregateDatum[]> {
