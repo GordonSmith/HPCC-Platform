@@ -87,7 +87,7 @@ export function call(query) {
             return response;
         });
     } else if (pageInfo.isWorkunit()) {
-        const wu = ESPWorkunit.Get(pageInfo.wuid);
+        const wu = ESPWorkunit.GetWU(pageInfo.wuid);
         wu.fetchAllNamedResults(0, 10).then(function (response) {
             deferred.resolve(response);
             return response;
@@ -125,7 +125,7 @@ export function fetchWorkunit() {
     const deferred = new Deferred();
     const pageInfo = this.getPageInfo();
     if (pageInfo.isWorkunit()) {
-        const wu = ESPWorkunit.Get(pageInfo.wuid);
+        const wu = ESPWorkunit.GetWU(pageInfo.wuid);
         wu.refresh(true).then(function (response) {
             deferred.resolve(wu);
         });

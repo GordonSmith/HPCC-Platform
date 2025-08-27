@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon, Image, Link } from "@fluentui/react";
 import { SizeMe } from "../layouts/SizeMe";
-import { CreateWUQueryStore, GetDfuWU } from "src/ESPDFUWorkunit";
+import { CreateDFUWUQueryStore, GetDfuWU } from "src/ESPDFUWorkunit";
 import { CommandMessages, DFUWorkunitsAction } from "src/FileSpray";
 import { convertedSize } from "src/Utility";
 import { QuerySortItem } from "src/store/Store";
@@ -86,7 +86,7 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
 
     //  Grid ---
     const gridStore = React.useMemo(() => {
-        return store || CreateWUQueryStore();
+        return store || CreateDFUWUQueryStore();
     }, [store]);
 
     const query = React.useMemo(() => {

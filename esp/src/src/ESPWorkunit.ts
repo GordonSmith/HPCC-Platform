@@ -60,7 +60,7 @@ export function getStateIconClass(stateID: number, complete: boolean, archived: 
     return "iconWorkunit";
 }
 
-export function getStateImageName(stateID: number, complete: boolean, archived: boolean): string {
+export function getDFUStateImageName(stateID: number, complete: boolean, archived: boolean): string {
     if (archived) {
         return "workunit_archived.png";
     }
@@ -106,11 +106,11 @@ export function getStateImageName(stateID: number, complete: boolean, archived: 
     return "workunit.png";
 }
 export function getStateImage(stateID: number, complete: boolean, archived: boolean): string {
-    return Utility.getImageURL(getStateImageName(stateID, complete, archived));
+    return Utility.getImageURL(getDFUStateImageName(stateID, complete, archived));
 }
 
 export function getStateImageHTML(stateID: number, complete: boolean, archived: boolean): string {
-    return Utility.getImageHTML(getStateImageName(stateID, complete, archived));
+    return Utility.getImageHTML(getDFUStateImageName(stateID, complete, archived));
 }
 
 export function formatQuery(_filter): { [id: string]: any } {
@@ -797,7 +797,7 @@ const Workunit = declare([ESPUtil.Singleton], {  // jshint ignore:line
         return getStateIconClass(this.StateID, this.isComplete(), this.Archived);
     },
     getStateImageName() {
-        return getStateImageName(this.StateID, this.isComplete(), this.Archived);
+        return getDFUStateImageName(this.StateID, this.isComplete(), this.Archived);
     },
     getStateImage() {
         return getStateImage(this.StateID, this.isComplete(), this.Archived);
@@ -1062,7 +1062,7 @@ export function Create(params) {
     return retVal;
 }
 
-export function Get(wuid, data?) {
+export function GetWU(wuid, data?) {
     const store = new Store();
     const retVal = store.get(wuid);
     if (data) {
@@ -1125,7 +1125,7 @@ export function CreateWUQueryStore(): BaseStore<WsWorkunitsNS.WUQuery, typeof Wo
                     page.end = end;
                 }
                 return {
-                    ...Get(wu.Wuid, wu),
+                    ...GetWU(wu.Wuid, wu),
                     timings: {
                         start,
                         end,

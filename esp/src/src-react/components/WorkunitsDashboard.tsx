@@ -6,7 +6,7 @@ import { WorkunitsService, WsWorkunits } from "@hpcc-js/comms";
 import { Area, Column, Pie, Bar } from "@hpcc-js/chart";
 import { chain, filter, group, map, sort } from "@hpcc-js/dataflow";
 import { Observable } from "src/dojo-shim";
-import { Get as WorkunitGet } from "src/ESPWorkunit";
+import { GetWU as WorkunitGet } from "src/ESPWorkunit";
 import nlsHPCC from "src/nlsHPCC";
 import { wuidToDate } from "src/Utility";
 import { Memory } from "src/store/Memory";

@@ -246,7 +246,7 @@ export class ESPSearch {
         if (results) {
             results.forEach((item, idx) => {
                 this.store.put(item, { overwrite: true });
-                this.eclStore.put(ESPWorkunit.Get(item._wuid, item), { overwrite: true });
+                this.eclStore.put(ESPWorkunit.GetWU(item._wuid, item), { overwrite: true });
             });
             return results.length;
         }

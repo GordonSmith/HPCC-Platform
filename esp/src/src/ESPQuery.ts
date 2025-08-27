@@ -115,7 +115,7 @@ const Query = declare([ESPUtil.Singleton], {  // jshint ignore:line
         });
     },
     getWorkunit() {
-        return ESPWorkunit.Get(this.Wuid);
+        return ESPWorkunit.GetWU(this.Wuid);
     },
     SubmitXML(xml) {
         const deferred = new Deferred();

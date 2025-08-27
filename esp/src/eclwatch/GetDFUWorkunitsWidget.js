@@ -369,7 +369,7 @@ define([
         initWorkunitsGrid: function () {
             var context = this;
             var filter = this.filter.toObject();
-            var store = this.params.searchResults ? this.params.searchResults : new ESPDFUWorkunit.CreateWUQueryStore();
+            var store = this.params.searchResults ? this.params.searchResults : new ESPDFUWorkunit.CreateDFUWUQueryStore();
             this.workunitsGrid = new declare([ESPUtil.Grid(true, true, false, false, "GetDFUWorkunitsWidget")])({
                 store: store,
                 query: filter,

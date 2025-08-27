@@ -52,7 +52,7 @@ const Activity = declare([ESPUtil.Singleton, ESPUtil.Monitor], {
     },
 
     isInstanceOfWorkunit(obj) {
-        return ESPWorkunit.isInstanceOfWorkunit(obj) || ESPDFUWorkunit.isInstanceOfWorkunit(obj);
+        return ESPWorkunit.isInstanceOfWorkunit(obj) || ESPDFUWorkunit.isInstanceOfDFUWorkunit(obj);
     },
 
     setBanner(request) {
@@ -70,7 +70,7 @@ const Activity = declare([ESPUtil.Singleton, ESPUtil.Monitor], {
             return queue;
         }
 
-        const wu = id[0] === "D" ? ESPDFUWorkunit.GetDfuWU(id) : ESPWorkunit.Get(id);
+        const wu = id[0] === "D" ? ESPDFUWorkunit.GetDfuWU(id) : ESPWorkunit.GetWU(id);
         if (wu) {
             //  is wu still in a queue?
             queue = wu.get("ESPQueue");
@@ -176,7 +176,7 @@ const Activity = declare([ESPUtil.Singleton, ESPUtil.Monitor], {
                         queue = ESPQueue.GetServerJobQueue(item.ServerName);
                     }
                 }
-                const wu = item.Server === "DFUserver" ? ESPDFUWorkunit.GetDfuWU(item.Wuid) : ESPWorkunit.Get(item.Wuid);
+                const wu = item.Server === "DFUserver" ? ESPDFUWorkunit.GetDfuWU(item.Wuid) : ESPWorkunit.GetWU(item.Wuid);
                 wu.updateData(lang.mixin({
                     __hpcc_id: item.Wuid,
                     component: "ActivityWidget"

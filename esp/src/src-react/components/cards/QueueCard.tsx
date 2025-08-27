@@ -6,7 +6,7 @@ import { useServerJobQueues, type ServerJobQueue } from "../../hooks/queue";
 import nlsHPCC from "src/nlsHPCC";
 import { getStateImage } from "src/ESPWorkunit";
 import { getImageURL } from "src/Utility";
-import { getStateImage as getDFUStateImage } from "src/ESPDFUWorkunit";
+import { getDFUStateImage as getDFUStateImage } from "src/ESPDFUWorkunit";
 import { useBuildInfo } from "../../hooks/platform";
 import { GenericCard } from "./GenericCard";
 import { CardGroup } from "./CardGroup";

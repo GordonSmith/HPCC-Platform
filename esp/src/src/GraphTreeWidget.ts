@@ -424,7 +424,7 @@ export const GraphTreeWidget = declare("GraphTreeWidget", [_Widget], {
         }, params));
 
         if (this.isWorkunit()) {
-            this.wu = ESPWorkunit.Get(params.Wuid);
+            this.wu = ESPWorkunit.GetWU(params.Wuid);
 
             let firstLoad = true;
             const context = this;

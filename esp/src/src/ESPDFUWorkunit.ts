@@ -25,7 +25,7 @@ export function getProtectedImage(isProtected: boolean) {
     return Utility.getImageURL("unlocked.png");
 }
 
-export function getStateIconClass(state: number) {
+export function getDFUStateIconClass(state: number) {
     switch (state) {
         case 1:
             return "iconWarning";
@@ -49,7 +49,7 @@ export function getStateIconClass(state: number) {
     return "iconWorkunit";
 }
 
-export function getStateImage(state: number) {
+export function getDFUStateImage(state: number) {
     switch (state) {
         case 1:
             return Utility.getImageURL("workunit_warning.png");
@@ -303,14 +303,14 @@ const Workunit = declare([ESPUtil.Singleton, ESPUtil.Monitor], { // jshint ignor
         return getProtectedImage(this.isProtected);
     },
     getStateIconClass() {
-        return getStateIconClass(this.State);
+        return getDFUStateIconClass(this.State);
     },
     getStateImage() {
-        return getStateImage(this.State);
+        return getDFUStateImage(this.State);
     }
 });
 
-export function isInstanceOfWorkunit(obj) {
+export function isInstanceOfDFUWorkunit(obj) {
     return obj && obj.isInstanceOf && obj.isInstanceOf(Workunit);
 }
 
@@ -323,17 +323,11 @@ export function GetDfuWU(wuid, data?) {
     return retVal;
 }
 
-export function CreateWUQueryStoreLegacy() {
-    let store = new Store();
-    store = new Observable(store);
-    return store;
-}
-
 const service = new FileSprayService({ baseUrl: "" });
 
 export type DFUWUQueryStore = BaseStore<FileSprayNS.GetDFUWorkunits, typeof Workunit>;
 
-export function CreateWUQueryStore(): BaseStore<FileSprayNS.GetDFUWorkunits, typeof Workunit> {
+export function CreateDFUWUQueryStore(): BaseStore<FileSprayNS.GetDFUWorkunits, typeof Workunit> {
     const store = new Paged<FileSprayNS.GetDFUWorkunits, typeof Workunit>({
         start: "PageStartFrom",
         count: "PageSize",
