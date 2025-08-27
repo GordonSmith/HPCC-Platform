@@ -5,7 +5,7 @@ export * from "./ESPActivity";
 export * from "./ESPBase";
 export * from "./ESPDFUWorkunit";
 export * from "./ESPLogicalFile";
-export * as ESPQuery from "./ESPQuery";
+export * from "./ESPQuery";
 export * as ESPWorkunit from "./ESPWorkunit";
 export * from "./ESPUtil";
 export * as FileSpray from "./FileSpray";

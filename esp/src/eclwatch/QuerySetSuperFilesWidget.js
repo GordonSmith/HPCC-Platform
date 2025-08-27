@@ -28,7 +28,7 @@ define([
         init: function (params) {
             if (this.inherited(arguments))
                 return;
-            this.query = ESPQuery.Get(params.QuerySetId, params.Id);
+            this.query = ESPQuery.GetQuery(params.QuerySetId, params.Id);
             this.refreshGrid();
         },
 

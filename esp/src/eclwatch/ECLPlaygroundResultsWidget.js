@@ -90,7 +90,7 @@ define([
                     }
                 });
             } else if (params.QuerySetId && params.Id) {
-                this.query = ESPQuery.Get(params.QuerySetId, params.Id);
+                this.query = ESPQuery.GetQueryQuery(params.QuerySetId, params.Id);
                 this.query.SubmitXML(params.RequestXml).then(function (response) {
                     var firstTab = true;
                     for (var key in response) {

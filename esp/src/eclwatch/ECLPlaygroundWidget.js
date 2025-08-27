@@ -299,7 +299,7 @@ define([
             this.resetPage();
 
             var text = this.editorControl.getText();
-            var espQuery = ESPQuery.GetFromRequestXML(this.targetSelectWidget.get("value"), text);
+            var espQuery = ESPQuery.GetQueryFromRequestXML(this.targetSelectWidget.get("value"), text);
 
             if (espQuery) {
                 this.stackContainer.selectChild(this.resultsWidget);

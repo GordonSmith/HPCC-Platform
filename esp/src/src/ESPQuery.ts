@@ -183,7 +183,7 @@ const Query = declare([ESPUtil.Singleton], {  // jshint ignore:line
     }
 });
 
-export function Get(QuerySetId, Id, data?) {
+export function GetQuery(QuerySetId, Id, data?) {
     const store = new Store();
     const retVal = store.get(QuerySetId + ":" + Id);
     if (data) {
@@ -211,7 +211,7 @@ export function CreateQueryStoreLegacy() {
 
 const service = new WorkunitsService({ baseUrl: "" });
 
-export type WUQueryStore = BaseStore<WsWorkunitsNS.WUListQueries, WsWorkunitsNS.QuerySetQuery>;
+export type QueryStore = BaseStore<WsWorkunitsNS.WUListQueries, WsWorkunitsNS.QuerySetQuery>;
 
 export function CreateQueryStore(): BaseStore<WsWorkunitsNS.WUListQueries, WsWorkunitsNS.QuerySetQuery> {
     const store = new Paged<WsWorkunitsNS.WUListQueries, WsWorkunitsNS.QuerySetQuery>({
@@ -222,7 +222,7 @@ export function CreateQueryStore(): BaseStore<WsWorkunitsNS.WUListQueries, WsWor
     }, "Id", (request) => {
         return service.WUListQueries(request).then(response => {
             return {
-                data: response?.QuerysetQueries?.QuerySetQuery?.map(qry => Get(qry.QuerySetId, qry.Id, qry)) ?? [],
+                data: response?.QuerysetQueries?.QuerySetQuery?.map(qry => GetQuery(qry.QuerySetId, qry.Id, qry)) ?? [],
                 total: response?.NumberOfQueries ?? 0
             };
         }).catch(err => {

@@ -5,7 +5,7 @@ import { pushUrl } from "../util/history";
 import { TableGroup } from "./forms/Groups";
 import { useConfirm } from "../hooks/confirm";
 import { ShortVerticalDivider } from "./Common";
-import { Get as QueryGet } from "src/ESPQuery";
+import { GetQuery as QueryGet } from "src/ESPQuery";
 import { WUQuerysetQueryAction } from "src/WsWorkunits";
 import nlsHPCC from "src/nlsHPCC";
 import { Divider } from "@fluentui/react-components";

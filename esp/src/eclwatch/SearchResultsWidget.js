@@ -415,7 +415,7 @@ define([
             if (items) {
                 items.forEach((item, idx) => {
                     this.store.put(item, { overwrite: true });
-                    this.queryStore.put(ESPQuery.Get(item._querySetId, item._id, item), { overwrite: true });
+                    this.queryStore.put(ESPQuery.GetQuery(item._querySetId, item._id, item), { overwrite: true });
                 });
                 this.refreshTab(this.queryTab);
                 return items.length;

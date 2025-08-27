@@ -2,7 +2,7 @@ import * as React from "react";
 import { Pivot, PivotItem } from "@fluentui/react";
 import { join, scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
-import { Get } from "src/ESPQuery";
+import { GetQuery } from "src/ESPQuery";
 import { GetWsEclIFrameURL } from "src/WsTopology";
 import { useWorkunitResults } from "../hooks/workunit";
 import { IFrame } from "./IFrame";
@@ -49,7 +49,7 @@ export const QueryTests: React.FunctionComponent<QueryTestsProps> = ({
     const [linksUrl, setLinksUrl] = React.useState("");
 
     React.useEffect(() => {
-        setQuery(Get(querySet, queryId));
+        setQuery(GetQuery(querySet, queryId));
 
         GetWsEclIFrameURL("forms/soap").then(url => setSoapUrl(buildFrameUrl(url, `${querySet}/${queryId}`)));
 

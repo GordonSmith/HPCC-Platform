@@ -111,7 +111,7 @@ export function fetchQuery() {
     const deferred = new Deferred();
     const pageInfo = this.getPageInfo();
     if (pageInfo.isQuery()) {
-        const query = ESPQuery.Get(pageInfo.querySet, pageInfo.queryID);
+        const query = ESPQuery.GetQuery(pageInfo.querySet, pageInfo.queryID);
         query.refresh().then(function (response) {
             deferred.resolve(query);
         });

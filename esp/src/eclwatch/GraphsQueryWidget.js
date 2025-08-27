@@ -19,7 +19,7 @@ define([
                 return;
 
             if (params.QuerySetId && params.Id) {
-                this.query = ESPQuery.Get(params.QuerySetId, params.Id);
+                this.query = ESPQuery.GetQueryQuery(params.QuerySetId, params.Id);
                 this.refreshGrid();
             }
 

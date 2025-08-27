@@ -331,7 +331,7 @@ export function CreateWUQueryStoreLegacy() {
 
 const service = new FileSprayService({ baseUrl: "" });
 
-export type WUQueryStore = BaseStore<FileSprayNS.GetDFUWorkunits, typeof Workunit>;
+export type DFUWUQueryStore = BaseStore<FileSprayNS.GetDFUWorkunits, typeof Workunit>;
 
 export function CreateWUQueryStore(): BaseStore<FileSprayNS.GetDFUWorkunits, typeof Workunit> {
     const store = new Paged<FileSprayNS.GetDFUWorkunits, typeof Workunit>({

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { SizeMe } from "../layouts/SizeMe";
 import nlsHPCC from "src/nlsHPCC";
-import { Get as QueryGet } from "src/ESPQuery";
+import { GetQuery as QueryGet } from "src/ESPQuery";
 import { pushUrl, updateFullscreen } from "../util/history";
 import { FullscreenFrame, FullscreenStack } from "../layouts/Fullscreen";
 import { QueryErrors } from "./QueryErrors";

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ICommandBarItemProps, Image, Link } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
-import { Get as QueryGet } from "src/ESPQuery";
+import { GetQuery as QueryGet } from "src/ESPQuery";
 import { getImageURL } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
