@@ -277,7 +277,7 @@ export class ESPSearch {
         if (items) {
             items.forEach((item, idx) => {
                 this.store.put(item, { overwrite: true });
-                this.fileStore.put(ESPLogicalFile.Get(item._nodeGroup, item._name, item), { overwrite: true });
+                this.fileStore.put(ESPLogicalFile.GetLF(item._nodeGroup, item._name, item), { overwrite: true });
             });
             return items.length;
         }

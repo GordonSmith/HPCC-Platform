@@ -251,7 +251,7 @@ define([
 
             var context = this;
             if (params.Name) {
-                this.logicalFile = ESPLogicalFile.Get(params.NodeGroup, params.Name);
+                this.logicalFile = ESPLogicalFile.GetLF(params.NodeGroup, params.Name);
                 var data = this.logicalFile.getData();
                 for (var key in data) {
                     this.updateInput(key, null, data[key]);

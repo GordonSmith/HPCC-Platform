@@ -2,7 +2,7 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon, Link } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { DFUArrayAction } from "src/WsDfu";
-import { CreateDFUQueryStore, Get } from "src/ESPLogicalFile";
+import { CreateDFUQueryStore, GetLF } from "src/ESPLogicalFile";
 import { formatCost } from "src/Session";
 import { convertedSize, formatDate, formatDecimal, formatNum } from "src/Utility";
 import { QuerySortItem } from "src/store/Store";
@@ -197,7 +197,7 @@ export const Files: React.FunctionComponent<FilesProps> = ({
                 label: nlsHPCC.LogicalName,
                 width: 180,
                 formatter: (name, row) => {
-                    const file = Get(row.NodeGroup, name, row);
+                    const file = GetLF(row.NodeGroup, name, row);
                     if (row.__hpcc_isDir) {
                         return name;
                     }

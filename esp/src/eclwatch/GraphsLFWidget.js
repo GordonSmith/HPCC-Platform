@@ -18,7 +18,7 @@ define([
                 return;
 
             if (params.NodeGroup && params.LogicalName) {
-                this.logicalFile = ESPLogicalFile.Get(params.NodeGroup, params.LogicalName);
+                this.logicalFile = ESPLogicalFile.GetLF(params.NodeGroup, params.LogicalName);
                 this.refreshGrid();
             }
 

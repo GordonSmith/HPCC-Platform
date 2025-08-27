@@ -8,7 +8,7 @@ import * as entities from "dojox/html/entities";
 import * as parser from "dojox/xml/parser";
 
 import * as ESPRequest from "./ESPRequest";
-import { Get as LFGet } from "./ESPLogicalFile";
+import { GetLF as LFGet } from "./ESPLogicalFile";
 import nlsHPCC from "./nlsHPCC";
 import * as Utility from "./Utility";
 import * as WsWorkunits from "./WsWorkunits";

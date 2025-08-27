@@ -24,7 +24,7 @@ define([
         init: function (params) {
             if (this.inherited(arguments))
                 return;
-            this.logicalFile = ESPLogicalFile.Get(params.NodeGroup, params.Name);
+            this.logicalFile = ESPLogicalFile.GetLF(params.NodeGroup, params.Name);
             this.refreshGrid();
         },
 

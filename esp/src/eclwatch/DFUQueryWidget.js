@@ -252,7 +252,7 @@ define([
             if (this.copyForm.validate()) {
                 var context = this;
                 arrayUtil.forEach(this.copyGrid.store.data, function (item, idx) {
-                    var logicalFile = ESPLogicalFile.Get(item.NodeGroup, item.Name);
+                    var logicalFile = ESPLogicalFile.GetLF(item.NodeGroup, item.Name);
                     var request = domForm.toObject(context.id + "CopyForm");
                     request.RenameSourceName = item.Name;
                     request.destLogicalName = item.targetCopyName;
@@ -272,7 +272,7 @@ define([
             if (this.renameForm.validate()) {
                 var context = this;
                 arrayUtil.forEach(this.renameGrid.store.data, function (item, idx) {
-                    var logicalFile = ESPLogicalFile.Get(item.NodeGroup, item.Name);
+                    var logicalFile = ESPLogicalFile.GetLF(item.NodeGroup, item.Name);
                     var request = domForm.toObject(context.id + "RenameForm");
                     request.RenameSourceName = item.Name;
                     request.dstname = item.targetRenameName;

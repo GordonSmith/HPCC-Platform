@@ -154,14 +154,14 @@ define([
                     }
                 });
             } else if (params.LogicalName) {
-                this._logicalFile = ESPLogicalFile.Get(params.NodeGroup, params.LogicalName);
+                this._logicalFile = ESPLogicalFile.GetLF(params.NodeGroup, params.LogicalName);
                 this._logicalFile.getInfo({
                     onAfterSend: function (response) {
                         context.initResult(context._logicalFile.result);
                     }
                 });
             } else if (params.result && params.result.Name) {
-                this._logicalFile = ESPLogicalFile.Get(params.result.NodeGroup, params.result.Name);
+                this._logicalFile = ESPLogicalFile.GetLF(params.result.NodeGroup, params.result.Name);
                 this._logicalFile.getInfo({
                     onAfterSend: function (response) {
                         context.initResult(context.logicalFile.result);

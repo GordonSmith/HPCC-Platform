@@ -474,7 +474,7 @@ const LogicalFile = declare([ESPUtil.Singleton], {
     }
 });
 
-export function Get(Cluster, Name, data?) {
+export function GetLF(Cluster, Name, data?) {
     if (!Name) {
         throw new Error("Invalid Logical File ID");
     }

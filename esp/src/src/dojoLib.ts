@@ -4,7 +4,7 @@ export * from "./DiskUsage";
 export * from "./ESPActivity";
 export * from "./ESPBase";
 export * from "./ESPDFUWorkunit";
-export * as ESPLogicalFile from "./ESPLogicalFile";
+export * from "./ESPLogicalFile";
 export * as ESPQuery from "./ESPQuery";
 export * as ESPWorkunit from "./ESPWorkunit";
 export * from "./ESPUtil";

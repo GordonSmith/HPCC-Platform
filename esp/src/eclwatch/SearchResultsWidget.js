@@ -402,7 +402,7 @@ define([
             if (items) {
                 items.forEach((item, idx) => {
                     this.store.put(item, { overwrite: true });
-                    this.fileStore.put(ESPLogicalFile.Get(item._nodeGroup, item._name, item), { overwrite: true });
+                    this.fileStore.put(ESPLogicalFile.GetLF(item._nodeGroup, item._name, item), { overwrite: true });
                 });
                 this.refreshTab(this.fileTab);
                 return items.length;

@@ -152,7 +152,7 @@ define([
                 Groups: true
             });
             if (params.Name) {
-                this.logicalFile = ESPLogicalFile.Get("", params.Name);
+                this.logicalFile = ESPLogicalFile.GetLF("", params.Name);
                 var data = this.logicalFile.getData();
                 for (var key in data) {
                     this.updateInput(key, null, data[key]);
@@ -314,7 +314,7 @@ define([
                 var dataPromise = [];
                 var data = [];
                 arrayUtil.forEach(newValue.Item, function (item, idx) {
-                    var logicalFile = ESPLogicalFile.Get("", item);
+                    var logicalFile = ESPLogicalFile.GetLF("", item);
                     dataPromise.push(logicalFile.getInfo2({
                         onAfterSend: function (response) {
                         }
