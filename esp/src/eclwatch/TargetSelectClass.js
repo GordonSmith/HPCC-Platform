@@ -511,10 +511,10 @@ define([
         },
 
         loadDFUState: function () {
-            for (var key in FileSpray.States) {
+            for (var key in FileSpray.FileSprayStates) {
                 this.options.push({
-                    label: FileSpray.States[key],
-                    value: FileSpray.States[key]
+                    label: FileSpray.FileSprayStates[key],
+                    value: FileSpray.FileSprayStates[key]
                 });
             }
             this._postLoad();
@@ -565,14 +565,14 @@ define([
 
         loadECLSamples: function () {
             var sampleStore = new ItemFileReadStore({
-                url: Utility.getURL("ecl/ECLPlaygroundSamples.json")
+                url: Utility.getUrl("ecl/ECLPlaygroundSamples.json")
             });
             this.setStore(sampleStore);
             var context = this;
             this.on("change", function (evt) {
                 var filename = this.get("value");
                 xhr.get({
-                    url: Utility.getURL("ecl/" + filename),
+                    url: Utility.getUrl("ecl/" + filename),
                     handleAs: "text",
                     load: function (eclText) {
                         context.onNewSelection(eclText);

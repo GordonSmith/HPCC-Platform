@@ -34,7 +34,7 @@ import "dijit/TooltipDialog";
 import "hpcc/TableContainer";
 import "hpcc/TargetSelectWidget";
 
-import { WUStatus } from "./WUStatus";
+import { WUStatusGraph } from "./WUStatus";
 
 export const supportedFileType = (contentType: string): boolean => ["flat", "csv", "thor"].indexOf((contentType || "").toLowerCase()) >= 0;
 
@@ -51,7 +51,7 @@ export const DataPatternsWidget = declare("DataPatternsWidget", [_TabContainerWi
     optimizeTargetSelect: undefined,
     optimizeTarget: undefined,
 
-    wuStatus: undefined as WUStatus | undefined,
+    wuStatus: undefined as WUStatusGraph | undefined,
     dpReport: undefined as Report | undefined,
 
     _wu: undefined as Workunit | undefined,
@@ -87,7 +87,7 @@ export const DataPatternsWidget = declare("DataPatternsWidget", [_TabContainerWi
             }
         };
 
-        this.wuStatus = new WUStatus()
+        this.wuStatus = new WUStatusGraph()
             .baseUrl("")
             ;
         this.dpReport = new Report();

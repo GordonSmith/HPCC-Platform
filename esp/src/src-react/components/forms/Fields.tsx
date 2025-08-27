@@ -6,7 +6,7 @@ import { TpDropZoneQuery, TpGroupQuery, TpServiceQuery } from "src/WsTopology";
 import { Permissions, UserGroupEditInput, GroupMemberEditInput } from "src/ws_access";
 import { ListESDLBindings, ListESDLDefinitions } from "src/WsESDLConfig";
 import { States } from "src/WsWorkunits";
-import { FileList, States as DFUStates } from "src/FileSpray";
+import { FileList, FileSprayStates as DFUStates } from "src/FileSpray";
 import { joinPath } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { useBuildInfo, useLogicalClusters } from "../../hooks/platform";

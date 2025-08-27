@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, MessageBar, M
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
 import nlsHPCC from "src/nlsHPCC";
-import { FormatMessages, lfEncode, CommandMessages, States } from "src/FileSpray";
+import { FormatMessages, lfEncode, CommandMessages, FileSprayStates } from "src/FileSpray";
 import { formatCost } from "src/Session";
 import { useConfirm } from "../hooks/confirm";
 import { useDfuWorkunit } from "../hooks/workunit";
@@ -233,7 +233,7 @@ export const DFUWorkunitDetails: React.FunctionComponent<DFUWorkunitDetailsProps
                         "user": { label: nlsHPCC.User, type: "string", value: workunit?.User, readonly: true },
                         "protected": { label: nlsHPCC.Protected, type: "checkbox", value: _protected },
                         "command": { label: nlsHPCC.Command, type: "string", value: CommandMessages[workunit?.Command], readonly: true },
-                        "state": { label: nlsHPCC.State, type: "string", value: States[workunit?.State], readonly: true },
+                        "state": { label: nlsHPCC.State, type: "string", value: FileSprayStates[workunit?.State], readonly: true },
                         "accessCost": { label: nlsHPCC.FileAccessCost, type: "string", value: `${formatCost(workunit?.FileAccessCost ?? 0)}`, readonly: true },
                         "timeStarted": { label: nlsHPCC.TimeStarted, type: "string", value: workunit?.TimeStarted, readonly: true },
                         "secondsLeft": { label: nlsHPCC.SecondsRemaining, type: "number", value: workunit?.SecsLeft, readonly: true },

@@ -4,7 +4,7 @@ import { Edge, Graph, Vertex } from "@hpcc-js/graph";
 import { hashSum, IObserverHandle } from "@hpcc-js/util";
 import nlsHPCC from "./nlsHPCC";
 
-export class WUStatus extends Graph {
+export class WUStatusGraph extends Graph {
 
     protected _hpccWU: Workunit | undefined;
     protected _hpccWatchHandle: IObserverHandle;
@@ -210,14 +210,14 @@ export class WUStatus extends Graph {
         super.exit(domNode, element);
     }
 }
-WUStatus.prototype._class += " eclwatch_WUStatus";
+WUStatusGraph.prototype._class += " eclwatch_WUStatus";
 
-export interface WUStatus {
+export interface WUStatusGraph {
     baseUrl(): string;
     baseUrl(_: string): this;
     wuid(): string;
     wuid(_: string): this;
 }
 
-WUStatus.prototype.publish("baseUrl", "", "string", "HPCC Platform Base URL");
-WUStatus.prototype.publish("wuid", "", "string", "Workunit ID");
+WUStatusGraph.prototype.publish("baseUrl", "", "string", "HPCC Platform Base URL");
+WUStatusGraph.prototype.publish("wuid", "", "string", "Workunit ID");

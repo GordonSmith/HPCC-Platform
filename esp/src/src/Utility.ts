@@ -953,7 +953,7 @@ export function resolve(hpccWidget, callback) {
     }
 }
 
-export function getURL(name) {
+export function getUrl(name) {
     return dojoConfig.urlInfo.resourcePath + "/" + name;
 }
 
@@ -972,7 +972,7 @@ export function joinPath(pathSegment, pathSep: string = "/") {
 }
 
 export function getImageURL(name) {
-    return getURL("img/" + name);
+    return getUrl("img/" + name);
 }
 
 export function getImageHTML(name, tooltip?) {

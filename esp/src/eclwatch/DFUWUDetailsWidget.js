@@ -56,10 +56,10 @@ define([
             this.summaryWidget = registry.byId(this.id + "_Summary");
             this.xmlWidget = registry.byId(this.id + "_XML");
             var stateOptions = [];
-            for (var key in FileSpray.States) {
+            for (var key in FileSpray.FileSprayStates) {
                 stateOptions.push({
-                    label: FileSpray.States[key],
-                    value: FileSpray.States[key]
+                    label: FileSpray.FileSprayStates[key],
+                    value: FileSpray.FileSprayStates[key]
                 });
             }
             var stateSelect = registry.byId(this.id + "StateMessage");

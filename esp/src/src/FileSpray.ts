@@ -264,7 +264,7 @@ class LandingZonesStore extends ESPRequest.Store {
     }
 }
 
-export const States = {
+export const FileSprayStates = {
     0: "unknown",
     1: "scheduled",
     2: "queued",
@@ -277,7 +277,7 @@ export const States = {
     999: "not found"
 };
 
-export function isComplete(state) {
+export function isFileSprayComplete(state) {
     switch (state) {
         case 4:
         case 5:

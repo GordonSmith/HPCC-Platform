@@ -146,7 +146,7 @@ const Workunit = declare([ESPUtil.Singleton, ESPUtil.Monitor], { // jshint ignor
 
     _StateSetter(state) {
         this.State = state;
-        this.set("hasCompleted", FileSpray.isComplete(this.State));
+        this.set("hasCompleted", FileSpray.isFileSprayComplete(this.State));
     },
 
     _hasCompletedSetter(completed) {
