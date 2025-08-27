@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, ScrollablePan
 import { DFUService, WsDfu } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
-import * as Utility from "src/Utility";
+import { getImageURL } from "src/Utility";
 import { useConfirm } from "../hooks/confirm";
 import { useFile } from "../hooks/file";
 import { ShortVerticalDivider } from "./Common";
@@ -92,8 +92,8 @@ export const SuperFileSummary: React.FunctionComponent<SuperFileSummaryProps> = 
         }
     ], [_protected, canSave, description, file, refreshData, restricted, setShowDeleteConfirm]);
 
-    const protectedImage = _protected ? Utility.getImageURL("locked.png") : Utility.getImageURL("unlocked.png");
-    const compressedImage = file?.IsCompressed ? Utility.getImageURL("compressed.png") : "";
+    const protectedImage = _protected ? getImageURL("locked.png") : getImageURL("unlocked.png");
+    const compressedImage = file?.IsCompressed ? getImageURL("compressed.png") : "";
 
     return <>
         <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto}>

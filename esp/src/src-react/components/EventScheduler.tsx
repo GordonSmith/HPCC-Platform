@@ -4,7 +4,7 @@ import { WorkunitsService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { EventScheduleStore } from "src/WsWorkunits";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsWorkunits from "src/WsWorkunits";
+import { WUAction } from "src/WsWorkunits";
 import { useConfirm } from "../hooks/confirm";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
@@ -107,7 +107,7 @@ export const EventScheduler: React.FunctionComponent<EventSchedulerProps> = ({
         message: nlsHPCC.DescheduleSelectedWorkunits,
         items: selection.map(s => s.Wuid),
         onSubmit: () => {
-            WsWorkunits.WUAction(selection, "Deschedule").then(function (response) {
+            WUAction(selection, "Deschedule").then(function (response) {
                 refreshTable.call(true);
             }).catch(err => logger.error(err));
         }

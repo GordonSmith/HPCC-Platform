@@ -377,7 +377,7 @@ define([
             const workunit = this.parseGetDFUWorkunitResponse(prefix, response);
             if (workunit) {
                 this.store.put(workunit, { overwrite: true });
-                this.dfuStore.put(ESPDFUWorkunit.Get(workunit._wuid, workunit), { overwrite: true });
+                this.dfuStore.put(ESPDFUWorkunit.GetDfuWU(workunit._wuid, workunit), { overwrite: true });
                 this.refreshTab(this.dfuTab);
                 return 1;
             }
@@ -389,7 +389,7 @@ define([
             if (results) {
                 results.forEach((item, idx) => {
                     this.store.put(item, { overwrite: true });
-                    this.dfuStore.put(ESPDFUWorkunit.Get(item._wuid, item), { overwrite: true });
+                    this.dfuStore.put(ESPDFUWorkunit.GetDfuWU(item._wuid, item), { overwrite: true });
                 });
                 this.refreshTab(this.dfuTab);
                 return results.length;

@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { useUserSession } from "../../hooks/user";
 import { useUserTheme } from "../../hooks/theme";
 import { replaceUrl } from "../../util/history";
-import * as Utility from "src/Utility";
+import { parseCookies, getImageURL } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 
 const logger = scopedLogger("src-react/components/forms/Login.tsx");
@@ -38,7 +38,7 @@ export const Login: React.FunctionComponent<LoginProps> = ({
     const [errorMessage, setErrorMessage] = React.useState("");
 
     React.useEffect(() => {
-        const cookies = Utility.parseCookies();
+        const cookies = parseCookies();
         if (cookies["ESPSessionState"] === "true") {
             const lastUrl = window.localStorage.getItem("pageOnLock") ?? "/";
             window.localStorage.removeItem("pageOnLock");
@@ -110,7 +110,7 @@ export const Login: React.FunctionComponent<LoginProps> = ({
                     body: formData
                 });
 
-                const cookies = Utility.parseCookies();
+                const cookies = parseCookies();
 
                 if (cookies.ESPAuthenticationMSG && loginResponse?.url.indexOf("esp/files/Login.html") > -1) {
                     setErrorMessage(cookies.ESPAuthenticationMSG);
@@ -131,7 +131,7 @@ export const Login: React.FunctionComponent<LoginProps> = ({
         <div className={loginStyles.container}>
             <div className={loginStyles.formContainer}>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    <Image src={Utility.getImageURL("Loginlogo.png")} />
+                    <Image src={getImageURL("Loginlogo.png")} />
                     <p>{nlsHPCC.PleaseLogIntoECLWatch}</p>
                     <Controller
                         control={control} name="username"

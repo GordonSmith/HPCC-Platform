@@ -4,7 +4,7 @@ import { useToastController, ToastIntent } from "@fluentui/react-components";
 import { isExceptions } from "@hpcc-js/comms";
 import { Dispatch, Level, logger as utilLogger, scopedLogger, Writer, CallbackFunction, Message } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
-import * as Utility from "src/Utility";
+import { decodeHTML } from "src/Utility";
 import { CustomToaster } from "../components/controls/CustomToaster";
 
 const logger = scopedLogger("../util/logging.ts");
@@ -86,7 +86,7 @@ export class ECLWatchLogger implements Writer {
     rawWrite(dateTime: string, level: Level, id: string, _msg: string | object): void {
         if (isExceptions(_msg)) {
             _msg.Exception?.forEach(ex => {
-                const msg = Utility.decodeHTML(ex.Message);
+                const msg = decodeHTML(ex.Message);
                 this.doWrite(dateTime, level, id, `${ex.Code}: ${msg}`);
             });
         } else {
@@ -104,7 +104,7 @@ export class ECLWatchLogger implements Writer {
             } else if (typeof _msg !== "string") {
                 _msg = JSON.stringify(_msg, undefined, 2);
             }
-            _msg = Utility.decodeHTML(_msg);
+            _msg = decodeHTML(_msg);
             this.doWrite(dateTime, level, id, _msg);
         }
     }

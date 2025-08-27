@@ -1,13 +1,7 @@
 import * as React from "react";
 import { useConst } from "@fluentui/react-hooks";
-import * as declare from "dojo/_base/declare";
-// @ts-expect-error
-import * as selector from "dgrid/selector";
-// @ts-expect-error
-import * as tree from "dgrid/tree";
-// @ts-expect-error
-import * as editor from "dgrid/editor";
-import * as ESPUtil from "src/ESPUtil";
+import { declare, selector, tree, editor } from "src/dojo-shim";
+import { Grid as ESPGrid } from "src/ESPUtil";
 import { DojoComponent } from "../layouts/DojoAdapter";
 
 import "src-react-css/components/DojoGrid.css";
@@ -46,9 +40,9 @@ export const DojoGrid: React.FunctionComponent<DojoGridProps> = ({
     setSelection
 }) => {
 
-    const SimpleGrid = React.useMemo(() => declare([ESPUtil.Grid(false, false, overrides, false, "SimpleGrid")]), [overrides]);
-    const PageSelGrid = React.useMemo(() => declare([ESPUtil.Grid(true, true, overrides, false, "PageSelGrid")]), [overrides]);
-    const SelGrid = React.useMemo(() => declare([ESPUtil.Grid(false, true, overrides, false, "SelGrid")]), [overrides]);
+    const SimpleGrid = React.useMemo(() => declare([ESPGrid(false, false, overrides, false, "SimpleGrid")]), [overrides]);
+    const PageSelGrid = React.useMemo(() => declare([ESPGrid(true, true, overrides, false, "PageSelGrid")]), [overrides]);
+    const SelGrid = React.useMemo(() => declare([ESPGrid(false, true, overrides, false, "SelGrid")]), [overrides]);
 
     const Grid = useConst(() => {
         switch (type) {

@@ -8,7 +8,7 @@ import { Table } from "@hpcc-js/dgrid";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
 import { WUTimelineNoFetch } from "src/Timings";
-import * as Utility from "src/Utility";
+import { formatAsDelim, downloadCSV, downloadPlain, ColumnMap } from "src/Utility";
 import { useMetricsViews, useWUQueryMetrics } from "../hooks/metrics";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
@@ -302,8 +302,8 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         }
     ], [dockpanel, hotspots, onHotspot, refresh, setViewId, timeline, updateView, view.showTimeline, viewId, viewIds]);
 
-    const formatColumns = React.useMemo((): Utility.ColumnMap => {
-        const copyColumns: Utility.ColumnMap = {};
+    const formatColumns = React.useMemo((): ColumnMap => {
+        const copyColumns: ColumnMap = {};
         for (const key in columns) {
             copyColumns[key] = {
                 field: key,
@@ -317,7 +317,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
         {
             key: "copy", text: nlsHPCC.CopyToClipboard, disabled: !metrics.length || !navigator?.clipboard?.writeText, iconOnly: true, iconProps: { iconName: "Copy" },
             onClick: () => {
-                const tsv = Utility.formatAsDelim(formatColumns, metrics, "\t");
+                const tsv = formatAsDelim(formatColumns, metrics, "\t");
                 navigator?.clipboard?.writeText(tsv);
             }
         },
@@ -329,8 +329,8 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                     text: nlsHPCC.DownloadToCSV,
                     iconProps: { iconName: "Table" },
                     onClick: () => {
-                        const csv = Utility.formatAsDelim(formatColumns, metrics, ",");
-                        Utility.downloadCSV(csv, `metrics-${wuid}.csv`);
+                        const csv = formatAsDelim(formatColumns, metrics, ",");
+                        downloadCSV(csv, `metrics-${wuid}.csv`);
                     }
                 },
                 {
@@ -338,7 +338,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                     text: nlsHPCC.DownloadToDOT,
                     iconProps: { iconName: "Relationship" },
                     onClick: () => {
-                        Utility.downloadPlain(dot, `metrics-${wuid}.dot`);
+                        downloadPlain(dot, `metrics-${wuid}.dot`);
                     }
                 }]
             }

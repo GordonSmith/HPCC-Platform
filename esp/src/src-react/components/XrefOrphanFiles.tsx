@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluen
 import { scopedLogger } from "@hpcc-js/util";
 import { HolyGrail } from "../layouts/HolyGrail";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsDFUXref from "src/WsDFUXref";
+import { DFUXRefOrphanFiles, DFUXRefArrayAction } from "src/WsDFUXref";
 import { useConfirm } from "../hooks/confirm";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 import { ShortVerticalDivider } from "./Common";
@@ -52,7 +52,7 @@ export const XrefOrphanFiles: React.FunctionComponent<XrefOrphanFilesProps> = ({
     }, [selection]);
 
     const refreshData = React.useCallback(() => {
-        WsDFUXref.DFUXRefOrphanFiles(name)
+        DFUXRefOrphanFiles(name)
             .then(rows => {
                 if (rows.length) {
                     setData(rows.map((item, idx) => {
@@ -79,7 +79,7 @@ export const XrefOrphanFiles: React.FunctionComponent<XrefOrphanFilesProps> = ({
         message: nlsHPCC.DeleteSelectedFiles,
         items: selection.map(file => file.Name),
         onSubmit: React.useCallback(() => {
-            WsDFUXref.DFUXRefArrayAction(selection, nlsHPCC.Delete, name, "Orphan")
+            DFUXRefArrayAction(selection, nlsHPCC.Delete, name, "Orphan")
                 .then(response => {
                     refreshData();
                 })

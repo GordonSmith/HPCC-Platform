@@ -3,7 +3,7 @@ import { DefaultButton, PrimaryButton, Spinner, TextField, } from "@fluentui/rea
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsAccess from "src/ws_access";
+import { GroupAdd } from "src/ws_access";
 import { MessageBox } from "../../layouts/MessageBox";
 
 const logger = scopedLogger("src-react/components/forms/AddGroup.tsx");
@@ -47,7 +47,7 @@ export const AddGroupForm: React.FunctionComponent<AddGroupFormProps> = ({
                 setSpinnerHidden(false);
                 const request: any = data;
 
-                WsAccess.GroupAdd({ request: request })
+                GroupAdd({ request: request })
                     .then(() => {
                         setSubmitDisabled(false);
                         setSpinnerHidden(true);

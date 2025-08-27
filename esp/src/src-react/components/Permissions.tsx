@@ -2,7 +2,7 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
 import { scopedLogger } from "@hpcc-js/util";
-import * as WsAccess from "src/ws_access";
+import { ClearPermissionsCache, CreatePermissionsStore, DisableScopeScans, EnableScopeScans, ResourceDelete, Resources } from "src/ws_access";
 import nlsHPCC from "src/nlsHPCC";
 import { ShortVerticalDivider } from "./Common";
 import { useConfirm } from "../hooks/confirm";
@@ -42,7 +42,7 @@ export const Permissions: React.FunctionComponent<PermissionsProps> = ({
     const [uiState, setUIState] = React.useState({ ...defaultUIState });
 
     //  Grid ---
-    const gridStore = useConst(() => WsAccess.CreatePermissionsStore(null, null));
+    const gridStore = useConst(() => CreatePermissionsStore(null, null));
     const gridSort = useConst(() => [{ attribute: "name", descending: false }]);
     const gridQuery = useConst(() => ({}));
     const gridColumns = useConst(() => ({
@@ -96,7 +96,7 @@ export const Permissions: React.FunctionComponent<PermissionsProps> = ({
     }, [selection]);
 
     React.useEffect(() => {
-        WsAccess.Resources({
+        Resources({
             request: {
                 name: "File Scopes"
             }
@@ -134,7 +134,7 @@ export const Permissions: React.FunctionComponent<PermissionsProps> = ({
                 deleteRequests[item.__hpcc_id]["names_i" + idx] = item.name;
             });
             for (const key in deleteRequests) {
-                requests.push(WsAccess.ResourceDelete({
+                requests.push(ResourceDelete({
                     request: deleteRequests[key]
                 }));
             }
@@ -151,19 +151,19 @@ export const Permissions: React.FunctionComponent<PermissionsProps> = ({
     const [ClearPermissionsConfirm, setShowClearPermissionsConfirm] = useConfirm({
         title: nlsHPCC.ClearPermissionsCache,
         message: nlsHPCC.ClearPermissionsCacheConfirm,
-        onSubmit: () => WsAccess.ClearPermissionsCache()
+        onSubmit: () => ClearPermissionsCache()
     });
 
     const [EnableScopesConfirm, setShowEnableScopesConfirm] = useConfirm({
         title: nlsHPCC.EnableScopeScans,
         message: nlsHPCC.EnableScopeScansConfirm,
-        onSubmit: () => WsAccess.EnableScopeScans()
+        onSubmit: () => EnableScopeScans()
     });
 
     const [DisableScopesConfirm, setShowDisableScopesConfirm] = useConfirm({
         title: nlsHPCC.DisableScopeScans,
         message: nlsHPCC.DisableScopeScanConfirm,
-        onSubmit: () => WsAccess.DisableScopeScans()
+        onSubmit: () => DisableScopeScans()
     });
 
     //  Command Bar  ---

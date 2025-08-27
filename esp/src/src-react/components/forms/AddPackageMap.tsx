@@ -3,7 +3,7 @@ import { Checkbox, DefaultButton, Dropdown, IDropdownOption, PrimaryButton, Spin
 import { useForm, Controller } from "react-hook-form";
 import { FileSprayService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import * as WsPackageMaps from "src/WsPackageMaps";
+import { AddPackage } from "src/WsPackageMaps";
 import { TypedDropdownOption } from "../PackageMaps";
 import nlsHPCC from "src/nlsHPCC";
 import { MessageBox } from "../../layouts/MessageBox";
@@ -71,7 +71,7 @@ export const AddPackageMap: React.FunctionComponent<AddPackageMapProps> = ({
             (data, evt) => {
                 setSubmitDisabled(true);
                 setSpinnerHidden(false);
-                WsPackageMaps.AddPackage({
+                AddPackage({
                     request: data
                 })
                     .then(({ AddPackageResponse, Exceptions }) => {

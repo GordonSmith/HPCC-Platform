@@ -5,7 +5,7 @@ import { Pause16Regular, Play16Regular, DatabaseWindow20Regular, FolderOpen16Reg
 import { useServerJobQueues, type ServerJobQueue } from "../../hooks/queue";
 import nlsHPCC from "src/nlsHPCC";
 import { getStateImage } from "src/ESPWorkunit";
-import * as Utility from "src/Utility";
+import { getImageURL } from "src/Utility";
 import { getStateImage as getDFUStateImage } from "src/ESPDFUWorkunit";
 import { useBuildInfo } from "../../hooks/platform";
 import { GenericCard } from "./GenericCard";
@@ -211,7 +211,7 @@ const ActiveWorkunit: React.FC<ActiveWorkunitProps> = ({ wu, idx, listLength, se
     );
     const canUp = idx > 0;
     const canDown = idx < (listLength - 1);
-    const priorityIcon = wu.Priority === "high" ? Utility.getImageURL("priority_high.png") : wu.Priority === "low" ? Utility.getImageURL("priority_low.png") : undefined;
+    const priorityIcon = wu.Priority === "high" ? getImageURL("priority_high.png") : wu.Priority === "low" ? getImageURL("priority_low.png") : undefined;
     return <ListItem key={wuid}>
         <div role="gridcell" className={styles.gridCell}>
             <Tooltip content={tooltipContent} relationship="label">

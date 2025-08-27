@@ -3,7 +3,7 @@ import { DefaultButton, MessageBar, MessageBarType, PrimaryButton, Spinner, Text
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsWorkunits from "src/WsWorkunits";
+import { WUPushEvent } from "src/WsWorkunits";
 import { MessageBox } from "../../layouts/MessageBox";
 
 const logger = scopedLogger("src-react/components/forms/PushEvent.tsx");
@@ -46,7 +46,7 @@ export const PushEventForm: React.FunctionComponent<PushEventProps> = ({
                 setSpinnerHidden(false);
                 const request: any = data;
 
-                WsWorkunits.WUPushEvent({ request: request })
+                WUPushEvent({ request: request })
                     .then(({ WUPushEventResponse }) => {
                         if (WUPushEventResponse?.retcode < 0) {
                             //log exception from API

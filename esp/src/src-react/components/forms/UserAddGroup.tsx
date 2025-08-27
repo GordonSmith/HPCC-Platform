@@ -3,7 +3,7 @@ import { DefaultButton, IDropdownOption, MessageBar, MessageBarType, PrimaryButt
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsAccess from "src/ws_access";
+import { UserGroupEdit } from "src/ws_access";
 import { UserGroupsField } from "./Fields";
 import { MessageBox } from "../../layouts/MessageBox";
 
@@ -51,7 +51,7 @@ export const UserAddGroupForm: React.FunctionComponent<UserAddGroupProps> = ({
                 request.username = username;
                 request.action = "add";
 
-                WsAccess.UserGroupEdit({ request: request })
+                UserGroupEdit({ request: request })
                     .then(({ UserGroupEditResponse }) => {
                         if (UserGroupEditResponse?.retcode < 0) {
                             //log exception from API

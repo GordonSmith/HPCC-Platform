@@ -2,8 +2,8 @@ import * as React from "react";
 import { Pivot, PivotItem } from "@fluentui/react";
 import { join, scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
-import * as ESPQuery from "src/ESPQuery";
-import * as WsTopology from "src/WsTopology";
+import { Get } from "src/ESPQuery";
+import { GetWsEclIFrameURL } from "src/WsTopology";
 import { useWorkunitResults } from "../hooks/workunit";
 import { IFrame } from "./IFrame";
 import { pushUrl } from "../util/history";
@@ -49,17 +49,17 @@ export const QueryTests: React.FunctionComponent<QueryTestsProps> = ({
     const [linksUrl, setLinksUrl] = React.useState("");
 
     React.useEffect(() => {
-        setQuery(ESPQuery.Get(querySet, queryId));
+        setQuery(Get(querySet, queryId));
 
-        WsTopology.GetWsEclIFrameURL("forms/soap").then(url => setSoapUrl(buildFrameUrl(url, `${querySet}/${queryId}`)));
+        GetWsEclIFrameURL("forms/soap").then(url => setSoapUrl(buildFrameUrl(url, `${querySet}/${queryId}`)));
 
-        WsTopology.GetWsEclIFrameURL("forms/ecl").then(url => setFormUrl(buildFrameUrl(url, `${querySet}/${queryId}`)));
+        GetWsEclIFrameURL("forms/ecl").then(url => setFormUrl(buildFrameUrl(url, `${querySet}/${queryId}`)));
 
-        WsTopology.GetWsEclIFrameURL("forms/json").then(url => setJsonUrl(buildFrameUrl(url, `${querySet}/${queryId}`)));
+        GetWsEclIFrameURL("forms/json").then(url => setJsonUrl(buildFrameUrl(url, `${querySet}/${queryId}`)));
 
-        WsTopology.GetWsEclIFrameURL("links").then(url => setLinksUrl(buildFrameUrl(url, `${querySet}/${queryId}`)));
+        GetWsEclIFrameURL("links").then(url => setLinksUrl(buildFrameUrl(url, `${querySet}/${queryId}`)));
 
-        WsTopology.GetWsEclIFrameURL("definitions").then(url => {
+        GetWsEclIFrameURL("definitions").then(url => {
             setWsdlUrl(buildFrameUrl(url, `${querySet}/${queryId}/main/${queryId}.wsdl?display`));
             setRequestSchemaUrl(buildFrameUrl(url, `${querySet}/${queryId}/main/${queryId}.xsd?display`));
             setParameterXmlUrl(buildFrameUrl(url, `${querySet}/${queryId}/resource/soap/${queryId}.xml?display`));
@@ -78,9 +78,9 @@ export const QueryTests: React.FunctionComponent<QueryTestsProps> = ({
             })
             .catch(err => logger.error(err));
 
-        WsTopology.GetWsEclIFrameURL("example/request").then(url => setExampleRequestUrl(buildFrameUrl(url, `${querySet}/${queryId}?display`)));
+        GetWsEclIFrameURL("example/request").then(url => setExampleRequestUrl(buildFrameUrl(url, `${querySet}/${queryId}?display`)));
 
-        WsTopology.GetWsEclIFrameURL("example/response").then(url => setExampleResponseUrl(buildFrameUrl(url, `${querySet}/${queryId}?display`)));
+        GetWsEclIFrameURL("example/response").then(url => setExampleResponseUrl(buildFrameUrl(url, `${querySet}/${queryId}?display`)));
     }, [setQuery, queryId, querySet, resultNames]);
 
     React.useEffect(() => {

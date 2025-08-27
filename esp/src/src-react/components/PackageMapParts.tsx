@@ -2,8 +2,8 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
-import * as parser from "dojox/xml/parser";
-import * as WsPackageMaps from "src/WsPackageMaps";
+import { dojoxXmlParser } from "src/dojo-shim";
+import { getPackageMapById, PackageMapQuery, RemovePartFromPackageMap } from "src/WsPackageMaps";
 import nlsHPCC from "src/nlsHPCC";
 import { useConfirm } from "../hooks/confirm";
 import { pushUrl } from "../util/history";
@@ -50,9 +50,9 @@ export const PackageMapParts: React.FunctionComponent<PackageMapPartsProps> = ({
     }, [name]);
 
     const refreshData = React.useCallback(() => {
-        WsPackageMaps.getPackageMapById({ packageMap: name })
+        getPackageMapById({ packageMap: name })
             .then(({ GetPackageMapByIdResponse }) => {
-                const xml = parser.parse(GetPackageMapByIdResponse?.Info);
+                const xml = dojoxXmlParser.parse(GetPackageMapByIdResponse?.Info);
                 const parts = [...xml.getElementsByTagName("Part")].map(part => {
                     return {
                         Part: part.attributes[0].nodeValue
@@ -75,7 +75,7 @@ export const PackageMapParts: React.FunctionComponent<PackageMapPartsProps> = ({
             const requests = [];
             selection.forEach((item, idx) => {
                 requests.push(
-                    WsPackageMaps.RemovePartFromPackageMap({
+                    RemovePartFromPackageMap({
                         request: {
                             PackageMap: name.split("::")[1],
                             Target: _package?.Target,
@@ -125,7 +125,7 @@ export const PackageMapParts: React.FunctionComponent<PackageMapPartsProps> = ({
     const copyButtons = useCopyButtons(columns, selection, "packageMapParts");
 
     React.useEffect(() => {
-        WsPackageMaps.PackageMapQuery({})
+        PackageMapQuery({})
             .then(({ ListPackagesResponse }) => {
                 const __package = ListPackagesResponse?.PackageMapList?.PackageListMapData.filter(item => item.Id === name)[0];
                 setPackage(__package);

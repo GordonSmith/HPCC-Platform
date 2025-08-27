@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, DefaultButton, IDropdownOption, mergeStyleSets, PrimaryButton, Spinner, Stack, TextField, } from "@fluentui/react";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
-import * as FileSpray from "src/FileSpray";
+import { Copy } from "src/FileSpray";
 import { MessageBox } from "../../layouts/MessageBox";
 import { pushUrl } from "../../util/history";
 import { TargetGroupTextField } from "./Fields";
@@ -71,7 +71,7 @@ export const CopyFile: React.FunctionComponent<CopyFileProps> = ({
                 if (logicalFiles.length > 0) {
                     if (logicalFiles.length === 1) {
                         const request = { ...data, sourceLogicalName: logicalFiles[0] };
-                        FileSpray.Copy({ request: request }).then(response => {
+                        Copy({ request: request }).then(response => {
                             setSubmitDisabled(false);
                             setSpinnerHidden(true);
                             closeForm();
@@ -81,7 +81,7 @@ export const CopyFile: React.FunctionComponent<CopyFileProps> = ({
                         logicalFiles.forEach((logicalFile, idx) => {
                             const request = { ...data, sourceLogicalName: logicalFile, destLogicalName: data.targetCopyName[idx].name };
                             const requests = [];
-                            requests.push(FileSpray.Copy({ request: request }));
+                            requests.push(Copy({ request: request }));
                             Promise.all(requests).then(_ => {
                                 setSubmitDisabled(false);
                                 setSpinnerHidden(true);

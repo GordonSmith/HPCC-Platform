@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, MessageBar, M
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
 import nlsHPCC from "src/nlsHPCC";
-import * as FileSpray from "src/FileSpray";
+import { FormatMessages, lfEncode, CommandMessages, States } from "src/FileSpray";
 import { formatCost } from "src/Session";
 import { useConfirm } from "../hooks/confirm";
 import { useDfuWorkunit } from "../hooks/workunit";
@@ -92,7 +92,7 @@ export const DFUWorkunitDetails: React.FunctionComponent<DFUWorkunitDetailsProps
         setJobname(workunit?.JobName);
         setProtected(workunit?.isProtected);
 
-        const sourceFormatMsg = FileSpray.FormatMessages[workunit?.SourceFormat];
+        const sourceFormatMsg = FormatMessages[workunit?.SourceFormat];
         if (sourceFormatMsg === "csv") {
             setSourceFormatMessage(`(${nlsHPCC.CSV})`);
         } else if (sourceFormatMsg === "fixed") {
@@ -104,9 +104,9 @@ export const DFUWorkunitDetails: React.FunctionComponent<DFUWorkunitDetailsProps
         const _sourceFields: Fields = {};
         for (const fieldId of sourceFieldIds) {
             if (workunit[fieldId.key] !== undefined) {
-                const value = fieldId.key === "SourceFormat" ? FileSpray.FormatMessages[workunit[fieldId.key]] : workunit[fieldId.key];
+                const value = fieldId.key === "SourceFormat" ? FormatMessages[workunit[fieldId.key]] : workunit[fieldId.key];
                 if (fieldId.key === "SourceFilePath") {
-                    const href = `#/landingzone/preview/~file::${workunit["SourceIP"]}::${FileSpray.lfEncode(value)}`;
+                    const href = `#/landingzone/preview/~file::${workunit["SourceIP"]}::${lfEncode(value)}`;
                     _sourceFields[fieldId.key] = { label: fieldId.label, value: value ?? null, type: "link", href, readonly: true };
                 } else {
                     _sourceFields[fieldId.key] = { label: fieldId.label, value: value ?? null, type: "string", readonly: true };
@@ -115,7 +115,7 @@ export const DFUWorkunitDetails: React.FunctionComponent<DFUWorkunitDetailsProps
         }
         setSourceFields(_sourceFields);
 
-        const destFormatMsg = FileSpray.FormatMessages[workunit?.DestFormat];
+        const destFormatMsg = FormatMessages[workunit?.DestFormat];
         if (destFormatMsg === "csv") {
             setTargetFormatMessage(`(${nlsHPCC.CSV})`);
         } else if (destFormatMsg === "fixed") {
@@ -125,7 +125,7 @@ export const DFUWorkunitDetails: React.FunctionComponent<DFUWorkunitDetailsProps
         const _targetFields: Fields = {};
         for (const fieldId of targetFieldIds) {
             if (workunit[fieldId.key] !== undefined) {
-                const value = fieldId.key === "DestFormat" ? FileSpray.FormatMessages[workunit[fieldId.key]] : workunit[fieldId.key];
+                const value = fieldId.key === "DestFormat" ? FormatMessages[workunit[fieldId.key]] : workunit[fieldId.key];
                 if (fieldId.key === "DestLogicalName") {
                     _targetFields[fieldId.key] = { label: fieldId.label, value: value ?? null, type: "link", href: `#/files/${value}`, readonly: true };
                 } else {
@@ -232,8 +232,8 @@ export const DFUWorkunitDetails: React.FunctionComponent<DFUWorkunitDetailsProps
                         "queue": { label: nlsHPCC.Queue, type: "string", value: workunit?.Queue, readonly: true },
                         "user": { label: nlsHPCC.User, type: "string", value: workunit?.User, readonly: true },
                         "protected": { label: nlsHPCC.Protected, type: "checkbox", value: _protected },
-                        "command": { label: nlsHPCC.Command, type: "string", value: FileSpray.CommandMessages[workunit?.Command], readonly: true },
-                        "state": { label: nlsHPCC.State, type: "string", value: FileSpray.States[workunit?.State], readonly: true },
+                        "command": { label: nlsHPCC.Command, type: "string", value: CommandMessages[workunit?.Command], readonly: true },
+                        "state": { label: nlsHPCC.State, type: "string", value: States[workunit?.State], readonly: true },
                         "accessCost": { label: nlsHPCC.FileAccessCost, type: "string", value: `${formatCost(workunit?.FileAccessCost ?? 0)}`, readonly: true },
                         "timeStarted": { label: nlsHPCC.TimeStarted, type: "string", value: workunit?.TimeStarted, readonly: true },
                         "secondsLeft": { label: nlsHPCC.SecondsRemaining, type: "number", value: workunit?.SecsLeft, readonly: true },

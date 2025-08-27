@@ -2,7 +2,7 @@ import * as React from "react";
 import { ICommandBarItemProps, CommandBar } from "@fluentui/react";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
-import * as Utility from "src/Utility";
+import { safeFormatNum } from "src/Utility";
 import { useFile } from "../hooks/file";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
@@ -38,13 +38,13 @@ export const FileParts: React.FunctionComponent<FilePartsProps> = ({
             PartsizeInt64: {
                 label: nlsHPCC.Size, sortable: true, width: 120,
                 formatter: (value, row) => {
-                    return Utility.safeFormatNum(value);
+                    return safeFormatNum(value);
                 }
             },
             CompressedSize: {
                 label: nlsHPCC.CompressedSize, sortable: true, width: 120,
                 formatter: (value, row) => {
-                    return Utility.safeFormatNum(value);
+                    return safeFormatNum(value);
                 }
             },
         };

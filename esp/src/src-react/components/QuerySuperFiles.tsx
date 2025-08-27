@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
-import * as ESPQuery from "src/ESPQuery";
+import { Get as QueryGet } from "src/ESPQuery";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
 import { HolyGrail } from "../layouts/HolyGrail";
@@ -30,7 +30,7 @@ export const QuerySuperFiles: React.FunctionComponent<QuerySuperFilesProps> = ({
 }) => {
 
     const query = React.useMemo(() => {
-        return ESPQuery.Get(querySet, queryId);
+        return QueryGet(querySet, queryId);
     }, [querySet, queryId]);
     const [uiState, setUIState] = React.useState({ ...defaultUIState });
     const [data, setData] = React.useState<any[]>([]);

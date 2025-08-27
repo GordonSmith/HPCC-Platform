@@ -3,8 +3,8 @@ import { Checkbox, ChoiceGroup, ComboBox, IChoiceGroupOption, Dropdown as Dropdo
 import { scopedLogger } from "@hpcc-js/util";
 import { FileSpray } from "@hpcc-js/comms";
 import { TpDropZoneQuery, TpGroupQuery, TpServiceQuery } from "src/WsTopology";
-import * as WsAccess from "src/ws_access";
-import * as WsESDLConfig from "src/WsESDLConfig";
+import { Permissions, UserGroupEditInput, GroupMemberEditInput } from "src/ws_access";
+import { ListESDLBindings, ListESDLDefinitions } from "src/WsESDLConfig";
 import { States } from "src/WsWorkunits";
 import { FileList, States as DFUStates } from "src/FileSpray";
 import { joinPath } from "src/Utility";
@@ -613,7 +613,7 @@ export const EsdlEspProcessesTextField: React.FunctionComponent<EsdlEspProcesses
     const [espProcesses, setEspProcesses] = React.useState<IDropdownOption[]>([]);
 
     React.useEffect(() => {
-        WsESDLConfig.ListESDLBindings({}).then(({ ListESDLBindingsResponse }) => {
+        ListESDLBindings({}).then(({ ListESDLBindingsResponse }) => {
             setEspProcesses(
                 ListESDLBindingsResponse?.EspProcesses?.EspProcess?.map(proc => {
                     return {
@@ -635,7 +635,7 @@ export const EsdlDefinitionsTextField: React.FunctionComponent<EsdlDefinitionsTe
     const [definitions, setDefinitions] = React.useState<IDropdownOption[]>([]);
 
     React.useEffect(() => {
-        WsESDLConfig.ListESDLDefinitions({}).then(({ ListESDLDefinitionsResponse }) => {
+        ListESDLDefinitions({}).then(({ ListESDLDefinitionsResponse }) => {
             setDefinitions(
                 ListESDLDefinitionsResponse?.Definitions?.Definition?.map(defn => {
                     return {
@@ -752,7 +752,7 @@ export const UserGroupsField: React.FunctionComponent<UserGroupsProps> = (props)
     const [groups, setGroups] = React.useState<IDropdownOption[]>();
 
     React.useEffect(() => {
-        WsAccess.UserGroupEditInput({ request: { username: props.username } })
+        UserGroupEditInput({ request: { username: props.username } })
             .then(({ UserGroupEditInputResponse }) => {
                 const groups = UserGroupEditInputResponse?.Groups?.Group
                     .filter(group => group.name !== "Administrators")
@@ -780,7 +780,7 @@ export const GroupMembersField: React.FunctionComponent<GroupMembersProps> = (pr
 
     React.useEffect(() => {
         const request = { groupname: props.groupname };
-        WsAccess.GroupMemberEditInput({ request: request }).then(({ GroupMemberEditInputResponse }) => {
+        GroupMemberEditInput({ request: request }).then(({ GroupMemberEditInputResponse }) => {
             const usersArray = GroupMemberEditInputResponse?.Users?.User || [];
 
             const _users = usersArray.map(user => ({
@@ -803,7 +803,7 @@ export const PermissionTypeField: React.FunctionComponent<PermissionTypeProps> =
     const [baseDns, setBaseDns] = React.useState<IDropdownOption[]>();
 
     React.useEffect(() => {
-        WsAccess.Permissions({}).then(({ BasednsResponse }) => {
+        Permissions({}).then(({ BasednsResponse }) => {
             const _basedns = BasednsResponse?.Basedns?.Basedn
                 .map(dn => {
                     return {

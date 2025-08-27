@@ -3,7 +3,7 @@ import { DefaultButton, IDropdownOption, MessageBar, MessageBarType, PrimaryButt
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsAccess from "src/ws_access";
+import { ResourceAdd } from "src/ws_access";
 import { PermissionTypeField } from "./Fields";
 import { MessageBox } from "../../layouts/MessageBox";
 
@@ -51,7 +51,7 @@ export const AddPermissionForm: React.FunctionComponent<AddPermissionFormProps> 
                 setSpinnerHidden(false);
                 const request: any = data;
 
-                WsAccess.ResourceAdd({ request: request })
+                ResourceAdd({ request: request })
                     .then(({ ResourceAddResponse }) => {
                         if (ResourceAddResponse?.retcode < 0) {
                             //log exception from API

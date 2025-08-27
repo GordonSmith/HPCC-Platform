@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon, Link } from "@fluentui/react";
-import * as WsWorkunits from "src/WsWorkunits";
-import * as ESPQuery from "src/ESPQuery";
+import { WUQuerysetQueryAction } from "src/WsWorkunits";
+import { CreateQueryStore } from "src/ESPQuery";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
 import { useConfirm } from "../hooks/confirm";
@@ -89,7 +89,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
 
     //  Grid ---
     const gridStore = React.useMemo(() => {
-        return store || ESPQuery.CreateQueryStore();
+        return store || CreateQueryStore();
     }, [store]);
 
     const query = React.useMemo(() => {
@@ -187,7 +187,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
         message: nlsHPCC.DeleteSelectedQueries,
         items: selection.map(s => s.Id),
         onSubmit: React.useCallback(() => {
-            WsWorkunits.WUQuerysetQueryAction(selection, "Delete").then(() => refreshTable.call(true));
+            WUQuerysetQueryAction(selection, "Delete").then(() => refreshTable.call(true));
         }, [refreshTable, selection])
     });
 
@@ -218,25 +218,25 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
         {
             key: "Suspend", text: nlsHPCC.Suspend, disabled: !uiState.isSuspended,
             onClick: () => {
-                WsWorkunits.WUQuerysetQueryAction(selection, "Suspend").then(() => refreshTable.call());
+                WUQuerysetQueryAction(selection, "Suspend").then(() => refreshTable.call());
             }
         },
         {
             key: "Unsuspend", text: nlsHPCC.Unsuspend, disabled: !uiState.isNotSuspended,
             onClick: () => {
-                WsWorkunits.WUQuerysetQueryAction(selection, "Unsuspend").then(() => refreshTable.call());
+                WUQuerysetQueryAction(selection, "Unsuspend").then(() => refreshTable.call());
             }
         },
         {
             key: "Activate", text: nlsHPCC.Activate, disabled: !uiState.isActive,
             onClick: () => {
-                WsWorkunits.WUQuerysetQueryAction(selection, "Activate").then(() => refreshTable.call());
+                WUQuerysetQueryAction(selection, "Activate").then(() => refreshTable.call());
             }
         },
         {
             key: "Deactivate", text: nlsHPCC.Deactivate, disabled: !uiState.isNotActive,
             onClick: () => {
-                WsWorkunits.WUQuerysetQueryAction(selection, "Deactivate").then(() => refreshTable.call());
+                WUQuerysetQueryAction(selection, "Deactivate").then(() => refreshTable.call());
             }
         },
         { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },

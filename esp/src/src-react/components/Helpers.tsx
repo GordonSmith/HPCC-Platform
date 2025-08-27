@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { TreeItemValue } from "@fluentui/react-components";
-import * as ESPRequest from "src/ESPRequest";
+import { getBaseURL } from "src/ESPRequest";
 import { convertedSize } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { HelperRow, useWorkunitHelpersTree } from "../hooks/workunit";
@@ -71,7 +71,7 @@ function getURL(wuid: string, item: HelperRow, option?: number) {
             break;
     }
 
-    return ESPRequest.getBaseURL() + params + (option ? `&Option=${encodeURIComponent(option)}` : "&Option=1");
+    return getBaseURL() + params + (option ? `&Option=${encodeURIComponent(option)}` : "&Option=1");
 }
 
 interface FlatTreeItemEx extends FlatTreeItem {

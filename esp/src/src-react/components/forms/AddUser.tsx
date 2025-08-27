@@ -3,7 +3,7 @@ import { DefaultButton, MessageBar, MessageBarType, PrimaryButton, Spinner, Text
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsAccess from "src/ws_access";
+import { AddUser } from "src/ws_access";
 import { MessageBox } from "../../layouts/MessageBox";
 
 const logger = scopedLogger("src-react/components/forms/AddUser.tsx");
@@ -60,7 +60,7 @@ export const AddUserForm: React.FunctionComponent<AddUserFormProps> = ({
                 setSpinnerHidden(false);
                 const request: any = data;
 
-                WsAccess.AddUser({ request: request })
+                AddUser({ request: request })
                     .then(({ AddUserResponse }) => {
                         if (AddUserResponse?.retcode < 0) {
                             //log exception from API

@@ -314,7 +314,7 @@ export function isInstanceOfWorkunit(obj) {
     return obj && obj.isInstanceOf && obj.isInstanceOf(Workunit);
 }
 
-export function Get(wuid, data?) {
+export function GetDfuWU(wuid, data?) {
     const store = new Store();
     const retVal = store.get(wuid);
     if (data && !retVal.__hpcc_id) {
@@ -344,7 +344,7 @@ export function CreateWUQueryStore(): BaseStore<FileSprayNS.GetDFUWorkunits, typ
         request.includeTransferRate = true;
         return service.GetDFUWorkunits(request).then(response => {
             return {
-                data: response?.results?.DFUWorkunit?.map(wu => Get(wu.ID, wu)) ?? [],
+                data: response?.results?.DFUWorkunit?.map(wu => GetDfuWU(wu.ID, wu)) ?? [],
                 total: response.NumWUs
             };
         }).catch(err => {

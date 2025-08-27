@@ -181,7 +181,7 @@ define([
 
         _handleResponse: function (wuidQualifier, response) {
             if (lang.exists(wuidQualifier, response)) {
-                var wu = ESPDFUWorkunit.Get(lang.getObject(wuidQualifier, false, response));
+                var wu = ESPDFUWorkunit.GetDfuWU(lang.getObject(wuidQualifier, false, response));
                 wu.startMonitor(true);
                 var tab = this.ensurePane(wu.ID, {
                     Wuid: wu.ID

@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "
 import { scopedLogger } from "@hpcc-js/util";
 import { HolyGrail } from "../layouts/HolyGrail";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsDFUXref from "src/WsDFUXref";
+import { DFUXRefBuild, DFUXRefBuildCancel, WUGetXref } from "src/WsDFUXref";
 import { useConfirm } from "../hooks/confirm";
 import { useBuildInfo } from "../hooks/platform";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
@@ -60,7 +60,7 @@ export const Xrefs: React.FunctionComponent<XrefsProps> = ({
     }, [selection]);
 
     const refreshData = React.useCallback(() => {
-        WsDFUXref.WUGetXref({
+        WUGetXref({
             request: {}
         })
             .then(({ DFUXRefListResponse }) => {
@@ -87,7 +87,7 @@ export const Xrefs: React.FunctionComponent<XrefsProps> = ({
         title: nlsHPCC.CancelAll,
         message: nlsHPCC.CancelAllMessage,
         onSubmit: React.useCallback(() => {
-            WsDFUXref.DFUXRefBuildCancel({
+            DFUXRefBuildCancel({
                 request: {}
             })
                 .catch(err => logger.error(err))
@@ -102,7 +102,7 @@ export const Xrefs: React.FunctionComponent<XrefsProps> = ({
             const requests = [];
             for (let i = selection.length - 1; i >= 0; --i) {
                 requests.push(
-                    WsDFUXref.DFUXRefBuild({
+                    DFUXRefBuild({
                         request: {
                             Cluster: selection[i].name
                         }

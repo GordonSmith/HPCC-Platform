@@ -1,6 +1,8 @@
 import * as React from "react";
 import { Pivot, PivotItem } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
+import { GetESDLBinding } from "src/WsESDLConfig";
+import nlsHPCC from "src/nlsHPCC";
 import { SizeMe } from "../layouts/SizeMe";
 import { pivotItemStyle } from "../layouts/pivot";
 import { useBuildInfo } from "../hooks/platform";
@@ -8,8 +10,6 @@ import { pushUrl } from "../util/history";
 import { DESDLBindingSummary } from "./DESDLBindingSummary";
 import { DESDLBindingMethods } from "./DESDLBindingMethods";
 import { XMLSourceEditor } from "./SourceEditor";
-import * as WsESDLConfig from "src/WsESDLConfig";
-import nlsHPCC from "src/nlsHPCC";
 
 const logger = scopedLogger("src-react/components/ESDLBindingDetails.tsx");
 
@@ -28,7 +28,7 @@ export const DESDLBindingDetails: React.FunctionComponent<DESDLBindingDetailsPro
     const [binding, setBinding] = React.useState<any>();
 
     React.useEffect(() => {
-        WsESDLConfig.GetESDLBinding({ request: { EsdlBindingId: name, IncludeInterfaceDefinition: true, ReportMethodsAvailable: true } })
+        GetESDLBinding({ request: { EsdlBindingId: name, IncludeInterfaceDefinition: true, ReportMethodsAvailable: true } })
             .then(({ GetESDLBindingResponse }) => {
                 setBinding(GetESDLBindingResponse);
             })

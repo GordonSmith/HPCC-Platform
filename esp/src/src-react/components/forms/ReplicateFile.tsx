@@ -2,7 +2,7 @@ import * as React from "react";
 import { DefaultButton, IDropdownOption, PrimaryButton, Spinner, Stack, TextField, } from "@fluentui/react";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
-import * as FileSpray from "src/FileSpray";
+import { Replicate } from "src/FileSpray";
 import { useFile } from "../../hooks/file";
 import { MessageBox } from "../../layouts/MessageBox";
 import { pushUrl } from "../../util/history";
@@ -50,7 +50,7 @@ export const ReplicateFile: React.FunctionComponent<ReplicateFileProps> = ({
                 setSubmitDisabled(true);
                 setSpinnerHidden(false);
                 const request = { ...data, srcname: logicalFile };
-                FileSpray.Replicate({ request: request }).then(response => {
+                Replicate({ request: request }).then(response => {
                     setSubmitDisabled(false);
                     setSpinnerHidden(true);
                     closeForm();

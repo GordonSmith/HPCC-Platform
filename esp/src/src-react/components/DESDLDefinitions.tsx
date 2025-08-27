@@ -2,7 +2,7 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsESDLConfig from "src/WsESDLConfig";
+import { DeleteESDLDefinition, GetESDLDefinition, ListESDLDefinitions } from "src/WsESDLConfig";
 import { useConfirm } from "../hooks/confirm";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { ReflexContainer, ReflexElement, ReflexSplitter } from "../layouts/react-reflex";
@@ -51,7 +51,7 @@ export const DESDLDefinitions: React.FunctionComponent<DESDLDefinitonsProps> = (
         state.hasSelection = selection.length > 0;
         setUIState(state);
         if (selection[0]) {
-            WsESDLConfig.GetESDLDefinition({
+            GetESDLDefinition({
                 request: { Id: selection[0].Name }
             })
                 .then(({ GetESDLDefinitionResponse }) => {
@@ -63,7 +63,7 @@ export const DESDLDefinitions: React.FunctionComponent<DESDLDefinitonsProps> = (
     }, [selection]);
 
     const refreshData = React.useCallback(() => {
-        WsESDLConfig.ListESDLDefinitions({})
+        ListESDLDefinitions({})
             .then(({ ListESDLDefinitionsResponse }) => {
                 const definitions = ListESDLDefinitionsResponse?.Definitions?.Definition;
                 if (definitions) {
@@ -91,7 +91,7 @@ export const DESDLDefinitions: React.FunctionComponent<DESDLDefinitonsProps> = (
             selection.forEach(binding => {
                 const name = binding.Name.split(".");
                 requests.push(
-                    WsESDLConfig.DeleteESDLDefinition({
+                    DeleteESDLDefinition({
                         request: {
                             Id: binding.Name,
                             Name: name[0],

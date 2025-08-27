@@ -4,7 +4,7 @@ import { hsl as d3Hsl } from "@hpcc-js/common";
 import { Workunit } from "@hpcc-js/comms";
 import { SizeMe } from "../layouts/SizeMe";
 import { defaultSort, emptyFilter, getStateImage, WUQueryStore, formatQuery } from "src/ESPWorkunit";
-import * as WsWorkunits from "src/WsWorkunits";
+import { WUAction, isComplete } from "src/WsWorkunits";
 import { formatCost } from "src/Session";
 import { userKeyValStore } from "src/KeyValStore";
 import { QuerySortItem } from "src/store/Store";
@@ -176,9 +176,9 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
     const doActionWithWorkunits = React.useCallback(async (action: "Delete" | "Abort") => {
         const unknownWUs = selection.filter(wu => wu.State === "unknown");
         if (action === "Delete" && unknownWUs.length) {
-            await WsWorkunits.WUAction(unknownWUs, "SetToFailed");
+            await WUAction(unknownWUs, "SetToFailed");
         }
-        await WsWorkunits.WUAction(selection, action);
+        await WUAction(selection, action);
         refreshTable.call(true);
     }, [refreshTable, selection]);
 
@@ -228,7 +228,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
         { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
         {
             key: "setFailed", text: nlsHPCC.SetToFailed, disabled: !uiState.hasNotProtected,
-            onClick: () => { WsWorkunits.WUAction(selection, "SetToFailed").then(() => refreshTable.call()); }
+            onClick: () => { WUAction(selection, "SetToFailed").then(() => refreshTable.call()); }
         },
         {
             key: "abort", text: nlsHPCC.Abort, disabled: !uiState.hasNotCompleted,
@@ -252,13 +252,13 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
         {
             key: "protect", text: nlsHPCC.Protect, disabled: !uiState.hasNotProtected,
             onClick: () => {
-                WsWorkunits.WUAction(selection, "Protect").then(() => refreshTable.call());
+                WUAction(selection, "Protect").then(() => refreshTable.call());
             }
         },
         {
             key: "unprotect", text: nlsHPCC.Unprotect, disabled: !uiState.hasProtected,
             onClick: () => {
-                WsWorkunits.WUAction(selection, "Unprotect").then(() => refreshTable.call());
+                WUAction(selection, "Unprotect").then(() => refreshTable.call());
             }
         },
         { key: "divider_4", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
@@ -306,7 +306,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                 } else {
                     state.hasNotFailed = true;
                 }
-                if (WsWorkunits.isComplete(selection[i].StateID, selection[i].ActionEx)) {
+                if (isComplete(selection[i].StateID, selection[i].ActionEx)) {
                     state.hasCompleted = true;
                 } else {
                     state.hasNotCompleted = true;

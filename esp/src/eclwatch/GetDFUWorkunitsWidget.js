@@ -395,7 +395,7 @@ define([
                         label: this.i18n.ID,
                         width: 180,
                         formatter: function (ID, idx) {
-                            var wu = ESPDFUWorkunit.Get(ID);
+                            var wu = ESPDFUWorkunit.GetDfuWU(ID);
                             return "<img src='" + wu.getStateImage() + "'>&nbsp;<a href='#' onClick='return false;' class='dgrid-row-url'>" + ID + "</a>";
                         }
                     },

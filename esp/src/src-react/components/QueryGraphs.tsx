@@ -1,8 +1,8 @@
 import * as React from "react";
 import { CommandBar, ICommandBarItemProps, Image, Link } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
-import * as ESPQuery from "src/ESPQuery";
-import * as Utility from "src/Utility";
+import { Get as QueryGet } from "src/ESPQuery";
+import { getImageURL } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
 import { HolyGrail } from "../layouts/HolyGrail";
@@ -36,7 +36,7 @@ export const QueryGraphs: React.FunctionComponent<QueryGraphsProps> = ({
 }) => {
 
     const query = React.useMemo(() => {
-        return ESPQuery.Get(querySet, queryId);
+        return QueryGet(querySet, queryId);
     }, [querySet, queryId]);
     const [data, setData] = React.useState<any[]>([]);
     const {
@@ -52,7 +52,7 @@ export const QueryGraphs: React.FunctionComponent<QueryGraphsProps> = ({
                 label: nlsHPCC.Name,
                 formatter: (Name, row) => {
                     return <>
-                        <Image src={Utility.getImageURL(getStateImageName(row))} />
+                        <Image src={getImageURL(getStateImageName(row))} />
                         &nbsp;
                         <Link href={`#/workunits/${row.Wuid}/metrics/${Name}`}>{Name}</Link>
                     </>;

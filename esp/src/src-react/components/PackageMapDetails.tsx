@@ -3,7 +3,7 @@ import { CommandBar, ICommandBarItemProps, Pivot, PivotItem, Sticky, StickyPosit
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsPackageMaps from "src/WsPackageMaps";
+import { activatePackageMap, deactivatePackageMap, deletePackageMap, getPackageMapById, PackageMapQuery } from "src/WsPackageMaps";
 import { pivotItemStyle } from "../layouts/pivot";
 import { pushUrl } from "../util/history";
 import { PackageMapParts } from "./PackageMapParts";
@@ -31,7 +31,7 @@ export const PackageMapDetails: React.FunctionComponent<PackageMapDetailsProps> 
         title: nlsHPCC.Delete,
         message: nlsHPCC.DeleteThisPackage,
         onSubmit: React.useCallback(() => {
-            WsPackageMaps.deletePackageMap({
+            deletePackageMap({
                 request: {
                     Target: _package?.Target,
                     Process: _package?.Process,
@@ -51,7 +51,7 @@ export const PackageMapDetails: React.FunctionComponent<PackageMapDetailsProps> 
     });
 
     React.useEffect(() => {
-        WsPackageMaps.PackageMapQuery({})
+        PackageMapQuery({})
             .then(({ ListPackagesResponse }) => {
                 const __package = ListPackagesResponse?.PackageMapList?.PackageListMapData.filter(item => item.Id === name)[0];
                 setPackage(__package);
@@ -59,7 +59,7 @@ export const PackageMapDetails: React.FunctionComponent<PackageMapDetailsProps> 
             })
             .catch(err => logger.error(err))
             ;
-        WsPackageMaps.getPackageMapById({ packageMap: name })
+        getPackageMapById({ packageMap: name })
             .then(({ GetPackageMapByIdResponse }) => {
                 setXml(GetPackageMapByIdResponse?.Info);
             })
@@ -71,7 +71,7 @@ export const PackageMapDetails: React.FunctionComponent<PackageMapDetailsProps> 
         {
             key: "activate", text: nlsHPCC.Activate, disabled: isActive,
             onClick: () => {
-                WsPackageMaps.activatePackageMap({
+                activatePackageMap({
                     request: {
                         Target: _package?.Target,
                         Process: _package?.Process,
@@ -90,7 +90,7 @@ export const PackageMapDetails: React.FunctionComponent<PackageMapDetailsProps> 
         {
             key: "deactivate", text: nlsHPCC.Deactivate, disabled: !isActive,
             onClick: () => {
-                WsPackageMaps.deactivatePackageMap({
+                deactivatePackageMap({
                     request: {
                         Target: _package?.Target,
                         Process: _package?.Process,

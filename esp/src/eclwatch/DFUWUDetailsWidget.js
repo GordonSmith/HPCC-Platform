@@ -116,7 +116,7 @@ define([
                 dom.byId(this.id + "Wuid").textContent = params.Wuid;
 
                 this.clearInput();
-                this.wu = ESPDFUWorkunit.Get(params.Wuid);
+                this.wu = ESPDFUWorkunit.GetDfuWU(params.Wuid);
                 var data = this.wu.getData();
                 for (var key in data) {
                     this.updateInput(key, null, data[key]);

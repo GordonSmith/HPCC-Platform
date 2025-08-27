@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
-import * as WsAccess from "src/ws_access";
+import { GroupMemberEdit } from "src/ws_access";
 import nlsHPCC from "src/nlsHPCC";
 import { GroupMemberStore, CreateGroupMemberStore } from "src/ws_access";
 import { ShortVerticalDivider } from "./Common";
@@ -83,7 +83,7 @@ export const GroupMembers: React.FunctionComponent<GroupMembersProps> = ({
                     action: "Delete"
                 };
                 request["usernames_i" + idx] = user.username;
-                requests.push(WsAccess.GroupMemberEdit({ request: request }));
+                requests.push(GroupMemberEdit({ request: request }));
             });
             Promise.all(requests)
                 .then(() => refreshTable.call(true))

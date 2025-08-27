@@ -153,6 +153,11 @@ module.exports = function (env) {
             liveReload: false,
             proxy,
             port: 8080
-        }
+        },
+
+        // Silence noisy missing / failed source map warnings coming from third-party deps
+        ignoreWarnings: [
+            (warning) => typeof warning.message === "string" && warning.message.includes("Failed to parse source map")
+        ]
     };
 };

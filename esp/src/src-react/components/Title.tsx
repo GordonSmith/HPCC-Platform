@@ -3,10 +3,10 @@ import { ContextualMenuItemType, DefaultButton, IconButton, IContextualMenuItem,
 import { Button, ButtonProps, CounterBadgeProps, CounterBadge, SearchBox, Toaster } from "@fluentui/react-components";
 import { WindowNewRegular } from "@fluentui/react-icons";
 import { Level, scopedLogger } from "@hpcc-js/util";
-import { cookie } from "dojo/main";
+import { cookie } from "src/dojo-shim";
 
 import nlsHPCC from "src/nlsHPCC";
-import * as Utility from "src/Utility";
+import { deleteCookie, textColor } from "src/Utility";
 
 import { useBanner } from "../hooks/banner";
 import { useConfirm } from "../hooks/confirm";
@@ -192,11 +192,11 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
                         }).then(data => {
                             if (data) {
                                 deleteUserSession().then(() => {
-                                    Utility.deleteCookie("ECLWatchUser");
-                                    Utility.deleteCookie("ESPSessionID");
-                                    Utility.deleteCookie("Status");
-                                    Utility.deleteCookie("User");
-                                    Utility.deleteCookie("ESPSessionState");
+                                    deleteCookie("ECLWatchUser");
+                                    deleteCookie("ESPSessionID");
+                                    deleteCookie("Status");
+                                    deleteCookie("User");
+                                    deleteCookie("ESPSessionState");
                                     window.location.reload();
                                 });
                             }
@@ -229,7 +229,7 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
             background: "transparent",
             minWidth: 48,
             padding: "0 10px 0 4px",
-            color: titlebarColor ? Utility.textColor(titlebarColor) : theme.semanticColors.link
+            color: titlebarColor ? textColor(titlebarColor) : theme.semanticColors.link
         },
         errorsWarningsCount: {
             margin: "-3px 0 0 -3px"
@@ -316,12 +316,12 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
             <Stack.Item align="center">
                 <Stack horizontal>
                     <Stack.Item>
-                        <IconButton iconProps={waffleIcon} onClick={() => setNavWideMode(!navWideMode)} style={{ width: 48, height: 48, color: titlebarColorSet ? Utility.textColor(titlebarColor) : theme.palette.themeDarker }} />
+                        <IconButton iconProps={waffleIcon} onClick={() => setNavWideMode(!navWideMode)} style={{ width: 48, height: 48, color: titlebarColorSet ? textColor(titlebarColor) : theme.palette.themeDarker }} />
                     </Stack.Item>
                     <Stack.Item align="center">
                         <Link href="#/activities">
                             <Text variant="large" nowrap block >
-                                <b title="ECL Watch" style={{ paddingLeft: "8px", color: titlebarColorSet ? Utility.textColor(titlebarColor) : theme.palette.themeDarker }}>
+                                <b title="ECL Watch" style={{ paddingLeft: "8px", color: titlebarColorSet ? textColor(titlebarColor) : theme.palette.themeDarker }}>
                                     {(showEnvironmentTitle && environmentTitle) ? environmentTitle : "ECL Watch"}
                                 </b>
                             </Text>
@@ -345,7 +345,7 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
                         </DefaultButton>
                     </Stack.Item>
                     <Stack.Item align="center">
-                        <IconButton title={nlsHPCC.Advanced} iconProps={collapseMenuIcon} menuProps={advMenuProps} style={{ color: titlebarColorSet ? Utility.textColor(titlebarColor) : theme.palette.themeDarker }} />
+                        <IconButton title={nlsHPCC.Advanced} iconProps={collapseMenuIcon} menuProps={advMenuProps} style={{ color: titlebarColorSet ? textColor(titlebarColor) : theme.palette.themeDarker }} />
                     </Stack.Item>
                 </Stack>
                 <Toaster toasterId={toasterId} position={"top-end"} pauseOnHover />

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { XMLSourceEditor } from "./SourceEditor";
-import * as ESPRequest from "../../src/ESPRequest";
+import { send } from "src/ESPRequest";
 
 interface ConfigurationProps {
 }
@@ -11,7 +11,7 @@ export const Configuration: React.FunctionComponent<ConfigurationProps> = ({
     const [configXml, setConfigXml] = React.useState("");
 
     React.useEffect(() => {
-        ESPRequest.send("main", "", {
+        send("main", "", {
             request: {
                 config_: "",
                 PlainText: "yes"

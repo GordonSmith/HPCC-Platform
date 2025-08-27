@@ -1,9 +1,9 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon, Image, Link } from "@fluentui/react";
 import { SizeMe } from "../layouts/SizeMe";
-import * as ESPDFUWorkunit from "src/ESPDFUWorkunit";
-import * as FileSpray from "src/FileSpray";
-import * as Utility from "src/Utility";
+import { CreateWUQueryStore, GetDfuWU } from "src/ESPDFUWorkunit";
+import { CommandMessages, DFUWorkunitsAction } from "src/FileSpray";
+import { convertedSize } from "src/Utility";
 import { QuerySortItem } from "src/store/Store";
 import nlsHPCC from "src/nlsHPCC";
 import { useConfirm } from "../hooks/confirm";
@@ -86,7 +86,7 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
 
     //  Grid ---
     const gridStore = React.useMemo(() => {
-        return store || ESPDFUWorkunit.CreateWUQueryStore();
+        return store || CreateWUQueryStore();
     }, [store]);
 
     const query = React.useMemo(() => {
@@ -114,7 +114,7 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
                 label: nlsHPCC.ID,
                 width: 130,
                 formatter: (ID, idx) => {
-                    const wu = ESPDFUWorkunit.Get(ID);
+                    const wu = GetDfuWU(ID);
                     return <>
                         <Image src={wu.getStateImage()} styles={{ root: { minWidth: "16px" } }} />
                         &nbsp;
@@ -126,8 +126,8 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
                 label: nlsHPCC.Type,
                 width: 110,
                 formatter: (command) => {
-                    if (command in FileSpray.CommandMessages) {
-                        return FileSpray.CommandMessages[command];
+                    if (command in CommandMessages) {
+                        return CommandMessages[command];
                     }
                     return "Unknown";
                 }
@@ -144,13 +144,13 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
             KbPerSec: {
                 label: nlsHPCC.TransferRate, width: 90,
                 formatter: (value, row) => {
-                    return Utility.convertedSize(row.KbPerSec * 1024) + " / sec";
+                    return convertedSize(row.KbPerSec * 1024) + " / sec";
                 }
             },
             KbPerSecAve: { // KbPerSecAve seems to never be different than KbPerSec, see HPCC-29894
                 label: nlsHPCC.TransferRateAvg, width: 90,
                 formatter: (value, row) => {
-                    return Utility.convertedSize(row.KbPerSecAve * 1024) + " / sec";
+                    return convertedSize(row.KbPerSecAve * 1024) + " / sec";
                 }
             }
         };
@@ -161,7 +161,7 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
         message: nlsHPCC.DeleteSelectedWorkunits,
         items: selection.map(s => s.Wuid),
         onSubmit: React.useCallback(() => {
-            FileSpray.DFUWorkunitsAction(selection, nlsHPCC.Delete).then(() => refreshTable.call(true));
+            DFUWorkunitsAction(selection, nlsHPCC.Delete).then(() => refreshTable.call(true));
         }, [refreshTable, selection])
     });
 
@@ -191,7 +191,7 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
         { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
         {
             key: "setFailed", text: nlsHPCC.SetToFailed, disabled: !uiState.hasNotProtected,
-            onClick: () => { FileSpray.DFUWorkunitsAction(selection, "SetToFailed"); }
+            onClick: () => { DFUWorkunitsAction(selection, "SetToFailed"); }
         },
         { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
         {
@@ -212,11 +212,11 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
         },
         {
             key: "protect", text: nlsHPCC.Protect, disabled: !uiState.hasNotProtected,
-            onClick: () => { FileSpray.DFUWorkunitsAction(selection, "Protect").then(() => refreshTable.call()); }
+            onClick: () => { DFUWorkunitsAction(selection, "Protect").then(() => refreshTable.call()); }
         },
         {
             key: "unprotect", text: nlsHPCC.Unprotect, disabled: !uiState.hasProtected,
-            onClick: () => { FileSpray.DFUWorkunitsAction(selection, "Unprotect").then(() => refreshTable.call()); }
+            onClick: () => { DFUWorkunitsAction(selection, "Unprotect").then(() => refreshTable.call()); }
         },
         { key: "divider_4", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
         {

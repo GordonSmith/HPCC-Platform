@@ -2,7 +2,7 @@ import * as React from "react";
 import { CommandBar, ICommandBarItemProps } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsDFUXref from "src/WsDFUXref";
+import { DFUXRefMessages } from "src/WsDFUXref";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 
@@ -46,7 +46,7 @@ export const XrefErrors: React.FunctionComponent<XrefErrorsProps> = ({
     }, []);
 
     const refreshData = React.useCallback(() => {
-        WsDFUXref.DFUXRefMessages({ request: { Cluster: name } })
+        DFUXRefMessages({ request: { Cluster: name } })
             .then(({ DFUXRefMessagesQueryResponse }) => {
                 const results = DFUXRefMessagesQueryResponse?.DFUXRefMessagesQueryResult ?? {};
                 const { Error = [], Warning = [] } = results;

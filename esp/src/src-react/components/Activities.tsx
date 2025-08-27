@@ -1,8 +1,8 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
-import * as ESPActivity from "src/ESPActivity";
-import * as Utility from "src/Utility";
+import { Get as ActivityGet } from "src/ESPActivity";
+import { getImageHTML } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { useGrid } from "../hooks/grid";
 import { useBuildInfo } from "../hooks/platform";
@@ -58,7 +58,7 @@ export const ActivitiesLegacy: React.FunctionComponent<ActivitiesLegacyProps> = 
     const [, { isContainer }] = useBuildInfo();
 
     //  Grid ---
-    const activity = useConst(() => ESPActivity.Get());
+    const activity = useConst(() => ActivityGet());
     const { Grid, selection, refreshTable, copyButtons } = useGrid({
         store: activity.getStore({}),
         sort: { attribute: "idx", descending: false },
@@ -71,16 +71,16 @@ export const ActivitiesLegacy: React.FunctionComponent<ActivitiesLegacyProps> = 
             }),
             Priority: {
                 renderHeaderCell: React.useCallback(function (node) {
-                    node.innerHTML = Utility.getImageHTML("priority.png", nlsHPCC.Priority);
+                    node.innerHTML = getImageHTML("priority.png", nlsHPCC.Priority);
                 }, []),
                 width: 25,
                 sortable: false,
                 formatter: React.useCallback(function (Priority) {
                     switch (Priority) {
                         case "high":
-                            return Utility.getImageHTML("priority_high.png");
+                            return getImageHTML("priority_high.png");
                         case "low":
-                            return Utility.getImageHTML("priority_low.png");
+                            return getImageHTML("priority_low.png");
                     }
                     return "";
                 }, [])

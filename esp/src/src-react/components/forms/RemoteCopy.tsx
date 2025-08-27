@@ -3,8 +3,8 @@ import { Checkbox, DefaultButton, IDropdownOption, mergeStyleSets, MessageBar, M
 import { Controller, useForm } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
-import * as FileSpray from "src/FileSpray";
-import * as WsTopology from "src/WsTopology";
+import { Copy } from "src/FileSpray";
+import { TpGroupQuery } from "src/WsTopology";
 import * as FormStyles from "./landing-zone/styles";
 import { TargetGroupTextField } from "./Fields";
 import { MessageBox } from "../../layouts/MessageBox";
@@ -69,7 +69,7 @@ export const RemoteCopy: React.FunctionComponent<RemoteCopyProps> = ({
                 setSubmitDisabled(true);
                 setSpinnerHidden(false);
 
-                FileSpray.Copy({
+                Copy({
                     request: data
                 }).then(({ CopyResponse, Exceptions }) => {
                     if (Exceptions?.Exception) {
@@ -102,7 +102,7 @@ export const RemoteCopy: React.FunctionComponent<RemoteCopyProps> = ({
     );
 
     React.useEffect(() => {
-        WsTopology.TpGroupQuery({
+        TpGroupQuery({
             request: {}
         }).then(response => {
             const groups = response.TpGroupQueryResponse?.TpGroups?.TpGroup ?? [];

@@ -2,10 +2,10 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, MessageBar, MessageBarType, ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
 import { scopedLogger } from "@hpcc-js/util";
-import * as Observable from "dojo/store/Observable";
+import { Observable } from "src/dojo-shim";
 import { MemoryTreeStore } from "src/store/Tree";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsESDLConfig from "src/WsESDLConfig";
+import { GetESDLBinding, PublishESDLBinding } from "src/WsESDLConfig";
 import { useGrid } from "../hooks/grid";
 import { ShortVerticalDivider } from "./Common";
 import { editor, tree } from "./DojoGrid";
@@ -58,7 +58,7 @@ export const DESDLBindingMethods: React.FunctionComponent<DESDLBindingMethodsPro
         let results = [];
         const rows = [];
 
-        WsESDLConfig.GetESDLBinding({ request: { EsdlBindingId: name, IncludeInterfaceDefinition: true, ReportMethodsAvailable: true } })
+        GetESDLBinding({ request: { EsdlBindingId: name, IncludeInterfaceDefinition: true, ReportMethodsAvailable: true } })
             .then(({ GetESDLBindingResponse }) => {
 
                 setBinding(GetESDLBindingResponse);
@@ -102,7 +102,7 @@ export const DESDLBindingMethods: React.FunctionComponent<DESDLBindingMethodsPro
             });
 
             const xmlBuilder = "<Methods>" + userXML + "</Methods>";
-            WsESDLConfig.PublishESDLBinding({
+            PublishESDLBinding({
                 request: {
                     EspProcName: binding?.EspProcName,
                     EspBindingName: binding?.BindingName,

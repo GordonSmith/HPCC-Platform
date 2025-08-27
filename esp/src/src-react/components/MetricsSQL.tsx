@@ -4,7 +4,7 @@ import { useConst } from "@fluentui/react-hooks";
 import { IScope } from "@hpcc-js/comms";
 import { ICompletion } from "@hpcc-js/codemirror";
 import { Table } from "@hpcc-js/dgrid";
-import * as Utility from "src/Utility";
+import { downloadCSV } from "src/Utility";
 import { useDuckDBConnection } from "../hooks/duckdb";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
@@ -152,7 +152,7 @@ export const MetricsSQL: React.FunctionComponent<MetricsDataProps> = ({
 
     const onDownload = React.useCallback(() => {
         const csv = scopesTable.export("CSV");
-        Utility.downloadCSV(csv, "metrics.csv");
+        downloadCSV(csv, "metrics.csv");
     }, [scopesTable]);
 
     return <HolyGrail

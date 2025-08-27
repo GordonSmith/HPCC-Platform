@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, DefaultButton, Dropdown, IDropdownOption, mergeStyleSets, PrimaryButton, Spinner, Stack, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
-import * as FileSpray from "src/FileSpray";
+import { SprayVariable } from "src/FileSpray";
 import { TargetDfuSprayQueueTextField, TargetGroupTextField } from "../Fields";
 import nlsHPCC from "src/nlsHPCC";
 import { useBuildInfo } from "../../../hooks/platform";
@@ -114,7 +114,7 @@ export const DelimitedImportForm: React.FunctionComponent<DelimitedImportFormPro
                         file.TargetName && file.TargetName.substring(0, 2) !== "::"
                     ) ? "::" : "") + file.TargetName;
                     request["destNumParts"] = file.NumParts;
-                    requests.push(FileSpray.SprayVariable({
+                    requests.push(SprayVariable({
                         request: request
                     }));
                 });

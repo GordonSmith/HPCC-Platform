@@ -2,7 +2,7 @@ import * as React from "react";
 import { CommandBar, ICommandBarItemProps, MessageBar, MessageBarType, Pivot, PivotItem, Sticky, StickyPositionType } from "@fluentui/react";
 import { SizeMe } from "../layouts/SizeMe";
 import { scopedLogger } from "@hpcc-js/util";
-import * as WsAccess from "src/ws_access";
+import { UserInfoEdit, UserInfoEditInput, UserResetPass } from "src/ws_access";
 import nlsHPCC from "src/nlsHPCC";
 import { useBuildInfo } from "../hooks/platform";
 import { pivotItemStyle } from "../layouts/pivot";
@@ -47,7 +47,7 @@ export const UserDetails: React.FunctionComponent<UserDetailsProps> = ({
         {
             key: "save", text: nlsHPCC.Save, iconProps: { iconName: "Save" }, disabled: !canSave,
             onClick: () => {
-                WsAccess.UserInfoEdit({
+                UserInfoEdit({
                     request: {
                         username: username,
                         firstname: firstName,
@@ -58,7 +58,7 @@ export const UserDetails: React.FunctionComponent<UserDetailsProps> = ({
                 });
 
                 if (password1 !== "") {
-                    WsAccess.UserResetPass({
+                    UserResetPass({
                         request: {
                             username: username,
                             newPassword: password1,
@@ -83,7 +83,7 @@ export const UserDetails: React.FunctionComponent<UserDetailsProps> = ({
     ], [canSave, employeeID, employeeNumber, firstName, lastName, password1, password2, username]);
 
     React.useEffect(() => {
-        WsAccess.UserInfoEditInput({
+        UserInfoEditInput({
             request: {
                 username: username
             }

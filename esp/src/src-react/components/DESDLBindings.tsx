@@ -2,13 +2,13 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
 import { scopedLogger } from "@hpcc-js/util";
-import * as Observable from "dojo/store/Observable";
+import { Observable } from "src/dojo-shim";
 import nlsHPCC from "src/nlsHPCC";
 import { Memory } from "src/store/Memory";
 import { useConfirm } from "../hooks/confirm";
 import { useGrid } from "../hooks/grid";
-import * as Utility from "src/Utility";
-import * as WsESDLConfig from "src/WsESDLConfig";
+import { getImageHTML } from "src/Utility";
+import { DeleteESDLBinding, ListESDLBindings } from "src/WsESDLConfig";
 import { AddBindingForm } from "./forms/AddBinding";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { ShortVerticalDivider } from "./Common";
@@ -64,9 +64,9 @@ export const DESDLBindings: React.FunctionComponent<ESDLBindingProps> = ({
                     let img = "";
                     let name = _name;
                     if (row.type === "port") {
-                        img = Utility.getImageHTML("machine.png") + nlsHPCC.Port + ":";
+                        img = getImageHTML("machine.png") + nlsHPCC.Port + ":";
                     } else if (row.type === "binding") {
-                        img = Utility.getImageHTML("sync.png");
+                        img = getImageHTML("sync.png");
                         name = `<a href="#/desdl/bindings/${name}">${name}</a>`;
                     }
                     return img + "&nbsp;" + name;
@@ -101,7 +101,7 @@ export const DESDLBindings: React.FunctionComponent<ESDLBindingProps> = ({
     });
 
     const refreshGrid = React.useCallback(() => {
-        WsESDLConfig.ListESDLBindings({
+        ListESDLBindings({
             request: {
                 ListESDLBindingsRequest: true
             }
@@ -159,7 +159,7 @@ export const DESDLBindings: React.FunctionComponent<ESDLBindingProps> = ({
             const requests = [];
             selection.forEach(binding => {
                 requests.push(
-                    WsESDLConfig.DeleteESDLBinding({
+                    DeleteESDLBinding({
                         request: {
                             Id: binding.Name
                         }

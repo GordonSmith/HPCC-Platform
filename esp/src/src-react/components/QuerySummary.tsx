@@ -5,8 +5,8 @@ import { pushUrl } from "../util/history";
 import { TableGroup } from "./forms/Groups";
 import { useConfirm } from "../hooks/confirm";
 import { ShortVerticalDivider } from "./Common";
-import * as ESPQuery from "src/ESPQuery";
-import * as WsWorkunits from "src/WsWorkunits";
+import { Get as QueryGet } from "src/ESPQuery";
+import { WUQuerysetQueryAction } from "src/WsWorkunits";
 import nlsHPCC from "src/nlsHPCC";
 import { Divider } from "@fluentui/react-components";
 
@@ -35,7 +35,7 @@ export const QuerySummary: React.FunctionComponent<QuerySummaryProps> = ({
         message: nlsHPCC.DeleteSelectedWorkunits + "\n" + query?.QueryName,
         onSubmit: React.useCallback(() => {
             const selection = [{ QuerySetId: querySet, Id: queryId }];
-            WsWorkunits.WUQuerysetQueryAction(selection, "Delete")
+            WUQuerysetQueryAction(selection, "Delete")
                 .then(() => pushUrl("/queries"))
                 .catch(err => logger.error(err))
                 ;
@@ -56,7 +56,7 @@ export const QuerySummary: React.FunctionComponent<QuerySummaryProps> = ({
     );
 
     React.useEffect(() => {
-        setQuery(ESPQuery.Get(querySet, queryId));
+        setQuery(QueryGet(querySet, queryId));
     }, [queryId, querySet]);
 
     React.useEffect(() => {
@@ -76,10 +76,10 @@ export const QuerySummary: React.FunctionComponent<QuerySummaryProps> = ({
                 const selection = [{ QuerySetId: querySet, Id: queryId, Name: query?.QueryName }];
                 const actions = [];
                 if (suspended !== query?.Suspended) {
-                    actions.push(WsWorkunits.WUQuerysetQueryAction(selection, suspended ? "Suspend" : "Unsuspend"));
+                    actions.push(WUQuerysetQueryAction(selection, suspended ? "Suspend" : "Unsuspend"));
                 }
                 if (activated !== query?.Activated) {
-                    actions.push(WsWorkunits.WUQuerysetQueryAction(selection, activated ? "Activate" : "Deactivate"));
+                    actions.push(WUQuerysetQueryAction(selection, activated ? "Activate" : "Deactivate"));
                 }
                 Promise
                     .all(actions)

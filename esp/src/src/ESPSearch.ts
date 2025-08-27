@@ -256,7 +256,7 @@ export class ESPSearch {
     loadGetDFUWorkunitResponse(workunit) {
         if (workunit) {
             this.store.put(workunit, { overwrite: true });
-            this.dfuStore.put(ESPDFUWorkunit.Get(workunit._wuid, workunit), { overwrite: true });
+            this.dfuStore.put(ESPDFUWorkunit.GetDfuWU(workunit._wuid, workunit), { overwrite: true });
             return 1;
         }
         return 0;
@@ -266,7 +266,7 @@ export class ESPSearch {
         if (results) {
             results.forEach((item, idx) => {
                 this.store.put(item, { overwrite: true });
-                this.dfuStore.put(ESPDFUWorkunit.Get(item._wuid, item), { overwrite: true });
+                this.dfuStore.put(ESPDFUWorkunit.GetDfuWU(item._wuid, item), { overwrite: true });
             });
             return results.length;
         }

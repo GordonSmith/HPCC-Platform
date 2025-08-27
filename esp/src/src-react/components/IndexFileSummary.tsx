@@ -4,7 +4,7 @@ import { DFUService, WsDfu } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
 import { formatCost } from "src/Session";
-import * as Utility from "src/Utility";
+import { getImageURL, safeFormatNum, convertedSize, formatDecimal } from "src/Utility";
 import { getStateImageName, IFile } from "src/ESPLogicalFile";
 import { useConfirm } from "../hooks/confirm";
 import { useFile } from "../hooks/file";
@@ -164,9 +164,9 @@ export const IndexFileSummary: React.FunctionComponent<IndexFileSummaryProps> = 
         },
     ], [canReplicateFlag, canSave, description, file, logicalFile, protectedByCurrentUser, refreshData, replicateFlag, setShowDeleteConfirm]);
 
-    const protectedImage = _protected ? Utility.getImageURL("locked.png") : Utility.getImageURL("unlocked.png");
-    const stateImage = Utility.getImageURL(getStateImageName(file as unknown as IFile));
-    const compressedImage = file?.IsCompressed ? Utility.getImageURL("compressed.png") : "";
+    const protectedImage = _protected ? getImageURL("locked.png") : getImageURL("unlocked.png");
+    const stateImage = getImageURL(getStateImageName(file as unknown as IFile));
+    const compressedImage = file?.IsCompressed ? getImageURL("compressed.png") : "";
 
     return <>
         <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto}>
@@ -198,7 +198,7 @@ export const IndexFileSummary: React.FunctionComponent<IndexFileSummaryProps> = 
                 "Filesize": { label: nlsHPCC.FileSize, type: "string", value: file?.Filesize, readonly: true },
                 "Format": { label: nlsHPCC.Format, type: "string", value: file?.Format, readonly: true },
                 "IsCompressed": { label: nlsHPCC.IsCompressed, type: "checkbox", value: file?.IsCompressed, readonly: true },
-                "CompressedFileSizeString": { label: nlsHPCC.CompressedFileSize, type: "string", value: file?.CompressedFileSize ? Utility.safeFormatNum(file?.CompressedFileSize) : "", readonly: true },
+                "CompressedFileSizeString": { label: nlsHPCC.CompressedFileSize, type: "string", value: file?.CompressedFileSize ? safeFormatNum(file?.CompressedFileSize) : "", readonly: true },
                 "PercentCompressed": { label: nlsHPCC.PercentCompressed, type: "string", value: file?.PercentCompressed, readonly: true },
                 "Modified": { label: nlsHPCC.Modified, type: "string", value: file?.Modified, readonly: true },
                 "ExpirationDate": { label: nlsHPCC.ExpirationDate, type: "string", value: file?.ExpirationDate, readonly: true },
@@ -242,19 +242,19 @@ export const IndexFileSummary: React.FunctionComponent<IndexFileSummaryProps> = 
                     {
                         label: nlsHPCC.Branches,
                         numberOfNodes: file?.ExtendedIndexInfo?.NumBranchNodes ?? "",
-                        sizeOnDisk: Utility.convertedSize(file?.ExtendedIndexInfo?.SizeDiskBranches) ?? "",
-                        sizeEstimateInMemory: Utility.convertedSize(file?.ExtendedIndexInfo?.SizeMemoryBranches) ?? ""
+                        sizeOnDisk: convertedSize(file?.ExtendedIndexInfo?.SizeDiskBranches) ?? "",
+                        sizeEstimateInMemory: convertedSize(file?.ExtendedIndexInfo?.SizeMemoryBranches) ?? ""
                     },
                     {
                         label: nlsHPCC.Leaves,
                         numberOfNodes: file?.ExtendedIndexInfo?.NumLeafNodes ?? "",
-                        sizeOnDisk: Utility.convertedSize(file?.ExtendedIndexInfo?.SizeDiskLeaves) ?? "",
-                        sizeEstimateInMemory: Utility.convertedSize(file?.ExtendedIndexInfo?.SizeMemoryLeaves) ?? ""
+                        sizeOnDisk: convertedSize(file?.ExtendedIndexInfo?.SizeDiskLeaves) ?? "",
+                        sizeEstimateInMemory: convertedSize(file?.ExtendedIndexInfo?.SizeMemoryLeaves) ?? ""
                     },
                     {
                         label: nlsHPCC.Blobs,
                         numberOfNodes: file?.ExtendedIndexInfo?.NumBlobNodes ? file.ExtendedIndexInfo.NumBlobNodes : "",
-                        sizeOnDisk: file?.ExtendedIndexInfo?.SizeDiskBlobs ? Utility.convertedSize(file.ExtendedIndexInfo.SizeDiskBlobs) : "",
+                        sizeOnDisk: file?.ExtendedIndexInfo?.SizeDiskBlobs ? convertedSize(file.ExtendedIndexInfo.SizeDiskBlobs) : "",
                         sizeEstimateInMemory: ""
                     }
                 ]}
@@ -266,24 +266,24 @@ export const IndexFileSummary: React.FunctionComponent<IndexFileSummaryProps> = 
                 rows={[
                     {
                         label: nlsHPCC.File,
-                        originalSize: Utility.convertedSize(file?.FileSizeInt64),
-                        diskSize: Utility.convertedSize(file?.CompressedFileSize || file?.FileSizeInt64),
-                        percentCompressed: ((file?.CompressedFileSize && file?.FileSizeInt64) ? Utility.formatDecimal(100 * file?.CompressedFileSize / file?.FileSizeInt64) : 0) + "%",
-                        memorySize: (file?.ExtendedIndexInfo?.SizeMemoryBranches && file?.ExtendedIndexInfo?.SizeMemoryLeaves) ? Utility.convertedSize(file?.ExtendedIndexInfo?.SizeMemoryBranches + file?.ExtendedIndexInfo?.SizeMemoryLeaves) : ""
+                        originalSize: convertedSize(file?.FileSizeInt64),
+                        diskSize: convertedSize(file?.CompressedFileSize || file?.FileSizeInt64),
+                        percentCompressed: ((file?.CompressedFileSize && file?.FileSizeInt64) ? formatDecimal(100 * file?.CompressedFileSize / file?.FileSizeInt64) : 0) + "%",
+                        memorySize: (file?.ExtendedIndexInfo?.SizeMemoryBranches && file?.ExtendedIndexInfo?.SizeMemoryLeaves) ? convertedSize(file?.ExtendedIndexInfo?.SizeMemoryBranches + file?.ExtendedIndexInfo?.SizeMemoryLeaves) : ""
                     },
                     {
                         label: nlsHPCC.Branches,
-                        originalSize: Utility.convertedSize(file?.ExtendedIndexInfo?.SizeOriginalBranches) ?? "",
-                        diskSize: Utility.convertedSize(file?.ExtendedIndexInfo?.SizeDiskBranches) ?? "",
-                        percentCompressed: file?.ExtendedIndexInfo?.BranchCompressionPercent ? Utility.formatDecimal(file.ExtendedIndexInfo.BranchCompressionPercent) + "%" : "",
-                        memorySize: Utility.convertedSize(file?.ExtendedIndexInfo?.SizeMemoryBranches) ?? ""
+                        originalSize: convertedSize(file?.ExtendedIndexInfo?.SizeOriginalBranches) ?? "",
+                        diskSize: convertedSize(file?.ExtendedIndexInfo?.SizeDiskBranches) ?? "",
+                        percentCompressed: file?.ExtendedIndexInfo?.BranchCompressionPercent ? formatDecimal(file.ExtendedIndexInfo.BranchCompressionPercent) + "%" : "",
+                        memorySize: convertedSize(file?.ExtendedIndexInfo?.SizeMemoryBranches) ?? ""
                     },
                     {
                         label: nlsHPCC.Data,
-                        originalSize: Utility.convertedSize(file?.ExtendedIndexInfo?.SizeOriginalData) ?? "",
-                        diskSize: (file?.ExtendedIndexInfo?.SizeDiskLeaves !== undefined && file?.ExtendedIndexInfo?.SizeDiskBlobs !== undefined) ? Utility.convertedSize(file?.ExtendedIndexInfo?.SizeDiskLeaves + file?.ExtendedIndexInfo?.SizeDiskBlobs) : "",
-                        percentCompressed: file?.ExtendedIndexInfo?.DataCompressionPercent ? Utility.formatDecimal(file.ExtendedIndexInfo.DataCompressionPercent) + "%" : "",
-                        memorySize: Utility.convertedSize(file?.ExtendedIndexInfo?.SizeMemoryLeaves) ?? ""
+                        originalSize: convertedSize(file?.ExtendedIndexInfo?.SizeOriginalData) ?? "",
+                        diskSize: (file?.ExtendedIndexInfo?.SizeDiskLeaves !== undefined && file?.ExtendedIndexInfo?.SizeDiskBlobs !== undefined) ? convertedSize(file?.ExtendedIndexInfo?.SizeDiskLeaves + file?.ExtendedIndexInfo?.SizeDiskBlobs) : "",
+                        percentCompressed: file?.ExtendedIndexInfo?.DataCompressionPercent ? formatDecimal(file.ExtendedIndexInfo.DataCompressionPercent) + "%" : "",
+                        memorySize: convertedSize(file?.ExtendedIndexInfo?.SizeMemoryLeaves) ?? ""
                     }
                 ]}
             />

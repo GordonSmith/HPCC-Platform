@@ -1,13 +1,44 @@
-//  dojo  ---
-import * as _ready from "dojo/ready";
-export const ready: any = _ready;
-import * as _handlers from "dojo/request/handlers";
-export const handlers: any = _handlers;
-import * as _xhrJson from "dojo/request/xhr";
-export const xhr: any = _xhrJson;
-export const json: any = _xhrJson;
-import * as _dom from "dojo/dom";
-export const dom: any = _dom;
-import * as _on from "dojo/on";
-export const on: any = _on;
-export * as nlsHPCC from "./nlsHPCC";
+
+export * from "./BuildInfo";
+export * from "./DiskUsage";
+export * from "./ESPActivity";
+export * from "./ESPBase";
+export * from "./ESPDFUWorkunit";
+export * as ESPLogicalFile from "./ESPLogicalFile";
+export * as ESPQuery from "./ESPQuery";
+export * as ESPWorkunit from "./ESPWorkunit";
+export * from "./ESPUtil";
+export * as FileSpray from "./FileSpray";
+export * from "./ESPSearch";
+export * from "./Pagination";
+export * from "./Timings";
+export * as Utility from "./Utility";
+export * from "./WsDFUXref";
+export * from "./WsESDLConfig";
+export * from "./WsPackageMaps";
+export * as WsTopology from "./WsTopology";
+export * from "./WsWorkunits"; // preserve existing star style
+export * as WsWorkunits from "./WsWorkunits"; // add namespace style
+export * from "./dojo-shim";
+export * from "./nlsHPCC";
+export * from "./ws_access";
+export * from "./WUStatus"; // legacy widget
+export * as reactWUStatus from "./react/wuStatus"; // react component
+export * from "./Timings";
+export * from "./store/Memory";
+export * from "./store/Paged";
+export * from "./store/Tree";
+export * from "./DataPatterns/DPWorkunit";
+export * from "./DataPatterns/Report";
+export * from "./KeyValStore";
+export * from "./Session";
+export * from "./WsESDLConfig";
+export * from "./WsPackageMaps";
+export * from "./WsDFUXref";
+export * from "./WsWorkunits";
+export * from "./WsDfu";
+export * from "./ESPRequest";
+export * from "./ESPUtil";
+
+import * as nlsHPCC from "./nlsHPCC";
+export default nlsHPCC.default;

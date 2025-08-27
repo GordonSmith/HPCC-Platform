@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ICommandBarItemProps } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
-import * as ESPQuery from "src/ESPQuery";
+import { Get as QueryGet } from "src/ESPQuery";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
 import { HolyGrail } from "../layouts/HolyGrail";
@@ -24,7 +24,7 @@ export const QueryLibrariesUsed: React.FunctionComponent<QueryLibrariesUsedProps
 }) => {
 
     const query = React.useMemo(() => {
-        return ESPQuery.Get(querySet, queryId);
+        return QueryGet(querySet, queryId);
     }, [querySet, queryId]);
     const [data, setData] = React.useState<any[]>([]);
     const {

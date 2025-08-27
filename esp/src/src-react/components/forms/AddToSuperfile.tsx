@@ -3,7 +3,7 @@ import { ChoiceGroup, DefaultButton, mergeStyleSets, PrimaryButton, Spinner, Sta
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsDfu from "src/WsDfu";
+import { AddtoSuperfile } from "src/WsDfu";
 import { MessageBox } from "../../layouts/MessageBox";
 import * as FormStyles from "./landing-zone/styles";
 
@@ -60,7 +60,7 @@ export const AddToSuperfile: React.FunctionComponent<AddToSuperfileProps> = ({
             (data, evt) => {
                 setSubmitDisabled(true);
                 setSpinnerHidden(false);
-                WsDfu.AddtoSuperfile(data.names, data.superFile, data.existingFile)
+                AddtoSuperfile(data.names, data.superFile, data.existingFile)
                     .then(response => {
                         setSubmitDisabled(false);
                         setSpinnerHidden(true);

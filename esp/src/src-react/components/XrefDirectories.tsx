@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluen
 import { scopedLogger } from "@hpcc-js/util";
 import { HolyGrail } from "../layouts/HolyGrail";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsDFUXref from "src/WsDFUXref";
+import { DFUXRefCleanDirectories, DFUXRefDirectories } from "src/WsDFUXref";
 import { useConfirm } from "../hooks/confirm";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 import { ShortVerticalDivider } from "./Common";
@@ -46,7 +46,7 @@ export const XrefDirectories: React.FunctionComponent<XrefDirectoriesProps> = ({
     }, []);
 
     const refreshData = React.useCallback(() => {
-        WsDFUXref.DFUXRefDirectories({ request: { Cluster: name } })
+        DFUXRefDirectories({ request: { Cluster: name } })
             .then(({ DFUXRefDirectoriesQueryResponse }) => {
                 const directories = DFUXRefDirectoriesQueryResponse?.DFUXRefDirectoriesQueryResult?.Directory;
                 if (directories) {
@@ -73,7 +73,7 @@ export const XrefDirectories: React.FunctionComponent<XrefDirectoriesProps> = ({
         title: nlsHPCC.Delete,
         message: nlsHPCC.DeleteDirectories,
         onSubmit: React.useCallback(() => {
-            WsDFUXref.DFUXRefCleanDirectories({ request: { Cluster: name } })
+            DFUXRefCleanDirectories({ request: { Cluster: name } })
                 .then(response => {
                     refreshData();
                 })

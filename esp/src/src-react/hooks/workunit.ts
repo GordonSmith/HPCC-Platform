@@ -3,7 +3,7 @@ import { useConst } from "@fluentui/react-hooks";
 import { Workunit, DFUWorkunit, Result, WsWorkunits, WUStateID, WorkunitsService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
-import * as Utility from "src/Utility";
+import { pathTail } from "src/Utility";
 import { singletonDebounce } from "../util/throttle";
 import { useCounter } from "./util";
 import { Archive } from "../util/metricArchive";
@@ -356,7 +356,7 @@ function mapHelpers(workunit: Workunit, helpers: WsWorkunits.ECLHelpFile[] = [])
             Name: helper.Name,
             Type: helper.Type,
             Path: helperPath,
-            Description: Utility.pathTail(helper.Name),
+            Description: pathTail(helper.Name),
             FileSize: helper.FileSize,
             Orig: helper,
             workunit

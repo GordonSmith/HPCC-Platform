@@ -2,7 +2,7 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsDFUXref from "src/WsDFUXref";
+import { DFUXRefFoundFiles, DFUXRefArrayAction } from "src/WsDFUXref";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { useConfirm } from "../hooks/confirm";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
@@ -52,7 +52,7 @@ export const XrefFoundFiles: React.FunctionComponent<XrefFoundFilesProps> = ({
     }, [selection]);
 
     const refreshData = React.useCallback(() => {
-        WsDFUXref.DFUXRefFoundFiles(name)
+        DFUXRefFoundFiles(name)
             .then(rows => {
                 if (rows.length) {
                     setData(rows.map((item, idx) => {
@@ -74,7 +74,7 @@ export const XrefFoundFiles: React.FunctionComponent<XrefFoundFilesProps> = ({
         message: nlsHPCC.AddTheseFilesToDali,
         items: selection.map(file => file.Name),
         onSubmit: React.useCallback(() => {
-            WsDFUXref.DFUXRefArrayAction(selection, nlsHPCC.Attach, name, "Found")
+            DFUXRefArrayAction(selection, nlsHPCC.Attach, name, "Found")
                 .then(response => {
                     refreshData();
                 })
@@ -88,7 +88,7 @@ export const XrefFoundFiles: React.FunctionComponent<XrefFoundFilesProps> = ({
         message: nlsHPCC.DeleteSelectedFiles,
         items: selection.map(file => file.Name),
         onSubmit: React.useCallback(() => {
-            WsDFUXref.DFUXRefArrayAction(selection, nlsHPCC.Delete, name, "Found")
+            DFUXRefArrayAction(selection, nlsHPCC.Delete, name, "Found")
                 .then(response => {
                     refreshData();
                 })

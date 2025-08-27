@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { useConst, useId } from "@fluentui/react-hooks";
-import * as registry from "dijit/registry";
+import { dijitRegistry } from "src/dojo-shim";
 import nlsHPCC from "src/nlsHPCC";
 import { resolve } from "src/Utility";
 
@@ -82,7 +82,7 @@ export const DojoAdapter: React.FunctionComponent<DojoAdapterProps> = ({
                 widget.destroyRecursive(true);
 
                 //  Should not be needed  ---
-                registry.toArray().filter(w => w.id.indexOf(`dojo-component-widget-${uid}`) === 0).forEach(w => {
+                dijitRegistry.toArray().filter(w => w.id.indexOf(`dojo-component-widget-${uid}`) === 0).forEach(w => {
                     w.destroyRecursive(true);
                 });
                 //  ---

@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, DefaultButton, PrimaryButton, Spinner, Stack, TextField, } from "@fluentui/react";
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
-import * as WsPackageMaps from "src/WsPackageMaps";
+import { AddPartToPackageMap } from "src/WsPackageMaps";
 import nlsHPCC from "src/nlsHPCC";
 import { MessageBox } from "../../layouts/MessageBox";
 
@@ -62,7 +62,7 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
             (data, evt) => {
                 setSubmitDisabled(true);
                 setSpinnerHidden(false);
-                WsPackageMaps.AddPartToPackageMap({
+                AddPartToPackageMap({
                     request: { ...data, Target: target, PackageMap: packageMap }
                 })
                     .then(({ AddPartToPackageMapResponse, Exceptions }) => {

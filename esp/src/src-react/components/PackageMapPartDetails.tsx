@@ -1,6 +1,6 @@
 import * as React from "react";
 import { scopedLogger } from "@hpcc-js/util";
-import * as WsPackageMaps from "src/WsPackageMaps";
+import { PackageMapQuery, GetPartFromPackageMap } from "src/WsPackageMaps";
 import { XMLSourceEditor } from "./SourceEditor";
 
 const logger = scopedLogger("../components/PackageMapPartDetails.tsx");
@@ -19,7 +19,7 @@ export const PackageMapPartDetails: React.FunctionComponent<PackageMapPartDetail
     const [xml, setXml] = React.useState("");
 
     React.useEffect(() => {
-        WsPackageMaps.PackageMapQuery({})
+        PackageMapQuery({})
             .then(({ ListPackagesResponse }) => {
                 const __package = ListPackagesResponse?.PackageMapList?.PackageListMapData.filter(item => item.Id === name)[0];
                 setPackage(__package);
@@ -30,7 +30,7 @@ export const PackageMapPartDetails: React.FunctionComponent<PackageMapPartDetail
 
     React.useEffect(() => {
         if (!_package || !name || !part) return;
-        WsPackageMaps.GetPartFromPackageMap({
+        GetPartFromPackageMap({
             request: {
                 PackageMap: name.split("::")[1],
                 Target: _package?.Target,

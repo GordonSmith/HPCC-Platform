@@ -1,9 +1,9 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, FontIcon, ICommandBarItemProps, Link } from "@fluentui/react";
-import * as ESPLogicalFile from "src/ESPLogicalFile";
+import { Get as LogicalFileGet } from "src/ESPLogicalFile";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
-import * as WsDfu from "src/WsDfu";
+import { SuperfileAction } from "src/WsDfu";
 import { useConfirm } from "../hooks/confirm";
 import { useFile, useSubfiles } from "../hooks/file";
 import { HolyGrail } from "../layouts/HolyGrail";
@@ -103,7 +103,7 @@ export const SubFiles: React.FunctionComponent<SubFilesProps> = ({
         message: nlsHPCC.RemoveSubfiles2,
         items: selection.map(item => item.Name),
         onSubmit: React.useCallback(() => {
-            WsDfu.SuperfileAction("remove", file.Name, selection, false).then(() => refreshSubfiles());
+            SuperfileAction("remove", file.Name, selection, false).then(() => refreshSubfiles());
         }, [file, refreshSubfiles, selection])
     });
 
@@ -112,7 +112,7 @@ export const SubFiles: React.FunctionComponent<SubFilesProps> = ({
         const promises = [];
 
         subfiles?.Item.forEach(item => {
-            const logicalFile = ESPLogicalFile.Get("", item);
+            const logicalFile = LogicalFileGet("", item);
             promises.push(logicalFile.getInfo2({
                 onAfterSend: function (response) {
                 }

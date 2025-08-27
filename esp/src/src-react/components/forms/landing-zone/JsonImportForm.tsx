@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, DefaultButton, Dropdown, IDropdownOption, mergeStyleSets, PrimaryButton, Spinner, Stack, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
-import * as FileSpray from "src/FileSpray";
+import { SprayVariable } from "src/FileSpray";
 import { TargetDfuSprayQueueTextField, TargetGroupTextField } from "../Fields";
 import nlsHPCC from "src/nlsHPCC";
 import { useBuildInfo } from "../../../hooks/platform";
@@ -103,7 +103,7 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                     ) ? "::" : "") + file.TargetName;
                     request["sourceRowTag"] = file.TargetRowPath;
                     request["destNumParts"] = file.NumParts;
-                    requests.push(FileSpray.SprayVariable({
+                    requests.push(SprayVariable({
                         request: request
                     }));
                 });

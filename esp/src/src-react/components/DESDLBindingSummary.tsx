@@ -4,7 +4,7 @@ import { scopedLogger } from "@hpcc-js/util";
 import { useConfirm } from "../hooks/confirm";
 import { useBuildInfo } from "../hooks/platform";
 import { TableGroup } from "./forms/Groups";
-import * as WsESDLConfig from "src/WsESDLConfig";
+import { DeleteESDLBinding } from "src/WsESDLConfig";
 import nlsHPCC from "src/nlsHPCC";
 import { replaceUrl } from "../util/history";
 
@@ -25,7 +25,7 @@ export const DESDLBindingSummary: React.FunctionComponent<DESDLBindingSummaryPro
         title: nlsHPCC.Delete,
         message: nlsHPCC.YouAreAboutToDeleteBinding,
         onSubmit: React.useCallback(() => {
-            WsESDLConfig.DeleteESDLBinding({ request: { Id: props.bindingName } })
+            DeleteESDLBinding({ request: { Id: props.bindingName } })
                 .then(({ DeleteESDLRegistryEntryResponse }) => {
                     if (DeleteESDLRegistryEntryResponse?.status?.Code === 0) {
                         replaceUrl(`/${opsCategory}/desdl/bindings`);

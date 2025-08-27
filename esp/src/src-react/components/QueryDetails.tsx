@@ -1,7 +1,7 @@
 import * as React from "react";
 import { SizeMe } from "../layouts/SizeMe";
 import nlsHPCC from "src/nlsHPCC";
-import * as ESPQuery from "src/ESPQuery";
+import { Get as QueryGet } from "src/ESPQuery";
 import { pushUrl, updateFullscreen } from "../util/history";
 import { FullscreenFrame, FullscreenStack } from "../layouts/Fullscreen";
 import { QueryErrors } from "./QueryErrors";
@@ -43,7 +43,7 @@ export const QueryDetails: React.FunctionComponent<QueryDetailsProps> = ({
     const [activated, setActivated] = React.useState(false);
 
     React.useEffect(() => {
-        setQuery(ESPQuery.Get(querySet, queryId));
+        setQuery(QueryGet(querySet, queryId));
     }, [setQuery, queryId, querySet]);
 
     React.useEffect(() => {

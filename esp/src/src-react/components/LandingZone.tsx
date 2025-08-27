@@ -1,13 +1,11 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, mergeStyleSets } from "@fluentui/react";
 import { useConst, useOnEvent } from "@fluentui/react-hooks";
-import * as domClass from "dojo/dom-class";
-import * as iframe from "dojo/request/iframe";
-import * as put from "put-selector/put";
+import { domClass, iframe, put } from "src/dojo-shim";
 import { TpDropZoneQuery } from "src/WsTopology";
-import * as FileSpray from "src/FileSpray";
-import * as ESPRequest from "src/ESPRequest";
-import * as Utility from "src/Utility";
+import { CreateLandingZonesStore, CreateLandingZonesFilterStore, CreateFileListStore, DeleteDropZoneFile } from "src/FileSpray";
+import { getBaseURL } from "src/ESPRequest";
+import { getImageHTML, convertedSize } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { useConfirm } from "../hooks/confirm";
 import { useGrid } from "../hooks/grid";
@@ -102,7 +100,7 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
     }, []);
 
     //  Grid ---
-    const store = useConst(() => FileSpray.CreateLandingZonesStore());
+    const store = useConst(() => CreateLandingZonesStore());
 
     const query = React.useMemo(() => {
         return formatQuery(targetDropzones, filter);
@@ -115,9 +113,9 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
         filename: "landingZones",
         getSelected: function () {
             if (filter?.__dropZone) {
-                return this.inherited(arguments, [FileSpray.CreateLandingZonesFilterStore( filter.__dropZone )]);
+                return this.inherited(arguments, [CreateLandingZonesFilterStore(filter.__dropZone)]);
             }
-            return this.inherited(arguments, [FileSpray.CreateFileListStore()]);
+            return this.inherited(arguments, [CreateFileListStore()]);
         },
         columns: {
             col1: selector({
@@ -149,14 +147,14 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
                     let img = "";
                     let name = row.displayName;
                     if (row.isDir === undefined) {
-                        img = Utility.getImageHTML("server.png");
+                        img = getImageHTML("server.png");
                         name += " [" + row.Path + "]";
                     } else if (row.isMachine) {
-                        img = Utility.getImageHTML("machine.png");
+                        img = getImageHTML("machine.png");
                     } else if (row.isDir) {
-                        img = Utility.getImageHTML("folder.png");
+                        img = getImageHTML("folder.png");
                     } else {
-                        img = Utility.getImageHTML("file.png");
+                        img = getImageHTML("file.png");
                     }
                     return img + "&nbsp;" + name;
                 },
@@ -175,7 +173,7 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
                 label: nlsHPCC.Size, width: 100, sortable: false,
                 renderCell: React.useCallback(function (object, value, node, options) {
                     domClass.add(node, "justify-right");
-                    node.innerText = Utility.convertedSize(value);
+                    node.innerText = convertedSize(value);
                 }, []),
             },
             modifiedtime: { label: nlsHPCC.Date, width: 162, sortable: false }
@@ -192,7 +190,7 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
                     store.removeUserFile(item);
                     refreshTable(true);
                 } else {
-                    FileSpray.DeleteDropZoneFile({
+                    DeleteDropZoneFile({
                         request: {
                             DropZoneName: item.DropZone.Name,
                             NetAddress: item.NetAddress,
@@ -237,7 +235,7 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
                 selection.forEach(item => {
                     const downloadIframeName = "downloadIframe_" + item.calculatedID;
                     const frame = iframe.create(downloadIframeName);
-                    const url = `${ESPRequest.getBaseURL("FileSpray")}/DownloadFile?Name=${encodeURIComponent(item.name)}&NetAddress=${item.NetAddress}&Path=${encodeURIComponent(item.fullFolderPath)}&OS=${item.OS}&DropZoneName=${item.DropZone.Name}`;
+                    const url = `${getBaseURL("FileSpray")}/DownloadFile?Name=${encodeURIComponent(item.name)}&NetAddress=${item.NetAddress}&Path=${encodeURIComponent(item.fullFolderPath)}&OS=${item.OS}&DropZoneName=${item.DropZone.Name}`;
                     iframe.setSrc(frame, url, true);
                 });
             }

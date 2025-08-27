@@ -4,7 +4,7 @@ import { DFUService, WsDfu } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
 import { formatCost } from "src/Session";
-import * as Utility from "src/Utility";
+import { getImageURL, safeFormatNum, formatDecimal } from "src/Utility";
 import { getStateImageName, IFile } from "src/ESPLogicalFile";
 import { useConfirm } from "../hooks/confirm";
 import { useFile } from "../hooks/file";
@@ -177,9 +177,9 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
         },
     ], [canReplicateFlag, canSave, description, file, logicalFile, protectedByCurrentUser, refreshData, replicateFlag, setShowDeleteConfirm]);
 
-    const protectedImage = _protected ? Utility.getImageURL("locked.png") : Utility.getImageURL("unlocked.png");
-    const stateImage = Utility.getImageURL(getStateImageName(file as unknown as IFile));
-    const compressedImage = file?.IsCompressed ? Utility.getImageURL("compressed.png") : "";
+    const protectedImage = _protected ? getImageURL("locked.png") : getImageURL("unlocked.png");
+    const stateImage = getImageURL(getStateImageName(file as unknown as IFile));
+    const compressedImage = file?.IsCompressed ? getImageURL("compressed.png") : "";
 
     return <>
         <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto}>
@@ -219,7 +219,7 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
                 "KeyType": { label: nlsHPCC.KeyType, type: "string", value: file?.KeyType, readonly: true },
                 "Format": { label: nlsHPCC.Format, type: "string", value: file?.Format, readonly: true },
                 "IsCompressed": { label: nlsHPCC.IsCompressed, type: "checkbox", value: file?.IsCompressed, readonly: true },
-                "CompressedFileSizeString": { label: nlsHPCC.CompressedFileSize, type: "string", value: file?.CompressedFileSize ? Utility.safeFormatNum(file?.CompressedFileSize) : "", readonly: true },
+                "CompressedFileSizeString": { label: nlsHPCC.CompressedFileSize, type: "string", value: file?.CompressedFileSize ? safeFormatNum(file?.CompressedFileSize) : "", readonly: true },
                 "Filesize": { label: nlsHPCC.FileSize, type: "string", value: file?.Filesize, readonly: true },
                 "PercentCompressed": { label: nlsHPCC.PercentCompressed, type: "string", value: file?.PercentCompressed, readonly: true },
                 "Modified": { label: nlsHPCC.Modified, type: "string", value: file?.Modified, readonly: true },
@@ -231,8 +231,8 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
                 "RecordCount": { label: nlsHPCC.RecordCount, type: "string", value: file?.RecordCount, readonly: true },
                 "IsReplicated": { label: nlsHPCC.IsReplicated, type: "checkbox", value: (file?.filePartsOnCluster() ?? []).length > 0, readonly: true },
                 "NumParts": { label: nlsHPCC.FileParts, type: "number", value: file?.NumParts, readonly: true },
-                "MinSkew": { label: nlsHPCC.MinSkew, type: "string", value: `${Utility.formatDecimal((file?.Stat?.MinSkewInt64 ?? 0) / 100)}%`, readonly: true },
-                "MaxSkew": { label: nlsHPCC.MaxSkew, type: "string", value: `${Utility.formatDecimal((file?.Stat?.MaxSkewInt64 ?? 0) / 100)}%`, readonly: true },
+                "MinSkew": { label: nlsHPCC.MinSkew, type: "string", value: `${formatDecimal((file?.Stat?.MinSkewInt64 ?? 0) / 100)}%`, readonly: true },
+                "MaxSkew": { label: nlsHPCC.MaxSkew, type: "string", value: `${formatDecimal((file?.Stat?.MaxSkewInt64 ?? 0) / 100)}%`, readonly: true },
                 "MinSkewPart": { label: nlsHPCC.MinSkewPart, type: "string", value: file?.Stat?.MinSkewPart === undefined ? "" : file?.Stat?.MinSkewPart?.toString(), readonly: true },
                 "MaxSkewPart": { label: nlsHPCC.MaxSkewPart, type: "string", value: file?.Stat?.MaxSkewPart === undefined ? "" : file?.Stat?.MaxSkewPart?.toString(), readonly: true },
             }} onChange={(id, value) => {

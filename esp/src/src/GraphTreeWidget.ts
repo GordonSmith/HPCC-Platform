@@ -16,7 +16,7 @@ import * as registry from "dijit/registry";
 import * as entities from "dojox/html/entities";
 
 // @ts-expect-error
-import * as tree from "../dgrid/tree";
+import * as tree from "dgrid/tree";
 
 // @ts-expect-error
 import * as _Widget from "hpcc/_Widget";

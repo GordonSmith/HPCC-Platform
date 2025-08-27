@@ -4,7 +4,7 @@ import { useConst } from "@fluentui/react-hooks";
 import { FolderOpen16Regular, Storage20Regular } from "@fluentui/react-icons";
 import { Gauge } from "@hpcc-js/chart";
 import { ClusterGauge as ClusterGaugeWidget } from "src/DiskUsage";
-import * as Utility from "src/Utility";
+import { convertedSize } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { AutosizeHpccJSComponent } from "../../layouts/HpccJSAdapter";
 import { pushUrl } from "../../util/history";
@@ -133,8 +133,8 @@ const DiskUsageCard: React.FC<DiskUsageCardProps> = ({
                 percentUsed: percent,
                 machines: perIP.size,
                 disks: diskCount,
-                inUseStr: Utility.convertedSize(totalInUse),
-                totalStr: Utility.convertedSize(totalTotal)
+                inUseStr: convertedSize(totalInUse),
+                totalStr: convertedSize(totalTotal)
             });
         }
     }, [cluster, minimized, usage, percentUsed, machines, disks, inUseStr, totalStr]);

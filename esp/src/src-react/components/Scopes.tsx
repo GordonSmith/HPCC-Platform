@@ -2,9 +2,9 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon, Link, mergeStyleSets } from "@fluentui/react";
 import { DFUService } from "@hpcc-js/comms";
 import { SizeMe } from "../layouts/SizeMe";
-import * as WsDfu from "src/WsDfu";
+import { DFUArrayAction } from "src/WsDfu";
 import { formatCost } from "src/Session";
-import * as Utility from "src/Utility";
+import { convertedSize } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { useConfirm } from "../hooks/confirm";
 import { useUserTheme } from "../hooks/theme";
@@ -187,7 +187,7 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
             },
             IntSize: {
                 label: nlsHPCC.Size, width: 100,
-                formatter: (value, row) => Utility.convertedSize(value)
+                formatter: (value, row) => convertedSize(value)
             },
             Parts: {
                 label: nlsHPCC.Parts, width: 60,
@@ -209,7 +209,7 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
         message: nlsHPCC.DeleteSelectedFiles,
         items: selection.filter(s => s.isDirectory === false).map(s => s.Name),
         onSubmit: React.useCallback(() => {
-            WsDfu.DFUArrayAction(selection, "Delete").then(() => refreshData());
+            DFUArrayAction(selection, "Delete").then(() => refreshData());
         }, [refreshData, selection])
     });
 

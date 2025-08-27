@@ -3,7 +3,7 @@ import { Pivot, PivotItem } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
 import { pivotItemStyle } from "../layouts/pivot";
-import * as WsDFUXref from "src/WsDFUXref";
+import { WUGetXref } from "src/WsDFUXref";
 import { XrefFoundFiles } from "./XrefFoundFiles";
 import { XrefLostFiles } from "./XrefLostFiles";
 import { XrefOrphanFiles } from "./XrefOrphanFiles";
@@ -11,7 +11,7 @@ import { XrefDirectories } from "./XrefDirectories";
 import { XrefErrors } from "./XrefErrors";
 import { pushUrl } from "../util/history";
 import nlsHPCC from "src/nlsHPCC";
-import * as Utility from "src/Utility";
+import { getImageURL } from "src/Utility";
 
 const logger = scopedLogger("src-react/components/XrefDetails.tsx");
 
@@ -29,7 +29,7 @@ export const XrefDetails: React.FunctionComponent<XrefDetailsProps> = ({
     const [status, setStatus] = React.useState("");
 
     React.useEffect(() => {
-        WsDFUXref.WUGetXref({
+        WUGetXref({
             request: {}
         })
             .then(({ DFUXRefListResponse }) => {
@@ -54,7 +54,7 @@ export const XrefDetails: React.FunctionComponent<XrefDetailsProps> = ({
                 <PivotItem headerText={nlsHPCC.Summary} itemKey="summary" style={pivotItemStyle(size)}>
 
                     <h2>
-                        <img src={Utility.getImageURL("cluster.png")} />&nbsp;<span className="bold">{name}</span>
+                        <img src={getImageURL("cluster.png")} />&nbsp;<span className="bold">{name}</span>
                     </h2>
                     <table style={{ padding: 4 }}>
                         <tbody>

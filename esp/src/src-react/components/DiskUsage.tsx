@@ -4,7 +4,7 @@ import { Divider, Toolbar, ToolbarButton } from "@fluentui/react-components";
 import { ArrowClockwise20Regular } from "@fluentui/react-icons";
 import { ComponentDetails as ComponentDetailsWidget, Summary as SummaryWidget } from "src/DiskUsage";
 import nlsHPCC from "src/nlsHPCC";
-import * as Utility from "src/Utility";
+import { convertedSize } from "src/Utility";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { SizeMe } from "../layouts/SizeMe";
@@ -90,8 +90,8 @@ export const ClusterUsage: React.FunctionComponent<ClusterUsageProps> = ({
                             IPAddress: mu.Name,
                             Type: du.Name,
                             Path: du.Path,
-                            InUse: Utility.convertedSize(du.InUse),
-                            Total: Utility.convertedSize(du.Total)
+                            InUse: convertedSize(du.InUse),
+                            Total: convertedSize(du.Total)
                         });
                     });
                 });

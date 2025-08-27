@@ -4,7 +4,7 @@ import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { EsdlDefinitionsTextField, EsdlEspProcessesTextField } from "./Fields";
 import nlsHPCC from "src/nlsHPCC";
-import * as WsESDLConfig from "src/WsESDLConfig";
+import { PublishESDLBinding } from "src/WsESDLConfig";
 import { MessageBox } from "../../layouts/MessageBox";
 
 const logger = scopedLogger("src-react/components/forms/AddBinding.tsx");
@@ -55,7 +55,7 @@ export const AddBindingForm: React.FunctionComponent<AddBindingFormProps> = ({
                 const request: any = data;
                 request.Overwrite = true;
 
-                WsESDLConfig.PublishESDLBinding({ request: request })
+                PublishESDLBinding({ request: request })
                     .then(() => {
                         setSubmitDisabled(false);
                         setSpinnerHidden(true);

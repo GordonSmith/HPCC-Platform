@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, DefaultButton, IDropdownOption, mergeStyleSets, PrimaryButton, Spinner, Stack, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
-import * as FileSpray from "src/FileSpray";
+import { SprayFixed } from "src/FileSpray";
 import { TargetDfuSprayQueueTextField, TargetGroupTextField } from "../Fields";
 import nlsHPCC from "src/nlsHPCC";
 import { useBuildInfo } from "../../../hooks/platform";
@@ -98,7 +98,7 @@ export const FixedImportForm: React.FunctionComponent<FixedImportFormProps> = ({
                         file.TargetName && file.TargetName.substring(0, 2) !== "::"
                     ) ? "::" : "") + file.TargetName;
                     request["destNumParts"] = file.NumParts;
-                    requests.push(FileSpray.SprayFixed({
+                    requests.push(SprayFixed({
                         request: request
                     }));
                 });

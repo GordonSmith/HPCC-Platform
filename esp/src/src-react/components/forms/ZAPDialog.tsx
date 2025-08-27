@@ -3,7 +3,7 @@ import { Checkbox, DefaultButton, Dropdown, Icon, IDropdownProps, IOnRenderCombo
 import { useForm, Controller } from "react-hook-form";
 import { LogType } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import * as WsWorkunits from "src/WsWorkunits";
+import { WUGetZAPInfo } from "src/WsWorkunits";
 import { useBuildInfo, useLogAccessInfo } from "../../hooks/platform";
 import { MessageBox } from "../../layouts/MessageBox";
 import { CloudContainerNameField } from "../forms/Fields";
@@ -274,7 +274,7 @@ export const ZAPDialog: React.FunctionComponent<ZAPDialogProps> = ({
     }, [closeForm, handleSubmit, logAccessorMessage, logsEnabled]);
 
     React.useEffect(() => {
-        WsWorkunits.WUGetZAPInfo({ request: { WUID: wuid } }).then(response => {
+        WUGetZAPInfo({ request: { WUID: wuid } }).then(response => {
             setEmailDisabled(response?.WUGetZAPInfoResponse?.EmailTo === null);
             setLogAccessorMessage(response?.WUGetZAPInfoResponse?.Message ?? "");
             delete response?.WUGetZAPInfoResponse?.Archive;

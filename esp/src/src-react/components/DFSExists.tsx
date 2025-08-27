@@ -6,7 +6,7 @@ import { scopedLogger } from "@hpcc-js/util";
 import { TableGroup } from "./forms/Groups";
 import nlsHPCC from "src/nlsHPCC";
 import { HolyGrail } from "../layouts/HolyGrail";
-import { parser } from "dojo/main";
+import { dojoParser } from "src/dojo-shim";
 
 const logger = scopedLogger("src-react/components/DFSExist.tsx");
 
@@ -25,7 +25,7 @@ export const DFSExists: React.FunctionComponent<DFSExistProps> = ({
 
     const onSubmit = React.useCallback(() => {
         myDaliService.DFSExists({ FileName: fileName }).then(response => {
-            const data = parser.parse(response.Result);
+            const data = dojoParser.parse(response.Result);
             setColumns(data.columns.map((col, idx) => {
                 return {
                     key: col,
