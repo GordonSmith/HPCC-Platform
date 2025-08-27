@@ -147,7 +147,7 @@ define([
                     context.defaultSelection = ioQuery.queryToObject(params.mapping);
                 }
                 if (params.Wuid) {
-                    context.wu = ESPWorkunit.Get(params.Wuid);
+                    context.wu = ESPWorkunit.GetWU(params.Wuid);
                     context.wu.fetchResults(function (response) {
                         var newSel = null;
                         arrayUtil.forEach(response, function (item, idx) {

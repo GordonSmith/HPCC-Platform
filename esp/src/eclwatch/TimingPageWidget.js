@@ -135,7 +135,7 @@ define([
             this.grid.startup();
 
             if (params.Wuid) {
-                this.wu = ESPWorkunit.Get(params.Wuid);
+                this.wu = ESPWorkunit.GetWU(params.Wuid);
                 this.wu2 = hpccComms.Workunit.attach({ baseUrl: "" }, params.Wuid);
                 var monitorCount = 4;
                 this.wu.monitor(function () {

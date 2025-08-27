@@ -92,7 +92,7 @@ define([
 
             var context = this;
             if (params.Wuid) {
-                this.wu = ESPWorkunit.Get(params.Wuid);
+                this.wu = ESPWorkunit.GetWU(params.Wuid);
                 if (this.WUXml) {
                     this.wu.fetchXML(function (xml) {
                         context.setText(xml);

@@ -382,7 +382,7 @@ define([
             }
             if (this.isWorkunit()) {
                 this.graphName = params.GraphName;
-                this.wu = ESPWorkunit.Get(params.Wuid);
+                this.wu = ESPWorkunit.GetWU(params.Wuid);
 
                 var firstLoad = true;
                 var context = this;

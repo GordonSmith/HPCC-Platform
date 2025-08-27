@@ -126,7 +126,7 @@ define([
             this.initGraph();
 
             if (params.Wuid) {
-                this.wu = ESPWorkunit.Get(params.Wuid);
+                this.wu = ESPWorkunit.GetWU(params.Wuid);
                 var data = this.wu.getData();
                 for (var key in data) {
                     this.updateInput(key, null, data[key]);

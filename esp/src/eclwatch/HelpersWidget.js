@@ -116,7 +116,7 @@ define([
 
             var context = this;
             if (params.Wuid) {
-                this.wu = ESPWorkunit.Get(params.Wuid);
+                this.wu = ESPWorkunit.GetWU(params.Wuid);
                 var monitorCount = 4;
                 this.wu.monitor(function () {
                     if (context.wu.isComplete() || ++monitorCount % 5 === 0) {

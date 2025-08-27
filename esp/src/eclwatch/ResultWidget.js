@@ -145,7 +145,7 @@ define([
             if (params.result && params.result.canShowResults()) {
                 this.initResult(params.result);
             } else if (params.Wuid && (lang.exists("Sequence", params) || params.Name)) {
-                var wu = ESPWorkunit.Get(params.Wuid);
+                var wu = ESPWorkunit.GetWU(params.Wuid);
                 wu.fetchSequenceResults(function (results) {
                     if (lang.exists("Sequence", params)) {
                         context.initResult(results[params.Sequence]);

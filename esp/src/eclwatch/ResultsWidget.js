@@ -51,7 +51,7 @@ define([
             this.alphanumSort["Value"] = true;
 
             if (params.Wuid) {
-                this.wu = ESPWorkunit.Get(params.Wuid);
+                this.wu = ESPWorkunit.GetWU(params.Wuid);
                 var monitorCount = 4;
                 var context = this;
                 this.wu.monitor(function () {

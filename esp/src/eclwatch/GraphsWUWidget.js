@@ -49,7 +49,7 @@ define([
 
             if (params.Wuid) {
                 var context = this;
-                this.wu = ESPWorkunit.Get(params.Wuid);
+                this.wu = ESPWorkunit.GetWU(params.Wuid);
                 this.wu.fetchActivities().then(function (_) {
                     context._activitiesData = _;
                     context.updateGrid();

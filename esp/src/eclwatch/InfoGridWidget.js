@@ -278,7 +278,7 @@ define([
 
             doInit: function (wuid) {
                 if (wuid) {
-                    this.wu = ESPWorkunit.Get(wuid);
+                    this.wu = ESPWorkunit.GetWU(wuid);
 
                     var context = this;
                     this.wu.monitor(function () {
