@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useConst } from "@fluentui/react-hooks";
-import * as declare from "dojo/_base/declare";
+import { declare } from "src/dojo-shim";
 // @ts-expect-error
 import * as selector from "dgrid/selector";
 // @ts-expect-error
