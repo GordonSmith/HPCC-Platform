@@ -3,7 +3,7 @@ import { DefaultButton, Dropdown, PrimaryButton, Checkbox, Pivot, PivotItem, Tex
 import { useConst, useForceUpdate } from "@fluentui/react-hooks";
 import { Button } from "@fluentui/react-components";
 import { BookmarkAddRegular, DeleteRegular } from "@fluentui/react-icons";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { MetricsView, clone, useMetricMeta, useMetricsViews } from "../hooks/metrics";
 import { MessageBox } from "../layouts/MessageBox";
 import { JSONSourceEditor, SourceEditor } from "./SourceEditor";

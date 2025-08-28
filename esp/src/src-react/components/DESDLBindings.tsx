@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, } from "@flue
 import { useConst } from "@fluentui/react-hooks";
 import { scopedLogger } from "@hpcc-js/util";
 import { Observable } from "src/dojo-shim";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { Memory } from "src/store/Memory";
 import { useConfirm } from "../hooks/confirm";
 import { useGrid } from "../hooks/grid";

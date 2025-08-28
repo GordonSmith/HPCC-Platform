@@ -7,7 +7,7 @@ import { SplitPanel } from "@hpcc-js/phosphor";
 import { DirectoryTree } from "@hpcc-js/tree";
 import { RecursivePartial, xml2json } from "@hpcc-js/util";
 import { registry } from "./dojo-shim";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 import { themeIsDark } from "./Utility";
 // @ts-expect-error
 import * as template from "dojo/text!hpcc/templates/ECLArchiveWidget.html";

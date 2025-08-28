@@ -1,6 +1,6 @@
 import { IScope } from "@hpcc-js/comms";
 import { XMLNode, xml2json } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 export const UNNAMED_QUERY = "<unnamed query>";
 

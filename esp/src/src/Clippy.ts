@@ -1,6 +1,6 @@
 import * as Clipboard from "clipboard";
 import { dom, mouse, on, Tooltip } from "./dojo-shim";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 
 export function attach(domID: string): void {
     const clipboard: Clipboard = new Clipboard(`#${domID}`);

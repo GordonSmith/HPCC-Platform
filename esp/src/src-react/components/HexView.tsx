@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, ICheckboxStyles, ISpinButtonStyles, Label, SpinButton } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { Workunit } from "@hpcc-js/comms";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useLogicalClusters } from "../hooks/platform";
 import { TextSourceEditor } from "./SourceEditor";
 

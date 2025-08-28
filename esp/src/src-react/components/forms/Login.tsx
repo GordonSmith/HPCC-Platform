@@ -6,7 +6,7 @@ import { useUserSession } from "../../hooks/user";
 import { useUserTheme } from "../../hooks/theme";
 import { replaceUrl } from "../../util/history";
 import * as Utility from "src/Utility";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 const logger = scopedLogger("src-react/components/forms/Login.tsx");
 

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { DefaultButton, Dialog, DialogFooter, PrimaryButton } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 interface useConfirmProps {
     title: string;

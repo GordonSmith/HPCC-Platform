@@ -4,7 +4,7 @@ import { ToggleButton } from "@fluentui/react-components";
 import { TextCaseTitleRegular, TextCaseTitleFilled } from "@fluentui/react-icons";
 import { Workunit, WsWorkunits, IScope } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useWorkunitArchive } from "../hooks/workunit";
 import { useWorkunitMetrics } from "../hooks/metrics";
 import { HolyGrail } from "../layouts/HolyGrail";

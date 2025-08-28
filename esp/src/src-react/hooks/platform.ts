@@ -3,7 +3,7 @@ import { Octokit } from "octokit";
 import { useConst } from "@fluentui/react-hooks";
 import { scopedLogger } from "@hpcc-js/util";
 import { LogaccessService, Topology, WsLogaccess, WsTopology, WorkunitsServiceEx } from "@hpcc-js/comms";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { getBuildInfo, BuildInfo, fetchModernMode } from "src/Session";
 import { cmake_build_type, containerized, ModernMode } from "src/BuildInfo";
 import { sessionKeyValStore, userKeyValStore } from "src/KeyValStore";

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { mergeStyleSets, IDragOptions, IIconProps, ContextualMenu, IconButton, Modal, Stack, useTheme, IStackTokens, IModalStyles } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 const headerTokens: IStackTokens = {
     childrenGap: 8,

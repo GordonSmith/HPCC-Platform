@@ -6,7 +6,7 @@ import { IEvent } from "@hpcc-js/util";
 import * as ESPRequest from "./ESPRequest";
 import * as ESPResult from "./ESPResult";
 import * as ESPUtil from "./ESPUtil";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 import * as Utility from "./Utility";
 import * as WsTopology from "./WsTopology";
 import * as WsWorkunits from "./WsWorkunits";

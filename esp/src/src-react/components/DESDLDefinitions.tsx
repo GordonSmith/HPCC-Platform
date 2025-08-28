@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as WsESDLConfig from "src/WsESDLConfig";
 import { useConfirm } from "../hooks/confirm";
 import { HolyGrail } from "../layouts/HolyGrail";

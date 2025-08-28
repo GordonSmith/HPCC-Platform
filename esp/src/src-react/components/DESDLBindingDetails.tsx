@@ -9,7 +9,7 @@ import { DESDLBindingSummary } from "./DESDLBindingSummary";
 import { DESDLBindingMethods } from "./DESDLBindingMethods";
 import { XMLSourceEditor } from "./SourceEditor";
 import * as WsESDLConfig from "src/WsESDLConfig";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 const logger = scopedLogger("src-react/components/ESDLBindingDetails.tsx");
 

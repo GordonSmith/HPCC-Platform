@@ -6,7 +6,7 @@ import { TextCaseTitleRegular, TextCaseTitleFilled, BranchForkHintRegular, Branc
 import { WorkunitsServiceEx, IScope } from "@hpcc-js/comms";
 import { Table } from "@hpcc-js/dgrid";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { WUTimelineNoFetch } from "src/Timings";
 import * as Utility from "src/Utility";
 import { useMetricsViews, useWUQueryMetrics } from "../hooks/metrics";

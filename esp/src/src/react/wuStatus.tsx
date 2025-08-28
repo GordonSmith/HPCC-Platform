@@ -4,7 +4,7 @@ import { FluentProvider } from "@fluentui/react-components";
 import { Workunit, WUStateID } from "@hpcc-js/comms";
 import { useUserTheme } from "../../src-react/hooks/theme";
 import { StepProps, Stepper } from "../../src-react/components/controls/Stepper";
-import nlsHPCC from "../nlsHPCC";
+import nlsHPCC from "../dojo-shim";
 
 const Steps = [
     {

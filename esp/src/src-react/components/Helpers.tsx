@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluen
 import { TreeItemValue } from "@fluentui/react-components";
 import * as ESPRequest from "src/ESPRequest";
 import { convertedSize } from "src/Utility";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { HelperRow, useWorkunitHelpersTree } from "../hooks/workunit";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { DockPanel, DockPanelItem, ResetableDockPanel } from "../layouts/DockPanel";

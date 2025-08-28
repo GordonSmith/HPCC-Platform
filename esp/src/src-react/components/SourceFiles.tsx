@@ -2,7 +2,7 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Image, Link } from "@fluentui/react";
 import * as Utility from "src/Utility";
 import { QuerySortItem } from "src/store/Store";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useWorkunitSourceFiles } from "../hooks/workunit";
 import { pushParams } from "../util/history";
 import { HolyGrail } from "../layouts/HolyGrail";

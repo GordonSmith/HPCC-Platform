@@ -1,6 +1,6 @@
 import * as React from "react";
 import { SizeMe } from "../layouts/SizeMe";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useQuerySnapshots } from "../hooks/query";
 import { pushUrl } from "../util/history";
 import { Metrics } from "./Metrics";

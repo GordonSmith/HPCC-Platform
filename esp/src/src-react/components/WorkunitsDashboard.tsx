@@ -7,7 +7,7 @@ import { Area, Column, Pie, Bar } from "@hpcc-js/chart";
 import { chain, filter, group, map, sort } from "@hpcc-js/dataflow";
 import { Observable } from "src/dojo-shim";
 import * as ESPWorkunit from "src/ESPWorkunit";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { wuidToDate } from "src/Utility";
 import { Memory } from "src/store/Memory";
 import { Chip } from "./controls/Chip";

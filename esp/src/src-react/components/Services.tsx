@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon } from "@fluentui/react";
 import { SizeMe } from "../layouts/SizeMe";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { useServices } from "../hooks/resources";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";

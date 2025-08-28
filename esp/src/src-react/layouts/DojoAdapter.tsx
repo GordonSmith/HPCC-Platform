@@ -2,7 +2,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { useConst, useId } from "@fluentui/react-hooks";
 import { registry } from "src/dojo-shim";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { resolve } from "src/Utility";
 
 export interface DojoState {

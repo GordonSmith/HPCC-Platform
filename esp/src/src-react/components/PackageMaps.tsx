@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, DefaultButton, Dropdown, ICommandBa
 import { scopedLogger } from "@hpcc-js/util";
 import { PackageProcessService } from "@hpcc-js/comms";
 import { SizeMe } from "../layouts/SizeMe";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useConfirm } from "../hooks/confirm";
 import { pivotItemStyle } from "../layouts/pivot";
 import { pushParams, pushUrl } from "../util/history";

@@ -2,7 +2,7 @@ import * as React from "react";
 import { CommandBar, ICommandBarItemProps, Pivot, PivotItem, Sticky, StickyPositionType } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as WsPackageMaps from "src/WsPackageMaps";
 import { pivotItemStyle } from "../layouts/pivot";
 import { pushUrl } from "../util/history";

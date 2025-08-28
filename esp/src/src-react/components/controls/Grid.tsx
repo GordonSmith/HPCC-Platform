@@ -3,7 +3,7 @@ import { DetailsListLayoutMode, Dropdown, IColumn as _IColumn, ICommandBarItemPr
 import { Pagination } from "@fluentui/react-experiments/lib/Pagination";
 import { useConst } from "@fluentui/react-hooks";
 import { BaseStore, Memory, QueryRequest, QuerySortItem } from "src/store/Memory";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { createCopyDownloadSelection } from "../Common";
 import { updatePage, updateSort } from "../../util/history";
 import { useDeepCallback, useDeepEffect, useDeepMemo } from "../../hooks/deepHooks";

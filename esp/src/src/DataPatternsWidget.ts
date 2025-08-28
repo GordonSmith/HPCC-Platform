@@ -1,5 +1,5 @@
 import { declare, dom, domClass, domForm } from "./dojo-shim";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 
 import { registry } from "./dojo-shim";
 

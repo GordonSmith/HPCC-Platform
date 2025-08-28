@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, CommandBar, ContextualMenuItemType, ICommandBarItemProps, Label, Stack } from "@fluentui/react";
 import { WsAccess, AccessService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useConfirm } from "../hooks/confirm";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { ShortVerticalDivider } from "./Common";

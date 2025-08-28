@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Checkbox, ColorPicker, DefaultButton, getColorFromString, IColor, Label, MessageBar, MessageBarType, PrimaryButton, Stack, TextField } from "@fluentui/react";
 import { useForm, Controller } from "react-hook-form";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useActivity } from "./activity";
 import { MessageBox } from "../layouts/MessageBox";
 

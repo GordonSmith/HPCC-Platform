@@ -1,4 +1,4 @@
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { Database } from "@hpcc-js/common";
 import { splitMetric, IScope } from "@hpcc-js/comms";
 import { CellFormatter, ColumnFormat, ColumnType, DBStore, RowType, Table } from "@hpcc-js/dgrid";

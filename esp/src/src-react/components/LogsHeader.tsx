@@ -1,6 +1,6 @@
 import * as React from "react";
 import { CommandBar, ICommandBarItemProps, Stack, Label, CommandBarButton, useTheme } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { DateTimeInput } from "./forms/Fields";
 
 interface LogsHeaderProps {

@@ -4,7 +4,7 @@ import { useConst } from "@fluentui/react-hooks";
 import { useForm, Controller } from "react-hook-form";
 import { FileSprayService, FileSprayStates } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { MessageBox } from "../../layouts/MessageBox";
 import { pushUrl, replaceUrl } from "../../util/history";
 import * as FormStyles from "./landing-zone/styles";

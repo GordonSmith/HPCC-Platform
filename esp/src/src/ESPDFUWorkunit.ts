@@ -2,7 +2,7 @@
 import * as ESPRequest from "./ESPRequest";
 import * as ESPUtil from "./ESPUtil";
 import * as FileSpray from "./FileSpray";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 import * as Utility from "./Utility";
 
 import { FileSprayService, FileSpray as FileSprayNS } from "@hpcc-js/comms";

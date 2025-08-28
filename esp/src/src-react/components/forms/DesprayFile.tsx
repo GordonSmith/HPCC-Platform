@@ -3,7 +3,7 @@ import { Checkbox, DefaultButton, IDropdownOption, mergeStyleSets, PrimaryButton
 import { useForm, Controller } from "react-hook-form";
 import { FileSpray, FileSprayService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useBuildInfo } from "../../hooks/platform";
 import { MessageBox } from "../../layouts/MessageBox";
 import { TargetDropzoneTextField, TargetFolderTextField, TargetServerTextField } from "./Fields";

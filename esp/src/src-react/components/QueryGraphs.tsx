@@ -3,7 +3,7 @@ import { CommandBar, ICommandBarItemProps, Image, Link } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import * as ESPQuery from "src/ESPQuery";
 import * as Utility from "src/Utility";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { QuerySortItem } from "src/store/Store";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";

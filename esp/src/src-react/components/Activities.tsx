@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluen
 import { useConst } from "@fluentui/react-hooks";
 import * as ESPActivity from "src/ESPActivity";
 import * as Utility from "src/Utility";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useGrid } from "../hooks/grid";
 import { useBuildInfo } from "../hooks/platform";
 import { ReflexContainer, ReflexElement, ReflexSplitter, classNames, styles } from "../layouts/react-reflex";

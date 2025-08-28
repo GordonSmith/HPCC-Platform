@@ -11,7 +11,7 @@ import * as tree from "../dgrid/tree";
 import * as _Widget from "hpcc/_Widget";
 import * as ESPUtil from "./ESPUtil";
 import * as ESPWorkunit from "./ESPWorkunit";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 import * as Utility from "./Utility";
 import * as WsWorkunits from "./WsWorkunits";
 

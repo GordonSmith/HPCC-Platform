@@ -4,7 +4,7 @@ import { SizeMe } from "../layouts/SizeMe";
 import { DaliService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { TableGroup } from "./forms/Groups";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { parser } from "src/dojo-shim";
 

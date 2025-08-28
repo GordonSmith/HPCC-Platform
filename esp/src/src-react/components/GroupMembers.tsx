@@ -2,7 +2,7 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import * as WsAccess from "src/ws_access";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { GroupMemberStore, CreateGroupMemberStore } from "src/ws_access";
 import { ShortVerticalDivider } from "./Common";
 import { useConfirm } from "../hooks/confirm";

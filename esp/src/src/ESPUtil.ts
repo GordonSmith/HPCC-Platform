@@ -3,7 +3,7 @@ import { registry, arrayUtil, declare, lang, aspect, domClass, domStyle, Evented
 import { Memory } from "./store/Memory";
 import { ColumnResizer, CompoundColumns, DijitRegistry, DGrid, Keyboard, OnDemandGrid, Selection } from "./dojo-shim";
 
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 import { userKeyValStore } from "./KeyValStore";
 import { Pagination } from "./Pagination";
 

@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Image, Link }
 import { MachineService } from "@hpcc-js/comms";
 import { ShortVerticalDivider } from "./Common";
 import * as Utility from "src/Utility";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { tree } from "./DojoGrid";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";

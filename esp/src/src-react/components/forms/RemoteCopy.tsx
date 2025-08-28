@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, DefaultButton, IDropdownOption, mergeStyleSets, MessageBar, MessageBarType, PrimaryButton, Spinner, Stack, TextField } from "@fluentui/react";
 import { Controller, useForm } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as FileSpray from "src/FileSpray";
 import * as WsTopology from "src/WsTopology";
 import * as FormStyles from "./landing-zone/styles";

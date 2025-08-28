@@ -1,7 +1,7 @@
 import * as React from "react";
 import { FlatTree, useHeadlessFlatTree_unstable, HeadlessFlatTreeItemProps, TreeItem, TreeItemLayout, TreeItemValue, TreeOpenChangeEvent, TreeOpenChangeData, TreeCheckedChangeData } from "@fluentui/react-components";
 import { FolderOpen20Regular, Folder20Regular, FolderOpen20Filled, Folder20Filled, Document20Regular, Document20Filled } from "@fluentui/react-icons";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 export type FlatTreeItem = HeadlessFlatTreeItemProps & { content_parens?: string };
 

@@ -4,7 +4,7 @@ import { useForm, Controller } from "react-hook-form";
 import { MessageBox } from "../../layouts/MessageBox";
 import { useGlobalStore } from "../../hooks/store";
 
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 interface TitlebarConfigValues {
     showEnvironmentTitle: boolean;

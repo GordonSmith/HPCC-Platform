@@ -1,7 +1,7 @@
 import { lang } from "./dojo-shim";
 
 import * as ESPRequest from "./ESPRequest";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 
 const i18n = nlsHPCC;
 

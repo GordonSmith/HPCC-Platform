@@ -5,7 +5,7 @@ import { useConfirm } from "../hooks/confirm";
 import { useBuildInfo } from "../hooks/platform";
 import { TableGroup } from "./forms/Groups";
 import * as WsESDLConfig from "src/WsESDLConfig";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { replaceUrl } from "../util/history";
 
 const logger = scopedLogger("src-react/components/ESDLBindingSummary.tsx");

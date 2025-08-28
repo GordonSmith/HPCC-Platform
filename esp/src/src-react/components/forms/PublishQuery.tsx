@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, DefaultButton, Dropdown, PrimaryButton, Spinner, TextField, } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { MessageBox } from "../../layouts/MessageBox";
 import { useWorkunit } from "../../hooks/workunit";
 

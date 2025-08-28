@@ -1,6 +1,6 @@
 import * as React from "react";
 import { DefaultButton, Dialog, DialogFooter, DialogType, Pivot, PivotItem, Spinner } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useCheckFeatures, fetchLatestReleases } from "../hooks/platform";
 import { TableGroup } from "./forms/Groups";
 import { Fields } from "./forms/Fields";

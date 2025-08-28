@@ -2,12 +2,12 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, mergeStyleSets } from "@fluentui/react";
 import { useConst, useOnEvent } from "@fluentui/react-hooks";
 import { domClass, iframe } from "src/dojo-shim";
-import * as put from "put-selector/put"; // Not in dojoLib (non-dojo lib)
+import { put } from "src/dojo-shim";
 import { TpDropZoneQuery } from "src/WsTopology";
 import * as FileSpray from "src/FileSpray";
 import * as ESPRequest from "src/ESPRequest";
 import * as Utility from "src/Utility";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useConfirm } from "../hooks/confirm";
 import { useGrid } from "../hooks/grid";
 import { HolyGrail } from "../layouts/HolyGrail";

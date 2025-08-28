@@ -3,7 +3,7 @@ import { format as d3Format, Palette } from "@hpcc-js/common";
 import { Level, join } from "@hpcc-js/util";
 import { arrayUtil, domConstruct } from "./dojo-shim";
 import { darkTheme } from "../src-react/themes";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 
 declare const dojoConfig;
 declare const ActiveXObject;

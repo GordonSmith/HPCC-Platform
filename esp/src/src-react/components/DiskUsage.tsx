@@ -3,7 +3,7 @@ import { Link } from "@fluentui/react";
 import { MachineService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { ComponentDetails as ComponentDetailsWidget, Summary as SummaryWidget } from "src/DiskUsage";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as Utility from "src/Utility";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { ReflexContainer, ReflexElement, ReflexSplitter, classNames, styles } from "../layouts/react-reflex";

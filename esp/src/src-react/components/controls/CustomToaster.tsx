@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Text, ToastTitle, Toast, ToastBody, ToastFooter, ToastTrigger, Link, ToolbarDivider } from "@fluentui/react-components";
 import { Level } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 export interface CustomToasterProps {
     id: string,

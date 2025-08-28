@@ -1,5 +1,5 @@
 import * as React from "react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 interface IFrameProps {
     src: string;

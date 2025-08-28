@@ -2,7 +2,7 @@ import * as React from "react";
 import { ComboBox, DefaultButton, IDropdownOption, MessageBar, MessageBarType, PrimaryButton, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { MessageBox } from "../../layouts/MessageBox";
 import { FilePermission } from "src/ws_access";
 

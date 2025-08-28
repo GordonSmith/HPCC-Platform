@@ -6,7 +6,7 @@ import { scopedLogger } from "@hpcc-js/util";
 import * as ESPRequest from "./ESPRequest";
 import * as ESPUtil from "./ESPUtil";
 import * as ESPWorkunit from "./ESPWorkunit";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 import * as WsEcl from "./WsEcl";
 import * as WsWorkunits from "./WsWorkunits";
 import { Paged } from "./store/Paged";

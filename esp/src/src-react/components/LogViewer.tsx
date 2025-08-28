@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, CommandBar, ICommandBarItemProps } from "@fluentui/react";
 import { Level } from "@hpcc-js/util";
 import { logColor } from "src/Utility";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { QuerySortItem } from "src/store/Store";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { useECLWatchLogger } from "../hooks/logging";

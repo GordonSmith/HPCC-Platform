@@ -23,7 +23,7 @@ import { DaliDelete } from "./DaliDelete";
 import { DaliCount } from "./DaliCount";
 import { DaliImport } from "./DaliImport";
 import { useConfirm } from "../hooks/confirm";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 interface DaliAdminProps {
     tab?: string;

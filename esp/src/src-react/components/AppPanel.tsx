@@ -1,6 +1,6 @@
 import * as React from "react";
 import { DefaultButton, IconButton, IIconProps, IPanelProps, IRenderFunction, Panel, PanelType } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useWebLinks } from "../hooks/resources";
 
 const waffleIcon: IIconProps = { iconName: "WaffleOffice365" };

@@ -5,7 +5,7 @@ import { DatePicker } from "@fluentui/react-datepicker-compat";
 import { timeFormat, timeParse } from "@hpcc-js/common";
 import { Workunit } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { pushParams } from "../util/history";
 import { throttle } from "../util/throttle";

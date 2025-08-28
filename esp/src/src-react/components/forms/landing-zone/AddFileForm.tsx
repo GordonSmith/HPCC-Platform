@@ -1,7 +1,7 @@
 import * as React from "react";
 import { DefaultButton, PrimaryButton, Spinner, TextField } from "@fluentui/react";
 import { useForm, Controller } from "react-hook-form";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { MessageBox } from "../../../layouts/MessageBox";
 
 interface AddFileFormValues {

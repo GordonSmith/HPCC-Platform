@@ -4,7 +4,7 @@ import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
 import { dojoxXmlParser as parser } from "src/dojo-shim";
 import * as WsPackageMaps from "src/WsPackageMaps";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useConfirm } from "../hooks/confirm";
 import { pushUrl } from "../util/history";
 import { HolyGrail } from "../layouts/HolyGrail";

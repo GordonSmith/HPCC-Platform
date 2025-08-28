@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Dropdown, TextField, PrimaryButton, Stack, Checkbox } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { scopedLogger } from "@hpcc-js/util";
 import { SashaService, WsSasha } from "@hpcc-js/comms";
 

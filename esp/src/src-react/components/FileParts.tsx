@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ICommandBarItemProps, CommandBar } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { QuerySortItem } from "src/store/Store";
 import * as Utility from "src/Utility";
 import { useFile } from "../hooks/file";

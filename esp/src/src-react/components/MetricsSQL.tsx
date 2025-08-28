@@ -10,7 +10,7 @@ import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { debounce } from "../util/throttle";
 import { SQLSourceEditor } from "./SourceEditor";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 const spaceRegex = new RegExp("\\s", "g");
 

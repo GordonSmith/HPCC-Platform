@@ -1,7 +1,7 @@
 import * as React from "react";
 import { PrimaryButton, Shimmer, ShimmerElementType, TooltipHost } from "@fluentui/react";
 import { mergeStyleSets } from "@fluentui/style-utilities";
-import nlsHPCC from "../nlsHPCC";
+import nlsHPCC from "../dojo-shim";
 import { useGet } from "./hooks/useWsStore";
 
 interface RecentFilterProps {

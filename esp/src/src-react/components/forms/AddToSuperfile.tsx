@@ -2,7 +2,7 @@ import * as React from "react";
 import { ChoiceGroup, DefaultButton, mergeStyleSets, PrimaryButton, Spinner, Stack, TextField, } from "@fluentui/react";
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as WsDfu from "src/WsDfu";
 import { MessageBox } from "../../layouts/MessageBox";
 import * as FormStyles from "./landing-zone/styles";

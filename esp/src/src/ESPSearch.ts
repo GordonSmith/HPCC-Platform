@@ -7,7 +7,7 @@ import { Memory } from "./store/Memory";
 import * as WsWorkunits from "./WsWorkunits";
 import * as FileSpray from "./FileSpray";
 import * as WsDfu from "./WsDfu";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 
 export type searchAllResponse = undefined | "ecl" | "dfu" | "file" | "query";
 

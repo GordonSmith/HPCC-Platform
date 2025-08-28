@@ -5,7 +5,7 @@ import { useConst } from "@fluentui/react-hooks";
 import { Result as CommsResult, XSDXMLNode } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { WUResult } from "@hpcc-js/eclwatch";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { ESPBase } from "src/ESPBase";
 import { csvEncode } from "src/Utility";
 import { useWorkunit, useMyAccount, useConfirm } from "../hooks/index";

@@ -7,7 +7,7 @@ import * as WsWorkunits from "src/WsWorkunits";
 import { useBuildInfo, useLogAccessInfo } from "../../hooks/platform";
 import { MessageBox } from "../../layouts/MessageBox";
 import { CloudContainerNameField } from "../forms/Fields";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useUserTheme } from "../../hooks/theme";
 
 const logger = scopedLogger("../components/forms/ZAPDialog.tsx");

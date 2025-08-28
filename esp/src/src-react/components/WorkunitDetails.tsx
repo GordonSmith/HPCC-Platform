@@ -3,7 +3,7 @@ import { Icon, Shimmer } from "@fluentui/react";
 import { WsWorkunits, WorkunitsService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { wuidToDate, wuidToTime } from "src/Utility";
 import { emptyFilter, formatQuery } from "src/ESPWorkunit";
 import { useLogAccessInfo, useLogicalClusters } from "../hooks/platform";

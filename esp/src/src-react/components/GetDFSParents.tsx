@@ -5,7 +5,7 @@ import { csvParse } from "d3-dsv";
 import { DaliService, WsDali } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { TableGroup } from "./forms/Groups";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { HolyGrail } from "../layouts/HolyGrail";
 
 class MyDaliService extends DaliService {

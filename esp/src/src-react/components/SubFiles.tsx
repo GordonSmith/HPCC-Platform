@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, FontIcon, ICommandBarItemProps, Link } from "@fluentui/react";
 import * as ESPLogicalFile from "src/ESPLogicalFile";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { QuerySortItem } from "src/store/Store";
 import * as WsDfu from "src/WsDfu";
 import { useConfirm } from "../hooks/confirm";

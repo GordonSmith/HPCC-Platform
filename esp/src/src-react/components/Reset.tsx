@@ -1,7 +1,7 @@
 import * as React from "react";
 import { PrimaryButton, DefaultButton, mergeStyleSets, Checkbox, Stack } from "@fluentui/react";
 import { resetCookies, resetModernMode } from "src/Session";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { pushUrl, replaceUrl } from "../util/history";
 import { resetMetricsViews } from "../hooks/metrics";
 import { resetHistory } from "../util/history";

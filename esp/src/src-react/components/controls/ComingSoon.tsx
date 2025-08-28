@@ -1,6 +1,6 @@
 import * as React from "react";
 import { IStyle, Toggle } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useBuildInfo, useModernMode } from "../../hooks/platform";
 
 const legacyIndex = {};

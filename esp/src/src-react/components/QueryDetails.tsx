@@ -1,6 +1,6 @@
 import * as React from "react";
 import { SizeMe } from "../layouts/SizeMe";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as ESPQuery from "src/ESPQuery";
 import { pushUrl, updateFullscreen } from "../util/history";
 import { FullscreenFrame, FullscreenStack } from "../layouts/Fullscreen";

@@ -8,7 +8,7 @@ import * as WsESDLConfig from "src/WsESDLConfig";
 import { States } from "src/WsWorkunits";
 import { FileList, States as DFUStates } from "src/FileSpray";
 import { joinPath } from "src/Utility";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useBuildInfo, useLogicalClusters } from "../../hooks/platform";
 import { useContainerNames, usePodNames } from "../../hooks/cloud";
 

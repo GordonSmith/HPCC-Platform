@@ -1,6 +1,6 @@
 import { Workunit, WorkunitsService, type WsWorkunits } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { Thenable } from "src/store/Deferred";
 import { Paged } from "src/store/Paged";
 import { BaseStore } from "src/store/Store";

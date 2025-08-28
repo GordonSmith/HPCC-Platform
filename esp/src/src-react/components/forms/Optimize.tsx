@@ -3,7 +3,7 @@ import { Checkbox, DefaultButton, IDropdownOption, PrimaryButton, TextField, } f
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { DPWorkunit } from "src/DataPatterns/DPWorkunit";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { MessageBox } from "../../layouts/MessageBox";
 import { pushUrl } from "../../util/history";
 import { TargetClusterTextField } from "./Fields";

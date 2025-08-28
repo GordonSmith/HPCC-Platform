@@ -4,7 +4,7 @@ import { d3Event, Palette } from "@hpcc-js/common";
 import { ColumnFormat, Table } from "@hpcc-js/dgrid";
 import { formatDecimal } from "src/Utility";
 import { formatTwoDigits } from "src/Session";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { IScopeEx } from "../hooks/metrics";
 import { useWorkunitArchive } from "../hooks/workunit";
 import { useUserTheme } from "../hooks/theme";

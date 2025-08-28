@@ -3,7 +3,7 @@ import { Checkbox, DefaultButton, PrimaryButton, Spinner, TextField, } from "@fl
 import { AccessService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { MessageBox } from "../../layouts/MessageBox";
 
 const logger = scopedLogger("src-react/components/forms/AddGroupResource.tsx");

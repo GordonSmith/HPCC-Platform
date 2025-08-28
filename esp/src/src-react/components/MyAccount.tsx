@@ -4,7 +4,7 @@ import { useConst } from "@fluentui/react-hooks";
 import { AccountService, WsAccount } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { PasswordStatus } from "../hooks/user";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { TableGroup } from "./forms/Groups";
 
 const logger = scopedLogger("src-react/components/MyAccount.tsx");

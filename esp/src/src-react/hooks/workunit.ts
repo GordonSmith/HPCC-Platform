@@ -2,7 +2,7 @@ import * as React from "react";
 import { useConst } from "@fluentui/react-hooks";
 import { Workunit, DFUWorkunit, Result, WsWorkunits, WUStateID, WorkunitsService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as Utility from "src/Utility";
 import { singletonDebounce } from "../util/throttle";
 import { useCounter } from "./util";

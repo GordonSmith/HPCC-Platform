@@ -8,7 +8,7 @@ import { PermissionsEditor } from "./PermissionsEditor";
 import { Users } from "./Users";
 import { useBuildInfo } from "../hooks/platform";
 import { pivotItemStyle } from "../layouts/pivot";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 interface SecurityProps {
     filter?: object;

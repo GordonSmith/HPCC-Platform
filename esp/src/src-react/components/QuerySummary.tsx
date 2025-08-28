@@ -7,7 +7,7 @@ import { useConfirm } from "../hooks/confirm";
 import { ShortVerticalDivider } from "./Common";
 import * as ESPQuery from "src/ESPQuery";
 import * as WsWorkunits from "src/WsWorkunits";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { Divider } from "@fluentui/react-components";
 
 const logger = scopedLogger("../components/QuerySummary.tsx");

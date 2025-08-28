@@ -5,7 +5,7 @@ import { typographyStyles } from "@fluentui/react-theme";
 import { useConst } from "@fluentui/react-hooks";
 import { bundleIcon, Folder20Filled, Folder20Regular, FolderOpen20Filled, FolderOpen20Regular } from "@fluentui/react-icons";
 import { IScope } from "@hpcc-js/comms";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { FetchStatus, MetricsView, useMetricsGraphLayout } from "../hooks/metrics";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeComponent, AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";

@@ -3,7 +3,7 @@ import { useConst, useId } from "@fluentui/react-hooks";
 import { useToastController, ToastIntent } from "@fluentui/react-components";
 import { isExceptions } from "@hpcc-js/comms";
 import { Dispatch, Level, logger as utilLogger, scopedLogger, Writer, CallbackFunction, Message } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as Utility from "src/Utility";
 import { CustomToaster } from "../components/controls/CustomToaster";
 

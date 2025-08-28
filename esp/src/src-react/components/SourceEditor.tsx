@@ -5,7 +5,7 @@ import { useConst, useOnEvent } from "@fluentui/react-hooks";
 import { Editor, CSSEditor, ECLEditor, XMLEditor, HTMLEditor, JSEditor, JSONEditor, SQLEditor, YAMLEditor, ICompletion } from "@hpcc-js/codemirror";
 import { Workunit } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { useUserTheme } from "../hooks/theme";

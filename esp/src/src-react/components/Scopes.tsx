@@ -5,7 +5,7 @@ import { SizeMe } from "../layouts/SizeMe";
 import * as WsDfu from "src/WsDfu";
 import { formatCost } from "src/Session";
 import * as Utility from "src/Utility";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useConfirm } from "../hooks/confirm";
 import { useUserTheme } from "../hooks/theme";
 import { useMyAccount } from "../hooks/user";

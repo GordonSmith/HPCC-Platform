@@ -12,7 +12,7 @@ import * as _Widget from "hpcc/_Widget";
 // @ts-expect-error
 import * as template from "dojo/text!hpcc/templates/Graph7Widget.html";
 
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 import { WUScopeController } from "./WUScopeController";
 
 type _Widget = {

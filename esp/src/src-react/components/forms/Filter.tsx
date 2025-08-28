@@ -1,7 +1,7 @@
 import * as React from "react";
 import { DefaultButton, PrimaryButton, Stack } from "@fluentui/react";
 import { useOnEvent } from "@fluentui/react-hooks";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { MessageBox } from "../../layouts/MessageBox";
 import { Fields, Values } from "./Fields";
 import { TableForm } from "./Forms";

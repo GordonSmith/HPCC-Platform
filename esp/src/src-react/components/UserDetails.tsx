@@ -3,7 +3,7 @@ import { CommandBar, ICommandBarItemProps, MessageBar, MessageBarType, Pivot, Pi
 import { SizeMe } from "../layouts/SizeMe";
 import { scopedLogger } from "@hpcc-js/util";
 import * as WsAccess from "src/ws_access";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useBuildInfo } from "../hooks/platform";
 import { pivotItemStyle } from "../layouts/pivot";
 import { DojoAdapter } from "../layouts/DojoAdapter";

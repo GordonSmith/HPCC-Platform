@@ -10,7 +10,7 @@ import { hashSum } from "@hpcc-js/util";
 import * as _Widget from "hpcc/_Widget";
 import { Grid, maximizeWidget } from "./ESPUtil";
 import { GraphStore, GraphTreeStore } from "./GraphStore";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 import { debounce, getImageURL, Persist } from "./Utility";
 import * as WsWorkunits from "./WsWorkunits";
 import { WUGraphLegend } from "./WUGraphLegend";

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Pivot, PivotItem } from "@fluentui/react";
 import { SizeMe } from "../layouts/SizeMe";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useBuildInfo } from "../hooks/platform";
 import { DESDLBindings } from "./DESDLBindings";
 import { DESDLDefinitions } from "./DESDLDefinitions";

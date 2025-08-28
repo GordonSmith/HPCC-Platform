@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, mergeStyles, MessageBar, MessageBarType, registerIcons, ScrollablePane, ScrollbarVisibility } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { WUStatus } from "src/react/index";
 import { formatCost } from "src/Session";
 import { isNumeric } from "src/Utility";

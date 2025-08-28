@@ -3,7 +3,7 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "
 import { SizeMe } from "../layouts/SizeMe";
 import { AccessService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { GroupStore, CreateGroupStore } from "src/ws_access";
 import { ShortVerticalDivider } from "./Common";
 import { useConfirm } from "../hooks/confirm";

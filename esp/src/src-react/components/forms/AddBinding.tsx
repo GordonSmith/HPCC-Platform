@@ -3,7 +3,7 @@ import { DefaultButton, IDropdownOption, PrimaryButton, Spinner, TextField, } fr
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { EsdlDefinitionsTextField, EsdlEspProcessesTextField } from "./Fields";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as WsESDLConfig from "src/WsESDLConfig";
 import { MessageBox } from "../../layouts/MessageBox";
 

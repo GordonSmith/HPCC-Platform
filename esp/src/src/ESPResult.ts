@@ -4,7 +4,7 @@ import { dojoxXmlParser as parser } from "./dojo-shim";
 
 import * as ESPRequest from "./ESPRequest";
 import { Get as LFGet } from "./ESPLogicalFile";
-import nlsHPCC from "./nlsHPCC";
+import nlsHPCC from "./dojo-shim";
 import * as Utility from "./Utility";
 import * as WsWorkunits from "./WsWorkunits";
 

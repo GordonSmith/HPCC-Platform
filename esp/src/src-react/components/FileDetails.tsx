@@ -1,7 +1,7 @@
 import * as React from "react";
 import { WsDfu } from "@hpcc-js/comms";
 import { SizeMe } from "../layouts/SizeMe";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { QuerySortItem } from "src/store/Store";
 import { useFile, useDefFile } from "../hooks/file";
 import { pushUrl, replaceUrl, updateFullscreen } from "../util/history";

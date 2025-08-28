@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CloudService, WsCloud } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useCounter } from "./util";
 
 const logger = scopedLogger("../hooks/cloud.ts");

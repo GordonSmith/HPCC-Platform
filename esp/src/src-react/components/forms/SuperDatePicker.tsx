@@ -1,6 +1,6 @@
 import * as React from "react";
 import { CommandBarButton, Callout, DirectionalHint, Stack, Text, DefaultButton, PrimaryButton, Separator, IStackStyles, IButtonStyles, FontWeights, useTheme, IconButton } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { DateTimeInput } from "./Fields";
 
 export interface DateRange {

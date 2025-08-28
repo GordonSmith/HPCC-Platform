@@ -1,6 +1,6 @@
 import * as React from "react";
 import { CommandBar, ICommandBarItemProps } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { pushUrl } from "../util/history";
 import { useWorkunitResources } from "../hooks/workunit";
 import { HolyGrail } from "../layouts/HolyGrail";

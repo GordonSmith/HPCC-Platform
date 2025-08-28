@@ -8,7 +8,7 @@ import * as WsWorkunits from "src/WsWorkunits";
 import { formatCost } from "src/Session";
 import { userKeyValStore } from "src/KeyValStore";
 import { QuerySortItem } from "src/store/Store";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useConfirm } from "../hooks/confirm";
 import { useMyAccount } from "../hooks/user";
 import { useUserStore } from "../hooks/store";

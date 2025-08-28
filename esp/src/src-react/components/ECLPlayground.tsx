@@ -17,7 +17,7 @@ import { InfoGrid } from "./InfoGrid";
 import { TabbedResults } from "./Results";
 import { ECLSourceEditor } from "./SourceEditor";
 import { TargetClusterOption, TargetClusterTextField } from "./forms/Fields";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 const logger = scopedLogger("../components/ECLPlayground.tsx");
 

@@ -6,7 +6,7 @@ import { DaliService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { TableGroup } from "./forms/Groups";
 import { useConfirm } from "../hooks/confirm";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { HolyGrail } from "../layouts/HolyGrail";
 
 const logger = scopedLogger("src-react/components/DaliImport.tsx");

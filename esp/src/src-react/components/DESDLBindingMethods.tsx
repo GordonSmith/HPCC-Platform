@@ -4,7 +4,7 @@ import { useConst } from "@fluentui/react-hooks";
 import { scopedLogger } from "@hpcc-js/util";
 import { Observable } from "src/dojo-shim";
 import { MemoryTreeStore } from "src/store/Tree";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as WsESDLConfig from "src/WsESDLConfig";
 import { useGrid } from "../hooks/grid";
 import { ShortVerticalDivider } from "./Common";

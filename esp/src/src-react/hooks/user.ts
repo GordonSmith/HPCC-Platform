@@ -3,7 +3,7 @@ import { useConst, useForceUpdate } from "@fluentui/react-hooks";
 import { AccessService, AccountService, WsAccount } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { cookieKeyValStore } from "src/KeyValStore";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 
 const logger = scopedLogger("src-react/hooks/user.ts");
 

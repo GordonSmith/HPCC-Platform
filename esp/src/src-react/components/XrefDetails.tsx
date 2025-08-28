@@ -10,7 +10,7 @@ import { XrefOrphanFiles } from "./XrefOrphanFiles";
 import { XrefDirectories } from "./XrefDirectories";
 import { XrefErrors } from "./XrefErrors";
 import { pushUrl } from "../util/history";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as Utility from "src/Utility";
 
 const logger = scopedLogger("src-react/components/XrefDetails.tsx");

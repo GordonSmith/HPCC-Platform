@@ -6,7 +6,7 @@ import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { TargetDropzoneTextField, TargetFolderTextField, TargetServerTextField } from "../Fields";
 import { joinPath } from "src/Utility";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { MessageBox } from "../../../layouts/MessageBox";
 import { debounce } from "../../../util/throttle";
 import * as FormStyles from "./styles";

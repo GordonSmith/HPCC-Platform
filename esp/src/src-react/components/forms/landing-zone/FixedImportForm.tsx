@@ -4,7 +4,7 @@ import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import * as FileSpray from "src/FileSpray";
 import { TargetDfuSprayQueueTextField, TargetGroupTextField } from "../Fields";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useBuildInfo } from "../../../hooks/platform";
 import { MessageBox } from "../../../layouts/MessageBox";
 import { pushUrl } from "../../../util/history";

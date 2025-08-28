@@ -1,6 +1,6 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, IDropdownOption, mergeStyleSets, ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { DPWorkunit } from "src/DataPatterns/DPWorkunit";
 import { Report } from "src/DataPatterns/Report";
 import { useFile } from "../hooks/file";

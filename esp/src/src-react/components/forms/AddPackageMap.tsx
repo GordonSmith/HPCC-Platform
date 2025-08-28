@@ -5,7 +5,7 @@ import { FileSprayService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import * as WsPackageMaps from "src/WsPackageMaps";
 import { TypedDropdownOption } from "../PackageMaps";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { MessageBox } from "../../layouts/MessageBox";
 
 const logger = scopedLogger("../components/forms/AddPackageMap.tsx");

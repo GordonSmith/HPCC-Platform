@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, CommandBar, ICommandBarItemProps, Link, SelectionMode } from "@fluentui/react";
 import { SizeMe } from "../layouts/SizeMe";
 import { formatCost, formatTwoDigits } from "src/Session";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { useWorkunitExceptions } from "../hooks/workunit";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 

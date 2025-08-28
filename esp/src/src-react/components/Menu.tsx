@@ -12,7 +12,7 @@ import {
     bundleIcon, FluentIcon
 } from "@fluentui/react-icons";
 import { IconButton, IContextualMenuItem, Link, mergeStyleSets, Stack } from "@fluentui/react";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { containerized, bare_metal } from "src/BuildInfo";
 import { navCategory } from "../util/history";
 import { MainNav, routes } from "../routes";

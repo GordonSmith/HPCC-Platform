@@ -1,7 +1,7 @@
 import * as React from "react";
 import { GetLogsExRequest, LogaccessService, LogType, TargetAudience, WsLogaccess } from "@hpcc-js/comms";
 import { Level, scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import { formatDateString, logColor, removeAllExcept, timestampToDate, wuidToDate, wuidToDateTime, wuidToTime } from "src/Utility";
 import { useLogAccessInfo } from "../hooks/platform";
 import { HolyGrail } from "../layouts/HolyGrail";

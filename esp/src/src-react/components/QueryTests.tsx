@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Pivot, PivotItem } from "@fluentui/react";
 import { join, scopedLogger } from "@hpcc-js/util";
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as ESPQuery from "src/ESPQuery";
 import * as WsTopology from "src/WsTopology";
 import { useWorkunitResults } from "../hooks/workunit";

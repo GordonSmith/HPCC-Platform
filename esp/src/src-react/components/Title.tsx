@@ -5,7 +5,7 @@ import { WindowNewRegular } from "@fluentui/react-icons";
 import { Level, scopedLogger } from "@hpcc-js/util";
 import { cookie } from "src/dojo-shim";
 
-import nlsHPCC from "src/nlsHPCC";
+import nlsHPCC from "src/dojo-shim";
 import * as Utility from "src/Utility";
 
 import { useBanner } from "../hooks/banner";
