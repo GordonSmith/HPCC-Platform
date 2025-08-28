@@ -25,9 +25,17 @@ module.exports = function (env) {
     console.log(isProduction ? "Production bundle" : "Debug bundle");
 
     const entry = {
-        stub: "eclwatch/stub",
-        dojoLib: "lib/src/dojoLib",
-        index: "lib/src-react/index"
+        "dojo-shim": {
+            import: "lib/src/dojo-shim",
+        },
+        stub: {
+            import: "eclwatch/stub",
+            dependOn: ["dojo-shim"]
+        },
+        index: {
+            import: "lib/src-react/index",
+            dependOn: ["dojo-shim"]
+        },
     };
 
     const plugins = [
@@ -153,6 +161,11 @@ module.exports = function (env) {
             liveReload: false,
             proxy,
             port: 8080
-        }
+        },
+
+        // Silence noisy missing / failed source map warnings coming from third-party deps
+        ignoreWarnings: [
+            (warning) => typeof warning.message === "string" && warning.message.includes("Failed to parse source map")
+        ]
     };
 };

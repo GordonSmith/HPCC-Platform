@@ -1,17 +1,6 @@
-import * as arrayUtil from "dojo/_base/array";
-import * as declare from "dojo/_base/declare";
-import * as Deferred from "dojo/_base/Deferred";
-import * as lang from "dojo/_base/lang";
-import * as dom from "dojo/dom";
-import * as html from "dojo/html";
-import * as on from "dojo/on";
-import * as topic from "dojo/topic";
+import { arrayUtil, declare, Deferred, lang, dom, html, on, topic } from "./dojo-shim";
 
-import * as CheckedMenuItem from "dijit/CheckedMenuItem";
-import * as Menu from "dijit/Menu";
-import * as MenuItem from "dijit/MenuItem";
-import * as MenuSeparator from "dijit/MenuSeparator";
-import * as registry from "dijit/registry";
+import { CheckedMenuItem, Menu, MenuItem, MenuSeparator, registry } from "./dojo-shim";
 
 import * as entities from "dojox/html/entities";
 
@@ -29,21 +18,6 @@ import * as WsWorkunits from "./WsWorkunits";
 // @ts-expect-error
 import * as template from "dojo/text!hpcc/templates/GraphTreeWidget.html";
 
-import "dijit/Dialog";
-import "dijit/form/Button";
-import "dijit/form/DropDownButton";
-import "dijit/form/NumberSpinner";
-import "dijit/form/Select";
-import "dijit/form/SimpleTextarea";
-import "dijit/form/TextBox";
-import "dijit/form/ToggleButton";
-import "dijit/layout/BorderContainer";
-import "dijit/layout/ContentPane";
-import "dijit/layout/StackContainer";
-import "dijit/layout/StackController";
-import "dijit/layout/TabContainer";
-import "dijit/Toolbar";
-import "dijit/ToolbarSeparator";
 import "hpcc/JSGraphWidget";
 import "hpcc/TimingTreeMapWidget";
 

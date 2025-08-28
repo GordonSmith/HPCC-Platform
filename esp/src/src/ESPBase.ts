@@ -1,5 +1,4 @@
-﻿import * as config from "dojo/_base/config";
-import * as declare from "dojo/_base/declare";
+﻿import { config, declare } from "./dojo-shim";
 
 declare const dojo;
 

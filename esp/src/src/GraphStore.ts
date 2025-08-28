@@ -1,6 +1,4 @@
-import * as arrayUtil from "dojo/_base/array";
-import * as lang from "dojo/_base/lang";
-import * as QueryResults from "dojo/store/util/QueryResults";
+import { arrayUtil, lang, QueryResults } from "./dojo-shim";
 import { UndefinedMemory } from "./ESPUtil";
 
 export class GraphStore extends UndefinedMemory {

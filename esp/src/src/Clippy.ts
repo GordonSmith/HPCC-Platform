@@ -1,8 +1,5 @@
 import * as Clipboard from "clipboard";
-import * as Tooltip from "dijit/Tooltip";
-import * as dom from "dojo/dom";
-import * as mouse from "dojo/mouse";
-import * as on from "dojo/on";
+import { dom, mouse, on, Tooltip } from "./dojo-shim";
 import nlsHPCC from "./nlsHPCC";
 
 export function attach(domID: string): void {

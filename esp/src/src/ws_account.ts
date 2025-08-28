@@ -1,5 +1,4 @@
-import * as lang from "dojo/_base/lang";
-import * as topic from "dojo/topic";
+import { lang, topic } from "./dojo-shim";
 
 import * as ESPRequest from "./ESPRequest";
 
