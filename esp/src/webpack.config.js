@@ -26,14 +26,14 @@ module.exports = function (env) {
 
     const entry = {
         "dojo-shim": {
-            import: "lib/src/dojo-shim",
+            import: "./lib/src/dojo-shim",
         },
         stub: {
-            import: "eclwatch/stub",
+            import: "./eclwatch/stub",
             dependOn: ["dojo-shim"]
         },
         index: {
-            import: "lib/src-react/index",
+            import: "./lib/src-react/index",
             dependOn: ["dojo-shim"]
         },
     };

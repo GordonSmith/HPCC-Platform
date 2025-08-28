@@ -1,21 +1,7 @@
 ﻿import { select as d3Select } from "@hpcc-js/common";
 import { registry, arrayUtil, declare, lang, aspect, domClass, domStyle, Evented, json, on, query, Stateful, Tooltip } from "./dojo-shim";
 import { Memory } from "./store/Memory";
-
-// @ts-expect-error
-import * as ColumnResizer from "dgrid/extensions/ColumnResizer";
-// @ts-expect-error
-import * as CompoundColumns from "dgrid/extensions/CompoundColumns";
-// @ts-expect-error
-import * as DijitRegistry from "dgrid/extensions/DijitRegistry";
-// @ts-expect-error
-import * as DGrid from "dgrid/Grid";
-// @ts-expect-error
-import * as Keyboard from "dgrid/Keyboard";
-// @ts-expect-error
-import * as OnDemandGrid from "dgrid/OnDemandGrid";
-// @ts-expect-error
-import * as Selection from "dgrid/Selection";
+import { ColumnResizer, CompoundColumns, DijitRegistry, DGrid, Keyboard, OnDemandGrid, Selection } from "./dojo-shim";
 
 import nlsHPCC from "./nlsHPCC";
 import { userKeyValStore } from "./KeyValStore";

@@ -187,3 +187,9 @@ export * as DijitRegistry from "dgrid/extensions/DijitRegistry";
 // // import "css!hpcc/css/ecl.css";
 // // import "css!hpcc/css/hpcc.css";
 
+import "dojo/i18n";
+// @ts-expect-error
+import * as nlsHPCC from "dojo/i18n!./nls/hpcc";
+import nlsHPCCT from "./nls/hpcc";
+
+export default nlsHPCC as typeof nlsHPCCT.root;
