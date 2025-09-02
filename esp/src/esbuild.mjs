@@ -1,6 +1,7 @@
 import process from "node:process";
 import console from "node:console";
 import { readFileSync } from "node:fs";
+import * as esbuild from "esbuild";
 
 import { problemMatcher } from "@hpcc-js/esbuild-plugins";
 import { globalExternals } from "@fal-works/esbuild-plugin-global-externals";
