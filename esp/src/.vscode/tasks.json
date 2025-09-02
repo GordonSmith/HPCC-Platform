@@ -25,6 +25,15 @@
         },
         {
             "type": "npm",
+            "label": "esbuild watch",
+            "script": "esbuild-watch",
+            "problemMatcher": [],
+            "presentation": {
+                "group": "group-build"
+            }
+        },
+        {
+            "type": "npm",
             "label": "webpack-dev-server",
             "script": "start",
             "problemMatcher": [],
@@ -57,6 +66,7 @@
             "dependsOn": [
                 "tsc watch",
                 "bundle watch",
+                "esbuild watch",
                 "dev server"
             ],
             "group": {
