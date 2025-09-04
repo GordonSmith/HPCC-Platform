@@ -84,25 +84,16 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
 
     const hasFilter = React.useMemo(() => Object.keys(filter).length > 0, [filter]);
 
-    const landingZoneDescriptions = useGlobalStore(state => state.landingZoneDescriptions ?? {});
-    const setState = useGlobalStore(state => state.setState);
+    const [landingZoneDescriptions, setLandingZoneDescriptions] = useGlobalStore("LandingZone_Descriptions", {}, false);
 
-    const updateDescriptionRef = React.useRef<(path: string, desc: string) => void>();
-    
-    updateDescriptionRef.current = React.useCallback((path: string, desc: string) => {
-        console.log('Updating description:', path, desc);
-        
-        const currentState = useGlobalStore.getState();
-        const currentDescriptions = currentState.landingZoneDescriptions ?? {};
-        
-        if (currentDescriptions[path] !== desc) {
-            currentState.setState("landingZoneDescriptions", {
-                ...currentDescriptions,
+    const updateLandingZoneDescriptions = React.useCallback((path: string, desc: string) => {
+        if (landingZoneDescriptions[path] !== desc) {
+            void setLandingZoneDescriptions({
+                ...landingZoneDescriptions,
                 [path]: desc
             });
-            console.log('Description updated successfully');
         }
-    }, []);
+    }, [landingZoneDescriptions, setLandingZoneDescriptions]);
 
     const [showFilter, setShowFilter] = React.useState(false);
     const [showAddFile, setShowAddFile] = React.useState(false);
@@ -209,14 +200,7 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
                 sortable: false,
                 renderCell: function (object, value, node) {
                     const path = object.fullFolderPath || object.displayName;
-                    
-                    const getCurrentDescription = () => {
-                        const currentState = useGlobalStore.getState();
-                        const descriptions = currentState.landingZoneDescriptions ?? {};
-                        return descriptions[path] ?? "";
-                    };
-                    
-                    const currentDesc = getCurrentDescription();
+                    const currentDesc = landingZoneDescriptions[path] ?? "";
 
                     const input = document.createElement("input");
                     input.type = "text";
@@ -227,25 +211,21 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
                     input.style.padding = "4px";
 
                     let originalValue = currentDesc;
-                    
+
                     const saveDescription = () => {
                         const newValue = input.value.trim();
-                        console.log('Attempting to save description:', path, 'from', originalValue, 'to', newValue);
-                        
+                        console.log("Attempting to save description:", path, "from", originalValue, "to", newValue);
+
                         if (newValue !== originalValue) {
                             try {
-                                if (updateDescriptionRef.current) {
-                                    updateDescriptionRef.current(path, newValue);
-                                    originalValue = newValue;
-                                    console.log('Save attempt completed');
-                                } else {
-                                    console.error('updateDescriptionRef.current is not available');
-                                }
+                                updateLandingZoneDescriptions(path, newValue);
+                                originalValue = newValue;
+                                console.log("Save attempt completed");
                             } catch (error) {
-                                console.error('Error saving description:', error);
+                                console.error("Error saving description:", error);
                             }
                         } else {
-                            console.log('No changes detected, skipping save');
+                            console.log("No changes detected, skipping save");
                         }
                     };
 
@@ -275,7 +255,7 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
 
                     const observer = new MutationObserver((mutations) => {
                         mutations.forEach((mutation) => {
-                            if (mutation.type === 'childList') {
+                            if (mutation.type === "childList") {
                                 mutation.removedNodes.forEach((removedNode) => {
                                     if (removedNode.contains && removedNode.contains(input)) {
                                         clearTimeout(saveTimer);
@@ -284,7 +264,7 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
                             }
                         });
                     });
-                    
+
                     observer.observe(node.parentElement || document.body, {
                         childList: true,
                         subtree: true
