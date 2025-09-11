@@ -1,14 +1,9 @@
 import * as React from "react";
-import { DefaultButton, Dialog, DialogFooter, DialogType, Pivot, PivotItem, Spinner } from "@fluentui/react";
+import { Dialog, Button, SelectTabData, SelectTabEvent, Spinner, Tab, TabList, TabValue, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions, DialogTrigger } from "@fluentui/react-components";
 import nlsHPCC from "src/nlsHPCC";
 import { useCheckFeatures, fetchLatestReleases } from "../hooks/platform";
 import { TableGroup } from "./forms/Groups";
 import { Fields } from "./forms/Fields";
-
-const dialogContentProps = {
-    type: DialogType.largeHeader,
-    title: nlsHPCC.AboutHPCCSystems
-};
 
 interface AboutProps {
     eclwatchVersion: string;
@@ -24,6 +19,7 @@ export const About: React.FunctionComponent<AboutProps> = ({
     onClose = () => { }
 }) => {
 
+    const [activeTab, setActiveTab] = React.useState<TabValue>("about");
     const [loaded, setLoaded] = React.useState(0);
     const [latestReleases, setLatestReleases] = React.useState<Fields>({});
 
@@ -50,33 +46,47 @@ export const About: React.FunctionComponent<AboutProps> = ({
         }
     }, [loaded, show]);
 
-    return <Dialog hidden={!show} onDismiss={onClose} dialogContentProps={dialogContentProps} minWidth="640px">
-        <Pivot>
-            <PivotItem itemKey="about" headerText={nlsHPCC.About}>
-                <div style={{ minHeight: "208px", paddingTop: "32px" }}>
-                    <TableGroup width="100%" fields={{
-                        platformVersion: { label: `${nlsHPCC.Platform}:`, type: "string", value: features?.version || "???", readonly: true },
-                        platformDate: { label: `${nlsHPCC.BuildDate}:`, type: "string", value: features?.timestamp?.toLocaleDateString(undefined, dateOptions) || "???", readonly: true },
-                        eclwatchVersion: { label: "ECL Watch:", type: "string", value: eclwatchVersion, readonly: true },
-                    }}>
-                    </TableGroup>
-                </div>
-            </PivotItem>
-            <PivotItem itemKey="latest" headerText={nlsHPCC.LatestReleases}>
-                {
-                    loaded >= 2 &&
-                    <div style={{ minHeight: "208px", overflow: "hidden", paddingTop: "32px" }}>
-                        <TableGroup width="100%" fields={latestReleases}>
-                        </TableGroup>
-                    </div> ||
-                    <div style={{ minHeight: "208px", paddingTop: "32px" }}>
-                        <Spinner labelPosition="bottom" label={nlsHPCC.Loading} />
+    const onTabSelect = React.useCallback((event: SelectTabEvent, data: SelectTabData) => {
+        setActiveTab(data.value);
+    }, []);
+
+    return <Dialog open={show} modalType="modal">
+        <DialogSurface style={{ minWidth: 640 }}>
+            <DialogBody>
+                <DialogTitle>{nlsHPCC.AboutHPCCSystems}</DialogTitle>
+                <DialogContent>
+                    <TabList selectedValue={activeTab} onTabSelect={onTabSelect}>
+                        <Tab value="about">{nlsHPCC.About}</Tab>
+                        <Tab value="latest">{nlsHPCC.LatestReleases}</Tab>
+                    </TabList>
+                    <div>
+                        {activeTab === "about" &&
+                            <div style={{ minHeight: "208px", paddingTop: "32px" }}>
+                                <TableGroup width="100%" fields={{
+                                    platformVersion: { label: `${nlsHPCC.Platform}:`, type: "string", value: features?.version || "???", readonly: true },
+                                    platformDate: { label: `${nlsHPCC.BuildDate}:`, type: "string", value: features?.timestamp?.toLocaleDateString(undefined, dateOptions) || "???", readonly: true },
+                                    eclwatchVersion: { label: "ECL Watch:", type: "string", value: eclwatchVersion, readonly: true },
+                                }}>
+                                </TableGroup>
+                            </div>
+                        }
+                        {activeTab === "latest" && (loaded >= 2 ?
+                            <div style={{ minHeight: "208px", overflow: "hidden", paddingTop: "32px" }}>
+                                <TableGroup width="100%" fields={latestReleases}>
+                                </TableGroup>
+                            </div> :
+                            <div style={{ minHeight: "208px", paddingTop: "32px" }}>
+                                <Spinner labelPosition="below" label={nlsHPCC.Loading} />
+                            </div>)
+                        }
                     </div>
-                }
-            </PivotItem>
-        </Pivot>
-        <DialogFooter>
-            <DefaultButton onClick={onClose} text={nlsHPCC.OK} />
-        </DialogFooter>
+                </DialogContent>
+                <DialogActions>
+                    <DialogTrigger disableButtonEnhancement>
+                        <Button onClick={onClose} appearance="primary" >{nlsHPCC.OK}</Button>
+                    </DialogTrigger>
+                </DialogActions>
+            </DialogBody>
+        </DialogSurface>
     </Dialog>;
 };
