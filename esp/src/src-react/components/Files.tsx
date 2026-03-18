@@ -212,9 +212,17 @@ export const Files: React.FunctionComponent<FilesProps> = ({
             FileSize: {
                 label: nlsHPCC.FileSize,
                 formatter: (value, row) => {
+                    if (row.FileSize) {
+                        return Utility.convertedSize(row.FileSize);
+                    }
                     return Utility.convertedSize(row.IsCompressed ? row.CompressedFileSize : row.IntSize);
                 },
-                csvFormatter: (value, row) => row.IsCompressed ? row.CompressedFileSize : row.IntSize,
+                csvFormatter: (value, row) => {
+                    if (row.FileSize) {
+                        return row.FileSize;
+                    }
+                    return row.IsCompressed ? row.CompressedFileSize : row.IntSize;
+                },
             },
             Compression: {
                 label: nlsHPCC.Compression,
