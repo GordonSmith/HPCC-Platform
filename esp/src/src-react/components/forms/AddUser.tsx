@@ -1,7 +1,7 @@
 import * as React from "react";
 import { DefaultButton, MessageBar, MessageBarType, PrimaryButton, Spinner, TextField, } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
 import * as WsAccess from "src/ws_access";
 import { MessageBox } from "../../layouts/MessageBox";
@@ -40,11 +40,11 @@ export const AddUserForm: React.FunctionComponent<AddUserFormProps> = ({
     setShowForm
 }) => {
 
-    const { handleSubmit, control, reset, watch } = useForm<AddUserFormValues>({ defaultValues });
+    const { handleSubmit, control, reset } = useForm<AddUserFormValues>({ defaultValues });
     const [submitDisabled, setSubmitDisabled] = React.useState(false);
     const [spinnerHidden, setSpinnerHidden] = React.useState(true);
 
-    const pwd1 = watch("password1");
+    const pwd1 = useWatch({ control, name: "password1" });
 
     const [showError, setShowError] = React.useState(false);
     const [errorMessage, setErrorMessage] = React.useState("");

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { ComboBox, DefaultButton, IDropdownOption, MessageBar, MessageBarType, PrimaryButton, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
 import { MessageBox } from "../../layouts/MessageBox";
 import { FilePermission } from "src/ws_access";
@@ -32,7 +32,10 @@ export const CheckPermissionsForm: React.FunctionComponent<CheckPermissionsFormP
     setShowForm
 }) => {
 
-    const { handleSubmit, control, reset, setValue, watch } = useForm<CheckPermissionsFormValues>({ defaultValues });
+    const { handleSubmit, control, reset, setValue } = useForm<CheckPermissionsFormValues>({ defaultValues });
+
+    const watchedUserName = useWatch({ control, name: "UserName" });
+    const watchedGroupName = useWatch({ control, name: "GroupName" });
 
     const [showError, setShowError] = React.useState(false);
     const [errorMessage, setErrorMessage] = React.useState("");
@@ -114,7 +117,7 @@ export const CheckPermissionsForm: React.FunctionComponent<CheckPermissionsFormP
                 label={nlsHPCC.Users}
                 autoComplete="on"
                 options={userOptions}
-                selectedKey={watch("UserName")}
+                selectedKey={watchedUserName}
                 onChange={(ev, option) => {
                     setValue("UserName", option?.key.toString() || "");
                     setValue("GroupName", "");
@@ -124,7 +127,7 @@ export const CheckPermissionsForm: React.FunctionComponent<CheckPermissionsFormP
                 label={nlsHPCC.Groups}
                 autoComplete="on"
                 options={groupOptions}
-                selectedKey={watch("GroupName")}
+                selectedKey={watchedGroupName}
                 onChange={(ev, option) => {
                     setValue("GroupName", option?.key.toString() || "");
                     setValue("UserName", "");
