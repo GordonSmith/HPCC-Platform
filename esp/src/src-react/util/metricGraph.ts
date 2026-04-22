@@ -1,20 +1,23 @@
-import { d3Event, select as d3Select, SVGZoomWidget } from "@hpcc-js/common";
-import { graphviz } from "@hpcc-js/graph";
-import { Graph2, hashSum, scopedLogger } from "@hpcc-js/util";
+import { select as d3Select } from "@hpcc-js/common";
+import { Graphviz } from "@hpcc-js/graph";
+import { Graph2, scopedLogger } from "@hpcc-js/util";
 import { format } from "src/Utility";
 import { IScopeEx, MetricsView } from "../hooks/metrics";
 
-import "src-react-css/util/metricGraph.css";
-
 const logger = scopedLogger("src-react/util/metricGraph.ts");
 
-declare const dojoConfig;
+export { Graphviz };
+export const layoutCache = Graphviz.layoutCache;
+export const isGraphvizWorkerResponse = Graphviz.isGraphvizWorkerResponse;
+export type LayoutStatus = Graphviz.LayoutStatus;
+export const LayoutStatus = Graphviz.LayoutStatus;
+export const isLayoutComplete = Graphviz.isLayoutComplete;
 
-const TypeShape = {
-    "function": 'plain" fillcolor="" style="'
+const TypeShape: Record<string, Graphviz.Shape> = {
+    "function": "plain"
 };
 
-const KindShape = {
+const KindShape: Record<number, Graphviz.Shape> = {
     2: "cylinder",          //  Disk Write
     3: "tripleoctagon",     //  Local Sort
     5: "invtrapezium",      //  Filter
@@ -40,12 +43,12 @@ const KindShape = {
     196: "cylinder",        //  Spill Write
 };
 
-function shape(v: IScopeEx) {
+function shape(v: IScopeEx): Graphviz.Shape {
     return TypeShape[v.type] ?? KindShape[v.Kind] ?? "rectangle";
 }
 
 const CHARS = new Set("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
-function encodeID(id: string): string {
+export function encodeID(id: string): string {
     let retVal = "";
     for (let i = 0; i < id.length; ++i) {
         if (CHARS.has(id.charAt(i))) {
@@ -57,17 +60,8 @@ function encodeID(id: string): string {
     return retVal;
 }
 
-function decodeID(id: string): string {
+export function decodeID(id: string): string {
     return id.replace(/__(\d+)__/gm, (_match, p1) => String.fromCharCode(+p1));
-}
-
-function encodeLabel(label: string) {
-    return label
-        .split('"')
-        .join('\\"')
-        .split("\n")
-        .join("\\n")
-        ;
 }
 
 interface IScopeEdge extends IScopeEx {
@@ -75,7 +69,7 @@ interface IScopeEdge extends IScopeEx {
     IdTarget: string;
 }
 
-type ScopeStatus = "unknown" | "started" | "completed";
+type ScopeStatus = "unknown" | "running" | "complete";
 type ExceptionStatus = "warning" | "error";
 
 export class MetricGraph extends Graph2<IScopeEx, IScopeEdge, IScopeEx> {
@@ -227,16 +221,16 @@ export class MetricGraph extends Graph2<IScopeEx, IScopeEdge, IScopeEx> {
     }
 
     vertexStatus(v: IScopeEx): ScopeStatus {
-        const tally: { [id: string]: number } = { "unknown": 0, "started": 0, "completed": 0 };
+        const tally: { [id: string]: number } = { "unknown": 0, "running": 0, "complete": 0 };
         let outEdges = this.vertexInternalOutEdges(v);
         if (outEdges.length === 0) {
             outEdges = this.inEdges(v.name);
         }
         outEdges.forEach(e => ++tally[this.edgeStatus(e)]);
-        if (outEdges.length === tally["completed"]) {
-            return "completed";
-        } else if (tally["started"] || tally["completed"]) {
-            return "started";
+        if (outEdges.length === tally["complete"]) {
+            return "complete";
+        } else if (tally["running"] || tally["complete"]) {
+            return "running";
         }
         return "unknown";
     }
@@ -264,30 +258,6 @@ export class MetricGraph extends Graph2<IScopeEx, IScopeEdge, IScopeEx> {
         return this.outEdges(v.name).filter(e => e.__parentName === v.__parentName);
     }
 
-    protected _dedupVertices: { [scopeName: string]: boolean } = {};
-
-    private _buildVertexTemplate(v: IScopeEx, options: MetricsView, isHidden: boolean = false): string {
-        if (this._dedupVertices[v.id] === true) return "";
-        this._dedupVertices[v.id] = true;
-
-        const encodedId = encodeID(v.name);
-        const encodedLabel = encodeLabel(this.vertexLabel(v, options));
-        const vertexShape = shape(v);
-        const vertexClass = this.vertexClass(v);
-
-        const rankAttr = isHidden ? " rank=\"min\"" : "";
-
-        return `"${v.id}" [id="${encodedId}" label="${encodedLabel}" shape="${vertexShape}" class="${vertexClass}"${rankAttr}]`;
-    }
-
-    vertexTpl(v: IScopeEx, options: MetricsView): string {
-        return this._buildVertexTemplate(v, options, false);
-    }
-
-    hiddenTpl(v: IScopeEx, options: MetricsView): string {
-        return this._buildVertexTemplate(v, options, true);
-    }
-
     findFirstVertex(scopeName: string) {
         if (this.vertexExists(scopeName)) {
             return this.vertex(scopeName).id;
@@ -306,58 +276,22 @@ export class MetricGraph extends Graph2<IScopeEx, IScopeEdge, IScopeEx> {
         if (!isNaN(starts) && !isNaN(stops)) {
             if (starts > 0) {
                 if (starts === stops) {
-                    return "completed";
+                    return "complete";
                 }
-                return "started";
+                return "running";
             }
         }
         return "unknown";
     }
 
-    protected _dedupEdges: { [scopeName: string]: boolean } = {};
-    edgeTpl(e: IScopeEdge, options: MetricsView) {
-        if (this._dedupEdges[e.id] === true) return "";
-        this._dedupEdges[e.id] = true;
-
-        const sourceVertexName = this._activityIndex[e.IdSource];
-        const targetVertexName = this._activityIndex[e.IdTarget];
-
-        if (options.ignoreGlobalStoreOutEdges && sourceVertexName) {
-            const sourceVertex = this.vertex(sourceVertexName);
-            if (sourceVertex.Kind === "22") {
-                return "";
-            }
-        }
-
-        const ltail = this.subgraphExists(this._sourceFunc(e)) ? `ltail=cluster_${e.IdSource}` : "";
-        const lhead = this.subgraphExists(this._targetFunc(e)) ? `lhead=cluster_${e.IdTarget}` : "";
-
-        let edgeStyle = "solid";
-        if (sourceVertexName && targetVertexName) {
-            const sourceParent = this.vertexParent(sourceVertexName);
-            const targetParent = this.vertexParent(targetVertexName);
-            edgeStyle = sourceParent === targetParent ? "solid" : "dashed";
-        }
-
-        const formatData = e.__formattedProps ?
-            Object.assign({}, e, e.__formattedProps) :
-            e;
-
-        const encodedName = encodeID(e.name);
-        const encodedLabel = encodeLabel(format(options.edgeTpl, formatData));
-        const edgeClass = this.edgeStatus(e);
-
-        return `"${e.IdSource}" -> "${e.IdTarget}" [id="${encodedName}" label="${encodedLabel}" style="${edgeStyle}" class="${edgeClass}" ${ltail} ${lhead}]`;
-    }
-
     subgraphStatus(sg: IScopeEx): ScopeStatus {
-        const tally: { [id: string]: number } = { "unknown": 0, "started": 0, "completed": 0 };
+        const tally: { [id: string]: number } = { "unknown": 0, "running": 0, "complete": 0 };
         const finalVertices = this.subgraphVertices(sg.name).filter(v => this.vertexInternalOutEdges(v).length === 0);
         finalVertices.forEach(v => ++tally[this.vertexStatus(v)]);
-        if (finalVertices.length && finalVertices.length === tally["completed"]) {
-            return "completed";
-        } else if (tally["started"] || tally["completed"]) {
-            return "started";
+        if (finalVertices.length && finalVertices.length === tally["complete"]) {
+            return "complete";
+        } else if (tally["running"] || tally["complete"]) {
+            return "running";
         }
         return "unknown";
     }
@@ -373,60 +307,114 @@ export class MetricGraph extends Graph2<IScopeEx, IScopeEdge, IScopeEx> {
         return "unknown";
     }
 
-    protected _dedupSubgraphs: { [scopeName: string]: boolean } = {};
-    subgraphTpl(sg: IScopeEx, options: MetricsView): string {
-        if (this._dedupSubgraphs[sg.id]) return "";
-        this._dedupSubgraphs[sg.id] = true;
+    private buildVertex(v: IScopeEx, options: MetricsView, dedup: Set<string>): Graphviz.Node | undefined {
+        if (dedup.has(v.id)) return undefined;
+        dedup.add(v.id);
+        const node: Graphviz.Node = {
+            id: encodeID(v.name),
+            parentID: v.__parentName !== undefined ? encodeID(v.__parentName) : undefined,
+            label: this.vertexLabel(v, options),
+            shape: shape(v),
+            class: this.vertexClass(v),
+        };
+        if (v.type === "function") {
+            node.fillcolor = "";
+            node.style = "";
+        }
+        return node;
+    }
 
-        const encodedId = encodeID(sg.id);
-        const encodedName = encodeID(sg.name);
+    private buildEdge(e: IScopeEdge, options: MetricsView, dedup: Set<string>): Graphviz.Edge | undefined {
+        if (dedup.has(e.id)) return undefined;
+        dedup.add(e.id);
+
+        const sourceVertexName = this._activityIndex[e.IdSource];
+        const targetVertexName = this._activityIndex[e.IdTarget];
+
+        if (options.ignoreGlobalStoreOutEdges && sourceVertexName) {
+            const sourceVertex = this.vertex(sourceVertexName);
+            if (sourceVertex.Kind === "22") {
+                return undefined;
+            }
+        }
+
+        let edgeStyle: Graphviz.EdgeStyle | string = "solid";
+        if (sourceVertexName && targetVertexName) {
+            const sourceParent = this.vertexParent(sourceVertexName);
+            const targetParent = this.vertexParent(targetVertexName);
+            edgeStyle = sourceParent === targetParent ? "solid" : "dashed";
+        }
+
+        const formatData = e.__formattedProps ?
+            Object.assign({}, e, e.__formattedProps) :
+            e;
+
+        const edge: Graphviz.Edge = {
+            id: encodeID(e.name),
+            sourceID: encodeID(sourceVertexName),
+            targetID: encodeID(targetVertexName),
+            label: format(options.edgeTpl, formatData),
+            style: edgeStyle,
+            class: this.edgeStatus(e),
+        };
+
+        if (this.subgraphExists(this._sourceFunc(e))) {
+            edge.ltail = `cluster_${encodeID(sourceVertexName)}`;
+        }
+        if (this.subgraphExists(this._targetFunc(e))) {
+            edge.lhead = `cluster_${encodeID(targetVertexName)}`;
+        }
+
+        return edge;
+    }
+
+    private buildSubgraph(sg: IScopeEx, options: MetricsView, dedup: { vertices: Set<string>, edges: Set<string>, subgraphs: Set<string> }): Graphviz.Cluster | undefined {
+        if (dedup.subgraphs.has(sg.id)) return undefined;
+        dedup.subgraphs.add(sg.id);
+
         const sgType = sg.type;
         const isChild = sgType === "child";
 
-        const childTpls: string[] = [];
-
-        const subgraphs = this.subgraphSubgraphs(sg.name);
-        for (const child of subgraphs) {
-            const childTpl = this.subgraphTpl(child, options);
-            if (childTpl) childTpls.push(childTpl);
-        }
-
-        const sgId = this.id(sg);
-        if (this.vertexExists(sgId)) {
-            childTpls.push(this.hiddenTpl(this.vertex(sgId), options));
-        }
-
-        const vertices = this.subgraphVertices(sg.name);
-        for (const child of vertices) {
-            childTpls.push(this.vertexTpl(child, options));
-        }
-
-        const edges = this.subgraphEdges(sg.name);
-        for (const child of edges) {
-            childTpls.push(this.edgeTpl(child, options));
-        }
-
-        const label = isChild ? "" : encodeLabel(format(sgType === "activity" ? options.activityTpl : options.subgraphTpl, sg));
-
-        return `\
-subgraph cluster_${encodedId} {
-    color="black";
-    fillcolor="white";
-    style="${isChild ? "dashed" : "filled"}";
-    id="${encodedName}";
-    label="${label}";
-    class="${this.subgraphStatus(sg)}";
-
-    ${childTpls.join("\n")}
-
-}`;
+        return {
+            id: encodeID(sg.name),
+            parentID: sg.__parentName !== undefined && sg.__parentName !== "" ? encodeID(sg.__parentName) : undefined,
+            label: isChild ? "" : format(sgType === "activity" ? options.activityTpl : options.subgraphTpl, sg),
+            style: isChild ? "dashed" : "filled",
+            class: this.subgraphStatus(sg),
+        };
     }
 
-    graphTpl(ids: string[] = [], options: MetricsView) {
-        this._dedupSubgraphs = {};
-        this._dedupVertices = {};
-        this._dedupEdges = {};
-        const childTpls: string[] = [];
+    graphData(ids: string[] = [], options: MetricsView): Graphviz.Data {
+        const dedup = { vertices: new Set<string>(), edges: new Set<string>(), subgraphs: new Set<string>() };
+        const vertices: Graphviz.Node[] = [];
+        const edges: Graphviz.Edge[] = [];
+        const subgraphs: Graphviz.Cluster[] = [];
+
+        const collectSubgraph = (sg: IScopeEx) => {
+            const cluster = this.buildSubgraph(sg, options, dedup);
+            if (!cluster) return;
+            subgraphs.push(cluster);
+
+            for (const child of this.subgraphSubgraphs(sg.name)) {
+                collectSubgraph(child);
+            }
+
+            const sgId = this.id(sg);
+            if (this.vertexExists(sgId)) {
+                const v = this.buildVertex(this.vertex(sgId), options, dedup.vertices);
+                if (v) vertices.push(v);
+            }
+
+            for (const child of this.subgraphVertices(sg.name)) {
+                const v = this.buildVertex(child, options, dedup.vertices);
+                if (v) vertices.push(v);
+            }
+
+            for (const child of this.subgraphEdges(sg.name)) {
+                const e = this.buildEdge(child, options, dedup.edges);
+                if (e) edges.push(e);
+            }
+        };
 
         if (ids?.length) {
             const idSet = new Set(ids);
@@ -444,7 +432,7 @@ subgraph cluster_${encodedId} {
                 }
 
                 if (subgraph) {
-                    childTpls.push(this.subgraphTpl(subgraph, options));
+                    collectSubgraph(subgraph);
                 }
             }
 
@@ -462,346 +450,71 @@ subgraph cluster_${encodedId} {
                     if (sourceParentId !== targetParentId &&
                         idSet.has(sourceParentId) &&
                         idSet.has(targetParentId)) {
-                        childTpls.push(this.edgeTpl(edge, options));
+                        const e = this.buildEdge(edge, options, dedup.edges);
+                        if (e) edges.push(e);
                     }
                 }
             }
         } else {
             for (const child of this.subgraphs()) {
-                childTpls.push(this.subgraphTpl(child, options));
+                collectSubgraph(child);
             }
             for (const child of this.vertices()) {
-                childTpls.push(this.vertexTpl(child, options));
+                const v = this.buildVertex(child, options, dedup.vertices);
+                if (v) vertices.push(v);
             }
             for (const child of this.edges()) {
-                childTpls.push(this.edgeTpl(child, options));
+                const e = this.buildEdge(child, options, dedup.edges);
+                if (e) edges.push(e);
             }
         }
 
-        return `\
-digraph G {
-    compound=true;
-    ordering=in;
-    graph [fontname="arial" fillcolor="white" style="filled"];
-    node [fontname="arial" color="black" fillcolor="whitesmoke" style="filled" margin=0.2];
-    edge [];
-
-    ${childTpls.join("\n")}
-
-}`;
+        return {
+            graph: {
+                type: "digraph",
+                compound: true,
+                ordering: "in",
+                graphDefaults: { fontname: "arial", fillcolor: "white", style: "filled" },
+                nodeDefaults: { fontname: "arial", color: "black", fillcolor: "whitesmoke", style: "filled", margin: 0.2 },
+                edgeDefaults: {},
+            },
+            subgraphs,
+            vertices,
+            edges,
+        };
     }
 }
 
-export class Rect {
-
-    left: number;
-    top: number;
-    right: number;
-    bottom: number;
-
-    toStruct() {
-        return { x: this.left, y: this.top, width: this.right - this.left, height: this.bottom - this.top };
-    }
-
-    extend(rect: SVGRect) {
-        if (this.left === undefined || this.left > rect.x) {
-            this.left = rect.x;
-        }
-        if (this.top === undefined || this.top > rect.y + rect.height) {
-            this.top = rect.y + rect.height;
-        }
-        if (this.right === undefined || this.right < rect.x + rect.width) {
-            this.right = rect.x + rect.width;
-        }
-        if (this.bottom === undefined || this.bottom < rect.y) {
-            this.bottom = rect.y;
-        }
-    }
-}
-
-interface GraphvizWorkerResponse {
-    svg: string;
-}
-
-interface GraphvizWorkerError {
-    error: string;
-    errorDot: string;
-}
-
-export function isGraphvizWorkerResponse(response: GraphvizWorkerResponse | GraphvizWorkerError): response is GraphvizWorkerResponse {
-    return (response as GraphvizWorkerResponse).svg !== undefined;
-}
-
-interface GraphvizWorker {
-    terminate: () => void;
-    response: Promise<GraphvizWorkerResponse | GraphvizWorkerError>;
-    svg?: string;
-    error?: string;
-}
-
-export enum LayoutStatus {
-    UNKNOWN,
-    STARTED,
-    LONG_RUNNING,
-    COMPLETED,
-    FAILED
-}
-export function isLayoutComplete(status: LayoutStatus) {
-    return status === LayoutStatus.COMPLETED || status === LayoutStatus.FAILED;
-}
-
-class LayoutCache {
-
-    protected _cache: { [key: string]: GraphvizWorker } = {};
-
-    calcSVG(dot: string): Promise<GraphvizWorkerResponse | GraphvizWorkerError> {
-        const hashDot = hashSum(dot);
-        if (!(hashDot in this._cache)) {
-            this._cache[hashDot] = graphviz(dot, "dot", dojoConfig.urlInfo.fullPath + "/dist") as unknown as GraphvizWorker;
-            this._cache[hashDot].response.then(response => {
-                if (isGraphvizWorkerResponse(response)) {
-                    this._cache[hashDot].svg = response.svg as string;
-                } else {
-                    logger.error(`Invalid DOT:  ${response.error}`);
-                    this._cache[hashDot].error = response.error;
-                }
-            }).catch(e => {
-                logger.error(`Invalid DOT:  ${e}`);
-                this._cache[hashDot].error = e;
-            });
-        }
-        return this._cache[hashDot].response;
-    }
-
-    svg(dot: string) {
-        const hashDot = hashSum(dot);
-        if (hashDot in this._cache) {
-            return this._cache[hashDot].svg;
-        }
-        return "";
-    }
-
-    status(dot: string): LayoutStatus {
-        const hashDot = hashSum(dot);
-        if (!(hashDot in this._cache)) {
-            return LayoutStatus.UNKNOWN;
-        } else if (this._cache[hashDot].svg) {
-            return LayoutStatus.COMPLETED;
-        } else if (this._cache[hashDot].error) {
-            return LayoutStatus.FAILED;
-        }
-        return LayoutStatus.STARTED;
-    }
-
-    isComplete(dot: string): boolean {
-        return isLayoutComplete(this.status(dot));
-    }
-}
-export const layoutCache = new LayoutCache();
-
-export class MetricGraphWidget extends SVGZoomWidget {
-
-    protected _selection: { [id: string]: boolean } = {};
+export class MetricGraphWidget extends Graphviz.Widget {
 
     constructor() {
         super();
-        this._drawStartPos = "origin";
         this.showToolbar(false);
-
-        this._iconBar
-            .buttons([])
-            ;
-    }
-
-    exists(id: string) {
-        return id && !this._renderElement.select(`#${encodeID(id)}`).empty();
-    }
-
-    clearSelection(broadcast: boolean = false) {
-        Object.keys(this._selection).filter(name => !!name).forEach(name => {
-            d3Select(`#${encodeID(name)}`).classed("selected", false);
-        });
-        this._selection = {};
-        this._selectionChanged(broadcast);
-    }
-
-    toggleSelection(id: string, broadcast: boolean = false) {
-        if (this._selection[id]) {
-            delete this._selection[id];
-        } else {
-            this._selection[id] = true;
-        }
-        this._selectionChanged(broadcast);
-    }
-
-    selectionCompare(_: string[]): boolean {
-        const currSelection = this.selection();
-        return currSelection.length !== _.length || _.some(id => currSelection.indexOf(id) < 0);
-    }
-
-    selection(): string[];
-    selection(_: string[]): this;
-    selection(_: string[], broadcast: boolean): this;
-    selection(_?: string[], broadcast: boolean = false): string[] | this {
-        if (!arguments.length) return Object.keys(this._selection);
-        if (this.selectionCompare(_)) {
-            this.clearSelection();
-            _.forEach(id => this._selection[id] = true);
-            this._selectionChanged(broadcast);
-        }
-        return this;
-    }
-
-    itemBBox(scopeID: string) {
-        const rect = new Rect();
-        const elem = this._renderElement.select(`#${encodeID(scopeID)}`);
-        const node = elem.node() as SVGGraphicsElement;
-        if (node) {
-            rect.extend(node.getBBox());
-        }
-
-        const bbox = rect.toStruct();
-        const renderBBox = this._renderElement.node().getBBox();
-        bbox.y += renderBBox.height;
-        return bbox;
-    }
-
-    selectionBBox() {
-        const rect = new Rect();
-        this.selection().filter(sel => !!sel).forEach(sel => {
-            const elem = this._renderElement.select(`#${encodeID(sel)}`);
-            if (elem?.node()) {
-                rect.extend((elem.node() as SVGGraphicsElement).getBBox());
-            }
-        });
-        const bbox = rect.toStruct();
-        const renderBBox = this._renderElement.node().getBBox();
-        bbox.y += renderBBox.height;
-        return bbox;
-    }
-
-    _selectionChanged(broadcast = false) {
-        const context = this;
-        this._renderElement.selectAll(".node,.edge,.cluster")
-            .each(function () {
-                d3Select(this).selectAll("path,polygon,ellipse")
-                    .style("stroke", () => {
-                        return context._selection[decodeID(this.id)] ? "var(--colorBrandForegroundOnLightSelected)" : undefined;
-                    })
-                    .filter(function (this: SVGElement, d, i, nodes) {
-                        return this.tagName !== "path";
-                    })
-                    .style("fill", () => {
-                        return context._selection[decodeID(this.id)] ? "var(--colorBrandBackground2Pressed)" : undefined;
-                    })
-                    ;
-            })
-            ;
-        if (broadcast) {
-            this.selectionChanged();
-        }
-    }
-
-    protected _prevSVG;
-    protected _svg = "";
-    reset() {
-        this._prevSVG = "";
-        return this;
-    }
-
-    svg(): string;
-    svg(_: string): this;
-    svg(_?: string): this | string {
-        if (arguments.length === 0) return this._svg;
-        this._svg = _;
-        return this;
-    }
-
-    centerOnItem(scopeID: string) {
-        this.centerOnBBox(this.itemBBox(scopeID));
-        return this;
-    }
-
-    centerOnSelection(transitionDuration?: number) {
-        this.centerOnBBox(this.selectionBBox(), transitionDuration);
-        return this;
-    }
-
-    zoomToItem(scopeID: string) {
-        this.zoomToBBox(this.itemBBox(scopeID));
-        return this;
-    }
-
-    zoomToSelection(transitionDuration?: number) {
-        this.zoomToBBox(this.selectionBBox(), transitionDuration);
-        return this;
     }
 
     enter(domNode, element) {
         super.enter(domNode, element);
     }
 
-    update(domNode, element) {
-        super.update(domNode, element);
-    }
-
-    exit(domNode, element) {
-        super.exit(domNode, element);
-    }
-
-    async renderSVG(svg: string): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            this._selection = {};
-            const startPos = svg.indexOf("<g id=");
-            const endPos = svg.indexOf("</svg>");
-            this._renderElement.html(svg.substring(startPos, endPos)
-                .replace(/"black"/g, "var(--colorNeutralForeground1)")
-                .replace(/"white"/g, "var(--colorNeutralBackground1)")
-                .replace(/"whitesmoke"/g, "var(--colorNeutralBackground2)")
-            );
-            setTimeout(() => {
-                this
-                    .zoomToFit(0)
-                    ;
-                const context = this;
-                this._renderElement.selectAll(".node,.edge,.cluster")
-                    .on("click", function () {
-                        const event = d3Event();
-                        if (!event.ctrlKey) {
-                            context.clearSelection();
-                        }
-                        context.toggleSelection(decodeID(this.id), true);
-                    })
-                    ;
-                this._renderElement.selectAll(".node.warning,.node.error")
-                    .each(function (this: SVGGElement) {
-                        const thisElement = d3Select(this);
-                        if (thisElement.select("text.warning").empty()) {
-                            const pos = this.getBBox();
-                            thisElement.append("text")
-                                .classed("warning", true)
-                                .attr("x", pos.x + pos.width - 12)
-                                .attr("y", pos.y + 12)
-                                .attr("font-size", "24px")
-                                .style("fill", "var(--colorStatusWarningForeground1)")
-                                .style("stroke", "none")
-                                .text("⚠")
-                                ;
-                        }
-                    })
-                    ;
-                resolve();
-            }, 0);
-        });
-    }
-
     render(callback?: (w: MetricGraphWidget) => void) {
-
         return super.render(async w => {
-            if (this._prevSVG !== this._svg) {
-                this._prevSVG = this._svg;
-                await this.renderSVG(this._svg);
-            }
+            this._renderElement?.selectAll(".node.warning,.node.error")
+                .each(function (this: SVGGElement) {
+                    const thisElement = d3Select(this);
+                    if (thisElement.select("text.warning-icon").empty()) {
+                        const pos = this.getBBox();
+                        thisElement.append("text")
+                            .classed("warning-icon", true)
+                            .attr("x", pos.x + pos.width - 12)
+                            .attr("y", pos.y + 12)
+                            .attr("font-size", "24px")
+                            .style("fill", "var(--colorStatusWarningForeground1)")
+                            .style("stroke", "none")
+                            .text("⚠")
+                            ;
+                    }
+                })
+                ;
             if (callback) {
                 callback(this);
             }
@@ -812,4 +525,3 @@ export class MetricGraphWidget extends SVGZoomWidget {
     selectionChanged() {
     }
 }
-MetricGraphWidget.prototype._class += " eclwatch_MetricGraphWidget";

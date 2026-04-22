@@ -28,7 +28,7 @@
     "dev-start-ws": "ws",
     "dev-start": "run-p bundle-watch dev-start-ws",
     "dev-start-verbose": "ws --verbose.include request response",
-    "rm-hpcc": "rimraf ./node_modules/@hpcc-js",
+    "rm-hpcc": "node -e \"const {readdirSync,rmSync}=require('fs');const d='node_modules/@hpcc-js';readdirSync(d).filter(f=>!f.startsWith('wasm-')).forEach(f=>rmSync(d+'/'+f,{recursive:true,force:true}));\"",
     "start": "ws",
     "test": "npx playwright test",
     "test-dfuworkunits": "npx playwright test tests/v9-dfuworkunits.spec.ts",

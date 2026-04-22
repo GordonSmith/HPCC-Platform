@@ -10,7 +10,7 @@ import { FetchStatus, GLOBAL_FAKE_ID, METRICS_GRAPH_TRACK_SELECTION, MetricsView
 import { useUserStore } from "../hooks/store";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeComponent, AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
-import { isLayoutComplete, LayoutStatus, MetricGraph, MetricGraphWidget } from "../util/metricGraph";
+import { decodeID, encodeID, Graphviz, isLayoutComplete, LayoutStatus, MetricGraph, MetricGraphWidget } from "../util/metricGraph";
 import { ShortVerticalDivider } from "./Common";
 import { BreadcrumbInfo, OverflowBreadcrumb } from "./controls/OverflowBreadcrumb";
 
@@ -57,19 +57,27 @@ export function calcLineage(metricGraph: MetricGraph, selection?: IScope[], lsNa
     return { lineage, lineageSelectionScope };
 }
 
+function graphDataToDot(graphData: Graphviz.Data): string {
+    const store = new Graphviz.Store();
+    store.load(graphData.vertices, graphData.edges, graphData.subgraphs, graphData.graph);
+    const dotWriter = new Graphviz.DotWriter(store);
+    return dotWriter.writeGraph().dot;
+}
+
 export interface MetricGraphData {
     metricGraph: MetricGraph;
     selectedMetrics: IScope[];
     lineage: IScope[];
     lineageSelectionScope: IScope | undefined;
+    graphData: Graphviz.Data;
     dot: string;
-    svg: string;
     layoutStatus: LayoutStatus;
 }
 
 export function useMetricsGraphData(metrics: IScope[], view: MetricsView, lineageSelectionName?: string, selection?: string[]): MetricGraphData {
+    const [graphData, setGraphData] = React.useState<Graphviz.Data>({ vertices: [], edges: [] });
     const [dot, setDot] = React.useState<string>("");
-    const { svg, layoutStatus } = useMetricsGraphLayout(dot);
+    const { layoutStatus } = useMetricsGraphLayout(dot);
     const [lineage, setLineage] = React.useState<IScope[]>([]);
     const [lineageSelectionScope, setLineageSelectionScope] = React.useState<IScope | undefined>(undefined);
 
@@ -84,9 +92,12 @@ export function useMetricsGraphData(metrics: IScope[], view: MetricsView, lineag
     React.useEffect(() => {
         if (metrics.length > 0) {
             metricGraph.load(metrics);
-            setDot(metricGraph.graphTpl(lineageSelectionScopeName ? [lineageSelectionScopeName] : [], view));
+            const data = metricGraph.graphData(lineageSelectionScopeName ? [lineageSelectionScopeName] : [], view);
+            setGraphData(data);
+            setDot(graphDataToDot(data));
         } else {
             metricGraph.clear();
+            setGraphData({ vertices: [], edges: [] });
             setDot("");
         }
     }, [lineageSelectionScopeName, metricGraph, metrics, view]);
@@ -107,7 +118,7 @@ export function useMetricsGraphData(metrics: IScope[], view: MetricsView, lineag
         });
     }, [metricGraph, selectedMetrics, lineageSelectionName]);
 
-    return { metricGraph, selectedMetrics, lineage, lineageSelectionScope, dot, svg, layoutStatus };
+    return { metricGraph, selectedMetrics, lineage, lineageSelectionScope, graphData, dot, layoutStatus };
 }
 
 export interface MetricsGraphProps {
@@ -122,7 +133,7 @@ export interface MetricsGraphProps {
 
 export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
     metrics,
-    metricGraphData: { metricGraph, selectedMetrics, lineage, lineageSelectionScope, svg, layoutStatus },
+    metricGraphData: { metricGraph, selectedMetrics, lineage, lineageSelectionScope, graphData, layoutStatus },
     selection,
     selectedMetricsSource,
     status,
@@ -133,6 +144,7 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
     const [trackSelection, setTrackSelection] = useUserStore(METRICS_GRAPH_TRACK_SELECTION, true);
     const [isRenderComplete, setIsRenderComplete] = React.useState<boolean>(false);
     const [metricGraphWidgetReady, setMetricGraphWidgetReady] = React.useState<boolean>(false);
+    const lastGraphDataRef = React.useRef<Graphviz.Data | null>(null);
 
     // Data ---
     React.useEffect(() => {
@@ -149,8 +161,11 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
     React.useEffect(() => {
         metricGraphWidget
             .on("selectionChanged", () => {
-                const selection = metricGraphWidget.selection().filter(id => metricGraph.item(id)).map(id => metricGraph.item(id).id);
-                onSelectionChange(selection);
+                const widgetSelection = metricGraphWidget.selection()
+                    .map(encodedId => decodeID(encodedId))
+                    .filter(name => metricGraph.item(name))
+                    .map(name => metricGraph.item(name).id);
+                onSelectionChange(widgetSelection);
             }, true)
             ;
     }, [metricGraph, metricGraphWidget, onSelectionChange]);
@@ -158,17 +173,21 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
     React.useEffect(() => {
         let cancelled = false;
         if (metricGraphWidgetReady && isLayoutComplete(layoutStatus)) {
-            const currentSVG = metricGraphWidget.svg();
-            const sameSVG = currentSVG === svg;
+            const sameData = lastGraphDataRef.current === graphData;
             const currentSelection = metricGraphWidget.selection().sort();
-            const newSelection = metrics.filter(m => selection?.indexOf(m.id) >= 0).map(m => m.name).filter(sel => !!sel).sort();
-            const sameSelection = !sameSVG ? false : currentSelection.join() === newSelection.join();
-            if (sameSVG && sameSelection) {
-                setIsRenderComplete(sameSVG);
+            const newSelection = metrics
+                .filter(m => selection?.indexOf(m.id) >= 0)
+                .map(m => encodeID(m.name))
+                .filter(sel => !!sel)
+                .sort();
+            const sameSelection = !sameData ? false : currentSelection.join() === newSelection.join();
+            if (sameData && sameSelection) {
+                setIsRenderComplete(sameData);
                 return;
             }
-            if (!sameSVG) {
-                metricGraphWidget.svg(svg);
+            if (!sameData) {
+                lastGraphDataRef.current = graphData;
+                metricGraphWidget.data(graphData);
             }
             metricGraphWidget
                 .renderPromise()
@@ -179,7 +198,7 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
                             ;
                         if (trackSelection && selectedMetricsSource !== "metricGraphWidget") {
                             if (newSelection.length) {
-                                if (sameSVG) {
+                                if (sameData) {
                                     metricGraphWidget.centerOnSelection(TRANSITION_DURATION);
                                 } else {
                                     metricGraphWidget.zoomToSelection(TRANSITION_DURATION);
@@ -199,7 +218,7 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
         return () => {
             cancelled = true;
         };
-    }, [layoutStatus, metricGraphWidget, metricGraphWidgetReady, metrics, selectedMetrics, selectedMetricsSource, selection, svg, trackSelection]);
+    }, [graphData, layoutStatus, metricGraphWidget, metricGraphWidgetReady, metrics, selectedMetrics, selectedMetricsSource, selection, trackSelection]);
 
     const onReady = React.useCallback(() => {
         setMetricGraphWidgetReady(true);
@@ -211,7 +230,10 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
             key: "selPrev", title: nlsHPCC.PreviousSelection, iconProps: { iconName: "NavigateBack" },
             disabled: selection === undefined || selectedMetricsPtr < 1 || selectedMetricsPtr >= selection.length,
             onClick: () => {
-                metricGraphWidget.centerOnItem(selection[selectedMetricsPtr - 1]);
+                const scopeItem = metrics.find(m => m.id === selection[selectedMetricsPtr - 1]);
+                if (scopeItem) {
+                    metricGraphWidget.centerOnItem(encodeID(scopeItem.name));
+                }
                 setSelectedMetricsPtr(selectedMetricsPtr - 1);
             }
         },
@@ -219,11 +241,14 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
             key: "selNext", title: nlsHPCC.NextSelection, iconProps: { iconName: "NavigateBackMirrored" },
             disabled: selection === undefined || selectedMetricsPtr < 0 || selectedMetricsPtr >= selection.length - 1,
             onClick: () => {
-                metricGraphWidget.centerOnItem(selection[selectedMetricsPtr + 1]);
+                const scopeItem = metrics.find(m => m.id === selection[selectedMetricsPtr + 1]);
+                if (scopeItem) {
+                    metricGraphWidget.centerOnItem(encodeID(scopeItem.name));
+                }
                 setSelectedMetricsPtr(selectedMetricsPtr + 1);
             }
         }
-    ], [metricGraphWidget, selection, selectedMetricsPtr]);
+    ], [metricGraphWidget, metrics, selection, selectedMetricsPtr]);
 
     const graphRightButtons = React.useMemo((): ICommandBarItemProps[] => [
         {
@@ -264,7 +289,6 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
         if (status === FetchStatus.STARTED) {
             return nlsHPCC.FetchingData;
         } else if (status === FetchStatus.COMPLETE && selectedMetrics.length === 0) {
-            // fetch completed but an error occurred or no data available?
             return "";
         } else if (!isLayoutComplete(layoutStatus)) {
             switch (layoutStatus) {
