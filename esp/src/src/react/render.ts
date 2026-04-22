@@ -39,8 +39,9 @@ export class ReactRoot {
     }
 
     dispose(): void {
-        this._root?.unmount();
+        const root = this._root;
         this._root = undefined;
+        setTimeout(() => root?.unmount(), 0);
     }
 
     render<P>(C: React.FunctionComponent<P>, props: Readonly<P>) {
