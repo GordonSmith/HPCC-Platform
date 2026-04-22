@@ -308,8 +308,8 @@ export class MetricGraph extends Graph2<IScopeEx, IScopeEdge, IScopeEx> {
     }
 
     private buildVertex(v: IScopeEx, options: MetricsView, dedup: Set<string>): Graphviz.Node | undefined {
-        if (dedup.has(v.id)) return undefined;
-        dedup.add(v.id);
+        if (dedup.has(v.name)) return undefined;
+        dedup.add(v.name);
         const node: Graphviz.Node = {
             id: encodeID(v.name),
             parentID: v.__parentName !== undefined ? encodeID(v.__parentName) : undefined,
