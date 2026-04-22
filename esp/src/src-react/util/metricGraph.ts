@@ -402,7 +402,10 @@ export class MetricGraph extends Graph2<IScopeEx, IScopeEdge, IScopeEx> {
             const sgId = this.id(sg);
             if (this.vertexExists(sgId)) {
                 const v = this.buildVertex(this.vertex(sgId), options, dedup.vertices);
-                if (v) vertices.push(v);
+                if (v) {
+                    v.parentID = encodeID(sg.name);
+                    vertices.push(v);
+                }
             }
 
             for (const child of this.subgraphVertices(sg.name)) {
