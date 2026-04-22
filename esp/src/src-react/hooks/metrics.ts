@@ -472,6 +472,13 @@ export function useWorkunitMetrics(
                     if (row.id === "") {
                         row.id = GLOBAL_FAKE_ID;
                     }
+                    if (row.type === "function") {
+                        const parentIdEndIdx = row.name.lastIndexOf(":");
+                        const parentIdStartIdx = row.name.lastIndexOf(":", parentIdEndIdx - 1);
+                        const parentId = parentIdStartIdx > 0 ? row.name.substring(parentIdStartIdx + 1, parentIdEndIdx) : "";
+                        row.id = parentId + "_" + row.name.substring(parentIdEndIdx + 1);
+                        row.__groupedProps["id"].Value = row.id;
+                    }
                     return row;
                 }));
                 setColumns(response?.columns);

@@ -318,8 +318,8 @@ export class MetricGraph extends Graph2<IScopeEx, IScopeEdge, IScopeEx> {
             class: this.vertexClass(v),
         };
         if (v.type === "function") {
-            node.fillcolor = "";
-            node.style = "";
+            node.color = "none";
+            node.fillcolor = "none";
         }
         return node;
     }
