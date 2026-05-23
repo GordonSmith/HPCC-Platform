@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ICommandBarItemProps, SelectionMode } from "@fluentui/react";
+import { SelectionMode } from "@fluentui/react";
+import { CommandBar, ICommandBarItemProps } from "./CommandBarV9";
 import { Checkbox, Link } from "@fluentui/react-components";
 import { SizeMe } from "../layouts/SizeMe";
 import { formatCost, formatTwoDigits } from "src/Session";

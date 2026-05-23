@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon } from "@fluentui/react";
+import { Icon } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { Link } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import * as WsDfu from "src/WsDfu";

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, IDropdownOption, ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
+import { IDropdownOption, ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { mergeStyleSets } from "@fluentui/style-utilities";
 import nlsHPCC from "src/nlsHPCC";
 import { DPWorkunit } from "src/DataPatterns/DPWorkunit";

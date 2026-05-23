@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
+import { ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { Button, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { DFUService, WsDfu } from "@hpcc-js/comms";

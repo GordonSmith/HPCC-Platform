@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, mergeStyles, registerIcons, ScrollablePane, ScrollbarVisibility } from "@fluentui/react";
+import { mergeStyles, registerIcons, ScrollablePane, ScrollbarVisibility } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { Button, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";

@@ -69,7 +69,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
     if (item.subMenuProps) {
         return <Menu key={item.key}>
             <MenuTrigger disableButtonEnhancement>
-                <ToolbarButton role="menuitem" icon={icon} disabled={item.disabled} title={title}>{label}</ToolbarButton>
+                <ToolbarButton role="menuitem" icon={icon} disabled={item.disabled} disabledFocusable={item.disabled} title={title}>{label}</ToolbarButton>
             </MenuTrigger>
             <MenuPopover>
                 <MenuList>
@@ -87,6 +87,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
             role="menuitem"
             icon={icon}
             disabled={item.disabled}
+            disabledFocusable={item.disabled}
             title={title}
             appearance={item.checked ? "primary" : undefined}
             onClick={item.onClick as any}
@@ -102,6 +103,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
             href={item.href}
             icon={icon}
             disabled={item.disabled}
+            disabledFocusable={item.disabled}
             title={title}
         >
             {label}
@@ -112,6 +114,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
         role="menuitem"
         icon={icon}
         disabled={item.disabled}
+        disabledFocusable={item.disabled}
         title={title}
         onClick={item.onClick as any}
     >
