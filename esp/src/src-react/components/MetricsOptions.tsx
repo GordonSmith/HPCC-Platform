@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DefaultButton, PrimaryButton, SelectionMode, Selection } from "@fluentui/react";
+import { SelectionMode, Selection } from "@fluentui/react";
 import { useConst, useForceUpdate } from "@fluentui/react-hooks";
 import { Button, Checkbox, Dropdown, Field, Input, Option, SelectTabData, SelectTabEvent, Tab, TabList, Textarea, makeStyles } from "@fluentui/react-components";
 import { BookmarkAddRegular, DeleteRegular, RenameRegular } from "@fluentui/react-icons";
@@ -147,18 +147,17 @@ export const AddLabel: React.FunctionComponent<AddLabelProps> = ({
 
     return <MessageBox title={title} show={show} setShow={setShow} minWidth={width}
         footer={<>
-            <PrimaryButton text={nlsHPCC.OK} disabled={!label} onClick={() => {
+            <Button appearance="primary" disabled={!label} onClick={() => {
                 onOk(label);
                 setShow(false);
             }}
-            />
-            <DefaultButton
-                text={nlsHPCC.Cancel}
+            >{nlsHPCC.OK}</Button>
+            <Button
                 onClick={() => {
                     setLabel("");
                     setShow(false);
                 }}
-            />
+            >{nlsHPCC.Cancel}</Button>
         </>}>
         <Field label={nlsHPCC.Label}>
             <Input value={label} onChange={onChangeAddLabel} />
@@ -222,27 +221,25 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
     return <>
         <MessageBox title={nlsHPCC.Options} show={show && !showAdd && !showRename && !showDeleteConfirm} setShow={setShow} minWidth={width}
             footer={<>
-                <PrimaryButton
-                    text={nlsHPCC.OK}
+                <Button
+                    appearance="primary"
                     onClick={() => {
                         updateView(dirtyView);
                         save();
                         closeOptions();
                     }}
-                />
-                <DefaultButton
-                    text={nlsHPCC.Cancel}
+                >{nlsHPCC.OK}</Button>
+                <Button
                     onClick={() => {
                         setDirtyView(clone(view));
                         closeOptions();
                     }}
-                />
-                <DefaultButton
-                    text={nlsHPCC.Reset}
+                >{nlsHPCC.Cancel}</Button>
+                <Button
                     onClick={() => {
                         resetView(true);
                     }}
-                />
+                >{nlsHPCC.Reset}</Button>
             </>}>
             <>
                 <div style={{ display: "flex", flexDirection: "row" }}>
@@ -351,13 +348,13 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
         <AddLabel show={showRename} setShow={setShowRename} defaultLabel={viewId} title={nlsHPCC.Rename} onOk={onRenameLabel} />
         <MessageBox title={nlsHPCC.Delete} show={showDeleteConfirm} setShow={setShowDeleteConfirm} minWidth={width}
             footer={<>
-                <PrimaryButton text={nlsHPCC.Delete} onClick={() => {
+                <Button appearance="primary" onClick={() => {
                     deleteView(viewId);
                     setShowDeleteConfirm(false);
-                }} />
-                <DefaultButton text={nlsHPCC.Cancel} onClick={() => {
+                }}>{nlsHPCC.Delete}</Button>
+                <Button onClick={() => {
                     setShowDeleteConfirm(false);
-                }} />
+                }}>{nlsHPCC.Cancel}</Button>
             </>}>
             {nlsHPCC.ConfirmRemoval}
         </MessageBox>
