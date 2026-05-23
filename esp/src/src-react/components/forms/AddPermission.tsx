@@ -1,5 +1,5 @@
 import * as React from "react";
-import { IDropdownOption } from "@fluentui/react";
+import { IDropdownOption } from "./Fields";
 import { Button, Field, Input, MessageBar, MessageBarActions, MessageBarBody, Spinner } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { IDropdownOption } from "@fluentui/react";
+import { IDropdownOption } from "./Fields";
 import { Button, Checkbox, Dropdown, Field, Input, Option, Spinner, Textarea } from "@fluentui/react-components";
 import { useForm, Controller } from "react-hook-form";
 import { FileSprayService } from "@hpcc-js/comms";
