@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Checkbox, DefaultButton, PrimaryButton, Spinner, TextField, } from "@fluentui/react";
+import { Checkbox, DefaultButton, PrimaryButton, TextField, } from "@fluentui/react";
+import { Spinner } from "@fluentui/react-components";
 import { AccessService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -79,7 +80,7 @@ export const AddGroupResourceForm: React.FunctionComponent<AddGroupResourceFormP
 
     return <MessageBox show={showForm} setShow={closeForm} title={nlsHPCC.AddGroup} minWidth={400}
         footer={<>
-            <Spinner label={nlsHPCC.Loading} labelPosition="right" style={{ display: spinnerHidden ? "none" : "inherit" }} />
+            <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
             <PrimaryButton text={nlsHPCC.Add} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
             <DefaultButton text={nlsHPCC.Cancel} onClick={() => { reset(defaultValues); closeForm(); }} />
         </>}>

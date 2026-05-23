@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Checkbox, DefaultButton, mergeStyleSets, PrimaryButton, Spinner, TextField, } from "@fluentui/react";
+import { Checkbox, DefaultButton, mergeStyleSets, PrimaryButton, TextField, } from "@fluentui/react";
+import { Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useConst } from "@fluentui/react-hooks";
 import { useForm, Controller } from "react-hook-form";
@@ -123,7 +124,7 @@ export const RenameFile: React.FunctionComponent<RenameFileProps> = ({
 
     return <MessageBox title={nlsHPCC.Rename} show={showForm} setShow={closeForm}
         footer={<>
-            <Spinner label={nlsHPCC.Loading} labelPosition="right" style={{ display: spinnerHidden ? "none" : "inherit" }} />
+            <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
             <PrimaryButton text={nlsHPCC.Rename} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
             <DefaultButton text={nlsHPCC.Cancel} onClick={() => closeForm()} />
         </>}>

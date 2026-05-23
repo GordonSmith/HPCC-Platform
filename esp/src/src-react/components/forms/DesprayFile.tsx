@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Checkbox, DefaultButton, IDropdownOption, mergeStyleSets, PrimaryButton, Spinner, TextField, } from "@fluentui/react";
+import { Checkbox, DefaultButton, IDropdownOption, mergeStyleSets, PrimaryButton, TextField, } from "@fluentui/react";
+import { Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { FileSpray, FileSprayService } from "@hpcc-js/comms";
@@ -145,7 +146,7 @@ export const DesprayFile: React.FunctionComponent<DesprayFileProps> = ({
 
     return <MessageBox title={nlsHPCC.Despray} show={showForm} setShow={closeForm}
         footer={<>
-            <Spinner label={nlsHPCC.Loading} labelPosition="right" style={{ display: spinnerHidden ? "none" : "inherit" }} />
+            <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
             <PrimaryButton text={nlsHPCC.Despray} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
             <DefaultButton text={nlsHPCC.Cancel} onClick={() => closeForm()} />
         </>}>

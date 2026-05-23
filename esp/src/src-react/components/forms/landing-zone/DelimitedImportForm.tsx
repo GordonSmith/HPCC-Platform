@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Checkbox, DefaultButton, Dropdown, IDropdownOption, mergeStyleSets, PrimaryButton, Spinner, TextField, TooltipHost } from "@fluentui/react";
+import { Checkbox, DefaultButton, Dropdown, IDropdownOption, mergeStyleSets, PrimaryButton, TextField, TooltipHost } from "@fluentui/react";
+import { Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -180,7 +181,7 @@ export const DelimitedImportForm: React.FunctionComponent<DelimitedImportFormPro
 
     return <MessageBox title={nlsHPCC.Import} show={showForm} setShow={closeForm}
         footer={<>
-            <Spinner label={nlsHPCC.Loading} labelPosition="right" style={{ display: spinnerHidden ? "none" : "inherit" }} />
+            <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
             <PrimaryButton text={nlsHPCC.Import} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
             <DefaultButton text={nlsHPCC.Cancel} onClick={() => closeForm()} />
         </>}>

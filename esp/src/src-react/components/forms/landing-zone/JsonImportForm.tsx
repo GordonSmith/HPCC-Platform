@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Checkbox, DefaultButton, Dropdown, IDropdownOption, mergeStyleSets, PrimaryButton, Spinner, TextField, TooltipHost } from "@fluentui/react";
+import { Checkbox, DefaultButton, Dropdown, IDropdownOption, mergeStyleSets, PrimaryButton, TextField, TooltipHost } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
-import { makeStyles } from "@fluentui/react-components";
+import { makeStyles, Spinner } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import * as FileSpray from "src/FileSpray";
@@ -178,7 +178,7 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
 
     return <MessageBox title={nlsHPCC.Import} show={showForm} setShow={closeForm}
         footer={<>
-            <Spinner label={nlsHPCC.Loading} labelPosition="right" className={spinnerHidden ? classes.spinnerHidden : classes.spinner} />
+            <Spinner label={nlsHPCC.Loading} labelPosition="after" className={spinnerHidden ? classes.spinnerHidden : classes.spinner} />
             <PrimaryButton text={nlsHPCC.Import} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
             <DefaultButton text={nlsHPCC.Cancel} onClick={() => closeForm()} />
         </>}>

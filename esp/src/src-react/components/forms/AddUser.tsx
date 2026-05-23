@@ -1,5 +1,6 @@
 import * as React from "react";
-import { DefaultButton, MessageBar, MessageBarType, PrimaryButton, Spinner, TextField, } from "@fluentui/react";
+import { DefaultButton, MessageBar, MessageBarType, PrimaryButton, TextField, } from "@fluentui/react";
+import { Spinner } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -86,7 +87,7 @@ export const AddUserForm: React.FunctionComponent<AddUserFormProps> = ({
 
     return <MessageBox show={showForm} setShow={closeForm} title={nlsHPCC.AddUser} minWidth={400}
         footer={<>
-            <Spinner label={nlsHPCC.Loading} labelPosition="right" style={{ display: spinnerHidden ? "none" : "inherit" }} />
+            <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
             <PrimaryButton text={nlsHPCC.Add} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
             <DefaultButton text={nlsHPCC.Cancel} onClick={() => { reset(defaultValues); closeForm(); }} />
         </>}>

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Checkbox, DefaultButton, PrimaryButton, Spinner, TextField, } from "@fluentui/react";
+import { Checkbox, DefaultButton, PrimaryButton, TextField, } from "@fluentui/react";
+import { Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
@@ -91,7 +92,7 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
 
     return <MessageBox title={nlsHPCC.AddProcessMap} show={showForm} setShow={closeForm}
         footer={<>
-            <Spinner label={nlsHPCC.Loading} labelPosition="right" style={{ display: spinnerHidden ? "none" : "inherit" }} />
+            <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
             <PrimaryButton text={nlsHPCC.Submit} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
             <DefaultButton text={nlsHPCC.Cancel} onClick={() => closeForm()} />
         </>}>

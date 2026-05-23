@@ -1,5 +1,6 @@
 import * as React from "react";
-import { DefaultButton, IDropdownOption, PrimaryButton, Spinner, TextField, } from "@fluentui/react";
+import { DefaultButton, IDropdownOption, PrimaryButton, TextField, } from "@fluentui/react";
+import { Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -71,7 +72,7 @@ export const ReplicateFile: React.FunctionComponent<ReplicateFileProps> = ({
 
     return <MessageBox title={nlsHPCC.Rename} show={showForm} setShow={closeForm}
         footer={<>
-            <Spinner label={nlsHPCC.Loading} labelPosition="right" style={{ display: spinnerHidden ? "none" : "inherit" }} />
+            <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
             <PrimaryButton text={nlsHPCC.Replicate} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
             <DefaultButton text={nlsHPCC.Cancel} onClick={() => closeForm()} />
         </>}>

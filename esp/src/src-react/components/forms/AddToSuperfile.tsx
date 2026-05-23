@@ -1,5 +1,6 @@
 import * as React from "react";
-import { ChoiceGroup, DefaultButton, mergeStyleSets, PrimaryButton, Spinner, TextField, } from "@fluentui/react";
+import { ChoiceGroup, DefaultButton, mergeStyleSets, PrimaryButton, TextField, } from "@fluentui/react";
+import { Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
@@ -90,7 +91,7 @@ export const AddToSuperfile: React.FunctionComponent<AddToSuperfileProps> = ({
 
     return <MessageBox title={nlsHPCC.AddToSuperfile} show={showForm} setShow={closeForm}
         footer={<>
-            <Spinner label={nlsHPCC.Loading} labelPosition="right" style={{ display: spinnerHidden ? "none" : "inherit" }} />
+            <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
             <PrimaryButton text={nlsHPCC.Add} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
             <DefaultButton text={nlsHPCC.Cancel} onClick={() => closeForm()} />
         </>}>
