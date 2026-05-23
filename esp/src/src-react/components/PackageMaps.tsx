@@ -1,5 +1,5 @@
 import * as React from "react";
-import { IDropdownOption } from "@fluentui/react";
+import { IDropdownOption } from "./forms/Fields";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Button, Dropdown, Label, Link, MessageBar, MessageBarActions, MessageBarBody, Option, makeStyles, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";

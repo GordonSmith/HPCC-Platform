@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Button, Checkbox, Field, Input } from "@fluentui/react-components";
-import { IDropdownOption } from "@fluentui/react";
+import { IDropdownOption } from "./Fields";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { DPWorkunit } from "src/DataPatterns/DPWorkunit";

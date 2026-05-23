@@ -1,5 +1,5 @@
 import * as React from "react";
-import { IDropdownOption } from "@fluentui/react";
+import { IDropdownOption } from "./Fields";
 import { Button, Field, Input, Spinner } from "@fluentui/react-components";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
