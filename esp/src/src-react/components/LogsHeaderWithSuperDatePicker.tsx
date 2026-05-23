@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ICommandBarItemProps, CommandBarButton, useTheme } from "@fluentui/react";
+import { CommandBarButton, useTheme } from "@fluentui/react";
+import { CommandBar, ICommandBarItemProps } from "./CommandBarV9";
 import nlsHPCC from "src/nlsHPCC";
 import { SuperDatePicker, DateRange } from "./forms/Fields";
 
