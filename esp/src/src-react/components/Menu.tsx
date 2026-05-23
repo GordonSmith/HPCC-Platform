@@ -1,7 +1,6 @@
 import * as React from "react";
-import { IconButton, IContextualMenuItem } from "@fluentui/react";
 import { mergeStyleSets } from "@fluentui/style-utilities";
-import { Link, ToggleButton, makeStyles, tokens } from "@fluentui/react-components";
+import { Button, Link, Menu, MenuItem, MenuList, MenuPopover, MenuTrigger, SplitButton, ToggleButton, makeStyles, tokens } from "@fluentui/react-components";
 import { NavDrawer, NavDrawerBody, NavDrawerFooter, NavItem } from "@fluentui/react-nav-preview";
 import {
     Home20Filled, Home20Regular, TextGrammarLightning20Filled, TextGrammarLightning20Regular,
@@ -10,13 +9,15 @@ import {
     Organization20Filled, Organization20Regular,
     ShieldBadge20Filled, ShieldBadge20Regular,
     WeatherSunnyRegular, WeatherMoonRegular,
+    ChevronLeft20Regular, ChevronRight20Regular,
+    History20Regular, Star20Filled, Star20Regular,
     bundleIcon, FluentIcon
 } from "@fluentui/react-icons";
 import nlsHPCC from "src/nlsHPCC";
 import { containerized, bare_metal } from "src/BuildInfo";
 import { navCategory } from "../util/history";
 import { MainNav, routes } from "../routes";
-import { useFavorite, useFavorites, useHistory } from "../hooks/favorite";
+import { useFavorite, useFavorites, useHistory, HistoryItem } from "../hooks/favorite";
 import { useLogAccessInfo } from "../hooks/platform";
 import { useSessionStore } from "../hooks/store";
 import { useUserTheme } from "../hooks/theme";
@@ -369,7 +370,6 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
     hashPath
 }) => {
 
-    const { theme, themeV9 } = useUserTheme();
     const { isAdmin } = useMyAccount();
     const envHasAuth = useCheckEnvAuthType();
 
@@ -397,8 +397,8 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
             marginLeft: 4,
         },
         link: {
-            background: theme.semanticColors.buttonBackground,
-            color: theme.semanticColors.buttonText,
+            background: tokens.colorNeutralBackground1,
+            color: tokens.colorNeutralForeground1,
             display: "inline-block",
             margin: 2,
             padding: "0 10px",
@@ -406,47 +406,47 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
             textDecoration: "none",
             selectors: {
                 ":hover": {
-                    background: theme.palette.themePrimary,
-                    color: theme.palette.white,
+                    background: tokens.colorBrandBackground,
+                    color: tokens.colorNeutralBackground1,
                     textDecoration: "none",
                 },
                 ":focus": {
-                    color: theme.semanticColors.buttonText
+                    color: tokens.colorNeutralForeground1
                 },
                 ":active": {
-                    color: theme.semanticColors.buttonText,
+                    color: tokens.colorNeutralForeground1,
                     textDecoration: "none"
                 },
                 ":focus:hover": {
-                    color: theme.palette.white,
+                    color: tokens.colorNeutralBackground1,
                 },
                 ":active:hover": {
-                    color: theme.palette.white,
+                    color: tokens.colorNeutralBackground1,
                     textDecoration: "none"
                 }
             }
         },
         active: {
-            background: theme.palette.themePrimary,
-            color: theme.palette.white,
+            background: tokens.colorBrandBackground,
+            color: tokens.colorNeutralBackground1,
             selectors: {
                 ":focus": {
-                    color: theme.palette.white
+                    color: tokens.colorNeutralBackground1
                 }
             }
         }
-    }), [theme]);
+    }), []);
 
     const { logsEnabled, logsStatusMessage } = useLogAccessInfo();
     const linkStyle = React.useCallback((disabled) => {
         return disabled ? {
-            background: themeV9.colorNeutralBackgroundDisabled,
-            color: themeV9.colorNeutralForegroundDisabled
+            background: tokens.colorNeutralBackgroundDisabled,
+            color: tokens.colorNeutralForegroundDisabled
         } : {};
-    }, [themeV9]);
+    }, []);
 
-    const favoriteMenu: IContextualMenuItem[] = React.useMemo(() => {
-        const retVal: IContextualMenuItem[] = [];
+    const favoriteMenu: HistoryItem[] = React.useMemo(() => {
+        const retVal: HistoryItem[] = [];
         for (const key in favorites) {
             retVal.push({
                 name: decodeURI(key),
@@ -457,7 +457,15 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
         return retVal;
     }, [favorites]);
 
-    return <div style={{ backgroundColor: theme.palette.themeLighter }}>
+    const onToggleFavorite = React.useCallback(() => {
+        if (isFavorite) {
+            removeFavorite();
+        } else {
+            addFavorite();
+        }
+    }, [isFavorite, addFavorite, removeFavorite]);
+
+    return <div style={{ backgroundColor: tokens.colorBrandBackground2 }}>
         <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between" }}>
             <div style={{ alignSelf: "center", flexGrow: 1 }}>
                 <div style={{ display: "flex", flexDirection: "row" }}>
@@ -495,24 +503,49 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
                 </div>
             </div>
             <div style={{ alignSelf: "center" }}>
-                {nextPrev?.next && <IconButton title={nlsHPCC.NextWorkunit} iconProps={{ iconName: "Movers" }} onClick={() => nextPrev.next()} />}
-                {nextPrev?.previous && <IconButton title={nlsHPCC.PreviousWorkunit} iconProps={{ iconName: "Sell" }} onClick={() => nextPrev.previous()} />}
-                <IconButton title={nlsHPCC.History} iconProps={{ iconName: "History" }} menuProps={{ items: history }} />
-                <IconButton
-                    title={isFavorite ? nlsHPCC.RemoveFromFavorites : nlsHPCC.AddToFavorites}
-                    iconProps={{ iconName: isFavorite ? "FavoriteStarFill" : "FavoriteStar" }}
-                    menuProps={favoriteCount ? { items: favoriteMenu } : null}
-                    split={favoriteCount > 0}
-                    splitButtonAriaLabel={nlsHPCC.Favorites}
-                    onClick={() => {
-                        if (isFavorite) {
-                            removeFavorite();
-                        } else {
-                            addFavorite();
-                        }
-                    }}
-                    styles={{ splitButtonMenuButton: { backgroundColor: theme.palette.themeLighter, border: "none" } }}
-                />
+                {nextPrev?.next && <Button appearance="transparent" title={nlsHPCC.NextWorkunit} icon={<ChevronRight20Regular />} onClick={() => nextPrev.next()} />}
+                {nextPrev?.previous && <Button appearance="transparent" title={nlsHPCC.PreviousWorkunit} icon={<ChevronLeft20Regular />} onClick={() => nextPrev.previous()} />}
+                <Menu>
+                    <MenuTrigger disableButtonEnhancement>
+                        <Button appearance="transparent" title={nlsHPCC.History} icon={<History20Regular />} />
+                    </MenuTrigger>
+                    <MenuPopover>
+                        <MenuList>
+                            {history.map(item => (
+                                <MenuItem key={item.key} onClick={() => { window.location.href = item.href; }}>{item.name}</MenuItem>
+                            ))}
+                        </MenuList>
+                    </MenuPopover>
+                </Menu>
+                {favoriteCount > 0 ? (
+                    <Menu>
+                        <MenuTrigger disableButtonEnhancement>
+                            {(triggerProps: any) => (
+                                <SplitButton
+                                    appearance="transparent"
+                                    title={isFavorite ? nlsHPCC.RemoveFromFavorites : nlsHPCC.AddToFavorites}
+                                    icon={isFavorite ? <Star20Filled /> : <Star20Regular />}
+                                    menuButton={triggerProps}
+                                    primaryActionButton={{ onClick: onToggleFavorite, "aria-label": nlsHPCC.Favorites }}
+                                />
+                            )}
+                        </MenuTrigger>
+                        <MenuPopover>
+                            <MenuList>
+                                {favoriteMenu.map(item => (
+                                    <MenuItem key={item.key} onClick={() => { window.location.href = item.href; }}>{item.name}</MenuItem>
+                                ))}
+                            </MenuList>
+                        </MenuPopover>
+                    </Menu>
+                ) : (
+                    <Button
+                        appearance="transparent"
+                        title={isFavorite ? nlsHPCC.RemoveFromFavorites : nlsHPCC.AddToFavorites}
+                        icon={isFavorite ? <Star20Filled /> : <Star20Regular />}
+                        onClick={onToggleFavorite}
+                    />
+                )}
             </div>
         </div>
     </div>;
