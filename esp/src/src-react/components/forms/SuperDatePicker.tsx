@@ -1,6 +1,6 @@
 import * as React from "react";
-import { CommandBarButton, Text, DefaultButton, PrimaryButton, IButtonStyles, FontWeights, useTheme, Icon } from "@fluentui/react";
-import { Divider, Popover, PopoverTrigger, PopoverSurface } from "@fluentui/react-components";
+import { CommandBarButton, Text, IButtonStyles, FontWeights, useTheme, Icon } from "@fluentui/react";
+import { Divider, Popover, PopoverTrigger, PopoverSurface, Button } from "@fluentui/react-components";
 import nlsHPCC from "src/nlsHPCC";
 import { DateTimeInput } from "./Fields";
 
@@ -243,19 +243,11 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                         </Text>
                         <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px" }}>
                             {defaultQuickOptions.map((option) => (
-                                <DefaultButton
+                                <Button
                                     key={option.value}
-                                    text={option.label}
                                     onClick={() => handleQuickSelect(option)}
-                                    styles={{
-                                        root: {
-                                            fontSize: "12px",
-                                            height: "28px",
-                                            minWidth: "auto",
-                                            padding: "0 12px"
-                                        }
-                                    }}
-                                />
+                                    style={{ fontSize: "12px", height: "28px", minWidth: "auto", padding: "0 12px" }}
+                                >{option.label}</Button>
                             ))}
                         </div>
                     </div>
@@ -291,21 +283,18 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                                 </Text>
                                 <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px" }}>
                                     {autoRefreshOptions.map((option) => (
-                                        <DefaultButton
+                                        <Button
                                             key={option.value}
-                                            text={option.label}
                                             onClick={() => handleAutoRefreshIntervalChange(option.value)}
-                                            styles={{
-                                                root: {
-                                                    fontSize: "12px",
-                                                    height: "28px",
-                                                    minWidth: "auto",
-                                                    padding: "0 12px",
-                                                    backgroundColor: autoRefreshInterval === option.value ? theme.palette.themeLighter : undefined,
-                                                    borderColor: autoRefreshInterval === option.value ? theme.palette.themePrimary : undefined
-                                                }
+                                            style={{
+                                                fontSize: "12px",
+                                                height: "28px",
+                                                minWidth: "auto",
+                                                padding: "0 12px",
+                                                backgroundColor: autoRefreshInterval === option.value ? theme.palette.themeLighter : undefined,
+                                                borderColor: autoRefreshInterval === option.value ? theme.palette.themePrimary : undefined
                                             }}
-                                        />
+                                        >{option.label}</Button>
                                     ))}
                                 </div>
                             </div>
@@ -313,8 +302,8 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                     )}
 
                     <div style={{ display: "flex", flexDirection: "row", justifyContent: "flex-end", gap: "8px" }}>
-                        <DefaultButton text={nlsHPCC.Cancel} onClick={() => setIsCalloutVisible(false)} />
-                        <PrimaryButton text={nlsHPCC.Apply} onClick={handleCustomDateApply} />
+                        <Button onClick={() => setIsCalloutVisible(false)}>{nlsHPCC.Cancel}</Button>
+                        <Button appearance="primary" onClick={handleCustomDateApply}>{nlsHPCC.Apply}</Button>
                     </div>
                 </div>
             </PopoverSurface>
