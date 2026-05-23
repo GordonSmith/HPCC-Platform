@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, makeStyles } from "@fluentui/react-components";
-import { MessageBar, MessageBarType } from "@fluentui/react";
+import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, MessageBar, MessageBarActions, MessageBarBody, makeStyles } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { useConst } from "@fluentui/react-hooks";
 import { AccountService, WsAccount } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -78,8 +78,9 @@ export const MyAccount: React.FunctionComponent<MyAccountProps> = ({
                 <DialogTitle>{currentUser?.username}</DialogTitle>
                 <DialogContent>
                     {showError &&
-                        <MessageBar messageBarType={MessageBarType.error} isMultiline={true} onDismiss={() => setShowError(false)} dismissButtonAriaLabel="Close">
-                            {errorMessage}
+                        <MessageBar intent="error">
+                            <MessageBarBody>{errorMessage}</MessageBarBody>
+                            <MessageBarActions containerAction={<Button onClick={() => setShowError(false)} aria-label="Close" appearance="transparent" icon={<DismissRegular />} />} />
                         </MessageBar>
                     }
                     <TableGroup fields={{

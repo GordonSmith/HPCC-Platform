@@ -1,5 +1,7 @@
 import * as React from "react";
-import { mergeStyleSets, MessageBar, MessageBarType, TextField } from "@fluentui/react";
+import { mergeStyleSets, TextField } from "@fluentui/react";
+import { Button, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { useUserSession } from "../../hooks/user";
@@ -199,10 +201,9 @@ export const Login: React.FunctionComponent<LoginProps> = ({
                     />
                     {showError &&
                         <div style={{ marginTop: 16 }}>
-                            <MessageBar
-                                messageBarType={MessageBarType.error} isMultiline={true}
-                                onDismiss={() => setShowError(false)} dismissButtonAriaLabel="Close">
-                                {errorMessage}
+                            <MessageBar intent="error">
+                                <MessageBarBody>{errorMessage}</MessageBarBody>
+                                <MessageBarActions containerAction={<Button onClick={() => setShowError(false)} aria-label="Close" appearance="transparent" icon={<DismissRegular />} />} />
                             </MessageBar>
                         </div>
                     }

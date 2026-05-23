@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Checkbox, CommandBar, ContextualMenuItemType, ICommandBarItemProps, MessageBar, MessageBarType, SpinButton } from "@fluentui/react";
-import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, Spinner } from "@fluentui/react-components";
+import { Checkbox, CommandBar, ContextualMenuItemType, ICommandBarItemProps, SpinButton } from "@fluentui/react";
+import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent, Spinner } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useConst } from "@fluentui/react-hooks";
 import { Result as CommsResult, XSDXMLNode } from "@hpcc-js/comms";
@@ -226,7 +227,7 @@ function doDownload(opts: doDownloadOpts) {
 }
 
 interface MessageBarContent {
-    type: MessageBarType;
+    type: MessageBarIntent;
     message: string;
 }
 
@@ -302,7 +303,7 @@ export const Result: React.FunctionComponent<ResultProps> = ({
         }).catch(err => {
             logger.error(err);
             setEspReturnedError(true);
-            setMessageBarContent({ type: MessageBarType.error, message: `${nlsHPCC.Error} ${nlsHPCC.fetchingresults}` });
+            setMessageBarContent({ type: "error", message: `${nlsHPCC.Error} ${nlsHPCC.fetchingresults}` });
             setLoading(false);
             if (err.message.indexOf("Cannot open the workunit result") > -1) {
                 replaceUrl(`/workunits/${wuid}/outputs/`);
@@ -326,9 +327,9 @@ export const Result: React.FunctionComponent<ResultProps> = ({
     React.useEffect(() => {
         if (logicalFile) {
             if (hasEcl === false) {
-                setMessageBarContent({ type: MessageBarType.warning, message: nlsHPCC.ECLLayoutNotAvailable });
+                setMessageBarContent({ type: "warning", message: nlsHPCC.ECLLayoutNotAvailable });
             } else {
-                if (messageBarContent?.type === MessageBarType.warning && messageBarContent?.message === nlsHPCC.ECLLayoutNotAvailable) {
+                if (messageBarContent?.type === "warning" && messageBarContent?.message === nlsHPCC.ECLLayoutNotAvailable) {
                     setMessageBarContent(undefined);
                 }
             }
@@ -411,8 +412,9 @@ export const Result: React.FunctionComponent<ResultProps> = ({
         header={<>
             <CommandBar items={buttons} farItems={rightButtons} />
             {messageBarContent &&
-                <MessageBar messageBarType={messageBarContent.type} dismissButtonAriaLabel={nlsHPCC.Close} onDismiss={dismissMessageBar} >
-                    {messageBarContent.message}
+                <MessageBar intent={messageBarContent.type}>
+                    <MessageBarBody>{messageBarContent.message}</MessageBarBody>
+                    <MessageBarActions containerAction={<Button onClick={dismissMessageBar} aria-label={nlsHPCC.Close} appearance="transparent" icon={<DismissRegular />} />} />
                 </MessageBar>
             }
         </>}

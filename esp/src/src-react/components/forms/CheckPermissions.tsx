@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Button, Combobox, Field, Option } from "@fluentui/react-components";
-import { MessageBar, MessageBarType, TextField } from "@fluentui/react";
+import { Button, Combobox, Field, MessageBar, MessageBarActions, MessageBarBody, Option } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
+import { TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -149,10 +150,9 @@ export const CheckPermissionsForm: React.FunctionComponent<CheckPermissionsFormP
             )}
             {showError &&
                 <div style={{ marginTop: 16 }}>
-                    <MessageBar
-                        messageBarType={MessageBarType.error} isMultiline={true}
-                        onDismiss={() => setShowError(false)} dismissButtonAriaLabel="Close">
-                        {errorMessage}
+                    <MessageBar intent="error">
+                        <MessageBarBody>{errorMessage}</MessageBarBody>
+                        <MessageBarActions containerAction={<Button onClick={() => setShowError(false)} aria-label="Close" appearance="transparent" icon={<DismissRegular />} />} />
                     </MessageBar>
                 </div>
             }

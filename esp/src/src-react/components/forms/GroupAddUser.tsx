@@ -1,6 +1,7 @@
 import * as React from "react";
-import { IDropdownOption, MessageBar, MessageBarType } from "@fluentui/react";
-import { Button, Spinner } from "@fluentui/react-components";
+import { IDropdownOption } from "@fluentui/react";
+import { Button, MessageBar, MessageBarActions, MessageBarBody, Spinner } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -104,10 +105,9 @@ export const GroupAddUserForm: React.FunctionComponent<GroupAddUserProps> = ({
         />
         {showError &&
             <div style={{ marginTop: 16 }}>
-                <MessageBar
-                    messageBarType={MessageBarType.error} isMultiline={true}
-                    onDismiss={() => setShowError(false)} dismissButtonAriaLabel="Close">
-                    {errorMessage}
+                <MessageBar intent="error">
+                    <MessageBarBody>{errorMessage}</MessageBarBody>
+                    <MessageBarActions containerAction={<Button onClick={() => setShowError(false)} aria-label="Close" appearance="transparent" icon={<DismissRegular />} />} />
                 </MessageBar>
             </div>
         }

@@ -1,5 +1,7 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, MessageBar, MessageBarType, ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
+import { Button, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { useConst } from "@fluentui/react-hooks";
 import { scopedLogger } from "@hpcc-js/util";
 import { Observable } from "src-dojo/index";
@@ -23,7 +25,7 @@ export const DESDLBindingMethods: React.FunctionComponent<DESDLBindingMethodsPro
     const [binding, setBinding] = React.useState<any>();
     const [showError, setShowError] = React.useState(false);
     const [errorMessage, setErrorMessage] = React.useState("");
-    const [messageBarType, setMessageBarType] = React.useState<MessageBarType>();
+    const [messageBarType, setMessageBarType] = React.useState<MessageBarIntent>();
 
     //  Grid ---
     const store = useConst(() => new Observable(new MemoryTreeStore("__hpcc_id", "__hpcc_parentName", { Name: true })));
@@ -115,9 +117,9 @@ export const DESDLBindingMethods: React.FunctionComponent<DESDLBindingMethodsPro
                 setErrorMessage(PublishESDLBindingResponse?.status?.Description);
                 setShowError(true);
                 if (PublishESDLBindingResponse?.status.Code === 0) {
-                    setMessageBarType(MessageBarType.success);
+                    setMessageBarType("success");
                 } else {
-                    setMessageBarType(MessageBarType.error);
+                    setMessageBarType("error");
                 }
                 refreshGrid();
             });
@@ -143,8 +145,9 @@ export const DESDLBindingMethods: React.FunctionComponent<DESDLBindingMethodsPro
     return <>
         <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto}>
             {showError &&
-                <MessageBar messageBarType={messageBarType} isMultiline={true} onDismiss={() => setShowError(false)} dismissButtonAriaLabel="Close">
-                    {errorMessage}
+                <MessageBar intent={messageBarType}>
+                    <MessageBarBody>{errorMessage}</MessageBarBody>
+                    <MessageBarActions containerAction={<Button onClick={() => setShowError(false)} aria-label="Close" appearance="transparent" icon={<DismissRegular />} />} />
                 </MessageBar>
             }
             <Sticky stickyPosition={StickyPositionType.Header}>

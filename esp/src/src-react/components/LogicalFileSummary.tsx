@@ -1,5 +1,7 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, MessageBar, MessageBarType, ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
+import { Button, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { DFUService, WsDfu } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
@@ -186,12 +188,9 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
             <Sticky stickyPosition={StickyPositionType.Header}>
                 <CommandBar items={buttons} />
                 {showMessageBar &&
-                    <MessageBar
-                        messageBarType={MessageBarType.success}
-                        dismissButtonAriaLabel={nlsHPCC.Close}
-                        onDismiss={dismissMessageBar}
-                    >
-                        {nlsHPCC.SuccessfullySaved}
+                    <MessageBar intent="success">
+                        <MessageBarBody>{nlsHPCC.SuccessfullySaved}</MessageBarBody>
+                        <MessageBarActions containerAction={<Button onClick={dismissMessageBar} aria-label={nlsHPCC.Close} appearance="transparent" icon={<DismissRegular />} />} />
                     </MessageBar>
                 }
             </Sticky>

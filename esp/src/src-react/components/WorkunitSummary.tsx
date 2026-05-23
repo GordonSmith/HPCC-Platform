@@ -1,5 +1,7 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, mergeStyles, MessageBar, MessageBarType, registerIcons, ScrollablePane, ScrollbarVisibility } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, mergeStyles, registerIcons, ScrollablePane, ScrollbarVisibility } from "@fluentui/react";
+import { Button, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
 import { WUStatus } from "src/react/index";
@@ -62,7 +64,7 @@ const parseOtTraceParent = (parent: string = ""): OtTraceSchema => {
 };
 
 interface MessageBarContent {
-    type: MessageBarType;
+    type: MessageBarIntent;
     message: string;
 }
 
@@ -167,7 +169,7 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
                     Description: description,
                     Protected: wuProtected
                 }).then(_ => {
-                    showMessageBar({ type: MessageBarType.success, message: nlsHPCC.SuccessfullySaved });
+                    showMessageBar({ type: "success", message: nlsHPCC.SuccessfullySaved });
                 }).catch(err => logger.error(err));
             }
         },
@@ -285,8 +287,9 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
         header={<>
             <CommandBar items={buttons} />
             {messageBarContent &&
-                <MessageBar messageBarType={messageBarContent.type} dismissButtonAriaLabel={nlsHPCC.Close} onDismiss={dismissMessageBar} >
-                    {messageBarContent.message}
+                <MessageBar intent={messageBarContent.type}>
+                    <MessageBarBody>{messageBarContent.message}</MessageBarBody>
+                    <MessageBarActions containerAction={<Button onClick={dismissMessageBar} aria-label={nlsHPCC.Close} appearance="transparent" icon={<DismissRegular />} />} />
                 </MessageBar>
             }
         </>}

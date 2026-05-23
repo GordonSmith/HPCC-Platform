@@ -1,6 +1,7 @@
 import * as React from "react";
-import { CommandBar, ICommandBarItemProps, MessageBar, MessageBarType, Sticky, StickyPositionType } from "@fluentui/react";
-import { SelectTabData, SelectTabEvent, Tab, TabList, makeStyles } from "@fluentui/react-components";
+import { CommandBar, ICommandBarItemProps, Sticky, StickyPositionType } from "@fluentui/react";
+import { Button, MessageBar, MessageBarActions, MessageBarBody, SelectTabData, SelectTabEvent, Tab, TabList, makeStyles } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { SizeMe } from "../layouts/SizeMe";
 import { scopedLogger } from "@hpcc-js/util";
 import * as WsAccess from "src/ws_access";
@@ -128,8 +129,9 @@ export const UserDetails: React.FunctionComponent<UserDetailsProps> = ({
                         <CommandBar items={buttons} />
                     </Sticky>
                     {showError &&
-                        <MessageBar messageBarType={MessageBarType.error} isMultiline={true} onDismiss={() => setShowError(false)} dismissButtonAriaLabel="Close">
-                            {errorMessage}
+                        <MessageBar intent="error">
+                            <MessageBarBody>{errorMessage}</MessageBarBody>
+                            <MessageBarActions containerAction={<Button onClick={() => setShowError(false)} aria-label="Close" appearance="transparent" icon={<DismissRegular />} />} />
                         </MessageBar>
                     }
                     <TableGroup fields={{

@@ -1,6 +1,7 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, Dropdown, ICommandBarItemProps, IDropdownOption, IStackTokens, mergeStyleSets, MessageBar, MessageBarType } from "@fluentui/react";
-import { Button, Label, Link, makeStyles, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, Dropdown, ICommandBarItemProps, IDropdownOption, IStackTokens, mergeStyleSets } from "@fluentui/react";
+import { Button, Label, Link, MessageBar, MessageBarActions, MessageBarBody, makeStyles, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
 import { PackageProcessService } from "@hpcc-js/comms";
@@ -420,8 +421,9 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
 
     return <>
         {showError &&
-            <MessageBar messageBarType={MessageBarType.error} isMultiline={false} onDismiss={() => setShowError(false)} dismissButtonAriaLabel="Close">
-                {errorMessage}
+            <MessageBar intent="error">
+                <MessageBarBody>{errorMessage}</MessageBarBody>
+                <MessageBarActions containerAction={<Button onClick={() => setShowError(false)} aria-label="Close" appearance="transparent" icon={<DismissRegular />} />} />
             </MessageBar>
         }
         <SizeMe>{({ size }) =>

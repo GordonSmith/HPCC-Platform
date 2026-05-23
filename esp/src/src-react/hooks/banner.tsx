@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Checkbox, ColorPicker, getColorFromString, IColor, MessageBar, MessageBarType, TextField } from "@fluentui/react";
-import { Button, Label } from "@fluentui/react-components";
+import { Checkbox, ColorPicker, getColorFromString, IColor, TextField } from "@fluentui/react";
+import { Button, Label, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -170,19 +171,15 @@ export function useBanner({ showForm, setShowForm }: useBannerProps): [React.Fun
     const BannerMessageBar = React.useMemo(() => () => {
         return showBanner &&
             <MessageBar
-                messageBarType={MessageBarType.warning}
-                onDismiss={() => setShowBanner(false)}
-                dismissButtonAriaLabel="Close"
-                isMultiline={false}
-                truncated={true}
-                expandButtonProps={{ ariaLabel: "See More" }}
+                intent="warning"
                 style={{
                     color: bannerColor,
                     fontSize: `${bannerSize}px`,
                     lineHeight: `${bannerSize}px`
                 }}
             >
-                {bannerMessage}
+                <MessageBarBody>{bannerMessage}</MessageBarBody>
+                <MessageBarActions containerAction={<Button onClick={() => setShowBanner(false)} aria-label="Close" appearance="transparent" icon={<DismissRegular />} />} />
             </MessageBar>
             ;
     }, [bannerColor, bannerMessage, bannerSize, showBanner]);

@@ -1,6 +1,7 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, MessageBar, MessageBarType, Sticky, StickyPositionType } from "@fluentui/react";
-import { SelectTabData, SelectTabEvent, Tab, TabList, makeStyles } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Sticky, StickyPositionType } from "@fluentui/react";
+import { Button, MessageBar, MessageBarActions, MessageBarBody, SelectTabData, SelectTabEvent, Tab, TabList, makeStyles } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
 import nlsHPCC from "src/nlsHPCC";
@@ -233,12 +234,9 @@ export const DFUWorkunitDetails: React.FunctionComponent<DFUWorkunitDetailsProps
                         <Sticky stickyPosition={StickyPositionType.Header}>
                             <CommandBar items={buttons} />
                             {showMessageBar &&
-                                <MessageBar
-                                    messageBarType={MessageBarType.success}
-                                    dismissButtonAriaLabel={nlsHPCC.Close}
-                                    onDismiss={dismissMessageBar}
-                                >
-                                    {nlsHPCC.SuccessfullySaved}
+                                <MessageBar intent="success">
+                                    <MessageBarBody>{nlsHPCC.SuccessfullySaved}</MessageBarBody>
+                                    <MessageBarActions containerAction={<Button onClick={dismissMessageBar} aria-label={nlsHPCC.Close} appearance="transparent" icon={<DismissRegular />} />} />
                                 </MessageBar>
                             }
                         </Sticky>

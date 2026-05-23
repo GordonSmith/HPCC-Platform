@@ -1,6 +1,7 @@
 import * as React from "react";
-import { MessageBar, MessageBarType, TextField } from "@fluentui/react";
-import { Button, Spinner } from "@fluentui/react-components";
+import { TextField } from "@fluentui/react";
+import { Button, MessageBar, MessageBarActions, MessageBarBody, Spinner } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -208,10 +209,9 @@ export const AddUserForm: React.FunctionComponent<AddUserFormProps> = ({
         />
         {showError &&
             <div style={{ marginTop: 16 }}>
-                <MessageBar
-                    messageBarType={MessageBarType.error} isMultiline={true}
-                    onDismiss={() => setShowError(false)} dismissButtonAriaLabel="Close">
-                    {errorMessage}
+                <MessageBar intent="error">
+                    <MessageBarBody>{errorMessage}</MessageBarBody>
+                    <MessageBarActions containerAction={<Button onClick={() => setShowError(false)} aria-label="Close" appearance="transparent" icon={<DismissRegular />} />} />
                 </MessageBar>
             </div>
         }
