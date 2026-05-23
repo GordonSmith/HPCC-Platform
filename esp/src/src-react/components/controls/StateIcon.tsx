@@ -7,6 +7,13 @@ import { WUStateID } from "@hpcc-js/comms";
 import { useWorkunit } from "../../hooks/workunit";
 import { useUserTheme } from "../../hooks/theme";
 
+//  v8 fluentui semanticColors equivalents — preserved as literal hex so the
+//  hpcc-js Palette.textColor() helper can compute contrast against them.
+const WARNING_ICON = "#797775";
+const SUCCESS_ICON = "#107C10";
+const ERROR_ICON = "#A80000";
+const WHITE = "#ffffff";
+
 const GOLDEN_RATIO = 1.618033988749894;
 
 const lgHeight = 32;
@@ -136,7 +143,7 @@ export const StateIcon: React.FunctionComponent<StateIconProps> = ({
                 <FontIcon iconName={iconName} className={ss.icon} />
             </span>
             {overlayName &&
-                <span className={ss.overlayPlaceholder} style={{ backgroundColor: overlayColor, borderColor: theme.palette.white }}>
+                <span className={ss.overlayPlaceholder} style={{ backgroundColor: overlayColor, borderColor: WHITE }}>
                     <FontIcon iconName={overlayName} className={ss.overlay} style={{ color: overlayIconColor }} />
                 </span>
             }
@@ -168,58 +175,58 @@ export const WorkunitPersona: React.FunctionComponent<WorkunitPersonaProps> = ({
             case WUStateID.Compiling:
             case WUStateID.Compiled:
                 setOverlayName("LightningBolt");
-                setOverlayColor(theme.semanticColors.warningIcon);
+                setOverlayColor(WARNING_ICON);
                 break;
             case WUStateID.DebugRunning:
             case WUStateID.Running:
                 setOverlayName("Play");
-                setOverlayColor(theme.semanticColors.warningIcon);
+                setOverlayColor(WARNING_ICON);
                 break;
             case WUStateID.Completed:
                 setOverlayName("SkypeCheck");
-                setOverlayColor(theme.semanticColors.successIcon);
+                setOverlayColor(SUCCESS_ICON);
                 break;
             case WUStateID.Aborted:
             case WUStateID.Failed:
                 setOverlayName("Warning");
-                setOverlayColor(theme.semanticColors.errorIcon);
+                setOverlayColor(ERROR_ICON);
                 break;
             case WUStateID.Aborting:
                 setOverlayName("SkypeClock");
-                setOverlayColor(theme.semanticColors.errorIcon);
+                setOverlayColor(ERROR_ICON);
                 break;
             case WUStateID.Submitted:
             case WUStateID.Scheduled:
                 setOverlayName("SkypeClock");
-                setOverlayColor(theme.semanticColors.warningIcon);
+                setOverlayColor(WARNING_ICON);
                 break;
             case WUStateID.UploadingFiled:
                 setOverlayName("Upload");
-                setOverlayColor(theme.semanticColors.warningIcon);
+                setOverlayColor(WARNING_ICON);
                 break;
             case WUStateID.Wait:
             case WUStateID.Blocked:
                 setOverlayName("Blocked");
-                setOverlayColor(theme.semanticColors.warningIcon);
+                setOverlayColor(WARNING_ICON);
                 break;
             case WUStateID.DebugPaused:
             case WUStateID.Paused:
                 setOverlayName("Pause");
-                setOverlayColor(theme.semanticColors.warningIcon);
+                setOverlayColor(WARNING_ICON);
                 break;
             case WUStateID.Archived:
                 setOverlayName("Archive");
-                setOverlayColor(theme.semanticColors.successIcon);
+                setOverlayColor(SUCCESS_ICON);
                 break;
             case WUStateID.LAST:
             case WUStateID.Unknown:
             case WUStateID.NotFound:
             default:
                 setOverlayName("StatusCircleQuestionMark");
-                setOverlayColor(theme.semanticColors.errorIcon);
+                setOverlayColor(ERROR_ICON);
                 break;
         }
-    }, [workunit, workunit?.StateID, theme.semanticColors.errorIcon, theme.semanticColors.successIcon, theme.semanticColors.warningIcon]);
+    }, [workunit, workunit?.StateID]);
 
     return <FluentProvider theme={themeV9} style={{ paddingTop: 4, flexGrow: 1, height: 26 }}>
         <ThemeProvider theme={theme} title={workunit?.State}>
