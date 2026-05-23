@@ -1,6 +1,7 @@
 import * as React from "react";
-import { CommandBarButton, Text, IButtonStyles, FontWeights, useTheme, Icon } from "@fluentui/react";
+import { Text, FontWeights, useTheme, Icon } from "@fluentui/react";
 import { Divider, Popover, PopoverTrigger, PopoverSurface, Button } from "@fluentui/react-components";
+import { ArrowClockwise20Regular, Play20Regular, Pause20Regular } from "@fluentui/react-icons";
 import nlsHPCC from "src/nlsHPCC";
 import { DateTimeInput } from "./Fields";
 
@@ -170,12 +171,10 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
         return nlsHPCC.SelectDateRange;
     }, [startDate, endDate]);
 
-    const buttonStyles: IButtonStyles = {
-        root: {
-            height: "32px",
-            minWidth: "auto",
-            padding: "0 8px"
-        }
+    const buttonStyle: React.CSSProperties = {
+        height: 32,
+        minWidth: "auto",
+        padding: "0 8px"
     };
 
     return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "8px" }}>
@@ -310,25 +309,18 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
         </Popover>
 
         {showRefreshButton && (
-            <CommandBarButton text={nlsHPCC.Refresh} iconProps={{ iconName: "Refresh" }} onClick={onRefresh} disabled={disabled} styles={buttonStyles} />
+            <Button appearance="subtle" icon={<ArrowClockwise20Regular />} onClick={onRefresh} disabled={disabled} style={buttonStyle}>{nlsHPCC.Refresh}</Button>
         )}
 
         {showAutoRefresh && (
             <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "4px" }}>
-                <CommandBarButton
-                    text={autoRefresh ? `${nlsHPCC.AutoRefresh}: ${nlsHPCC.On.toUpperCase()}` : `${nlsHPCC.AutoRefresh}: ${nlsHPCC.Off.toUpperCase()}`}
-                    iconProps={{ iconName: autoRefresh ? "Play" : "Pause" }}
+                <Button
+                    appearance="subtle"
+                    icon={autoRefresh ? <Play20Regular /> : <Pause20Regular />}
                     onClick={handleAutoRefreshToggle}
                     disabled={disabled}
-                    styles={{
-                        root: {
-                            height: "32px",
-                            minWidth: "auto",
-                            padding: "0 8px",
-                            backgroundColor: autoRefresh ? theme.palette.themeLighterAlt : undefined
-                        }
-                    }}
-                />
+                    style={{ ...buttonStyle, backgroundColor: autoRefresh ? theme.palette.themeLighterAlt : undefined }}
+                >{autoRefresh ? `${nlsHPCC.AutoRefresh}: ${nlsHPCC.On.toUpperCase()}` : `${nlsHPCC.AutoRefresh}: ${nlsHPCC.Off.toUpperCase()}`}</Button>
             </div>
         )}
     </div>;
