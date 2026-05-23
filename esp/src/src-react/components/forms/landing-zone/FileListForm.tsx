@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Button, Checkbox } from "@fluentui/react-components";
 import { IDropdownOption, mergeStyleSets } from "@fluentui/react";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { FileSprayService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -192,7 +191,7 @@ export const FileListForm: React.FunctionComponent<FileListFormProps> = ({
                 <Button onClick={() => { if (window.confirm(nlsHPCC.CancelUploadConfirm)) { cancelUpload(); } }}>{nlsHPCC.Cancel}</Button>
             }
         </>}>
-        <StackShim>
+        <div style={{ display: "flex", flexDirection: "column" }}>
             <Controller
                 control={control} name="dropzone"
                 render={({
@@ -272,8 +271,8 @@ export const FileListForm: React.FunctionComponent<FileListFormProps> = ({
                     }
                 }}
             />
-        </StackShim>
-        <StackShim>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
             <table className={`${componentStyles.twoColumnTable} ${componentStyles.selectionTable}`}>
                 <thead>
                     <tr>
@@ -300,6 +299,6 @@ export const FileListForm: React.FunctionComponent<FileListFormProps> = ({
                     field: { onChange, name: fieldName, value }
                 }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Overwrite} />}
             />
-        </StackShim>
+        </div>
     </MessageBox>;
 };

@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Button, Checkbox, Field, Input, Spinner, Textarea } from "@fluentui/react-components";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
 import * as WsPackageMaps from "src/WsPackageMaps";
@@ -95,7 +94,7 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
             <Button appearance="primary" disabled={submitDisabled} onClick={handleSubmit(onSubmit)}>{nlsHPCC.Submit}</Button>
             <Button onClick={() => closeForm()}>{nlsHPCC.Cancel}</Button>
         </>}>
-        <StackShim>
+        <div style={{ display: "flex", flexDirection: "column" }}>
             <Controller
                 control={control} name="PartName"
                 render={({
@@ -206,6 +205,6 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
                     }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.AppendCluster} />}
                 />
             </div>
-        </StackShim>
+        </div>
     </MessageBox>;
 };

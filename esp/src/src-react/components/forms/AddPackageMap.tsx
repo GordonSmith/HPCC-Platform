@@ -1,7 +1,6 @@
 import * as React from "react";
 import { IDropdownOption } from "@fluentui/react";
 import { Button, Checkbox, Dropdown, Field, Input, Option, Spinner, Textarea } from "@fluentui/react-components";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { FileSprayService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -113,7 +112,7 @@ export const AddPackageMap: React.FunctionComponent<AddPackageMapProps> = ({
             <Button appearance="primary" disabled={submitDisabled} onClick={handleSubmit(onSubmit)}>{nlsHPCC.Submit}</Button>
             <Button onClick={() => closeForm()}>{nlsHPCC.Cancel}</Button>
         </>}>
-        <StackShim>
+        <div style={{ display: "flex", flexDirection: "column" }}>
             <Controller
                 control={control} name="Info"
                 render={({
@@ -230,6 +229,6 @@ export const AddPackageMap: React.FunctionComponent<AddPackageMapProps> = ({
                     }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Overwrite} />}
                 />
             </div>
-        </StackShim>
+        </div>
     </MessageBox>;
 };

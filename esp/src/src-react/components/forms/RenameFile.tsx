@@ -1,7 +1,6 @@
 import * as React from "react";
 import { mergeStyleSets } from "@fluentui/react";
 import { Button, Checkbox, Field, Input, Spinner } from "@fluentui/react-components";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useConst } from "@fluentui/react-hooks";
 import { useForm, Controller } from "react-hook-form";
 import { FileSprayService, FileSprayStates } from "@hpcc-js/comms";
@@ -128,7 +127,7 @@ export const RenameFile: React.FunctionComponent<RenameFileProps> = ({
             <Button appearance="primary" disabled={submitDisabled} onClick={handleSubmit(onSubmit)}>{nlsHPCC.Rename}</Button>
             <Button onClick={() => closeForm()}>{nlsHPCC.Cancel}</Button>
         </>}>
-        <StackShim>
+        <div style={{ display: "flex", flexDirection: "column" }}>
             {logicalFiles?.length === 1 &&
                 <Controller
                     control={control} name="targetRenameFile.0.name"
@@ -148,7 +147,7 @@ export const RenameFile: React.FunctionComponent<RenameFileProps> = ({
                 />
             }
             {logicalFiles?.length > 1 &&
-                <StackShim>
+                <div style={{ display: "flex", flexDirection: "column" }}>
                     <table className={`${componentStyles.twoColumnTable} ${componentStyles.selectionTable}`}>
                         <thead>
                             <tr>
@@ -180,7 +179,7 @@ export const RenameFile: React.FunctionComponent<RenameFileProps> = ({
                             })}
                         </tbody>
                     </table>
-                </StackShim>
+                </div>
             }
             <div style={{ paddingTop: "15px" }}>
                 <Controller
@@ -190,6 +189,6 @@ export const RenameFile: React.FunctionComponent<RenameFileProps> = ({
                     }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Overwrite} />}
                 />
             </div>
-        </StackShim>
+        </div>
     </MessageBox>;
 };

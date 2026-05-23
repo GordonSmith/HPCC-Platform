@@ -1,6 +1,5 @@
 import * as React from "react";
 import { IDropdownOption, mergeStyleSets } from "@fluentui/react";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { Button, Checkbox, Dropdown, Field, Input, makeStyles, Option, Spinner, Tooltip } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -182,7 +181,7 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
             <Button appearance="primary" disabled={submitDisabled} onClick={handleSubmit(onSubmit)}>{nlsHPCC.Import}</Button>
             <Button onClick={() => closeForm()}>{nlsHPCC.Cancel}</Button>
         </>}>
-        <StackShim>
+        <div style={{ display: "flex", flexDirection: "column" }}>
             <Controller
                 control={control} name="destGroup"
                 render={({
@@ -243,8 +242,8 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                     }
                 }}
             />
-        </StackShim>
-        <StackShim>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
             <table className={`${componentStyles.twoColumnTable} ${componentStyles.selectionTable}`}>
                 <thead>
                     <tr>
@@ -318,8 +317,8 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                     })}
                 </tbody>
             </table>
-        </StackShim>
-        <StackShim>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
             <table><tbody>
                 <tr>
                     <td><Controller
@@ -363,8 +362,8 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                     /></td>
                 </tr>
             </tbody></table>
-        </StackShim>
-        <StackShim>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
             <table className={componentStyles.twoColumnTable}>
                 <tbody><tr>
                     <td><Controller
@@ -433,6 +432,6 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                         <td></td>
                     </tr></tbody>
             </table>
-        </StackShim>
+        </div>
     </MessageBox>;
 };

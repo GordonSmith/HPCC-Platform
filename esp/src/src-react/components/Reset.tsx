@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Button, Checkbox } from "@fluentui/react-components";
 import { mergeStyleSets } from "@fluentui/react";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { resetCookies, resetModernMode } from "src/Session";
 import nlsHPCC from "src/nlsHPCC";
 import { pushUrl, replaceUrl } from "../util/history";
@@ -46,7 +45,7 @@ export const ResetDialog: React.FunctionComponent<ResetDialogProps> = ({
                 <Button onClick={() => { setShow(false); pushUrl("/"); }}>{nlsHPCC.Cancel}</Button>
             </>
         }>
-            <StackShim tokens={{ childrenGap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <Checkbox label={nlsHPCC.MetricOptions} checked={checkMetricOptions} onChange={(_, data) => setCheckMetricOptions(!!data.checked)} />
                 <Checkbox label={nlsHPCC.WorkunitOptions} checked={checkWorkunitOptions} onChange={(_, data) => setCheckWorkunitOptions(!!data.checked)} />
                 <Checkbox label={nlsHPCC.WorkunitSummarySplitter} checked={checkWorkunitSummarySplitter} onChange={(_, data) => setCheckWorkunitSummarySplitter(!!data.checked)} />
@@ -56,7 +55,7 @@ export const ResetDialog: React.FunctionComponent<ResetDialogProps> = ({
                 <Checkbox label={nlsHPCC.Theme} checked={checkTheme} onChange={(_, data) => setCheckTheme(!!data.checked)} />
                 <Checkbox label={nlsHPCC.NavWide} checked={checkNavWide} onChange={(_, data) => setCheckNavWide(!!data.checked)} />
                 <Checkbox label={nlsHPCC.Cookies} checked={checkCookies} onChange={(_, data) => setCheckCookies(!!data.checked)} />
-            </StackShim>
+            </div>
         </MessageBox>
     </div>;
 };
