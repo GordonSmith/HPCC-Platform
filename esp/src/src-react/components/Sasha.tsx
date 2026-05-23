@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Button, Checkbox, Dropdown, Field, Input, Option } from "@fluentui/react-components";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
 import { scopedLogger } from "@hpcc-js/util";
 import { SashaService, WsSasha } from "@hpcc-js/comms";
@@ -167,7 +166,7 @@ export const Sasha: React.FunctionComponent<SashaProps> = () => {
         </Dropdown>
 
         {["listECLWorkunit", "listDFUWorkunit"].includes(selectedOption) ? (
-          <StackShim tokens={{ childrenGap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <Field label={nlsHPCC.WUID}>
               <Input value={wuid} onChange={(_, data) => setWuid(data.value ?? "")} style={{ width: 400 }} />
             </Field>
@@ -198,7 +197,7 @@ export const Sasha: React.FunctionComponent<SashaProps> = () => {
             <Field label="Output Fields">
               <Input value={outputFields} onChange={(_, data) => setOutputFields(data.value ?? "")} style={{ width: 400 }} />
             </Field>
-            <StackShim horizontal tokens={{ childrenGap: 20 }}>
+            <div style={{ display: "flex", flexDirection: "row", gap: "20px" }}>
               <Checkbox
                 label="Archived"
                 checked={archived}
@@ -219,8 +218,8 @@ export const Sasha: React.FunctionComponent<SashaProps> = () => {
                 checked={descending}
                 onChange={(_, data) => setDescending(!!data.checked)}
               />
-            </StackShim>
-          </StackShim>
+            </div>
+          </div>
         ) : (
           (["restoreECLWorkUnit", "restoreDFUWorkUnit", "archiveECLWorkUnit", "archiveDFUWorkUnit"].includes(selectedOption)) && (
             <Field label={nlsHPCC.WUID}>

@@ -2,7 +2,6 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
 import { Button, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, Field, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent, SpinButton, SpinButtonChangeEvent, SpinButtonOnChangeData, Spinner } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useConst } from "@fluentui/react-hooks";
 import { Result as CommsResult, XSDXMLNode } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -89,7 +88,7 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
     column = false,
     onClose,
 }) => {
-    const stackTokens = { childrenGap: 10 };
+    const stackStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "10px" };
 
     const [open, setOpen] = React.useState(true);
     const handleOk = () => {
@@ -127,7 +126,7 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
                 <DialogTitle>Download Results</DialogTitle>
                 <DialogContent>
                     <p>{`Confirm total number of rows to download(max ${totalRows} rows).`}</p>
-                    <StackShim tokens={stackTokens}>
+                    <div style={stackStyle}>
                         <Field label="Download:">
                             <SpinButton
                                 defaultValue={totalRows}
@@ -142,7 +141,7 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
                         {column ?
                             <Checkbox label="De-duplicate" defaultChecked onChange={onDedup} /> :
                             undefined}
-                    </StackShim>
+                    </div>
                 </DialogContent>
                 <DialogActions>
                     <Button appearance="primary" onClick={handleOk}>Ok</Button>

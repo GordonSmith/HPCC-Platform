@@ -1,5 +1,4 @@
 import * as React from "react";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { Button, Checkbox, Field, Input, makeStyles } from "@fluentui/react-components";
 import { SizeMe } from "../layouts/SizeMe";
 import { pushUrl } from "../util/history";
@@ -125,7 +124,7 @@ export const DaliAdmin: React.FunctionComponent<DaliAdminProps> = ({
                 return <DaliImport />;
             case "daliExport":
                 return (
-                    <StackShim tokens={{ childrenGap: 12 }} styles={{ root: { maxWidth: 400 } }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: 400 }}>
                         <Field label="Path">
                             <Input placeholder="/your/dfs/path" value={path} onChange={(_, data) => setPath(data.value || "")} />
                         </Field>
@@ -133,7 +132,7 @@ export const DaliAdmin: React.FunctionComponent<DaliAdminProps> = ({
                         <Button onClick={() => confirmExport(true)}>
                             {nlsHPCC.Export}
                         </Button>
-                    </StackShim>
+                    </div>
                 );
             default:
                 return null;

@@ -3,7 +3,6 @@ import { DefaultButton, PrimaryButton, SelectionMode, Selection } from "@fluentu
 import { useConst, useForceUpdate } from "@fluentui/react-hooks";
 import { Button, Checkbox, Dropdown, Field, Input, Option, SelectTabData, SelectTabEvent, Tab, TabList, Textarea, makeStyles } from "@fluentui/react-components";
 import { BookmarkAddRegular, DeleteRegular, RenameRegular } from "@fluentui/react-icons";
-import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
 import { MetricsView, clone, useMetricMeta, useMetricsViews } from "../hooks/metrics";
 import { MessageBox } from "../layouts/MessageBox";
@@ -246,12 +245,12 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
                 />
             </>}>
             <>
-                <StackShim horizontal>
-                    <StackItemShim grow>
+                <div style={{ display: "flex", flexDirection: "row" }}>
+                    <div style={{ flexGrow: 1 }}>
                         <Dropdown value={viewId} selectedOptions={[viewId]} onOptionSelect={onDropdownChange}>
                             {viewIds.map(id => <Option key={id} value={id}>{id}</Option>)}
                         </Dropdown>
-                    </StackItemShim>
+                    </div>
                     <Button appearance="subtle" icon={<BookmarkAddRegular />} title={nlsHPCC.Add} onClick={() => {
                         setShowAdd(true);
                     }} />
@@ -261,7 +260,7 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
                     <Button appearance="subtle" icon={<DeleteRegular />} title={nlsHPCC.Delete} disabled={isDefaultView(viewId)} onClick={() => {
                         setShowDeleteConfirm(true);
                     }} />
-                </StackShim>
+                </div>
                 <TabList selectedValue={selectedTab} onTabSelect={onTabSelect} size="medium">
                     <Tab value="metrics">{nlsHPCC.Metrics}</Tab>
                     <Tab value="sql">{nlsHPCC.SQL}</Tab>
@@ -271,8 +270,8 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
                 </TabList>
                 {selectedTab === "metrics" &&
                     <div className={styles.metricsPanel} style={{ height: innerHeight }}>
-                        <StackShim horizontal>
-                            <StackItemShim grow={1}>
+                        <div style={{ display: "flex", flexDirection: "row" }}>
+                            <div style={{ flexGrow: 1 }}>
                                 <GridOptions
                                     label={nlsHPCC.ScopeTypes}
                                     strArray={globalScopeTypes}
@@ -281,8 +280,8 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
                                         setDirtyView(prev => ({ ...prev, scopeTypes: [...scopeTypes] }));
                                     }}
                                 ></GridOptions>
-                            </StackItemShim>
-                            <StackItemShim grow={1}>
+                            </div>
+                            <div style={{ flexGrow: 1 }}>
                                 <GridOptions
                                     label={nlsHPCC.ScopeColumns}
                                     strArray={globalProperties}
@@ -291,8 +290,8 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
                                         setDirtyView(prev => ({ ...prev, properties: [...properties] }));
                                     }}
                                 ></GridOptions>
-                            </StackItemShim>
-                        </StackShim>
+                            </div>
+                        </div>
                     </div>
                 }
                 {selectedTab === "sql" &&

@@ -1,8 +1,7 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, IDropdownOption, IStackTokens, mergeStyleSets } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, IDropdownOption, mergeStyleSets } from "@fluentui/react";
 import { Button, Dropdown, Label, Link, MessageBar, MessageBarActions, MessageBarBody, Option, makeStyles, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
 import { PackageProcessService } from "@hpcc-js/comms";
 import { SizeMe } from "../layouts/SizeMe";
@@ -47,8 +46,10 @@ interface PackageMapsProps {
     tab?: string;
 }
 
-const validateMapStackTokens: IStackTokens = {
-    childrenGap: 10,
+const validateMapStackStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "row",
+    gap: "10px",
     padding: "5px 0"
 };
 
@@ -454,8 +455,8 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                     <div style={pivotItemStyle(size, 0)}>
                         <HolyGrail
                             header={
-                                <StackShim horizontal tokens={validateMapStackTokens}>
-                                    <StackShim horizontal tokens={validateMapStackTokens}>
+                                <div style={validateMapStackStyle}>
+                                    <div style={validateMapStackStyle}>
                                         <Label>{nlsHPCC.Target}</Label>
                                         <Dropdown
                                             id="activeMapTarget" className={validateMapStyles.dropdown}
@@ -466,8 +467,8 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                                                 <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
                                             ))}
                                         </Dropdown>
-                                    </StackShim>
-                                    <StackShim horizontal tokens={validateMapStackTokens}>
+                                    </div>
+                                    <div style={validateMapStackStyle}>
                                         <Label>{nlsHPCC.Process}</Label>
                                         <Dropdown
                                             id="activeMapProcess" className={validateMapStyles.dropdown}
@@ -478,11 +479,11 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                                                 <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
                                             ))}
                                         </Dropdown>
-                                    </StackShim>
-                                    <StackShim horizontal tokens={validateMapStackTokens}>
+                                    </div>
+                                    <div style={validateMapStackStyle}>
                                         <Button id="validateMap" onClick={validateActiveMap}>{nlsHPCC.Validate}</Button>
-                                    </StackShim>
-                                </StackShim>
+                                    </div>
+                                </div>
                             }
                             main={
                                 <ReflexContainer orientation="vertical">
@@ -502,8 +503,8 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                     <div style={pivotItemStyle(size, 0)}>
                         <HolyGrail
                             header={
-                                <StackShim horizontal tokens={validateMapStackTokens}>
-                                    <StackShim horizontal tokens={validateMapStackTokens}>
+                                <div style={validateMapStackStyle}>
+                                    <div style={validateMapStackStyle}>
                                         <Label>{nlsHPCC.Target}</Label>
                                         <Dropdown
                                             id="contentsTarget" className={validateMapStyles.dropdown}
@@ -515,8 +516,8 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                                                 <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
                                             ))}
                                         </Dropdown>
-                                    </StackShim>
-                                    <StackShim horizontal tokens={validateMapStackTokens}>
+                                    </div>
+                                    <div style={validateMapStackStyle}>
                                         <Label>{nlsHPCC.Process}</Label>
                                         <Dropdown
                                             id="contentsProcess" className={validateMapStyles.dropdown}
@@ -528,13 +529,13 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                                                 <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
                                             ))}
                                         </Dropdown>
-                                    </StackShim>
-                                    <StackShim horizontal tokens={validateMapStackTokens}>
+                                    </div>
+                                    <div style={validateMapStackStyle}>
                                         <input id="uploadMapFromFile" type="file" className={validateMapStyles.displayNone} accept="*.xml" onChange={handleFileSelect} />
                                         <Button id="loadMapFromFile" onClick={handleLoadMapFromFileClick}>{nlsHPCC.LoadPackageFromFile}</Button>
                                         <Button id="validateMap" onClick={validateContents}>{nlsHPCC.Validate}</Button>
-                                    </StackShim>
-                                </StackShim>
+                                    </div>
+                                </div>
                             }
                             main={
                                 <ReflexContainer orientation="vertical">

@@ -2,7 +2,6 @@ import * as React from "react";
 import { mergeStyleSets } from "@fluentui/react";
 import { Button } from "@fluentui/react-components";
 import { ArrowMaximize20Regular, ArrowMinimize20Regular } from "@fluentui/react-icons";
-import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { useUserTheme } from "../hooks/theme";
 import { updateFullscreen } from "../util/history";
 
@@ -40,12 +39,12 @@ export const FullscreenStack: React.FunctionComponent<FullscreenProps> = ({
     children
 }) => {
 
-    return <StackShim horizontal>
-        <StackItemShim grow>
+    return <div style={{ display: "flex", flexDirection: "row" }}>
+        <div style={{ flexGrow: 1 }}>
             {children}
-        </StackItemShim>
-        <StackItemShim align="center">
+        </div>
+        <div style={{ alignSelf: "center" }}>
             <Button appearance="subtle" icon={fullscreen ? <ArrowMinimize20Regular /> : <ArrowMaximize20Regular />} onClick={() => updateFullscreen(!fullscreen)} />
-        </StackItemShim>
-    </StackShim>;
+        </div>
+    </div>;
 };

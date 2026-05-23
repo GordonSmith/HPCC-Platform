@@ -3,7 +3,6 @@ import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluen
 import { makeStyles, SearchBox, SearchBoxChangeEvent, ToggleButton, Tooltip } from "@fluentui/react-components";
 import { useConst } from "@fluentui/react-hooks";
 import { TextCaseTitleRegular, TextCaseTitleFilled, BranchForkHintRegular, BranchForkFilled, TextWholeWordFilled, TextWholeWordRegular, FilterRegular } from "@fluentui/react-icons";
-import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { WorkunitsServiceEx, IScope } from "@hpcc-js/comms";
 import { Table } from "@hpcc-js/dgrid";
 import { scopedLogger } from "@hpcc-js/util";
@@ -453,16 +452,16 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                 <DockPanel layout={view?.layout} onCreate={setDockpanel}>
                     <DockPanelItem key="scopesTable" title={nlsHPCC.Metrics}>
                         <HolyGrail
-                            header={<StackShim horizontal tokens={{ childrenGap: 4 }}>
+                            header={<div style={{ display: "flex", flexDirection: "row", gap: "4px" }}>
                                 <ToggleButton appearance="subtle" icon={includePendingItems ? <BranchForkFilled /> : <BranchForkHintRegular />} title={nlsHPCC.IncludePendingItems} checked={includePendingItems} onClick={() => { setIncludePendingItems(!includePendingItems); }} />
-                                <StackItemShim grow>
+                                <div style={{ flexGrow: 1 }}>
                                     <Tooltip content={nlsHPCC.FilterMetricsTooltip} relationship="label">
                                         <SearchBox key={scopeFilterVersion} defaultValue={scopeFilter} onChange={onChangeScopeFilter} placeholder={nlsHPCC.Filter} contentBefore={filterIcon} className={styles.searchBox} />
                                     </Tooltip>
-                                </StackItemShim>
+                                </div>
                                 <ToggleButton appearance="subtle" icon={matchCase ? <TextCaseTitleFilled /> : <TextCaseTitleRegular />} title={nlsHPCC.MatchCase} checked={matchCase} onClick={() => { setMatchCase(!matchCase); }} />
                                 <ToggleButton appearance="subtle" icon={matchWholeWord ? <TextWholeWordFilled /> : <TextWholeWordRegular />} title={nlsHPCC.MatchWholeWord} checked={matchWholeWord} onClick={() => { setMatchWholeWord(!matchWholeWord); }} />
-                            </StackShim>}
+                            </div>}
                             main={<AutosizeHpccJSComponent widget={scopesTable} ></AutosizeHpccJSComponent>}
                         />
                     </DockPanelItem>

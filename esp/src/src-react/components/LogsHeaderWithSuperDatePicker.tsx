@@ -1,6 +1,5 @@
 import * as React from "react";
 import { CommandBar, ICommandBarItemProps, CommandBarButton, useTheme } from "@fluentui/react";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
 import { SuperDatePicker, DateRange } from "./forms/Fields";
 
@@ -33,8 +32,8 @@ export const LogsHeaderWithSuperDatePicker: React.FunctionComponent<LogsHeaderWi
 }) => {
     const theme = useTheme();
 
-    return <StackShim horizontal verticalAlign="center" styles={{ root: { padding: "0px 6px", borderBottom: `1px solid ${theme.palette.neutralLight}` } }}>
-        <StackShim horizontal tokens={{ childrenGap: 16 }} styles={{ root: { flex: 1, alignItems: "center" } }}>
+    return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", padding: "0px 6px", borderBottom: `1px solid ${theme.palette.neutralLight}` }}>
+        <div style={{ display: "flex", flexDirection: "row", gap: "16px", flex: 1, alignItems: "center" }}>
             <CommandBarButton
                 text={nlsHPCC.Filter}
                 style={{ padding: 8 }}
@@ -52,9 +51,9 @@ export const LogsHeaderWithSuperDatePicker: React.FunctionComponent<LogsHeaderWi
                 autoRefreshInterval={autoRefreshInterval}
                 onAutoRefreshIntervalChange={onAutoRefreshIntervalChange}
             />
-        </StackShim>
+        </div>
         <div>
             <CommandBar items={[]} farItems={copyButtons} />
         </div>
-    </StackShim>;
+    </div>;
 };
