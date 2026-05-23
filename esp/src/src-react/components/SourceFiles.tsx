@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Image, Link } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "@fluentui/react";
 import * as Utility from "src/Utility";
 import { QuerySortItem } from "src/store/Store";
 import nlsHPCC from "src/nlsHPCC";
@@ -60,7 +60,7 @@ export const SourceFiles: React.FunctionComponent<SourceFilesProps> = ({
                         fileUrl = `#/files/${row.FileCluster}/${Name}`;
                     }
                     return <>
-                        <Image src={Utility.getImageURL(row.IsSuperFile ? "folder_table.png" : "file.png")} />
+                        <img src={Utility.getImageURL(row.IsSuperFile ? "folder_table.png" : "file.png")} alt="" />
                         &nbsp;
                         <Link href={fileUrl}>{Name}</Link>
                     </>;

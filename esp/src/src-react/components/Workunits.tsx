@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, DetailsRow, ICommandBarItemProps, IDetailsRowProps, Icon, Image, Link } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, DetailsRow, ICommandBarItemProps, IDetailsRowProps, Icon, Link } from "@fluentui/react";
 import { hsl as d3Hsl } from "@hpcc-js/common";
 import { Workunit } from "@hpcc-js/comms";
 import { SizeMe } from "../layouts/SizeMe";
@@ -127,7 +127,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                 formatter: (Wuid: string, wu: Workunit) => {
                     const search = calcSearch(filter);
                     return <>
-                        <Image src={getStateImage(wu.StateID, wu.isComplete(), wu.Archived)} styles={{ root: { minWidth: "16px" } }} />
+                        <img src={getStateImage(wu.StateID, wu.isComplete(), wu.Archived)} alt="" style={{ minWidth: "16px" }} />
                         &nbsp;
                         <Link href={search ? `#/workunits!${calcSearch(filter)}/${Wuid}` : `#/workunits/${Wuid}`}>{Wuid}</Link >
                     </>;

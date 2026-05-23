@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Image, mergeStyleSets, MessageBar, MessageBarType, TextField } from "@fluentui/react";
+import { mergeStyleSets, MessageBar, MessageBarType, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { useUserSession } from "../../hooks/user";
@@ -158,7 +158,7 @@ export const Login: React.FunctionComponent<LoginProps> = ({
         <div className={loginStyles.container}>
             <div className={loginStyles.formContainer}>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    <Image src={Utility.getImageURL("Loginlogo.png")} />
+                    <img src={Utility.getImageURL("Loginlogo.png")} alt="" />
                     <p>{nlsHPCC.PleaseLogIntoECLWatch}</p>
                     <Controller
                         control={control} name="username"

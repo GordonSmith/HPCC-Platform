@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Image, Link } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "@fluentui/react";
 import { MachineService } from "@hpcc-js/comms";
 import { ShortVerticalDivider } from "./Common";
 import * as Utility from "src/Utility";
@@ -48,7 +48,7 @@ export const Monitoring: React.FunctionComponent<MonitoringProps> = ({
             ComponentType: tree({
                 label: "Name", sortable: true, width: 200,
                 formatter: (Name, row) => {
-                    return <Image src={Utility.getImageURL(getStatusImageName(row))} />;
+                    return <img src={Utility.getImageURL(getStatusImageName(row))} alt="" />;
                 }
             }),
             StatusDetails: { label: "Details", sortable: false },

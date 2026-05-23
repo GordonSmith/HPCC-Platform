@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Image, Link } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "@fluentui/react";
 import * as Utility from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
@@ -56,7 +56,7 @@ export const FileDetailsGraph: React.FunctionComponent<FileDetailsGraphProps> = 
                 label: nlsHPCC.Name, sortable: true,
                 formatter: (Name, row) => {
                     return <>
-                        <Image src={Utility.getImageURL(getStateImageName(row))} />
+                        <img src={Utility.getImageURL(getStateImageName(row))} alt="" />
                         &nbsp;
                         <Link href={`#/workunits/${row?.Wuid}/metrics/${Name}`}>{Name}</Link>
                     </>;

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ICommandBarItemProps, Image, Link } from "@fluentui/react";
+import { CommandBar, ICommandBarItemProps, Link } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import * as ESPQuery from "src/ESPQuery";
 import * as Utility from "src/Utility";
@@ -52,7 +52,7 @@ export const QueryGraphs: React.FunctionComponent<QueryGraphsProps> = ({
                 label: nlsHPCC.Name,
                 formatter: (Name, row) => {
                     return <>
-                        <Image src={Utility.getImageURL(getStateImageName(row))} />
+                        <img src={Utility.getImageURL(getStateImageName(row))} alt="" />
                         &nbsp;
                         <Link href={`#/workunits/${row.Wuid}/metrics/${Name}`}>{Name}</Link>
                     </>;

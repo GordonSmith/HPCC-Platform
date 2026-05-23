@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon, Image, Link } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon, Link } from "@fluentui/react";
 import { SizeMe } from "../layouts/SizeMe";
 import * as ESPDFUWorkunit from "src/ESPDFUWorkunit";
 import * as FileSpray from "src/FileSpray";
@@ -117,7 +117,7 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
                 formatter: (ID, idx) => {
                     const wu = ESPDFUWorkunit.Get(ID);
                     return <>
-                        <Image src={wu.getStateImage()} styles={{ root: { minWidth: "16px" } }} />
+                        <img src={wu.getStateImage()} alt="" style={{ minWidth: "16px" }} />
                         &nbsp;
                         <Link href={`#/dfuworkunits/${ID}`}>{ID}</Link>
                     </>;
