@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, ColorPicker, DefaultButton, getColorFromString, IColor, Label, PrimaryButton, TextField, TooltipHost } from "@fluentui/react";
-import { Spinner } from "@fluentui/react-components";
+import { Checkbox, ColorPicker, DefaultButton, getColorFromString, IColor, PrimaryButton, TextField, TooltipHost } from "@fluentui/react";
+import { Label, Spinner } from "@fluentui/react-components";
 import { useForm, Controller } from "react-hook-form";
 import { useUserTheme } from "../../hooks/theme";
 import { MessageBox } from "../../layouts/MessageBox";

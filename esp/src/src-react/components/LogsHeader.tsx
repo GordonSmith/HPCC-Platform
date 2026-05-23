@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ICommandBarItemProps, Label, CommandBarButton, useTheme } from "@fluentui/react";
+import { CommandBar, ICommandBarItemProps, CommandBarButton, useTheme } from "@fluentui/react";
+import { Label } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
 import { DateTimeInput } from "./forms/Fields";

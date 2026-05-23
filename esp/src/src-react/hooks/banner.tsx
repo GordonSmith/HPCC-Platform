@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Checkbox, ColorPicker, DefaultButton, getColorFromString, IColor, Label, MessageBar, MessageBarType, PrimaryButton, TextField } from "@fluentui/react";
+import { Checkbox, ColorPicker, DefaultButton, getColorFromString, IColor, MessageBar, MessageBarType, PrimaryButton, TextField } from "@fluentui/react";
+import { Label } from "@fluentui/react-components";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Checkbox, ICheckboxStyles, ISpinButtonStyles, Label, SpinButton } from "@fluentui/react";
+import { Checkbox, ICheckboxStyles, ISpinButtonStyles, SpinButton } from "@fluentui/react";
+import { Label } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { Workunit } from "@hpcc-js/comms";
 import nlsHPCC from "src/nlsHPCC";
