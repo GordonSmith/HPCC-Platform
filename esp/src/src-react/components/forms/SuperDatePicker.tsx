@@ -1,7 +1,6 @@
 import * as React from "react";
-import { Text, FontWeights, useTheme, Icon } from "@fluentui/react";
-import { Divider, Popover, PopoverTrigger, PopoverSurface, Button } from "@fluentui/react-components";
-import { ArrowClockwise20Regular, Play20Regular, Pause20Regular } from "@fluentui/react-icons";
+import { Divider, Popover, PopoverTrigger, PopoverSurface, Button, Text, tokens } from "@fluentui/react-components";
+import { ArrowClockwise20Regular, Play20Regular, Pause20Regular, ChevronDown16Regular } from "@fluentui/react-icons";
 import nlsHPCC from "src/nlsHPCC";
 import { DateTimeInput } from "./Fields";
 
@@ -98,7 +97,6 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
     showRefreshButton = true,
     disabled = false
 }) => {
-    const theme = useTheme();
     const [isCalloutVisible, setIsCalloutVisible] = React.useState(false);
     const [tempStartDate, setTempStartDate] = React.useState<string>("");
     const [tempEndDate, setTempEndDate] = React.useState<string>("");
@@ -199,37 +197,31 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                         alignItems: "center",
                         justifyContent: "space-between",
                         padding: "4px 8px",
-                        border: `1px solid ${theme.palette.neutralTertiary}`,
+                        border: `1px solid ${tokens.colorNeutralStroke1}`,
                         borderRadius: "2px",
-                        backgroundColor: theme.palette.white,
+                        backgroundColor: tokens.colorNeutralBackground1,
                         cursor: disabled ? "not-allowed" : "pointer",
                         opacity: disabled ? 0.6 : 1,
                         minWidth: "200px"
                     }}
                 >
                     <Text
-                        styles={{
-                            root: {
-                                fontSize: "14px",
-                                color: disabled ? theme.palette.neutralTertiary : theme.palette.neutralPrimary,
-                                fontWeight: FontWeights.regular,
-                                flex: 1,
-                                marginRight: 4,
-                                textOverflow: "ellipsis",
-                                overflow: "hidden",
-                                whiteSpace: "nowrap"
-                            }
+                        size={300}
+                        weight="regular"
+                        style={{
+                            color: disabled ? tokens.colorNeutralForeground3 : tokens.colorNeutralForeground1,
+                            flex: 1,
+                            marginRight: 4,
+                            textOverflow: "ellipsis",
+                            overflow: "hidden",
+                            whiteSpace: "nowrap"
                         }}
                     >
                         {currentDisplayText}
                     </Text>
-                    <Icon
-                        iconName="ChevronDown"
-                        styles={{
-                            root: {
-                                fontSize: "12px",
-                                color: disabled ? theme.palette.neutralTertiary : theme.palette.neutralSecondary
-                            }
+                    <ChevronDown16Regular
+                        style={{
+                            color: disabled ? tokens.colorNeutralForeground3 : tokens.colorNeutralForeground2
                         }}
                     />
                 </button>
@@ -237,7 +229,7 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
             <PopoverSurface style={{ padding: "16px", minWidth: "400px", maxWidth: "500px" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
+                        <Text size={300} weight="semibold">
                             {nlsHPCC.QuickSelect}
                         </Text>
                         <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px" }}>
@@ -254,18 +246,18 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                     <Divider />
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
+                        <Text size={300} weight="semibold">
                             {nlsHPCC.CustomRange}
                         </Text>
                         <div style={{ display: "flex", flexDirection: "row", gap: "12px", alignItems: "flex-end" }}>
                             <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
-                                <Text styles={{ root: { fontSize: "12px", fontWeight: FontWeights.regular } }}>
+                                <Text size={200} weight="regular">
                                     {nlsHPCC.FromDate}
                                 </Text>
                                 <DateTimeInput value={tempStartDate} onChange={setTempStartDate} style={{ width: "100%" }} />
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
-                                <Text styles={{ root: { fontSize: "12px", fontWeight: FontWeights.regular } }}>
+                                <Text size={200} weight="regular">
                                     {nlsHPCC.ToDate}
                                 </Text>
                                 <DateTimeInput value={tempEndDate} onChange={setTempEndDate} style={{ width: "100%" }} />
@@ -277,7 +269,7 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                         <>
                             <Divider />
                             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
+                                <Text size={300} weight="semibold">
                                     {nlsHPCC.AutoRefresh}
                                 </Text>
                                 <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px" }}>
@@ -290,8 +282,8 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                                                 height: "28px",
                                                 minWidth: "auto",
                                                 padding: "0 12px",
-                                                backgroundColor: autoRefreshInterval === option.value ? theme.palette.themeLighter : undefined,
-                                                borderColor: autoRefreshInterval === option.value ? theme.palette.themePrimary : undefined
+                                                backgroundColor: autoRefreshInterval === option.value ? tokens.colorBrandBackground2 : undefined,
+                                                borderColor: autoRefreshInterval === option.value ? tokens.colorBrandBackground : undefined
                                             }}
                                         >{option.label}</Button>
                                     ))}
@@ -319,7 +311,7 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                     icon={autoRefresh ? <Play20Regular /> : <Pause20Regular />}
                     onClick={handleAutoRefreshToggle}
                     disabled={disabled}
-                    style={{ ...buttonStyle, backgroundColor: autoRefresh ? theme.palette.themeLighterAlt : undefined }}
+                    style={{ ...buttonStyle, backgroundColor: autoRefresh ? tokens.colorBrandBackground2 : undefined }}
                 >{autoRefresh ? `${nlsHPCC.AutoRefresh}: ${nlsHPCC.On.toUpperCase()}` : `${nlsHPCC.AutoRefresh}: ${nlsHPCC.Off.toUpperCase()}`}</Button>
             </div>
         )}

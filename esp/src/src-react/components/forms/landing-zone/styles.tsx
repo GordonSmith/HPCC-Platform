@@ -1,7 +1,6 @@
-import { FontWeights, getTheme, IIconProps, IStackStyles } from "@fluentui/react";
+import { IIconProps, IStackStyles } from "@fluentui/react";
+import { tokens } from "@fluentui/react-components";
 import { mergeStyleSets } from "@fluentui/style-utilities";
-
-const theme = getTheme();
 
 export const cancelIcon: IIconProps = { iconName: "Cancel" };
 export const iconButtonStyles = {
@@ -26,10 +25,10 @@ export const componentStyles = mergeStyleSets({
     header: [
         {
             flex: "1 1 auto",
-            borderTop: `4px solid ${theme.palette.themePrimary}`,
+            borderTop: `4px solid ${tokens.colorBrandBackground}`,
             display: "flex",
             alignItems: "center",
-            fontWeight: FontWeights.semibold,
+            fontWeight: tokens.fontWeightSemibold,
             padding: "12px 12px 14px 24px",
         },
     ],
@@ -45,7 +44,7 @@ export const componentStyles = mergeStyleSets({
     },
     selectionTable: {
         padding: "4px",
-        border: `1px solid ${theme.palette.themeDark}`
+        border: `1px solid ${tokens.colorBrandBackground2}`
     },
     twoColumnTable: {
         marginTop: "14px",
