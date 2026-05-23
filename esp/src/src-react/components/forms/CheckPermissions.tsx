@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button } from "@fluentui/react-components";
-import { ComboBox, IDropdownOption, MessageBar, MessageBarType, TextField } from "@fluentui/react";
+import { Button, Combobox, Field, Option } from "@fluentui/react-components";
+import { MessageBar, MessageBarType, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -37,8 +37,8 @@ export const CheckPermissionsForm: React.FunctionComponent<CheckPermissionsFormP
 
     const [showError, setShowError] = React.useState(false);
     const [errorMessage, setErrorMessage] = React.useState("");
-    const [userOptions, setUserOptions] = React.useState<IDropdownOption[]>([]);
-    const [groupOptions, setGroupOptions] = React.useState<IDropdownOption[]>([]);
+    const [userOptions, setUserOptions] = React.useState<{ key: string; text: string }[]>([]);
+    const [groupOptions, setGroupOptions] = React.useState<{ key: string; text: string }[]>([]);
     const [filePermissionResponse, setFilePermissionResponse] = React.useState<string>("");
 
     const userName = useWatch({ control, name: "UserName" });
@@ -114,26 +114,32 @@ export const CheckPermissionsForm: React.FunctionComponent<CheckPermissionsFormP
                     required: nlsHPCC.ValidationErrorRequired
                 }}
             />
-            <ComboBox
-                label={nlsHPCC.Users}
-                autoComplete="on"
-                options={userOptions}
-                selectedKey={userName}
-                onChange={(ev, option) => {
-                    setValue("UserName", option?.key.toString() || "");
-                    setValue("GroupName", "");
-                }}
-            />
-            <ComboBox
-                label={nlsHPCC.Groups}
-                autoComplete="on"
-                options={groupOptions}
-                selectedKey={groupName}
-                onChange={(ev, option) => {
-                    setValue("GroupName", option?.key.toString() || "");
-                    setValue("UserName", "");
-                }}
-            />
+            <Field label={nlsHPCC.Users}>
+                <Combobox
+                    autoComplete="on"
+                    value={userOptions.find(o => o.key === userName)?.text ?? userName ?? ""}
+                    selectedOptions={userName ? [userName] : []}
+                    onOptionSelect={(_, data) => {
+                        setValue("UserName", data.optionValue ?? "");
+                        setValue("GroupName", "");
+                    }}
+                >
+                    {userOptions.map(o => <Option key={o.key} value={o.key}>{o.text}</Option>)}
+                </Combobox>
+            </Field>
+            <Field label={nlsHPCC.Groups}>
+                <Combobox
+                    autoComplete="on"
+                    value={groupOptions.find(o => o.key === groupName)?.text ?? groupName ?? ""}
+                    selectedOptions={groupName ? [groupName] : []}
+                    onOptionSelect={(_, data) => {
+                        setValue("GroupName", data.optionValue ?? "");
+                        setValue("UserName", "");
+                    }}
+                >
+                    {groupOptions.map(o => <Option key={o.key} value={o.key}>{o.text}</Option>)}
+                </Combobox>
+            </Field>
             {filePermissionResponse && (
                 <TextField
                     label={nlsHPCC.FilePermission}
