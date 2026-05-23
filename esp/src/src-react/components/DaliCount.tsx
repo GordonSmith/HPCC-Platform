@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Button } from "@fluentui/react-components";
-import { DetailsList, DetailsListLayoutMode, IColumn } from "@fluentui/react";
+import { Button, DataGrid, DataGridBody, DataGridCell, DataGridHeader, DataGridHeaderCell, DataGridRow, TableColumnDefinition, createTableColumn } from "@fluentui/react-components";
 import { SizeMe } from "../layouts/SizeMe";
 import { DaliService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -20,9 +19,14 @@ export const DaliCount: React.FunctionComponent<CountRequestProps> = ({
 
 }) => {
 
-    const [columns, setColumns] = React.useState<IColumn[]>([]);
     const [items, setItems] = React.useState<any[]>([]);
     const [path, setPath] = React.useState<string>("");
+
+    const dataGridColumns = React.useMemo<TableColumnDefinition<any>[]>(() => [createTableColumn<any>({
+        columnId: "Result",
+        renderHeaderCell: () => "Result",
+        renderCell: (item) => item.result
+    })], []);
 
     const onSubmit = React.useCallback(() => {
         myDaliService.Count({ Path: path }).then(response => {
@@ -30,14 +34,7 @@ export const DaliCount: React.FunctionComponent<CountRequestProps> = ({
                 key: "Result",
                 result: response.Result
             }];
-            const columns = [{
-                key: "Result",
-                name: "Result",
-                fieldName: "result",
-                minWidth: 100
-            }];
             setItems(data);
-            setColumns(columns); // Add this line to set the columns as well
         }).catch(err => logger.error(err));
     }, [path]);
 
@@ -48,17 +45,22 @@ export const DaliCount: React.FunctionComponent<CountRequestProps> = ({
             setPath(value);
         }} /><Button onClick={onSubmit}>{nlsHPCC.Submit}</Button></span>}
         main={<SizeMe>{({ size }) => {
-            const height = `${size.height}px`;
             return <div style={{ position: "relative", width: "100%", height: "100%" }}>
-                <div style={{ position: "absolute", width: "100%", height: `${size.height}px` }}>
-                    <DetailsList compact={true}
-                        items={items}
-                        columns={columns}
-                        setKey="key"
-                        layoutMode={DetailsListLayoutMode.justified}
-                        selectionPreservedOnEmptyClick={true}
-                        styles={{ root: { height, minHeight: height, maxHeight: height } }}
-                    />
+                <div style={{ position: "absolute", width: "100%", height: `${size.height}px`, overflow: "auto" }}>
+                    <DataGrid items={items} columns={dataGridColumns} size="extra-small">
+                        <DataGridHeader>
+                            <DataGridRow>
+                                {({ renderHeaderCell }) => <DataGridHeaderCell>{renderHeaderCell()}</DataGridHeaderCell>}
+                            </DataGridRow>
+                        </DataGridHeader>
+                        <DataGridBody<any>>
+                            {({ item, rowId }) => (
+                                <DataGridRow<any> key={rowId}>
+                                    {({ renderCell }) => <DataGridCell>{renderCell(item)}</DataGridCell>}
+                                </DataGridRow>
+                            )}
+                        </DataGridBody>
+                    </DataGrid>
                 </div>
             </div>;
         }}</SizeMe>}

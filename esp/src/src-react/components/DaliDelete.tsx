@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Button } from "@fluentui/react-components";
-import { DetailsList, DetailsListLayoutMode, IColumn } from "@fluentui/react";
+import { Button, DataGrid, DataGridBody, DataGridCell, DataGridHeader, DataGridHeaderCell, DataGridRow, TableColumnDefinition, createTableColumn } from "@fluentui/react-components";
 import { SizeMe } from "../layouts/SizeMe";
 import { csvParse } from "d3-dsv";
 import { DaliService } from "@hpcc-js/comms";
@@ -21,9 +20,15 @@ export const DaliDelete: React.FunctionComponent<DaliDeleteProps> = ({
 
 }) => {
 
-    const [columns, setColumns] = React.useState<IColumn[]>([]);
+    const [columnNames, setColumnNames] = React.useState<string[]>([]);
     const [items, setItems] = React.useState<any[]>([]);
     const [path, setPath] = React.useState<string>("");
+
+    const dataGridColumns = React.useMemo<TableColumnDefinition<any>[]>(() => columnNames.map(col => createTableColumn<any>({
+        columnId: col,
+        renderHeaderCell: () => col,
+        renderCell: (item) => item[col]
+    })), [columnNames]);
 
     const [DaliPromptConfirm, setDaliPromptConfirm] = useConfirm({
         title: nlsHPCC.DaliAdmin,
@@ -31,14 +36,7 @@ export const DaliDelete: React.FunctionComponent<DaliDeleteProps> = ({
         onSubmit: React.useCallback(() => {
             myDaliService.Delete({ Path: path }).then(response => {
                 const data = csvParse(response.Result);
-                setColumns(data.columns.map((col, idx) => {
-                    return {
-                        key: col,
-                        name: col,
-                        fieldName: col,
-                        minWidth: 100
-                    };
-                }));
+                setColumnNames(data.columns);
                 setItems(data);
             }).catch(err => logger.error(err));
         }, [path])
@@ -55,17 +53,22 @@ export const DaliDelete: React.FunctionComponent<DaliDeleteProps> = ({
             setPath(value);
         }} /><Button onClick={onSubmit}>{nlsHPCC.Submit}</Button></span>}
         main={<SizeMe>{({ size }) => {
-            const height = `${size.height}px`;
             return <div style={{ position: "relative", width: "100%", height: "100%" }}>
-                <div style={{ position: "absolute", width: "100%", height: `${size.height}px` }}>
-                    <DetailsList compact={true}
-                        items={items}
-                        columns={columns}
-                        setKey="key"
-                        layoutMode={DetailsListLayoutMode.justified}
-                        selectionPreservedOnEmptyClick={true}
-                        styles={{ root: { height, minHeight: height, maxHeight: height } }}
-                    />
+                <div style={{ position: "absolute", width: "100%", height: `${size.height}px`, overflow: "auto" }}>
+                    <DataGrid items={items} columns={dataGridColumns} size="extra-small">
+                        <DataGridHeader>
+                            <DataGridRow>
+                                {({ renderHeaderCell }) => <DataGridHeaderCell>{renderHeaderCell()}</DataGridHeaderCell>}
+                            </DataGridRow>
+                        </DataGridHeader>
+                        <DataGridBody<any>>
+                            {({ item, rowId }) => (
+                                <DataGridRow<any> key={rowId}>
+                                    {({ renderCell }) => <DataGridCell>{renderCell(item)}</DataGridCell>}
+                                </DataGridRow>
+                            )}
+                        </DataGridBody>
+                    </DataGrid>
                     <DaliPromptConfirm />
                 </div>
             </div>;
