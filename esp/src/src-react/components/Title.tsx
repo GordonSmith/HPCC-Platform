@@ -1,7 +1,7 @@
 import * as React from "react";
-import { ContextualMenuItemType, DefaultButton, IconButton, IContextualMenuItem, IIconProps, IPersonaSharedProps, mergeStyleSets, Persona, PersonaSize, Text } from "@fluentui/react";
+import { ContextualMenuItemType, DefaultButton, IconButton, IContextualMenuItem, IIconProps, IPersonaSharedProps, mergeStyleSets, Persona, PersonaSize } from "@fluentui/react";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
-import { Button, ButtonProps, CounterBadgeProps, CounterBadge, Link, SearchBox, Toaster } from "@fluentui/react-components";
+import { Button, ButtonProps, CounterBadgeProps, CounterBadge, Link, SearchBox, Text, Toaster } from "@fluentui/react-components";
 import { WindowNewRegular } from "@fluentui/react-icons";
 import { Level, scopedLogger } from "@hpcc-js/util";
 import { cookie } from "src-dojo/index";
@@ -323,7 +323,7 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
                     </StackItemShim>
                     <StackItemShim align="center">
                         <Link href="#/activities">
-                            <Text variant="large" nowrap block >
+                            <Text size={400} block truncate wrap={false}>
                                 <b title="ECL Watch" style={{ paddingLeft: "8px", color: titlebarColorSet ? Utility.textColor(titlebarColor) : theme.palette.themeDarker }}>
                                     {(showEnvironmentTitle && environmentTitle) ? environmentTitle : "ECL Watch"}
                                 </b>

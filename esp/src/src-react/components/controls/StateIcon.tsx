@@ -1,6 +1,6 @@
 import * as React from "react";
-import { FontIcon, mergeStyleSets, Text, ThemeProvider } from "@fluentui/react";
-import { FluentProvider } from "@fluentui/react-components";
+import { FontIcon, mergeStyleSets, ThemeProvider } from "@fluentui/react";
+import { FluentProvider, Text } from "@fluentui/react-components";
 import { Palette } from "@hpcc-js/common";
 import { WUStateID } from "@hpcc-js/comms";
 import { useWorkunit } from "../../hooks/workunit";
@@ -229,7 +229,7 @@ export const WorkunitPersona: React.FunctionComponent<WorkunitPersonaProps> = ({
             }
             <StateIcon iconName="Settings" overlayName={overlayName} overlayColor={overlayColor} size={size} />
             {showWuid &&
-                <Text variant="xLarge" style={{ fontWeight: "bold", paddingLeft: "4px" }}>{wuid}</Text>
+                <Text size={500} weight="bold" style={{ paddingLeft: "4px" }}>{wuid}</Text>
             }
         </ThemeProvider>
     </FluentProvider>;
