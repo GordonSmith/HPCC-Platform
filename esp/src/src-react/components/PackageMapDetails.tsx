@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Sticky, StickyPositionType } from "@fluentui/react";
+import { Sticky, StickyPositionType } from "./controls/ScrollablePane";
 import { CommandBar, ICommandBarItemProps } from "./CommandBarV9";
 import { SelectTabData, SelectTabEvent, Tab, TabList, makeStyles } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";

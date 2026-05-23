@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "@fluentui/react";
+import { ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "./controls/ScrollablePane";
 import { IDropdownOption } from "./forms/Fields";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { mergeStyleSets } from "@fluentui/style-utilities";
