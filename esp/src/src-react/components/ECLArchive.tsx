@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { SearchBox, SearchBoxChangeEvent, ToggleButton } from "@fluentui/react-components";
 import { FilterRegular, TextCaseTitleRegular, TextCaseTitleFilled } from "@fluentui/react-icons";
 import { Workunit, WsWorkunits, IScope } from "@hpcc-js/comms";

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { Link } from "@fluentui/react-components";
 import { SizeMe } from "../layouts/SizeMe";
 import { AccessService } from "@hpcc-js/comms";

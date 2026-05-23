@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ICommandBarItemProps } from "./CommandBarV9";
 import { Checkbox } from "@fluentui/react-components";
 import { Level } from "@hpcc-js/util";
 import { logColor } from "src/Utility";

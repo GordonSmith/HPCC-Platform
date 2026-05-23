@@ -69,7 +69,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
     if (item.subMenuProps) {
         return <Menu key={item.key}>
             <MenuTrigger disableButtonEnhancement>
-                <ToolbarButton icon={icon} disabled={item.disabled} title={title}>{label}</ToolbarButton>
+                <ToolbarButton role="menuitem" icon={icon} disabled={item.disabled} title={title}>{label}</ToolbarButton>
             </MenuTrigger>
             <MenuPopover>
                 <MenuList>
@@ -84,6 +84,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
         // checkedValues which would change the call-site contract.
         return <ToolbarButton
             key={item.key}
+            role="menuitem"
             icon={icon}
             disabled={item.disabled}
             title={title}
@@ -96,6 +97,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
     if (item.href) {
         return <ToolbarButton
             key={item.key}
+            role="menuitem"
             as="a"
             href={item.href}
             icon={icon}
@@ -107,6 +109,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
     }
     return <ToolbarButton
         key={item.key}
+        role="menuitem"
         icon={icon}
         disabled={item.disabled}
         title={title}
@@ -117,7 +120,10 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
 }
 
 export const CommandBar: React.FunctionComponent<CommandBarV9Props> = ({ items, farItems }) => {
-    return <Toolbar size="small" style={{ display: "flex", alignItems: "center" }}>
+    // role="menubar" preserves the v8 CommandBar ARIA contract (Playwright tests
+    // query getByRole("menubar") / getByRole("menuitem")). v9 Toolbar's default
+    // role is "toolbar" which would break those locators.
+    return <Toolbar role="menubar" size="small" style={{ display: "flex", alignItems: "center" }}>
         {items.map(renderItem)}
         {farItems && farItems.length > 0 && <div style={{ flex: 1 }} />}
         {farItems?.map(renderItem)}

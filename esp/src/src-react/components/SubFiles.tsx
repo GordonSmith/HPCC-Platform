@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { FolderZipRegular, KeyRegular, FolderRegular } from "@fluentui/react-icons";
 import { Link } from "@fluentui/react-components";
 import * as ESPLogicalFile from "src/ESPLogicalFile";

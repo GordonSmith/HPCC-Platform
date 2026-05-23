@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { makeStyles, SearchBox, SearchBoxChangeEvent, ToggleButton, Tooltip } from "@fluentui/react-components";
 import { useConst } from "@fluentui/react-hooks";
 import { TextCaseTitleRegular, TextCaseTitleFilled, BranchForkHintRegular, BranchForkFilled, TextWholeWordFilled, TextWholeWordRegular, FilterRegular } from "@fluentui/react-icons";

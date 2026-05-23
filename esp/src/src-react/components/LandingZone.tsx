@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { mergeStyleSets } from "@fluentui/style-utilities";
 import { useOnEvent } from "@fluentui/react-hooks";
 import { FileSprayService } from "@hpcc-js/comms";

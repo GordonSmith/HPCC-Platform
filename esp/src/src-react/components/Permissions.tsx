@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { useConst } from "@fluentui/react-hooks";
 import { tokens } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
@@ -223,7 +223,7 @@ export const Permissions: React.FunctionComponent<PermissionsProps> = ({
 
     return <>
         <HolyGrail
-            header={<CommandBar items={buttons} overflowButtonProps={{}} />}
+            header={<CommandBar items={buttons} />}
             main={<DojoGrid store={gridStore} query={gridQuery} sort={gridSort} columns={gridColumns} setGrid={setGrid} setSelection={setSelection} overrides={{ selectionMode: "none" }} />}
         />
         <DeleteConfirm />

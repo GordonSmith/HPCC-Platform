@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { Checkbox, Label } from "@fluentui/react-components";
 import { WsAccess, AccessService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";

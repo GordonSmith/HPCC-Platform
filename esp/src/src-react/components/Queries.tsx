@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { PauseRegular, WarningRegular, DismissCircleRegular, CheckmarkCircleRegular } from "@fluentui/react-icons";
 import { Link } from "@fluentui/react-components";
 import * as WsWorkunits from "src/WsWorkunits";

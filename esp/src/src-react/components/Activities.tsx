@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { useConst } from "@fluentui/react-hooks";
 import * as ESPActivity from "src/ESPActivity";
 import * as Utility from "src/Utility";

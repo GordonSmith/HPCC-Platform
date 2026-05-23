@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { LockClosedFilled } from "@fluentui/react-icons";
 import { Link } from "@fluentui/react-components";
 import { SizeMe } from "../layouts/SizeMe";
