@@ -1,6 +1,6 @@
 import * as React from "react";
-import { IDropdownOption, mergeStyleSets, TextField } from "@fluentui/react";
-import { Button, Checkbox, Dropdown, Field, Option, Spinner, Tooltip } from "@fluentui/react-components";
+import { IDropdownOption, mergeStyleSets } from "@fluentui/react";
+import { Button, Checkbox, Dropdown, Field, Input, Option, Spinner, Tooltip } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -231,14 +231,14 @@ export const DelimitedImportForm: React.FunctionComponent<DelimitedImportFormPro
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        label={nlsHPCC.TargetScope}
-                        value={value}
-                        placeholder={nlsHPCC.NamePrefixPlaceholder}
-                        errorMessage={error && error?.message}
-                    />}
+                }) => <Field label={nlsHPCC.TargetScope} validationMessage={error?.message}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            placeholder={nlsHPCC.NamePrefixPlaceholder}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
                 rules={{
                     pattern: {
                         value: /^[_a-z0-9]+(::[_a-z0-9]+)*(?:::)?$/i,
@@ -264,12 +264,13 @@ export const DelimitedImportForm: React.FunctionComponent<DelimitedImportFormPro
                                     render={({
                                         field: { onChange, name: fieldName, value },
                                         fieldState: { error }
-                                    }) => <TextField
-                                            name={fieldName}
-                                            onChange={onChange}
-                                            value={value}
-                                            errorMessage={error && error?.message}
-                                        />}
+                                    }) => <Field validationMessage={error?.message}>
+                                            <Input
+                                                name={fieldName}
+                                                value={value}
+                                                onChange={(_, data) => onChange(data.value)}
+                                            />
+                                        </Field>}
                                     rules={{
                                         required: nlsHPCC.ValidationErrorTargetNameRequired,
                                         pattern: {
@@ -285,12 +286,13 @@ export const DelimitedImportForm: React.FunctionComponent<DelimitedImportFormPro
                                     render={({
                                         field: { onChange, name: fieldName, value },
                                         fieldState: { error }
-                                    }) => <TextField
-                                            name={fieldName}
-                                            onChange={onChange}
-                                            value={value}
-                                            errorMessage={error && error?.message}
-                                        />}
+                                    }) => <Field validationMessage={error?.message}>
+                                            <Input
+                                                name={fieldName}
+                                                value={value}
+                                                onChange={(_, data) => onChange(data.value)}
+                                            />
+                                        </Field>}
                                     rules={{
                                         pattern: {
                                             value: /^[0-9]+$/i,
@@ -340,14 +342,14 @@ export const DelimitedImportForm: React.FunctionComponent<DelimitedImportFormPro
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                onChange={onChange}
-                                label={nlsHPCC.MaxRecordLength}
-                                value={value}
-                                placeholder="8192"
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.MaxRecordLength} validationMessage={error?.message}>
+                                <Input
+                                    name={fieldName}
+                                    value={value}
+                                    placeholder="8192"
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                     /></td>
                 </tr>
                 <tr>
@@ -356,27 +358,27 @@ export const DelimitedImportForm: React.FunctionComponent<DelimitedImportFormPro
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                onChange={onChange}
-                                label={nlsHPCC.Quote}
-                                value={value}
-                                placeholder="'"
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.Quote} validationMessage={error?.message}>
+                                <Input
+                                    name={fieldName}
+                                    value={value}
+                                    placeholder="'"
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                     /></td>
                     <td><Controller
                         control={control} name="sourceCsvEscape"
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                onChange={onChange}
-                                label={nlsHPCC.Escape}
-                                value={value}
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.Escape} validationMessage={error?.message}>
+                                <Input
+                                    name={fieldName}
+                                    value={value}
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                     /></td>
                 </tr>
                 <tr>
@@ -385,28 +387,28 @@ export const DelimitedImportForm: React.FunctionComponent<DelimitedImportFormPro
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                onChange={onChange}
-                                label={nlsHPCC.Separators}
-                                value={value}
-                                placeholder=","
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.Separators} validationMessage={error?.message}>
+                                <Input
+                                    name={fieldName}
+                                    value={value}
+                                    placeholder=","
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                     /></td>
                     <td><Controller
                         control={control} name="sourceCsvTerminate" defaultValue="\\n,\\r\\n"
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                onChange={onChange}
-                                label={nlsHPCC.LineTerminators}
-                                value={value}
-                                placeholder="\\n,\\r\\n"
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.LineTerminators} validationMessage={error?.message}>
+                                <Input
+                                    name={fieldName}
+                                    value={value}
+                                    placeholder="\\n,\\r\\n"
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                     /></td>
                 </tr>
             </tbody></table>
@@ -477,13 +479,13 @@ export const DelimitedImportForm: React.FunctionComponent<DelimitedImportFormPro
                             render={({
                                 field: { onChange, name: fieldName, value },
                                 fieldState: { error }
-                            }) => <TextField
-                                    name={fieldName}
-                                    onChange={onChange}
-                                    label={nlsHPCC.ExpireDays}
-                                    value={value}
-                                    errorMessage={error && error?.message}
-                                />}
+                            }) => <Field label={nlsHPCC.ExpireDays} validationMessage={error?.message}>
+                                    <Input
+                                        name={fieldName}
+                                        value={value}
+                                        onChange={(_, data) => onChange(data.value)}
+                                    />
+                                </Field>}
                             rules={{
                                 min: {
                                     value: 1,

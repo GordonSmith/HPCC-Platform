@@ -1,6 +1,6 @@
 import * as React from "react";
-import { ColorPicker, getColorFromString, IColor, TextField } from "@fluentui/react";
-import { Button, Checkbox, Label, Spinner, Tooltip } from "@fluentui/react-components";
+import { ColorPicker, getColorFromString, IColor } from "@fluentui/react";
+import { Button, Checkbox, Field, Input, Label, Spinner, Tooltip } from "@fluentui/react-components";
 import { useForm, Controller } from "react-hook-form";
 import { useUserTheme } from "../../hooks/theme";
 import { MessageBox } from "../../layouts/MessageBox";
@@ -109,13 +109,14 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        aria-describedby="bannerMessageTooltip"
-                        label={nlsHPCC.NameOfEnvironment}
-                        value={value}
-                    />}
+                }) => <Field label={nlsHPCC.NameOfEnvironment}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            aria-describedby="bannerMessageTooltip"
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
             />
         </Tooltip>
         <Tooltip content={nlsHPCC.BannerColorTooltip} relationship="label">

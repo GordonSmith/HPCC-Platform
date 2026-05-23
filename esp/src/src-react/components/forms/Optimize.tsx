@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button, Checkbox } from "@fluentui/react-components";
-import { IDropdownOption, TextField } from "@fluentui/react";
+import { Button, Checkbox, Field, Input } from "@fluentui/react-components";
+import { IDropdownOption } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { DPWorkunit } from "src/DataPatterns/DPWorkunit";
@@ -85,14 +85,13 @@ export const Optimize: React.FunctionComponent<OptimizeProps> = ({
             render={({
                 field: { onChange, name: fieldName, value },
                 fieldState: { error }
-            }) => <TextField
-                    name={fieldName}
-                    onChange={onChange}
-                    label={nlsHPCC.Name}
-                    value={value}
-                    errorMessage={error && error?.message}
-                    styles={{ root: { minWidth: 320 } }}
-                />}
+            }) => <Field label={nlsHPCC.Name} validationMessage={error?.message} style={{ minWidth: 320 }}>
+                    <Input
+                        name={fieldName}
+                        value={value}
+                        onChange={(_, data) => onChange(data.value)}
+                    />
+                </Field>}
             rules={{
                 required: nlsHPCC.ValidationErrorRequired
             }}

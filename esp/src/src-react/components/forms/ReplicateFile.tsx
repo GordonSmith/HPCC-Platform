@@ -1,6 +1,6 @@
 import * as React from "react";
-import { IDropdownOption, TextField } from "@fluentui/react";
-import { Button, Spinner } from "@fluentui/react-components";
+import { IDropdownOption } from "@fluentui/react";
+import { Button, Field, Input, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -82,14 +82,13 @@ export const ReplicateFile: React.FunctionComponent<ReplicateFileProps> = ({
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        required={true}
-                        label={nlsHPCC.SourceLogicalFile}
-                        value={value}
-                        errorMessage={error && error.message}
-                    />}
+                }) => <Field label={nlsHPCC.SourceLogicalFile} required validationMessage={error?.message}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
                 rules={{
                     required: nlsHPCC.ValidationErrorRequired
                 }}
@@ -99,13 +98,13 @@ export const ReplicateFile: React.FunctionComponent<ReplicateFileProps> = ({
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        label={nlsHPCC.ReplicateOffset}
-                        value={value}
-                        errorMessage={error && error.message}
-                    />}
+                }) => <Field label={nlsHPCC.ReplicateOffset} validationMessage={error?.message}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
                 rules={{
                     pattern: {
                         value: /^[0-9]+$/i,

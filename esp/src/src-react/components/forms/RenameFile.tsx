@@ -1,6 +1,6 @@
 import * as React from "react";
-import { mergeStyleSets, TextField } from "@fluentui/react";
-import { Button, Checkbox, Spinner } from "@fluentui/react-components";
+import { mergeStyleSets } from "@fluentui/react";
+import { Button, Checkbox, Field, Input, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useConst } from "@fluentui/react-hooks";
 import { useForm, Controller } from "react-hook-form";
@@ -135,14 +135,13 @@ export const RenameFile: React.FunctionComponent<RenameFileProps> = ({
                     render={({
                         field: { onChange, name: fieldName, value },
                         fieldState: { error }
-                    }) => <TextField
-                            name={fieldName}
-                            onChange={onChange}
-                            required={true}
-                            label={nlsHPCC.TargetName}
-                            value={value}
-                            errorMessage={error && error.message}
-                        />}
+                    }) => <Field label={nlsHPCC.TargetName} required validationMessage={error?.message}>
+                            <Input
+                                name={fieldName}
+                                value={value}
+                                onChange={(_, data) => onChange(data.value)}
+                            />
+                        </Field>}
                     rules={{
                         required: nlsHPCC.ValidationErrorRequired
                     }}
@@ -165,12 +164,13 @@ export const RenameFile: React.FunctionComponent<RenameFileProps> = ({
                                             render={({
                                                 field: { onChange, name: fieldName, value: file },
                                                 fieldState: { error }
-                                            }) => <TextField
-                                                    name={fieldName}
-                                                    onChange={onChange}
-                                                    value={file}
-                                                    errorMessage={error && error?.message}
-                                                />}
+                                            }) => <Field validationMessage={error?.message}>
+                                                    <Input
+                                                        name={fieldName}
+                                                        value={file}
+                                                        onChange={(_, data) => onChange(data.value)}
+                                                    />
+                                                </Field>}
                                             rules={{
                                                 required: nlsHPCC.ValidationErrorTargetNameRequired
                                             }}

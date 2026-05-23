@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Button, Dropdown, Field, Option } from "@fluentui/react-components";
-import { TextField } from "@fluentui/react";
+import { Button, Dropdown, Field, Input, Option } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -102,13 +101,13 @@ export const SlaveLogs: React.FunctionComponent<SlaveLogsProps> = ({
             render={({
                 field: { onChange, name: fieldName, value },
                 fieldState: { error }
-            }) => <TextField
-                    name={fieldName}
-                    onChange={onChange}
-                    label={nlsHPCC.SlaveNumber}
-                    value={value}
-                    errorMessage={error && error.message}
-                />}
+            }) => <Field label={nlsHPCC.SlaveNumber} validationMessage={error?.message}>
+                    <Input
+                        name={fieldName}
+                        value={value}
+                        onChange={(_, data) => onChange(data.value)}
+                    />
+                </Field>}
             rules={{
                 pattern: {
                     value: /^[1-9]+$/i,

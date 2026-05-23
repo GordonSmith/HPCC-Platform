@@ -1,6 +1,5 @@
 import * as React from "react";
-import { TextField } from "@fluentui/react";
-import { Button, Spinner } from "@fluentui/react-components";
+import { Button, Field, Input, Spinner } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -100,14 +99,13 @@ export const AddFileForm: React.FunctionComponent<AddFileFormProps> = ({
             render={({
                 field: { onChange, name: fieldName, value },
                 fieldState: { error }
-            }) => <TextField
-                    name={fieldName}
-                    onChange={onChange}
-                    label={nlsHPCC.IP}
-                    required={true}
-                    value={value}
-                    errorMessage={error && error?.message}
-                />}
+            }) => <Field label={nlsHPCC.IP} required validationMessage={error?.message}>
+                    <Input
+                        name={fieldName}
+                        value={value}
+                        onChange={(_, data) => onChange(data.value)}
+                    />
+                </Field>}
             rules={{
                 required: nlsHPCC.ValidationErrorRequired
             }}
@@ -117,15 +115,14 @@ export const AddFileForm: React.FunctionComponent<AddFileFormProps> = ({
             render={({
                 field: { onChange, name: fieldName, value },
                 fieldState: { error }
-            }) => <TextField
-                    name={fieldName}
-                    onChange={onChange}
-                    label={nlsHPCC.Path}
-                    required={true}
-                    value={value}
-                    placeholder={nlsHPCC.NamePrefixPlaceholder}
-                    errorMessage={error && error?.message}
-                />}
+            }) => <Field label={nlsHPCC.Path} required validationMessage={error?.message}>
+                    <Input
+                        name={fieldName}
+                        value={value}
+                        placeholder={nlsHPCC.NamePrefixPlaceholder}
+                        onChange={(_, data) => onChange(data.value)}
+                    />
+                </Field>}
             rules={{
                 required: nlsHPCC.ValidationErrorRequired
             }}

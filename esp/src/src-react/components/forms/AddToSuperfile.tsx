@@ -1,6 +1,6 @@
 import * as React from "react";
-import { mergeStyleSets, TextField } from "@fluentui/react";
-import { Button, Radio, RadioGroup, Spinner } from "@fluentui/react-components";
+import { mergeStyleSets } from "@fluentui/react";
+import { Button, Field, Input, Radio, RadioGroup, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
@@ -101,13 +101,13 @@ export const AddToSuperfile: React.FunctionComponent<AddToSuperfileProps> = ({
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        label={nlsHPCC.SuperFile}
-                        onChange={onChange}
-                        value={value}
-                        errorMessage={error && error?.message}
-                    />}
+                }) => <Field label={nlsHPCC.SuperFile} validationMessage={error?.message}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
                 rules={{
                     required: nlsHPCC.ValidationErrorRequired
                 }}
@@ -143,12 +143,14 @@ export const AddToSuperfile: React.FunctionComponent<AddToSuperfileProps> = ({
                                             render={({
                                                 field: { onChange, name: fieldName },
                                                 fieldState: { error }
-                                            }) => <TextField
-                                                    name={fieldName}
-                                                    onChange={onChange}
-                                                    value={file}
-                                                    readOnly={true}
-                                                />}
+                                            }) => <Field validationMessage={error?.message}>
+                                                    <Input
+                                                        name={fieldName}
+                                                        value={file}
+                                                        readOnly
+                                                        onChange={(_, data) => onChange(data.value)}
+                                                    />
+                                                </Field>}
                                         />
                                     </td>
                                 </tr>;

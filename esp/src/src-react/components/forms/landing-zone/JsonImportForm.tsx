@@ -1,7 +1,7 @@
 import * as React from "react";
-import { IDropdownOption, mergeStyleSets, TextField } from "@fluentui/react";
+import { IDropdownOption, mergeStyleSets } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
-import { Button, Checkbox, Dropdown, Field, makeStyles, Option, Spinner, Tooltip } from "@fluentui/react-components";
+import { Button, Checkbox, Dropdown, Field, Input, makeStyles, Option, Spinner, Tooltip } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import * as FileSpray from "src/FileSpray";
@@ -228,14 +228,14 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        label={nlsHPCC.TargetScope}
-                        value={value}
-                        placeholder={nlsHPCC.NamePrefixPlaceholder}
-                        errorMessage={error && error?.message}
-                    />}
+                }) => <Field label={nlsHPCC.TargetScope} validationMessage={error?.message}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            placeholder={nlsHPCC.NamePrefixPlaceholder}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
                 rules={{
                     pattern: {
                         value: /^[_a-z0-9]+(::[_a-z0-9]+)*(?:::)?$/i,
@@ -261,12 +261,13 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                                 render={({
                                     field: { onChange, name: fieldName, value },
                                     fieldState: { error }
-                                }) => <TextField
-                                        name={fieldName}
-                                        onChange={onChange}
-                                        value={value}
-                                        errorMessage={error && error?.message}
-                                    />}
+                                }) => <Field validationMessage={error?.message}>
+                                        <Input
+                                            name={fieldName}
+                                            value={value}
+                                            onChange={(_, data) => onChange(data.value)}
+                                        />
+                                    </Field>}
                                 rules={{
                                     required: nlsHPCC.ValidationErrorTargetNameRequired,
                                     pattern: {
@@ -281,12 +282,13 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                                     render={({
                                         field: { onChange, name: fieldName, value },
                                         fieldState: { error }
-                                    }) => <TextField
-                                            name={fieldName}
-                                            onChange={onChange}
-                                            value={value}
-                                            errorMessage={error && error?.message}
-                                        />}
+                                    }) => <Field validationMessage={error?.message}>
+                                            <Input
+                                                name={fieldName}
+                                                value={value}
+                                                onChange={(_, data) => onChange(data.value)}
+                                            />
+                                        </Field>}
                                 />
                             </td>
                             <td>
@@ -295,12 +297,13 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                                     render={({
                                         field: { onChange, name: fieldName, value },
                                         fieldState: { error }
-                                    }) => <TextField
-                                            name={fieldName}
-                                            onChange={onChange}
-                                            value={value}
-                                            errorMessage={error && error?.message}
-                                        />}
+                                    }) => <Field validationMessage={error?.message}>
+                                            <Input
+                                                name={fieldName}
+                                                value={value}
+                                                onChange={(_, data) => onChange(data.value)}
+                                            />
+                                        </Field>}
                                     rules={{
                                         pattern: {
                                             value: /^[0-9]+$/i,
@@ -349,14 +352,14 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                onChange={onChange}
-                                label={nlsHPCC.MaxRecordLength}
-                                value={value}
-                                placeholder="8192"
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.MaxRecordLength} validationMessage={error?.message}>
+                                <Input
+                                    name={fieldName}
+                                    value={value}
+                                    placeholder="8192"
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                     /></td>
                 </tr>
             </tbody></table>
@@ -413,13 +416,13 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                             render={({
                                 field: { onChange, name: fieldName, value },
                                 fieldState: { error }
-                            }) => <TextField
-                                    name={fieldName}
-                                    onChange={onChange}
-                                    label={nlsHPCC.ExpireDays}
-                                    value={value}
-                                    errorMessage={error && error?.message}
-                                />}
+                            }) => <Field label={nlsHPCC.ExpireDays} validationMessage={error?.message}>
+                                    <Input
+                                        name={fieldName}
+                                        value={value}
+                                        onChange={(_, data) => onChange(data.value)}
+                                    />
+                                </Field>}
                             rules={{
                                 min: {
                                     value: 1,

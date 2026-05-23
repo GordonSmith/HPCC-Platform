@@ -1,6 +1,6 @@
 import * as React from "react";
-import { IDropdownOption, mergeStyleSets, TextField } from "@fluentui/react";
-import { Button, Checkbox, Spinner } from "@fluentui/react-components";
+import { IDropdownOption, mergeStyleSets } from "@fluentui/react";
+import { Button, Checkbox, Field, Input, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -177,12 +177,13 @@ export const CopyFile: React.FunctionComponent<CopyFileProps> = ({
                                     render={({
                                         field: { onChange, name: fieldName, value: file },
                                         fieldState: { error }
-                                    }) => <TextField
-                                            name={fieldName}
-                                            onChange={onChange}
-                                            value={file}
-                                            errorMessage={error && error?.message}
-                                        />}
+                                    }) => <Field validationMessage={error?.message}>
+                                            <Input
+                                                name={fieldName}
+                                                value={file}
+                                                onChange={(_, data) => onChange(data.value)}
+                                            />
+                                        </Field>}
                                     rules={{
                                         required: nlsHPCC.ValidationErrorTargetNameRequired
                                     }}
@@ -194,12 +195,13 @@ export const CopyFile: React.FunctionComponent<CopyFileProps> = ({
                                     render={({
                                         field: { onChange, name: fieldName, value },
                                         fieldState: { error }
-                                    }) => <TextField
-                                            name={fieldName}
-                                            onChange={onChange}
-                                            value={value}
-                                            errorMessage={error && error?.message}
-                                        />}
+                                    }) => <Field validationMessage={error?.message}>
+                                            <Input
+                                                name={fieldName}
+                                                value={value}
+                                                onChange={(_, data) => onChange(data.value)}
+                                            />
+                                        </Field>}
                                     rules={{
                                         pattern: {
                                             value: /^[0-9]+$/i,
@@ -273,13 +275,13 @@ export const CopyFile: React.FunctionComponent<CopyFileProps> = ({
                             render={({
                                 field: { onChange, name: fieldName, value },
                                 fieldState: { error }
-                            }) => <TextField
-                                    name={fieldName}
-                                    onChange={onChange}
-                                    label={nlsHPCC.ExpireDays}
-                                    value={value}
-                                    errorMessage={error && error.message}
-                                />}
+                            }) => <Field label={nlsHPCC.ExpireDays} validationMessage={error?.message}>
+                                    <Input
+                                        name={fieldName}
+                                        value={value}
+                                        onChange={(_, data) => onChange(data.value)}
+                                    />
+                                </Field>}
                             rules={{
                                 min: {
                                     value: 1,
@@ -292,13 +294,13 @@ export const CopyFile: React.FunctionComponent<CopyFileProps> = ({
                             render={({
                                 field: { onChange, name: fieldName, value },
                                 fieldState: { error }
-                            }) => <TextField
-                                    name={fieldName}
-                                    onChange={onChange}
-                                    label={nlsHPCC.MaxConnections}
-                                    value={value}
-                                    errorMessage={error && error.message}
-                                />}
+                            }) => <Field label={nlsHPCC.MaxConnections} validationMessage={error?.message}>
+                                    <Input
+                                        name={fieldName}
+                                        value={value}
+                                        onChange={(_, data) => onChange(data.value)}
+                                    />
+                                </Field>}
                             rules={{
                                 min: {
                                     value: 1,
