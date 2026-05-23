@@ -1,6 +1,6 @@
 import * as React from "react";
-import { IDropdownOption, TextField } from "@fluentui/react";
-import { Button, MessageBar, MessageBarActions, MessageBarBody, Spinner } from "@fluentui/react-components";
+import { IDropdownOption } from "@fluentui/react";
+import { Button, Field, Input, MessageBar, MessageBarActions, MessageBarBody, Spinner } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -107,26 +107,26 @@ export const AddPermissionForm: React.FunctionComponent<AddPermissionFormProps> 
             render={({
                 field: { onChange, name: fieldName, value },
                 fieldState: { error }
-            }) => <TextField
-                    name={fieldName}
-                    onChange={onChange}
-                    label={nlsHPCC.Name}
-                    value={value}
-                    errorMessage={error && error?.message}
-                />}
+            }) => <Field label={nlsHPCC.Name} validationMessage={error?.message}>
+                    <Input
+                        name={fieldName}
+                        value={value}
+                        onChange={(_, data) => onChange(data.value)}
+                    />
+                </Field>}
         />
         <Controller
             control={control} name="description"
             render={({
                 field: { onChange, name: fieldName, value },
                 fieldState: { error }
-            }) => <TextField
-                    name={fieldName}
-                    onChange={onChange}
-                    label={nlsHPCC.Description}
-                    value={value}
-                    errorMessage={error && error?.message}
-                />}
+            }) => <Field label={nlsHPCC.Description} validationMessage={error?.message}>
+                    <Input
+                        name={fieldName}
+                        value={value}
+                        onChange={(_, data) => onChange(data.value)}
+                    />
+                </Field>}
         />
         {showError &&
             <div style={{ marginTop: 16 }}>

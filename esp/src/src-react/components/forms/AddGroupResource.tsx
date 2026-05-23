@@ -1,6 +1,5 @@
 import * as React from "react";
-import { TextField } from "@fluentui/react";
-import { Button, Checkbox, Spinner } from "@fluentui/react-components";
+import { Button, Checkbox, Field, Input, Spinner } from "@fluentui/react-components";
 import { AccessService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -89,14 +88,13 @@ export const AddGroupResourceForm: React.FunctionComponent<AddGroupResourceFormP
             render={({
                 field: { onChange, name: fieldName, value },
                 fieldState: { error }
-            }) => <TextField
-                    name={fieldName}
-                    onChange={onChange}
-                    required={true}
-                    label={nlsHPCC.GroupName}
-                    value={value}
-                    errorMessage={error && error?.message}
-                />}
+            }) => <Field label={nlsHPCC.GroupName} required validationMessage={error?.message}>
+                    <Input
+                        name={fieldName}
+                        value={value}
+                        onChange={(_, data) => onChange(data.value)}
+                    />
+                </Field>}
             rules={{
                 required: nlsHPCC.ValidationErrorRequired
             }}

@@ -1,6 +1,5 @@
 import * as React from "react";
-import { TextField } from "@fluentui/react";
-import { Button, MessageBar, MessageBarActions, MessageBarBody, Spinner } from "@fluentui/react-components";
+import { Button, Field, Input, MessageBar, MessageBarActions, MessageBarBody, Spinner } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -81,14 +80,13 @@ export const PushEventForm: React.FunctionComponent<PushEventProps> = ({
             render={({
                 field: { onChange, name: fieldName, value },
                 fieldState: { error }
-            }) => <TextField
-                    name={fieldName}
-                    onChange={onChange}
-                    required={true}
-                    label={nlsHPCC.EventName}
-                    value={value}
-                    errorMessage={error && error?.message}
-                />}
+            }) => <Field label={nlsHPCC.EventName} required validationMessage={error?.message}>
+                    <Input
+                        name={fieldName}
+                        value={value}
+                        onChange={(_, data) => onChange(data.value)}
+                    />
+                </Field>}
             rules={{
                 required: nlsHPCC.ValidationErrorRequired
             }}
@@ -98,14 +96,13 @@ export const PushEventForm: React.FunctionComponent<PushEventProps> = ({
             render={({
                 field: { onChange, name: fieldName, value },
                 fieldState: { error }
-            }) => <TextField
-                    name={fieldName}
-                    onChange={onChange}
-                    required={true}
-                    label={nlsHPCC.EventText}
-                    value={value}
-                    errorMessage={error && error?.message}
-                />}
+            }) => <Field label={nlsHPCC.EventText} required validationMessage={error?.message}>
+                    <Input
+                        name={fieldName}
+                        value={value}
+                        onChange={(_, data) => onChange(data.value)}
+                    />
+                </Field>}
             rules={{
                 required: nlsHPCC.ValidationErrorRequired
             }}
