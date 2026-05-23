@@ -1,11 +1,10 @@
 import * as React from "react";
-import { IconButton, IIconProps, mergeStyleSets } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { ArrowMaximize20Regular, ArrowMinimize20Regular } from "@fluentui/react-icons";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { useUserTheme } from "../hooks/theme";
 import { updateFullscreen } from "../util/history";
-
-const FullscreenIcon: IIconProps = { iconName: "FullScreen" };
-const RestoreIcon: IIconProps = { iconName: "ChromeRestore" };
 
 export interface FullscreenProps {
     fullscreen: boolean;
@@ -46,7 +45,7 @@ export const FullscreenStack: React.FunctionComponent<FullscreenProps> = ({
             {children}
         </StackItemShim>
         <StackItemShim align="center">
-            <IconButton iconProps={fullscreen ? RestoreIcon : FullscreenIcon} onClick={() => updateFullscreen(!fullscreen)} />
+            <Button appearance="subtle" icon={fullscreen ? <ArrowMinimize20Regular /> : <ArrowMaximize20Regular />} onClick={() => updateFullscreen(!fullscreen)} />
         </StackItemShim>
     </StackShim>;
 };
