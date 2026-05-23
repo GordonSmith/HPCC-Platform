@@ -1,6 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, TooltipHost } from "@fluentui/react";
-import { makeStyles, SearchBox, SearchBoxChangeEvent, ToggleButton } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { makeStyles, SearchBox, SearchBoxChangeEvent, ToggleButton, Tooltip } from "@fluentui/react-components";
 import { useConst } from "@fluentui/react-hooks";
 import { TextCaseTitleRegular, TextCaseTitleFilled, BranchForkHintRegular, BranchForkFilled, TextWholeWordFilled, TextWholeWordRegular, FilterRegular } from "@fluentui/react-icons";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
@@ -456,9 +456,9 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
                             header={<StackShim horizontal tokens={{ childrenGap: 4 }}>
                                 <ToggleButton appearance="subtle" icon={includePendingItems ? <BranchForkFilled /> : <BranchForkHintRegular />} title={nlsHPCC.IncludePendingItems} checked={includePendingItems} onClick={() => { setIncludePendingItems(!includePendingItems); }} />
                                 <StackItemShim grow>
-                                    <TooltipHost content={nlsHPCC.FilterMetricsTooltip}>
+                                    <Tooltip content={nlsHPCC.FilterMetricsTooltip} relationship="label">
                                         <SearchBox key={scopeFilterVersion} defaultValue={scopeFilter} onChange={onChangeScopeFilter} placeholder={nlsHPCC.Filter} contentBefore={filterIcon} className={styles.searchBox} />
-                                    </TooltipHost>
+                                    </Tooltip>
                                 </StackItemShim>
                                 <ToggleButton appearance="subtle" icon={matchCase ? <TextCaseTitleFilled /> : <TextCaseTitleRegular />} title={nlsHPCC.MatchCase} checked={matchCase} onClick={() => { setMatchCase(!matchCase); }} />
                                 <ToggleButton appearance="subtle" icon={matchWholeWord ? <TextWholeWordFilled /> : <TextWholeWordRegular />} title={nlsHPCC.MatchWholeWord} checked={matchWholeWord} onClick={() => { setMatchWholeWord(!matchWholeWord); }} />

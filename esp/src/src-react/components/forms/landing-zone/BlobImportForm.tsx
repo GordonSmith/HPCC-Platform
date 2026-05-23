@@ -1,6 +1,6 @@
 import * as React from "react";
-import { IDropdownOption, mergeStyleSets, TextField, TooltipHost } from "@fluentui/react";
-import { Button, Checkbox, Spinner } from "@fluentui/react-components";
+import { IDropdownOption, mergeStyleSets, TextField } from "@fluentui/react";
+import { Button, Checkbox, Spinner, Tooltip } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -315,9 +315,9 @@ export const BlobImportForm: React.FunctionComponent<BlobImportFormProps> = ({
                         control={control} name="replicate"
                         render={({
                             field: { onChange, name: fieldName, value }
-                        }) => <TooltipHost content={nlsHPCC.ReplicateTooltip}>
+                        }) => <Tooltip content={nlsHPCC.ReplicateTooltip} relationship="label">
                                 <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Replicate} />
-                            </TooltipHost>}
+                            </Tooltip>}
                     /></td>
                 </tr>
                     <tr>

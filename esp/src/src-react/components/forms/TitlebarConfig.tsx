@@ -1,6 +1,6 @@
 import * as React from "react";
-import { ColorPicker, getColorFromString, IColor, TextField, TooltipHost } from "@fluentui/react";
-import { Button, Checkbox, Label, Spinner } from "@fluentui/react-components";
+import { ColorPicker, getColorFromString, IColor, TextField } from "@fluentui/react";
+import { Button, Checkbox, Label, Spinner, Tooltip } from "@fluentui/react-components";
 import { useForm, Controller } from "react-hook-form";
 import { useUserTheme } from "../../hooks/theme";
 import { MessageBox } from "../../layouts/MessageBox";
@@ -103,7 +103,7 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
                 />
             }
         />
-        <TooltipHost content={nlsHPCC.BannerMessageTooltip} id="bannerMessageTooltip">
+        <Tooltip content={nlsHPCC.BannerMessageTooltip} relationship="label">
             <Controller
                 control={control} name="environmentTitle"
                 render={({
@@ -117,14 +117,16 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
                         value={value}
                     />}
             />
-        </TooltipHost>
-        <TooltipHost content={nlsHPCC.BannerColorTooltip} id="bannerColorTooltip">
-            <Label aria-describedby="bannerColorTooltip">{nlsHPCC.BannerColor}</Label>
-            <ColorPicker
-                onChange={updateColor}
-                color={color}
-            />
-        </TooltipHost>
+        </Tooltip>
+        <Tooltip content={nlsHPCC.BannerColorTooltip} relationship="label">
+            <div>
+                <Label aria-describedby="bannerColorTooltip">{nlsHPCC.BannerColor}</Label>
+                <ColorPicker
+                    onChange={updateColor}
+                    color={color}
+                />
+            </div>
+        </Tooltip>
     </MessageBox>;
 
 };
