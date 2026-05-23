@@ -1,9 +1,10 @@
 import * as React from "react";
-import { DefaultButton, IconButton, IIconProps, IPanelProps, IRenderFunction, Panel, PanelType } from "@fluentui/react";
+import { IPanelProps, IRenderFunction, Panel, PanelType } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { WaffleOffice365Regular } from "@fluentui/react-icons";
 import nlsHPCC from "src/nlsHPCC";
 import { useWebLinks } from "../hooks/resources";
 
-const waffleIcon: IIconProps = { iconName: "WaffleOffice365" };
 const paddingStyle = { margin: "5px", height: "auto", width: "100%" };
 
 interface AppPanelProps {
@@ -21,7 +22,7 @@ export const AppPanel: React.FunctionComponent<AppPanelProps> = ({
     const onRenderNavigationContent: IRenderFunction<IPanelProps> = React.useCallback(
         (props, defaultRender) => (
             <>
-                <IconButton iconProps={waffleIcon} onClick={onDismiss} style={{ width: 48, height: 48 }} />
+                <Button appearance="subtle" icon={<WaffleOffice365Regular />} onClick={onDismiss} style={{ width: 48, height: 48 }} />
                 <span style={paddingStyle} />
                 {defaultRender!(props)}
             </>
@@ -33,7 +34,7 @@ export const AppPanel: React.FunctionComponent<AppPanelProps> = ({
         const retVal = [];
         webLinks?.forEach(webLink => {
             webLink.Annotations.NamedValue.forEach(nv => {
-                retVal.push(<DefaultButton text={`${webLink.ServiceName} - ${nv.Name}`} href={`/${nv.Value}`} target="_blank" />);
+                retVal.push(<Button key={`${webLink.ServiceName}-${nv.Name}`} as="a" href={`/${nv.Value}`} target="_blank" style={paddingStyle}>{`${webLink.ServiceName} - ${nv.Name}`}</Button>);
             });
         });
         // Include HPCC Systems link when there are no other web links available
