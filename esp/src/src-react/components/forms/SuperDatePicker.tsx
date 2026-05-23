@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBarButton, Callout, DirectionalHint, Text, DefaultButton, PrimaryButton, Separator, IButtonStyles, FontWeights, useTheme, Icon } from "@fluentui/react";
+import { CommandBarButton, Callout, DirectionalHint, Text, DefaultButton, PrimaryButton, IButtonStyles, FontWeights, useTheme, Icon } from "@fluentui/react";
+import { Divider } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
 import { DateTimeInput } from "./Fields";
@@ -292,7 +293,7 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                     </StackShim>
                 </StackShim>
 
-                <Separator />
+                <Divider />
 
                 <StackShim tokens={{ childrenGap: 8 }}>
                     <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
@@ -316,7 +317,7 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
 
                 {showAutoRefresh && (
                     <>
-                        <Separator />
+                        <Divider />
                         <StackShim tokens={{ childrenGap: 8 }}>
                             <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
                                 {nlsHPCC.AutoRefresh}
