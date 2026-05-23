@@ -1,6 +1,5 @@
 import * as React from "react";
 import { ContextualMenuItemType, DefaultButton, IconButton, IContextualMenuItem, IIconProps, mergeStyleSets } from "@fluentui/react";
-import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { Button, ButtonProps, CounterBadgeProps, CounterBadge, Link, Persona, SearchBox, Text, Toaster } from "@fluentui/react-components";
 import { WindowNewRegular } from "@fluentui/react-icons";
 import { Level, scopedLogger } from "@hpcc-js/util";
@@ -40,12 +39,9 @@ const collapseMenuIcon: IIconProps = { iconName: "CollapseMenu" };
 
 const waffleIcon: IIconProps = { iconName: "WaffleOffice365" };
 
-const personaStyles = {
-    root: {
-        display: "flex",
-        alignItems: "center",
-        "&:hover": { cursor: "pointer" }
-    }
+const personaStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center"
 };
 
 const DAY = 1000 * 60 * 60 * 24;
@@ -315,13 +311,13 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
 
     return <div style={{ backgroundColor: titlebarColorSet ? titlebarColor : theme.palette.themeLight }}>
         <BannerMessageBar />
-        <StackShim horizontal verticalAlign="center" horizontalAlign="space-between">
-            <StackItemShim align="center">
-                <StackShim horizontal>
-                    <StackItemShim>
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ alignSelf: "center" }}>
+                <div style={{ display: "flex", flexDirection: "row" }}>
+                    <div>
                         <IconButton iconProps={waffleIcon} onClick={() => setNavWideMode(!navWideMode)} style={{ width: 48, height: 48, color: titlebarColorSet ? Utility.textColor(titlebarColor) : theme.palette.themeDarker }} />
-                    </StackItemShim>
-                    <StackItemShim align="center">
+                    </div>
+                    <div style={{ alignSelf: "center" }}>
                         <Link href="#/activities">
                             <Text size={400} block truncate wrap={false}>
                                 <b title="ECL Watch" style={{ paddingLeft: "8px", color: titlebarColorSet ? Utility.textColor(titlebarColor) : theme.palette.themeDarker }}>
@@ -329,33 +325,33 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
                                 </b>
                             </Text>
                         </Link>
-                    </StackItemShim>
-                </StackShim>
-            </StackItemShim>
-            <StackItemShim align="center">
+                    </div>
+                </div>
+            </div>
+            <div style={{ alignSelf: "center" }}>
                 <SearchBox onKeyUp={onSearchKeyUp} contentAfter={<NewTabButton onClick={onSearchNewTabClick} />} placeholder={nlsHPCC.PlaceholderFindText} style={{ minWidth: 320 }} />
-            </StackItemShim>
-            <StackItemShim align="center" >
-                <StackShim horizontal>
+            </div>
+            <div style={{ alignSelf: "center" }}>
+                <div style={{ display: "flex", flexDirection: "row" }}>
                     {currentUser?.username &&
-                        <StackItemShim styles={personaStyles}>
+                        <div style={personaStyle}>
                             <div onClick={() => setShowMyAccount(true)} style={{ cursor: "pointer" }}>
                                 <Persona {...personaProps} />
                             </div>
-                        </StackItemShim>
+                        </div>
                     }
-                    <StackItemShim align="center">
+                    <div style={{ alignSelf: "center" }}>
                         <DefaultButton onClick={() => setShowLogViewer(true)} title={nlsHPCC.ErrorWarnings} iconProps={{ iconName: logCount > 0 ? "RingerSolid" : "Ringer" }} className={btnStyles.errorsWarnings}>
                             <CounterBadge appearance="filled" size="small" color={logIconColor} count={logCount} />
                         </DefaultButton>
-                    </StackItemShim>
-                    <StackItemShim align="center">
+                    </div>
+                    <div style={{ alignSelf: "center" }}>
                         <IconButton title={nlsHPCC.Advanced} iconProps={collapseMenuIcon} menuProps={advMenuProps} style={{ color: titlebarColorSet ? Utility.textColor(titlebarColor) : theme.palette.themeDarker }} />
-                    </StackItemShim>
-                </StackShim>
+                    </div>
+                </div>
                 <Toaster toasterId={toasterId} position={"top-end"} pauseOnHover />
-            </StackItemShim>
-        </StackShim>
+            </div>
+        </div>
         <About eclwatchVersion="9" show={showAbout} onClose={() => setShowAbout(false)} ></About>
         <MyAccount currentUser={currentUser} show={showMyAccount} onClose={() => setShowMyAccount(false)}></MyAccount>
         <LogViewerDialog show={showLogViewer} onClose={() => setShowLogViewer(false)} />

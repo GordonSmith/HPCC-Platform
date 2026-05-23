@@ -1,7 +1,6 @@
 import * as React from "react";
 import { IconButton, IContextualMenuItem, mergeStyleSets } from "@fluentui/react";
 import { Link, ToggleButton, makeStyles, tokens } from "@fluentui/react-components";
-import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { NavDrawer, NavDrawerBody, NavDrawerFooter, NavItem } from "@fluentui/react-nav-preview";
 import {
     Home20Filled, Home20Regular, TextGrammarLightning20Filled, TextGrammarLightning20Regular,
@@ -458,10 +457,10 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
     }, [favorites]);
 
     return <div style={{ backgroundColor: theme.palette.themeLighter }}>
-        <StackShim horizontal horizontalAlign="space-between">
-            <StackItemShim align="center" grow={1}>
-                <StackShim horizontal>
-                    <StackItemShim grow={0} className={navStyles.wrapper}>
+        <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between" }}>
+            <div style={{ alignSelf: "center", flexGrow: 1 }}>
+                <div style={{ display: "flex", flexDirection: "row" }}>
+                    <div className={navStyles.wrapper}>
                         {subMenuItems[mainNav]?.map((row, idx) => {
                             const restrictedRoutes = ["security"];
                             if (envHasAuth) {
@@ -483,18 +482,18 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
                                 {row.headerText}
                             </Link>;
                         })}
-                    </StackItemShim>
+                    </div>
                     {!!subNav &&
-                        <StackItemShim grow={1} style={{ lineHeight: "24px" }}>
+                        <div style={{ flexGrow: 1, lineHeight: "24px" }}>
                             {hashPath.includes("/files/")
                                 ? <Breadcrumbs hashPath={hashPath} ignoreN={2} />
                                 : <Breadcrumbs hashPath={hashPath} ignoreN={1} />
                             }
-                        </StackItemShim>
+                        </div>
                     }
-                </StackShim>
-            </StackItemShim>
-            <StackItemShim align="center" grow={0}>
+                </div>
+            </div>
+            <div style={{ alignSelf: "center" }}>
                 {nextPrev?.next && <IconButton title={nlsHPCC.NextWorkunit} iconProps={{ iconName: "Movers" }} onClick={() => nextPrev.next()} />}
                 {nextPrev?.previous && <IconButton title={nlsHPCC.PreviousWorkunit} iconProps={{ iconName: "Sell" }} onClick={() => nextPrev.previous()} />}
                 <IconButton title={nlsHPCC.History} iconProps={{ iconName: "History" }} menuProps={{ items: history }} />
@@ -513,7 +512,7 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
                     }}
                     styles={{ splitButtonMenuButton: { backgroundColor: theme.palette.themeLighter, border: "none" } }}
                 />
-            </StackItemShim>
-        </StackShim>
+            </div>
+        </div>
     </div>;
 };

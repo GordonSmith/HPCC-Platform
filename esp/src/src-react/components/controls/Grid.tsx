@@ -1,6 +1,5 @@
 import * as React from "react";
 import { DetailsListLayoutMode, Dropdown, IColumn as _IColumn, ICommandBarItemProps, IDetailsHeaderProps, IDetailsListStyles, mergeStyleSets, Selection, TooltipHost, TooltipOverflowMode, IRenderFunction, IDetailsRowProps, SelectionMode, ConstrainMode, ISelection, ScrollablePane, ShimmeredDetailsList, Sticky } from "@fluentui/react";
-import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { Pagination } from "@fluentui/react-experiments/lib/Pagination";
 import { useConst } from "@fluentui/react-hooks";
 import { BaseStore, Memory, QueryRequest, QuerySortItem } from "src/store/Memory";
@@ -557,8 +556,8 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
         setPage(_page);
     }, [pageNum]);
 
-    return <StackShim horizontal className={paginationStyles.root}>
-        <StackItemShim className={paginationStyles.pageControls}>
+    return <div style={{ display: "flex", flexDirection: "row" }} className={paginationStyles.root}>
+        <div className={paginationStyles.pageControls}>
             <Pagination
                 selectedPageIndex={page} itemsPerPage={pageSize} totalItemCount={total >= 0 ? total : -1}
                 pageCount={Math.ceil(total / pageSize)} format="buttons" onPageChange={index => {
@@ -573,8 +572,8 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
                     </div>;
                 }}
             />
-        </StackItemShim>
-        <StackItemShim align="center">
+        </div>
+        <div style={{ alignSelf: "center" }}>
             <Dropdown id="pageSize" options={[
                 { key: 10, text: "10" },
                 { key: 25, text: "25" },
@@ -584,6 +583,6 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
                 { key: 500, text: "500" },
                 { key: 1000, text: "1000" }
             ]} selectedKey={pageSize} onChange={dropdownChange} />
-        </StackItemShim>
-    </StackShim>;
+        </div>
+    </div>;
 };

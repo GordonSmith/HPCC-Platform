@@ -1,7 +1,6 @@
 import * as React from "react";
 
-import { FontSizes, FontWeights, IStackItemStyles, IStackStyles, ITooltipProps, TooltipHost } from "@fluentui/react";
-import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
+import { FontSizes, FontWeights, ITooltipProps, TooltipHost } from "@fluentui/react";
 import { useId } from "@fluentui/react-hooks";
 
 interface StackTableProps {
@@ -10,11 +9,11 @@ interface StackTableProps {
     rowCount?: number;
     overflowLabel?: string;
     overflowValue?: string;
-    tableStyles?: IStackStyles;
-    tableRowStyles?: IStackStyles;
-    headerStyles?: IStackItemStyles;
-    labelStyles?: IStackItemStyles;
-    valueStyles?: IStackItemStyles;
+    tableStyle?: React.CSSProperties;
+    tableRowStyle?: React.CSSProperties;
+    headerStyle?: React.CSSProperties;
+    labelStyle?: React.CSSProperties;
+    valueStyle?: React.CSSProperties;
 }
 
 export const StackTable: React.FunctionComponent<StackTableProps> = ({
@@ -23,35 +22,25 @@ export const StackTable: React.FunctionComponent<StackTableProps> = ({
     rowCount = 9,
     overflowLabel = "Other...",
     overflowValue = "",
-    tableStyles = {
-        root: {
-            marginLeft: 6
-        }
+    tableStyle = {
+        marginLeft: 6
     },
-    tableRowStyles = {
-        root: {
-            marginTop: 6
-        }
+    tableRowStyle = {
+        marginTop: 6
     },
-    headerStyles = {
-        root: {
-            height: FontSizes.medium,
-            fontWeight: FontWeights.bold
-        }
+    headerStyle = {
+        height: FontSizes.medium,
+        fontWeight: FontWeights.bold
     },
-    labelStyles = {
-        root: {
-            height: FontSizes.medium,
-        }
+    labelStyle = {
+        height: FontSizes.medium,
     },
-    valueStyles = {
-        root: {
-            height: FontSizes.small,
-            paddingLeft: 6,
-            minWidth: 50,
-            maxWidth: 200,
-            textAlign: "right"
-        }
+    valueStyle = {
+        height: FontSizes.small,
+        paddingLeft: 6,
+        minWidth: 50,
+        maxWidth: 200,
+        textAlign: "right"
     },
 }) => {
 
@@ -59,93 +48,90 @@ export const StackTable: React.FunctionComponent<StackTableProps> = ({
 
     const tooltipProps: ITooltipProps = {
         onRenderContent: () => (
-            <StackShim style={{ margin: 10, padding: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", margin: 10, padding: 0 }}>
                 {
                     data
                         .filter((n, i) => i >= rowCount)
                         .map((row, rowIdx) => {
-                            return <StackItemShim key={rowIdx}>
-                                <StackShim horizontal styles={tableRowStyles}>
+                            return <div key={rowIdx}>
+                                <div style={{ display: "flex", flexDirection: "row", ...tableRowStyle }}>
                                     {
                                         row.map((n, i) => {
-                                            return <StackItemShim
+                                            return <div
                                                 key={i}
-                                                grow={i === 0 ? 1 : 0}
-                                                styles={i === 0 ? labelStyles : valueStyles}
+                                                style={{ flexGrow: i === 0 ? 1 : 0, ...(i === 0 ? labelStyle : valueStyle) }}
                                             >
                                                 {n}
-                                            </StackItemShim>
+                                            </div>
                                                 ;
                                         })
                                     }
-                                </StackShim>
-                            </StackItemShim>
+                                </div>
+                            </div>
                                 ;
                         })
                 }
-            </StackShim>
+            </div>
         ),
     };
-    const labelStackItem = label === "" ? undefined : <StackItemShim
+    const labelStackItem = label === "" ? undefined : <div
         key="label"
-        grow={0}
-        styles={headerStyles}
+        style={{ flexGrow: 0, ...headerStyle }}
     >
         {label}
-    </StackItemShim>
+    </div>
         ;
 
-    const dataStackItem = <StackItemShim key="data" grow={1}>
+    const dataStackItem = <div key="data" style={{ flexGrow: 1 }}>
         {
             data
                 .filter((n, i) => i < rowCount)
                 .map((row, rowIdx) => {
-                    return <StackItemShim key={rowIdx}>
-                        <StackShim horizontal styles={tableRowStyles}>
+                    return <div key={rowIdx}>
+                        <div style={{ display: "flex", flexDirection: "row", ...tableRowStyle }}>
                             {
                                 row.map((n, i) => {
-                                    return <StackItemShim
+                                    return <div
                                         key={i}
-                                        grow={i === 0 ? 1 : 0}
-                                        styles={i === 0 ? labelStyles : valueStyles}
+                                        style={{ flexGrow: i === 0 ? 1 : 0, ...(i === 0 ? labelStyle : valueStyle) }}
                                     >
                                         {n}
-                                    </StackItemShim>
+                                    </div>
                                         ;
                                 })
                             }
-                        </StackShim>
-                    </StackItemShim>
+                        </div>
+                    </div>
                         ;
                 })
         }
-    </StackItemShim>
+    </div>
         ;
 
-    const footerStackItem = data.length <= rowCount ? undefined : <StackItemShim
+    const footerStackItem = data.length <= rowCount ? undefined : <div
         key="tooltip-wrapper"
-        grow={0}
+        style={{ flexGrow: 0 }}
     >
         <TooltipHost
             id={tooltipId}
             tooltipProps={tooltipProps}
         >
-            <StackShim horizontal styles={tableRowStyles}>
-                <StackItemShim key="label" grow={1} styles={labelStyles}>
+            <div style={{ display: "flex", flexDirection: "row", ...tableRowStyle }}>
+                <div key="label" style={{ flexGrow: 1, ...labelStyle }}>
                     {overflowLabel}
-                </StackItemShim>
-                <StackItemShim key="value" grow={0} styles={valueStyles}>
+                </div>
+                <div key="value" style={{ flexGrow: 0, ...valueStyle }}>
                     {overflowValue}
-                </StackItemShim>
-            </StackShim>
+                </div>
+            </div>
         </TooltipHost>
-    </StackItemShim>
+    </div>
         ;
 
-    return <StackShim styles={tableStyles}>
+    return <div style={{ display: "flex", flexDirection: "column", ...tableStyle }}>
         {labelStackItem}
         {dataStackItem}
         {footerStackItem}
-    </StackShim>
+    </div>
         ;
 };

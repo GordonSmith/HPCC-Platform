@@ -1,7 +1,6 @@
 import * as React from "react";
 import { CommandBarButton, Callout, DirectionalHint, Text, DefaultButton, PrimaryButton, IButtonStyles, FontWeights, useTheme, Icon } from "@fluentui/react";
 import { Divider } from "@fluentui/react-components";
-import { StackShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
 import { DateTimeInput } from "./Fields";
 
@@ -181,7 +180,7 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
         }
     };
 
-    return <StackShim horizontal verticalAlign="center" tokens={{ childrenGap: 8 }}>
+    return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "8px" }}>
         <div ref={datePickerButtonRef}>
             <button
                 disabled={disabled}
@@ -234,7 +233,7 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
         )}
 
         {showAutoRefresh && (
-            <StackShim horizontal verticalAlign="center" tokens={{ childrenGap: 4 }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "4px" }}>
                 <CommandBarButton
                     text={autoRefresh ? `${nlsHPCC.AutoRefresh}: ${nlsHPCC.On.toUpperCase()}` : `${nlsHPCC.AutoRefresh}: ${nlsHPCC.Off.toUpperCase()}`}
                     iconProps={{ iconName: autoRefresh ? "Play" : "Pause" }}
@@ -249,7 +248,7 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                         }
                     }}
                 />
-            </StackShim>
+            </div>
         )}
 
         <Callout
@@ -269,12 +268,12 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                 }
             }}
         >
-            <StackShim tokens={{ childrenGap: 12 }}>
-                <StackShim tokens={{ childrenGap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
                         {nlsHPCC.QuickSelect}
                     </Text>
-                    <StackShim horizontal wrap tokens={{ childrenGap: 8 }}>
+                    <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px" }}>
                         {defaultQuickOptions.map((option) => (
                             <DefaultButton
                                 key={option.value}
@@ -290,39 +289,39 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                                 }}
                             />
                         ))}
-                    </StackShim>
-                </StackShim>
+                    </div>
+                </div>
 
                 <Divider />
 
-                <StackShim tokens={{ childrenGap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
                         {nlsHPCC.CustomRange}
                     </Text>
-                    <StackShim horizontal tokens={{ childrenGap: 12 }} verticalAlign="end">
-                        <StackShim tokens={{ childrenGap: 4 }} styles={{ root: { flex: 1 } }}>
+                    <div style={{ display: "flex", flexDirection: "row", gap: "12px", alignItems: "flex-end" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
                             <Text styles={{ root: { fontSize: "12px", fontWeight: FontWeights.regular } }}>
                                 {nlsHPCC.FromDate}
                             </Text>
                             <DateTimeInput value={tempStartDate} onChange={setTempStartDate} style={{ width: "100%" }} />
-                        </StackShim>
-                        <StackShim tokens={{ childrenGap: 4 }} styles={{ root: { flex: 1 } }}>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
                             <Text styles={{ root: { fontSize: "12px", fontWeight: FontWeights.regular } }}>
                                 {nlsHPCC.ToDate}
                             </Text>
                             <DateTimeInput value={tempEndDate} onChange={setTempEndDate} style={{ width: "100%" }} />
-                        </StackShim>
-                    </StackShim>
-                </StackShim>
+                        </div>
+                    </div>
+                </div>
 
                 {showAutoRefresh && (
                     <>
                         <Divider />
-                        <StackShim tokens={{ childrenGap: 8 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                             <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
                                 {nlsHPCC.AutoRefresh}
                             </Text>
-                            <StackShim horizontal wrap tokens={{ childrenGap: 8 }}>
+                            <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px" }}>
                                 {autoRefreshOptions.map((option) => (
                                     <DefaultButton
                                         key={option.value}
@@ -340,16 +339,16 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                                         }}
                                     />
                                 ))}
-                            </StackShim>
-                        </StackShim>
+                            </div>
+                        </div>
                     </>
                 )}
 
-                <StackShim horizontal horizontalAlign="end" tokens={{ childrenGap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "flex-end", gap: "8px" }}>
                     <DefaultButton text={nlsHPCC.Cancel} onClick={() => setIsCalloutVisible(false)} />
                     <PrimaryButton text={nlsHPCC.Apply} onClick={handleCustomDateApply} />
-                </StackShim>
-            </StackShim>
+                </div>
+            </div>
         </Callout>
-    </StackShim>;
+    </div>;
 };
