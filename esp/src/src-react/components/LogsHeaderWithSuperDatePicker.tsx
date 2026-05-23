@@ -1,5 +1,7 @@
 import * as React from "react";
-import { CommandBarButton, useTheme } from "@fluentui/react";
+import { useTheme } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { Filter20Regular, Filter20Filled } from "@fluentui/react-icons";
 import { CommandBar, ICommandBarItemProps } from "./CommandBarV9";
 import nlsHPCC from "src/nlsHPCC";
 import { SuperDatePicker, DateRange } from "./forms/Fields";
@@ -35,12 +37,11 @@ export const LogsHeaderWithSuperDatePicker: React.FunctionComponent<LogsHeaderWi
 
     return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", padding: "0px 6px", borderBottom: `1px solid ${theme.palette.neutralLight}` }}>
         <div style={{ display: "flex", flexDirection: "row", gap: "16px", flex: 1, alignItems: "center" }}>
-            <CommandBarButton
-                text={nlsHPCC.Filter}
-                style={{ padding: 8 }}
-                iconProps={{ iconName: hasFilter ? "FilterSolid" : "Filter" }}
+            <Button
+                appearance="subtle"
+                icon={hasFilter ? <Filter20Filled /> : <Filter20Regular />}
                 onClick={onShowFilter}
-            />
+            >{nlsHPCC.Filter}</Button>
             <SuperDatePicker
                 startDate={startDate}
                 endDate={endDate}
