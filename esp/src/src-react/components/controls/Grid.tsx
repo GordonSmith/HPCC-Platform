@@ -3,7 +3,7 @@ import { DetailsListLayoutMode, Dropdown, IColumn as _IColumn, IDetailsHeaderPro
 import { ICommandBarItemProps } from "../CommandBarV9";
 import { tokens } from "@fluentui/react-components";
 
-export { SelectionMode };
+export { SelectionMode, Selection };
 import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Pagination } from "@fluentui/react-experiments/lib/Pagination";
 import { useConst } from "@fluentui/react-hooks";

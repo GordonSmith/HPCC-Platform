@@ -1,5 +1,5 @@
 import * as React from "react";
-import { SelectionMode, Selection } from "@fluentui/react";
+import { SelectionMode, Selection } from "./controls/Grid";
 import { useConst, useForceUpdate } from "@fluentui/react-hooks";
 import { Button, Checkbox, Dropdown, Field, Input, Option, SelectTabData, SelectTabEvent, Tab, TabList, Textarea, makeStyles } from "@fluentui/react-components";
 import { BookmarkAddRegular, DeleteRegular, RenameRegular } from "@fluentui/react-icons";
