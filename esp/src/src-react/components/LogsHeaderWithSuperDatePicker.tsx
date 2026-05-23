@@ -1,6 +1,5 @@
 import * as React from "react";
-import { useTheme } from "@fluentui/react";
-import { Button } from "@fluentui/react-components";
+import { Button, tokens } from "@fluentui/react-components";
 import { Filter20Regular, Filter20Filled } from "@fluentui/react-icons";
 import { CommandBar, ICommandBarItemProps } from "./CommandBarV9";
 import nlsHPCC from "src/nlsHPCC";
@@ -33,9 +32,7 @@ export const LogsHeaderWithSuperDatePicker: React.FunctionComponent<LogsHeaderWi
     autoRefreshInterval = 0,
     onAutoRefreshIntervalChange
 }) => {
-    const theme = useTheme();
-
-    return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", padding: "0px 6px", borderBottom: `1px solid ${theme.palette.neutralLight}` }}>
+    return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", padding: "0px 6px", borderBottom: `1px solid ${tokens.colorNeutralStroke2}` }}>
         <div style={{ display: "flex", flexDirection: "row", gap: "16px", flex: 1, alignItems: "center" }}>
             <Button
                 appearance="subtle"

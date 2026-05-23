@@ -1,7 +1,5 @@
 import * as React from "react";
-import { useTheme } from "@fluentui/react";
-import { Button } from "@fluentui/react-components";
-import { Label } from "@fluentui/react-components";
+import { Button, Label, tokens } from "@fluentui/react-components";
 import { Filter20Regular, Filter20Filled, ArrowClockwise20Regular } from "@fluentui/react-icons";
 import { CommandBar, ICommandBarItemProps } from "./CommandBarV9";
 import nlsHPCC from "src/nlsHPCC";
@@ -28,9 +26,7 @@ export const LogsHeader: React.FunctionComponent<LogsHeaderProps> = ({
     hasFilter,
     copyButtons
 }) => {
-    const theme = useTheme();
-
-    return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", padding: "0px 6px", borderBottom: `1px solid ${theme.palette.neutralLight}` }}>
+    return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", padding: "0px 6px", borderBottom: `1px solid ${tokens.colorNeutralStroke2}` }}>
         <div style={{ display: "flex", flexDirection: "row", gap: "16px", flex: 1, alignItems: "center" }}>
             <Button
                 appearance="subtle"
@@ -42,7 +38,7 @@ export const LogsHeader: React.FunctionComponent<LogsHeaderProps> = ({
                 <DateTimeInput
                     value={startDate}
                     onChange={onStartDateChange}
-                    style={{ padding: "4px 8px", border: `1px solid ${theme.palette.neutralTertiary}`, borderRadius: "2px" }}
+                    style={{ padding: "4px 8px", border: `1px solid ${tokens.colorNeutralStroke1}`, borderRadius: "2px" }}
                 />
             </div>
             <div style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center" }}>
@@ -50,7 +46,7 @@ export const LogsHeader: React.FunctionComponent<LogsHeaderProps> = ({
                 <DateTimeInput
                     value={endDate}
                     onChange={onEndDateChange}
-                    style={{ padding: "4px 8px", border: `1px solid ${theme.palette.neutralTertiary}`, borderRadius: "2px" }}
+                    style={{ padding: "4px 8px", border: `1px solid ${tokens.colorNeutralStroke1}`, borderRadius: "2px" }}
                 />
             </div>
             <Button

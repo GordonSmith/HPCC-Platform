@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useTheme } from "@fluentui/react";
+import { tokens } from "@fluentui/react-components";
 import { mergeStyleSets } from "@fluentui/style-utilities";
 
 export interface StepProps {
@@ -18,8 +18,6 @@ const Step: React.FunctionComponent<StepProps> = ({
     showConnector = false
 }) => {
 
-    const theme = useTheme();
-
     const stepStyles = React.useMemo(() => mergeStyleSets({
         wrapper: {
             display: "flex",
@@ -30,22 +28,22 @@ const Step: React.FunctionComponent<StepProps> = ({
             minWidth: "100px",
         },
         svg: {
-            color: theme.palette.neutralPrimary,
+            color: tokens.colorNeutralForeground1,
             fill: "currentColor",
             width: "1em",
             height: "1em",
             fontSize: "1.5rem",
             text: {
-                color: theme.palette.white
+                color: tokens.colorNeutralBackground1
             }
         },
         failed: {
-            color: `${theme.palette.red} !important`
+            color: `${tokens.colorPaletteRedForeground1} !important`
         },
         completed: {
-            color: theme.palette.themePrimary,
+            color: tokens.colorBrandBackground,
             circle: {
-                color: theme.palette.white
+                color: tokens.colorNeutralBackground1
             }
         },
         label: {
@@ -62,7 +60,7 @@ const Step: React.FunctionComponent<StepProps> = ({
             borderTopStyle: "solid",
             borderTopWidth: "1px"
         }
-    }), [theme]);
+    }), []);
 
     return <div className={stepStyles.wrapper}>
         {showConnector ? <div className={stepStyles.connector}></div> : ""}
