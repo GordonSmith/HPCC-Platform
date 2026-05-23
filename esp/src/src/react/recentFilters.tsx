@@ -1,5 +1,5 @@
 import * as React from "react";
-import { PrimaryButton, Shimmer, ShimmerElementType, TooltipHost } from "@fluentui/react";
+import { Button, Skeleton, SkeletonItem, Tooltip } from "@fluentui/react-components";
 import { mergeStyleSets } from "@fluentui/style-utilities";
 import nlsHPCC from "../nlsHPCC";
 import { useGet } from "./hooks/useWsStore";
@@ -23,10 +23,7 @@ const recentFilterStyles = mergeStyleSets({
         }
     },
     placeholder: {
-        margin: "0 0 10px 0",
-        ".ms-Shimmer-shimmerWrapper": {
-            marginBottom: "6px"
-        }
+        margin: "0 0 10px 0"
     }
 });
 
@@ -40,10 +37,6 @@ export const RecentFilters: React.FunctionComponent<RecentFilterProps> = ({
         widget.NewPage.onClick(e, tempObj);
     };
 
-    const shimmerElements = React.useMemo(() => [
-        { type: ShimmerElementType.line, height: 48 }
-    ], []);
-
     const cleanUpFilter = (value: string) => {
         const result = value.replace(/[{}'"]+/g, "");
         return result;
@@ -53,7 +46,7 @@ export const RecentFilters: React.FunctionComponent<RecentFilterProps> = ({
         <>
             <h4>{nlsHPCC.RecentFilters}</h4>
             {loading ? (
-                <div className={recentFilterStyles.placeholder}><Shimmer shimmerElements={shimmerElements} /></div>
+                <div className={recentFilterStyles.placeholder}><Skeleton><SkeletonItem size={48} /></Skeleton></div>
             ) : (data ?
                 <table aria-label={nlsHPCC.RecentFiltersTable} className={recentFilterStyles.root}>
                     <thead>
@@ -66,11 +59,11 @@ export const RecentFilters: React.FunctionComponent<RecentFilterProps> = ({
                         {data.map((row, idx) => (
                             <tr key={idx}>
                                 <td align="left">
-                                    <TooltipHost content={cleanUpFilter(JSON.stringify(row))}>
+                                    <Tooltip content={cleanUpFilter(JSON.stringify(row))} relationship="label">
                                         <span>{cleanUpFilter(JSON.stringify(row))}</span>
-                                    </TooltipHost>
+                                    </Tooltip>
                                 </td>
-                                <td align="center"><PrimaryButton value={encodeURIComponent(JSON.stringify(row))} onClick={handleClick}>Open</PrimaryButton></td>
+                                <td align="center"><Button appearance="primary" value={encodeURIComponent(JSON.stringify(row))} onClick={handleClick}>Open</Button></td>
                             </tr>
                         ))}
                     </tbody>
