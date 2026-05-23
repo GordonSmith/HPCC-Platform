@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, CommandBar, ContextualMenuItemType, Dialog, DialogFooter, DialogType, ICommandBarItemProps, MessageBar, MessageBarType, SpinButton } from "@fluentui/react";
-import { Button, Spinner } from "@fluentui/react-components";
+import { Checkbox, CommandBar, ContextualMenuItemType, ICommandBarItemProps, MessageBar, MessageBarType, SpinButton } from "@fluentui/react";
+import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useConst } from "@fluentui/react-hooks";
 import { Result as CommsResult, XSDXMLNode } from "@hpcc-js/comms";
@@ -88,21 +88,19 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
     column = false,
     onClose,
 }) => {
-    const dialogContentProps = {
-        type: DialogType.largeHeader,
-        title: "Download Results",
-        subText: `Confirm total number of rows to download(max ${totalRows} rows).`,
-    };
     const stackTokens = { childrenGap: 10 };
 
-    const [hideDialog, setHideDialog] = React.useState(false);
+    const [open, setOpen] = React.useState(true);
     const handleOk = () => {
-        setHideDialog(true);
+        setOpen(false);
         onClose(downloadTotal, dedup);
     };
     const handleCancel = () => {
-        setHideDialog(true);
+        setOpen(false);
         onClose(0, dedup);
+    };
+    const onOpenChange = (_: DialogOpenChangeEvent, data: DialogOpenChangeData) => {
+        if (!data.open) handleCancel();
     };
 
     const [downloadTotal, setDownloadTotal] = React.useState(totalRows);
@@ -123,30 +121,34 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
     const onDedup = (ev: React.FormEvent<HTMLElement>, isChecked: boolean) => {
     };
 
-    return <Dialog
-        hidden={hideDialog}
-        onDismiss={handleCancel}
-        dialogContentProps={dialogContentProps}
-    >
-        <StackShim tokens={stackTokens}>
-            <SpinButton
-                defaultValue={`${totalRows} `}
-                label={"Download:"}
-                min={0}
-                max={totalRows}
-                step={1}
-                incrementButtonAriaLabel={"Increase value by 1"}
-                decrementButtonAriaLabel={"Decrease value by 1"}
-                onValidate={onDownloadTotalValidate}
-            />
-            {column ?
-                <Checkbox label="De-duplicate" boxSide="end" defaultChecked onChange={onDedup} /> :
-                undefined}
-        </StackShim>
-        <DialogFooter>
-            <Button appearance="primary" onClick={handleOk}>Ok</Button>
-            <Button onClick={handleCancel}>Cancel</Button>
-        </DialogFooter>
+    return <Dialog open={open} modalType="modal" onOpenChange={onOpenChange}>
+        <DialogSurface>
+            <DialogBody>
+                <DialogTitle>Download Results</DialogTitle>
+                <DialogContent>
+                    <p>{`Confirm total number of rows to download(max ${totalRows} rows).`}</p>
+                    <StackShim tokens={stackTokens}>
+                        <SpinButton
+                            defaultValue={`${totalRows} `}
+                            label={"Download:"}
+                            min={0}
+                            max={totalRows}
+                            step={1}
+                            incrementButtonAriaLabel={"Increase value by 1"}
+                            decrementButtonAriaLabel={"Decrease value by 1"}
+                            onValidate={onDownloadTotalValidate}
+                        />
+                        {column ?
+                            <Checkbox label="De-duplicate" boxSide="end" defaultChecked onChange={onDedup} /> :
+                            undefined}
+                    </StackShim>
+                </DialogContent>
+                <DialogActions>
+                    <Button appearance="primary" onClick={handleOk}>Ok</Button>
+                    <Button onClick={handleCancel}>Cancel</Button>
+                </DialogActions>
+            </DialogBody>
+        </DialogSurface>
     </Dialog>;
 };
 

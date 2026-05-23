@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button } from "@fluentui/react-components";
-import { Dialog, DialogFooter, DialogType, MessageBar, MessageBarType } from "@fluentui/react";
+import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, makeStyles } from "@fluentui/react-components";
+import { MessageBar, MessageBarType } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
 import { AccountService, WsAccount } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -9,6 +9,12 @@ import nlsHPCC from "src/nlsHPCC";
 import { TableGroup } from "./forms/Groups";
 
 const logger = scopedLogger("src-react/components/MyAccount.tsx");
+
+const useStyles = makeStyles({
+    surface: {
+        minWidth: "640px",
+    },
+});
 
 interface MyAccountProps {
     currentUser: WsAccount.MyAccountResponse;
@@ -22,6 +28,7 @@ export const MyAccount: React.FunctionComponent<MyAccountProps> = ({
     onClose = () => { }
 }) => {
 
+    const styles = useStyles();
     const [oldPassword, setOldPassword] = React.useState("");
     const [newPassword1, setNewPassword1] = React.useState("");
     const [newPassword2, setNewPassword2] = React.useState("");
@@ -30,13 +37,6 @@ export const MyAccount: React.FunctionComponent<MyAccountProps> = ({
     const [passwordMismatch, setPasswordMismatch] = React.useState("");
 
     const service = useConst(() => new AccountService({ baseUrl: "" }));
-
-    const dialogContentProps = React.useMemo(() => {
-        return {
-            type: DialogType.largeHeader,
-            title: currentUser?.username
-        };
-    }, [currentUser]);
 
     const resetForm = React.useCallback(() => {
         setOldPassword("");
@@ -68,46 +68,57 @@ export const MyAccount: React.FunctionComponent<MyAccountProps> = ({
         }
     }, [currentUser, newPassword1, newPassword2, oldPassword, onClose, resetForm, service]);
 
-    return <Dialog hidden={!show} onDismiss={onClose} dialogContentProps={dialogContentProps} minWidth="640px">
-        {showError &&
-            <MessageBar messageBarType={MessageBarType.error} isMultiline={true} onDismiss={() => setShowError(false)} dismissButtonAriaLabel="Close">
-                {errorMessage}
-            </MessageBar>
-        }
-        <TableGroup fields={{
-            "username": { label: nlsHPCC.Name, type: "string", value: currentUser?.username, readonly: true },
-            "employeeID": { label: nlsHPCC.EmployeeID, type: "string", value: currentUser?.employeeID, readonly: true },
-            "firstname": { label: nlsHPCC.FirstName, type: "string", value: currentUser?.firstName, readonly: true },
-            "lastname": { label: nlsHPCC.LastName, type: "string", value: currentUser?.lastName, readonly: true },
-            "groups": { label: nlsHPCC.Groups, type: "string", value: (currentUser?.Groups?.Group ?? []).join(", "), readonly: true },
-            "accountType": { label: nlsHPCC.AccountType, type: "string", value: currentUser?.accountType, readonly: true },
-            "oldPassword": { label: nlsHPCC.OldPassword, type: "password", value: oldPassword, autoComplete: "current-password", disabled: () => !currentUser?.CanUpdatePassword },
-            "newPassword1": { label: nlsHPCC.NewPassword, type: "password", value: newPassword1, disabled: () => !currentUser?.CanUpdatePassword },
-            "newPassword2": { label: nlsHPCC.ConfirmPassword, type: "password", value: newPassword2, errorMessage: passwordMismatch, disabled: () => !currentUser?.CanUpdatePassword },
-            "PasswordExpiration": { label: nlsHPCC.PasswordExpiration, type: "string", value: currentUser?.passwordDaysRemaining === PasswordStatus.NeverExpires ? nlsHPCC.PasswordNeverExpires : currentUser?.passwordExpiration, readonly: true },
-        }} onChange={(id, value) => {
-            switch (id) {
-                case "oldPassword":
-                    setOldPassword(value);
-                    break;
-                case "newPassword1":
-                    setNewPassword1(value);
-                    break;
-                case "newPassword2":
-                    setNewPassword2(value);
-                    if (value && value !== newPassword1) {
-                        setPasswordMismatch(nlsHPCC.PasswordsDoNotMatch);
-                    } else {
-                        setPasswordMismatch("");
+    const onOpenChange = React.useCallback((_: DialogOpenChangeEvent, data: DialogOpenChangeData) => {
+        if (!data.open) onClose();
+    }, [onClose]);
+
+    return <Dialog open={show} modalType="modal" onOpenChange={onOpenChange}>
+        <DialogSurface className={styles.surface}>
+            <DialogBody>
+                <DialogTitle>{currentUser?.username}</DialogTitle>
+                <DialogContent>
+                    {showError &&
+                        <MessageBar messageBarType={MessageBarType.error} isMultiline={true} onDismiss={() => setShowError(false)} dismissButtonAriaLabel="Close">
+                            {errorMessage}
+                        </MessageBar>
                     }
-                    break;
-                default:
-                    logger.debug(`${id}: ${value}`);
-            }
-        }} />
-        <DialogFooter>
-            <Button appearance="primary" onClick={saveUser}>{nlsHPCC.Save}</Button>
-            <Button onClick={() => { resetForm(); onClose(); }}>{nlsHPCC.Cancel}</Button>
-        </DialogFooter>
+                    <TableGroup fields={{
+                        "username": { label: nlsHPCC.Name, type: "string", value: currentUser?.username, readonly: true },
+                        "employeeID": { label: nlsHPCC.EmployeeID, type: "string", value: currentUser?.employeeID, readonly: true },
+                        "firstname": { label: nlsHPCC.FirstName, type: "string", value: currentUser?.firstName, readonly: true },
+                        "lastname": { label: nlsHPCC.LastName, type: "string", value: currentUser?.lastName, readonly: true },
+                        "groups": { label: nlsHPCC.Groups, type: "string", value: (currentUser?.Groups?.Group ?? []).join(", "), readonly: true },
+                        "accountType": { label: nlsHPCC.AccountType, type: "string", value: currentUser?.accountType, readonly: true },
+                        "oldPassword": { label: nlsHPCC.OldPassword, type: "password", value: oldPassword, autoComplete: "current-password", disabled: () => !currentUser?.CanUpdatePassword },
+                        "newPassword1": { label: nlsHPCC.NewPassword, type: "password", value: newPassword1, disabled: () => !currentUser?.CanUpdatePassword },
+                        "newPassword2": { label: nlsHPCC.ConfirmPassword, type: "password", value: newPassword2, errorMessage: passwordMismatch, disabled: () => !currentUser?.CanUpdatePassword },
+                        "PasswordExpiration": { label: nlsHPCC.PasswordExpiration, type: "string", value: currentUser?.passwordDaysRemaining === PasswordStatus.NeverExpires ? nlsHPCC.PasswordNeverExpires : currentUser?.passwordExpiration, readonly: true },
+                    }} onChange={(id, value) => {
+                        switch (id) {
+                            case "oldPassword":
+                                setOldPassword(value);
+                                break;
+                            case "newPassword1":
+                                setNewPassword1(value);
+                                break;
+                            case "newPassword2":
+                                setNewPassword2(value);
+                                if (value && value !== newPassword1) {
+                                    setPasswordMismatch(nlsHPCC.PasswordsDoNotMatch);
+                                } else {
+                                    setPasswordMismatch("");
+                                }
+                                break;
+                            default:
+                                logger.debug(`${id}: ${value}`);
+                        }
+                    }} />
+                </DialogContent>
+                <DialogActions>
+                    <Button appearance="primary" onClick={saveUser}>{nlsHPCC.Save}</Button>
+                    <Button onClick={() => { resetForm(); onClose(); }}>{nlsHPCC.Cancel}</Button>
+                </DialogActions>
+            </DialogBody>
+        </DialogSurface>
     </Dialog>;
 };
