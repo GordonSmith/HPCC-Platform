@@ -1,6 +1,7 @@
 import * as React from "react";
 import { DetailsListLayoutMode, Dropdown, IColumn as _IColumn, IDetailsHeaderProps, IDetailsListStyles, Selection, TooltipHost, TooltipOverflowMode, IRenderFunction, IDetailsRowProps, SelectionMode, ConstrainMode, ISelection, ScrollablePane, ShimmeredDetailsList, Sticky } from "@fluentui/react";
 import { ICommandBarItemProps } from "../CommandBarV9";
+import { tokens } from "@fluentui/react-components";
 
 export { SelectionMode };
 import { mergeStyleSets } from "@fluentui/style-utilities";
@@ -12,7 +13,6 @@ import { createCopyDownloadSelection } from "../Common";
 import { updatePage, updateSort } from "../../util/history";
 import { useDeepCallback, useDeepEffect, useDeepMemo } from "../../hooks/deepHooks";
 import { useUserStore, useNonReactiveEphemeralPageStore } from "../../hooks/store";
-import { useUserTheme } from "../../hooks/theme";
 
 /*  ---  Debugging dependency changes  ---
  *
@@ -497,7 +497,7 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
 }) => {
     const [page, setPage] = React.useState(pageNum - 1);
     const [pageSize, setPersistedPageSize] = useUserStore(`${persistID}_pageSize`, 25);
-    const { theme } = useUserTheme();
+
 
     React.useEffect(() => {
         setPageNum(page + 1);
@@ -523,24 +523,24 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
                 display: "flex"
             },
             ".ms-Pagination-container .ms-Button-icon": {
-                color: theme.palette.themePrimary
+                color: tokens.colorBrandBackground
             },
             ".ms-Pagination-container .ms-Pagination-pageNumber": {
-                color: theme.palette.neutralDark
+                color: tokens.colorNeutralForeground1
             },
             ".ms-Pagination-container button:hover": {
-                backgroundColor: theme.palette.neutralLighter
+                backgroundColor: tokens.colorNeutralBackground2
             },
             ".ms-Pagination-container .is-disabled .ms-Button-icon": {
-                color: theme.palette.neutralQuaternary
+                color: tokens.colorNeutralForegroundDisabled
             }
         },
         paginationLabel: {
             fontWeight: 600,
             marginLeft: "6px",
-            color: theme.palette.neutralDark,
+            color: tokens.colorNeutralForeground1,
         }
-    }), [theme]);
+    }), []);
 
     const dropdownChange = React.useCallback((evt, option) => {
         const newPageSize = option.key as number;
