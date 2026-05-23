@@ -1,7 +1,7 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, IIconProps, SearchBox } from "@fluentui/react";
-import { ToggleButton } from "@fluentui/react-components";
-import { TextCaseTitleRegular, TextCaseTitleFilled } from "@fluentui/react-icons";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { SearchBox, SearchBoxChangeEvent, ToggleButton } from "@fluentui/react-components";
+import { FilterRegular, TextCaseTitleRegular, TextCaseTitleFilled } from "@fluentui/react-icons";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { Workunit, WsWorkunits, IScope } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -19,7 +19,7 @@ import { MetricsPropertiesTables } from "./MetricsPropertiesTables";
 
 const logger = scopedLogger("src-react/components/ECLArchive.tsx");
 
-const filterIcon: IIconProps = { iconName: "Filter" };
+const filterIcon = <FilterRegular />;
 
 const scopeFilterDefault: Partial<WsWorkunits.ScopeFilter> = {
     MaxDepth: 999999,
@@ -82,8 +82,8 @@ export const ECLArchive: React.FunctionComponent<ECLArchiveProps> = ({
         pushUrl(`${parentUrl}/${selId}`);
     }, [parentUrl]);
 
-    const onChangeTreeFilter = React.useCallback((event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-        setTreeFilter(newValue ?? "");
+    const onChangeTreeFilter = React.useCallback((event: SearchBoxChangeEvent, data: { value: string }) => {
+        setTreeFilter(data.value ?? "");
     }, []);
 
     React.useEffect(() => {
@@ -132,7 +132,7 @@ export const ECLArchive: React.FunctionComponent<ECLArchiveProps> = ({
                         <HolyGrail
                             header={<StackShim horizontal>
                                 <StackItemShim grow>
-                                    <SearchBox value={treeFilter} onChange={onChangeTreeFilter} iconProps={filterIcon} placeholder={nlsHPCC.Filter} />
+                                    <SearchBox value={treeFilter} onChange={onChangeTreeFilter} contentBefore={filterIcon} placeholder={nlsHPCC.Filter} />
                                 </StackItemShim>
                                 <ToggleButton appearance="subtle" icon={matchCase ? <TextCaseTitleFilled /> : <TextCaseTitleRegular />} title={nlsHPCC.MatchCase} checked={matchCase} onClick={() => { setMatchCase(!matchCase); }} />
                             </StackShim>}
