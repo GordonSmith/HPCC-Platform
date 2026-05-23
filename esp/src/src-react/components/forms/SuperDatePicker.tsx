@@ -1,6 +1,6 @@
 import * as React from "react";
-import { CommandBarButton, Callout, DirectionalHint, Text, DefaultButton, PrimaryButton, IButtonStyles, FontWeights, useTheme, Icon } from "@fluentui/react";
-import { Divider } from "@fluentui/react-components";
+import { CommandBarButton, Text, DefaultButton, PrimaryButton, IButtonStyles, FontWeights, useTheme, Icon } from "@fluentui/react";
+import { Divider, Popover, PopoverTrigger, PopoverSurface } from "@fluentui/react-components";
 import nlsHPCC from "src/nlsHPCC";
 import { DateTimeInput } from "./Fields";
 
@@ -101,7 +101,6 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
     const [isCalloutVisible, setIsCalloutVisible] = React.useState(false);
     const [tempStartDate, setTempStartDate] = React.useState<string>("");
     const [tempEndDate, setTempEndDate] = React.useState<string>("");
-    const datePickerButtonRef = React.useRef<HTMLDivElement>(null);
 
     // handles auto-refresh
     React.useEffect(() => {
@@ -135,7 +134,6 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
         // initialize temp dates with current values
         setTempStartDate(startDate ? (typeof startDate === "string" ? startDate : startDate.toISOString().slice(0, 16)) : "");
         setTempEndDate(endDate ? (typeof endDate === "string" ? endDate : endDate.toISOString().slice(0, 16)) : "");
-        setIsCalloutVisible(true);
     }, [startDate, endDate]);
 
     const handleAutoRefreshToggle = React.useCallback(() => {
@@ -181,52 +179,146 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
     };
 
     return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "8px" }}>
-        <div ref={datePickerButtonRef}>
-            <button
-                disabled={disabled}
-                type="button"
-                style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "4px 8px",
-                    border: `1px solid ${theme.palette.neutralTertiary}`,
-                    borderRadius: "2px",
-                    backgroundColor: theme.palette.white,
-                    cursor: disabled ? "not-allowed" : "pointer",
-                    opacity: disabled ? 0.6 : 1,
-                    minWidth: "200px"
-                }}
-                onClick={handleShowCallout}
-            >
-                <Text
-                    styles={{
-                        root: {
-                            fontSize: "14px",
-                            color: disabled ? theme.palette.neutralTertiary : theme.palette.neutralPrimary,
-                            fontWeight: FontWeights.regular,
-                            flex: 1,
-                            marginRight: 4,
-                            textOverflow: "ellipsis",
-                            overflow: "hidden",
-                            whiteSpace: "nowrap"
-                        }
+        <Popover
+            open={isCalloutVisible}
+            onOpenChange={(_, data) => {
+                if (data.open) {
+                    handleShowCallout();
+                }
+                setIsCalloutVisible(data.open);
+            }}
+            positioning="below-start"
+            withArrow
+        >
+            <PopoverTrigger disableButtonEnhancement>
+                <button
+                    disabled={disabled}
+                    type="button"
+                    style={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "4px 8px",
+                        border: `1px solid ${theme.palette.neutralTertiary}`,
+                        borderRadius: "2px",
+                        backgroundColor: theme.palette.white,
+                        cursor: disabled ? "not-allowed" : "pointer",
+                        opacity: disabled ? 0.6 : 1,
+                        minWidth: "200px"
                     }}
                 >
-                    {currentDisplayText}
-                </Text>
-                <Icon
-                    iconName="ChevronDown"
-                    styles={{
-                        root: {
-                            fontSize: "12px",
-                            color: disabled ? theme.palette.neutralTertiary : theme.palette.neutralSecondary
-                        }
-                    }}
-                />
-            </button>
-        </div>
+                    <Text
+                        styles={{
+                            root: {
+                                fontSize: "14px",
+                                color: disabled ? theme.palette.neutralTertiary : theme.palette.neutralPrimary,
+                                fontWeight: FontWeights.regular,
+                                flex: 1,
+                                marginRight: 4,
+                                textOverflow: "ellipsis",
+                                overflow: "hidden",
+                                whiteSpace: "nowrap"
+                            }
+                        }}
+                    >
+                        {currentDisplayText}
+                    </Text>
+                    <Icon
+                        iconName="ChevronDown"
+                        styles={{
+                            root: {
+                                fontSize: "12px",
+                                color: disabled ? theme.palette.neutralTertiary : theme.palette.neutralSecondary
+                            }
+                        }}
+                    />
+                </button>
+            </PopoverTrigger>
+            <PopoverSurface style={{ padding: "16px", minWidth: "400px", maxWidth: "500px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
+                            {nlsHPCC.QuickSelect}
+                        </Text>
+                        <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px" }}>
+                            {defaultQuickOptions.map((option) => (
+                                <DefaultButton
+                                    key={option.value}
+                                    text={option.label}
+                                    onClick={() => handleQuickSelect(option)}
+                                    styles={{
+                                        root: {
+                                            fontSize: "12px",
+                                            height: "28px",
+                                            minWidth: "auto",
+                                            padding: "0 12px"
+                                        }
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    <Divider />
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
+                            {nlsHPCC.CustomRange}
+                        </Text>
+                        <div style={{ display: "flex", flexDirection: "row", gap: "12px", alignItems: "flex-end" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
+                                <Text styles={{ root: { fontSize: "12px", fontWeight: FontWeights.regular } }}>
+                                    {nlsHPCC.FromDate}
+                                </Text>
+                                <DateTimeInput value={tempStartDate} onChange={setTempStartDate} style={{ width: "100%" }} />
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
+                                <Text styles={{ root: { fontSize: "12px", fontWeight: FontWeights.regular } }}>
+                                    {nlsHPCC.ToDate}
+                                </Text>
+                                <DateTimeInput value={tempEndDate} onChange={setTempEndDate} style={{ width: "100%" }} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {showAutoRefresh && (
+                        <>
+                            <Divider />
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
+                                    {nlsHPCC.AutoRefresh}
+                                </Text>
+                                <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px" }}>
+                                    {autoRefreshOptions.map((option) => (
+                                        <DefaultButton
+                                            key={option.value}
+                                            text={option.label}
+                                            onClick={() => handleAutoRefreshIntervalChange(option.value)}
+                                            styles={{
+                                                root: {
+                                                    fontSize: "12px",
+                                                    height: "28px",
+                                                    minWidth: "auto",
+                                                    padding: "0 12px",
+                                                    backgroundColor: autoRefreshInterval === option.value ? theme.palette.themeLighter : undefined,
+                                                    borderColor: autoRefreshInterval === option.value ? theme.palette.themePrimary : undefined
+                                                }
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    <div style={{ display: "flex", flexDirection: "row", justifyContent: "flex-end", gap: "8px" }}>
+                        <DefaultButton text={nlsHPCC.Cancel} onClick={() => setIsCalloutVisible(false)} />
+                        <PrimaryButton text={nlsHPCC.Apply} onClick={handleCustomDateApply} />
+                    </div>
+                </div>
+            </PopoverSurface>
+        </Popover>
 
         {showRefreshButton && (
             <CommandBarButton text={nlsHPCC.Refresh} iconProps={{ iconName: "Refresh" }} onClick={onRefresh} disabled={disabled} styles={buttonStyles} />
@@ -250,105 +342,5 @@ export const SuperDatePicker: React.FunctionComponent<SuperDatePickerProps> = ({
                 />
             </div>
         )}
-
-        <Callout
-            target={datePickerButtonRef}
-            isBeakVisible
-            directionalHint={DirectionalHint.bottomLeftEdge}
-            hidden={!isCalloutVisible}
-            onDismiss={() => setIsCalloutVisible(false)}
-            styles={{
-                root: {
-                    padding: 0
-                },
-                calloutMain: {
-                    padding: "16px",
-                    minWidth: "400px",
-                    maxWidth: "500px"
-                }
-            }}
-        >
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
-                        {nlsHPCC.QuickSelect}
-                    </Text>
-                    <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px" }}>
-                        {defaultQuickOptions.map((option) => (
-                            <DefaultButton
-                                key={option.value}
-                                text={option.label}
-                                onClick={() => handleQuickSelect(option)}
-                                styles={{
-                                    root: {
-                                        fontSize: "12px",
-                                        height: "28px",
-                                        minWidth: "auto",
-                                        padding: "0 12px"
-                                    }
-                                }}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                <Divider />
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
-                        {nlsHPCC.CustomRange}
-                    </Text>
-                    <div style={{ display: "flex", flexDirection: "row", gap: "12px", alignItems: "flex-end" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
-                            <Text styles={{ root: { fontSize: "12px", fontWeight: FontWeights.regular } }}>
-                                {nlsHPCC.FromDate}
-                            </Text>
-                            <DateTimeInput value={tempStartDate} onChange={setTempStartDate} style={{ width: "100%" }} />
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
-                            <Text styles={{ root: { fontSize: "12px", fontWeight: FontWeights.regular } }}>
-                                {nlsHPCC.ToDate}
-                            </Text>
-                            <DateTimeInput value={tempEndDate} onChange={setTempEndDate} style={{ width: "100%" }} />
-                        </div>
-                    </div>
-                </div>
-
-                {showAutoRefresh && (
-                    <>
-                        <Divider />
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                            <Text styles={{ root: { fontWeight: FontWeights.semibold, fontSize: "14px" } }}>
-                                {nlsHPCC.AutoRefresh}
-                            </Text>
-                            <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px" }}>
-                                {autoRefreshOptions.map((option) => (
-                                    <DefaultButton
-                                        key={option.value}
-                                        text={option.label}
-                                        onClick={() => handleAutoRefreshIntervalChange(option.value)}
-                                        styles={{
-                                            root: {
-                                                fontSize: "12px",
-                                                height: "28px",
-                                                minWidth: "auto",
-                                                padding: "0 12px",
-                                                backgroundColor: autoRefreshInterval === option.value ? theme.palette.themeLighter : undefined,
-                                                borderColor: autoRefreshInterval === option.value ? theme.palette.themePrimary : undefined
-                                            }
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                <div style={{ display: "flex", flexDirection: "row", justifyContent: "flex-end", gap: "8px" }}>
-                    <DefaultButton text={nlsHPCC.Cancel} onClick={() => setIsCalloutVisible(false)} />
-                    <PrimaryButton text={nlsHPCC.Apply} onClick={handleCustomDateApply} />
-                </div>
-            </div>
-        </Callout>
     </div>;
 };
