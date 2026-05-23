@@ -1,8 +1,7 @@
-import { IIconProps, IStackStyles } from "@fluentui/react";
 import { tokens } from "@fluentui/react-components";
 import { mergeStyleSets } from "@fluentui/style-utilities";
 
-export const cancelIcon: IIconProps = { iconName: "Cancel" };
+export const cancelIcon = { iconName: "Cancel" };
 export const iconButtonStyles = {
     root: {
         marginLeft: "auto",
@@ -10,7 +9,7 @@ export const iconButtonStyles = {
         marginRight: "2px",
     }
 };
-export const buttonStackStyles: IStackStyles = {
+export const buttonStackStyles = {
     root: {
         height: "56px",
         justifyContent: "flex-end"

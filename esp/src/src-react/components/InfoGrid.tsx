@@ -1,5 +1,5 @@
 import * as React from "react";
-import { SelectionMode } from "@fluentui/react";
+import { SelectionMode } from "./controls/Grid";
 import { CommandBar, ICommandBarItemProps } from "./CommandBarV9";
 import { Checkbox, Link } from "@fluentui/react-components";
 import { SizeMe } from "../layouts/SizeMe";
