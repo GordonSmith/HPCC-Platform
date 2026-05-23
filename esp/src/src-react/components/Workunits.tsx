@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DetailsRow, IDetailsRowProps } from "@fluentui/react";
+import { DetailsRow, IDetailsRowProps } from "./controls/Grid";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { LockClosedFilled } from "@fluentui/react-icons";
 import { Link } from "@fluentui/react-components";

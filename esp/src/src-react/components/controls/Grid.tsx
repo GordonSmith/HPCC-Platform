@@ -1,9 +1,10 @@
 import * as React from "react";
-import { DetailsListLayoutMode, Dropdown, IColumn as _IColumn, IDetailsHeaderProps, IDetailsListStyles, Selection, TooltipHost, TooltipOverflowMode, IRenderFunction, IDetailsRowProps, SelectionMode, ConstrainMode, ISelection, ScrollablePane, ShimmeredDetailsList, Sticky } from "@fluentui/react";
+import { DetailsListLayoutMode, DetailsRow, Dropdown, IColumn as _IColumn, IDetailsHeaderProps, IDetailsListStyles, Selection, TooltipHost, TooltipOverflowMode, IRenderFunction, IDetailsRowProps, SelectionMode, ConstrainMode, ISelection, ScrollablePane, ShimmeredDetailsList, Sticky } from "@fluentui/react";
 import { ICommandBarItemProps } from "../CommandBarV9";
 import { tokens } from "@fluentui/react-components";
 
-export { SelectionMode, Selection };
+export { SelectionMode, Selection, DetailsRow };
+export type { IDetailsRowProps };
 import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Pagination } from "@fluentui/react-experiments/lib/Pagination";
 import { useConst } from "@fluentui/react-hooks";
