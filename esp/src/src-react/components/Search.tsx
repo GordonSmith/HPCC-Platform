@@ -1,7 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, ProgressIndicator } from "@fluentui/react";
-import { Link, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
-import { SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { Link, ProgressBar, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
 import { useConst } from "@fluentui/react-hooks";
 import { ESPSearch } from "src/ESPSearch";
 import nlsHPCC from "src/nlsHPCC";
@@ -155,7 +154,7 @@ export const Search: React.FunctionComponent<SearchProps> = ({
         main={selectedKey === "all" ? <HolyGrail
             header={<>
                 <CommandBar items={buttons} farItems={copyButtons} />
-                <ProgressIndicator progressHidden={searchCount === 0} percentComplete={searchCount === 0 ? 0 : progress.value / searchCount} />
+                {searchCount > 0 && <ProgressBar value={progress.value / searchCount} />}
             </>}
             main={<FluentGrid
                 data={data}
