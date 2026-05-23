@@ -117,7 +117,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                 sortable: true,
                 formatter: (_protected) => {
                     if (_protected === true) {
-                        return <LockClosedFilled />;
+                        return <LockClosedFilled aria-label="Protected" />;
                     }
                     return "";
                 },

@@ -65,11 +65,11 @@ test.describe("V9 Workunits", () => {
         await expect(page.locator(".ms-DetailsRow.is-selected")).toHaveCount(1);
         if (browserName === "chromium") {
             await page.getByRole("menuitem", { name: "Protect", exact: true }).click();
-            await expect(page.locator(".ms-DetailsRow").first().locator("[data-icon-name=\"LockSolid\"]")).toBeVisible();
+            await expect(page.locator(".ms-DetailsRow").first().locator("[aria-label=\"Protected\"]")).toBeVisible();
             await page.locator(".ms-DetailsRow").first().locator(".ms-DetailsRow-check").click();
             await expect(page.locator(".ms-DetailsRow.is-selected")).toHaveCount(1);
             await page.getByRole("menuitem", { name: "Unprotect" }).click();
-            await expect(page.locator(".ms-DetailsRow").first().locator("[data-icon-name=\"LockSolid\"]")).toHaveCount(0);
+            await expect(page.locator(".ms-DetailsRow").first().locator("[aria-label=\"Protected\"]")).toHaveCount(0);
         }
     });
 
