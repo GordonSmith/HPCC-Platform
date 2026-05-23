@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, DetailsRow, ICommandBarItemProps, IDetailsRowProps, Icon } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, DetailsRow, ICommandBarItemProps, IDetailsRowProps } from "@fluentui/react";
+import { LockClosedFilled } from "@fluentui/react-icons";
 import { Link } from "@fluentui/react-components";
 import { hsl as d3Hsl } from "@hpcc-js/common";
 import { Workunit } from "@hpcc-js/comms";
@@ -116,7 +117,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                 sortable: true,
                 formatter: (_protected) => {
                     if (_protected === true) {
-                        return <Icon iconName="LockSolid" />;
+                        return <LockClosedFilled />;
                     }
                     return "";
                 },

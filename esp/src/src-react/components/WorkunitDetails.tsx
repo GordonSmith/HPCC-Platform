@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Icon } from "@fluentui/react";
 import { SkeletonItem } from "@fluentui/react-components";
+import { SearchRegular } from "@fluentui/react-icons";
 import { WsWorkunits, WorkunitsService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
@@ -180,7 +180,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
         }, {
             id: "queries",
             label: nlsHPCC.Queries,
-            icon: <Icon iconName="Search"></Icon>,
+            icon: <SearchRegular />,
             disabled: workunit?.Archived,
         }, {
             id: "resources",

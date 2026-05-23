@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { LockClosedFilled } from "@fluentui/react-icons";
 import { SizeMe } from "../layouts/SizeMe";
 import nlsHPCC from "src/nlsHPCC";
 import { HolyGrail } from "../layouts/HolyGrail";
@@ -26,7 +27,7 @@ export const Services: React.FunctionComponent<ServicesProps> = ({
             Port: { label: nlsHPCC.Port, width: 120 },
             TLSSecure: {
                 headerIcon: "LockSolid", label: nlsHPCC.TLS, width: 16,
-                formatter: secure => secure === true ? <Icon iconName="LockSolid" /> : ""
+                formatter: secure => secure === true ? <LockClosedFilled /> : ""
             }
         };
     }, []);

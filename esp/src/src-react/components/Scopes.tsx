@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { LockClosedFilled, FolderZipRegular, FolderRegular } from "@fluentui/react-icons";
 import { Link, makeStyles } from "@fluentui/react-components";
 import { DFUService } from "@hpcc-js/comms";
 import { SizeMe } from "../layouts/SizeMe";
@@ -176,7 +177,7 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
                 sortable: false,
                 formatter: (_protected) => {
                     if (_protected === true) {
-                        return <Icon iconName="LockSolid" />;
+                        return <LockClosedFilled />;
                     }
                     return "";
                 }
@@ -187,7 +188,7 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
                 sortable: false,
                 formatter: (compressed) => {
                     if (compressed === true) {
-                        return <Icon iconName="ZipFolder" />;
+                        return <FolderZipRegular />;
                     }
                     return "";
                 }
@@ -203,7 +204,7 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
                         path = (path.startsWith("::")) ? path.substring(2) : path;
                         url = "#/scopes/" + path;
                         return <div className={styles.folderContainer}>
-                            <Icon iconName={"FabricFolder"} className={styles.folderIcon} />
+                            <FolderRegular className={styles.folderIcon} />
                             <Link data-selection-disabled={true} href={url}>{name}</Link>
                         </div>;
                     }

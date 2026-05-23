@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, FontIcon, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { FolderZipRegular, KeyRegular, FolderRegular } from "@fluentui/react-icons";
 import { Link } from "@fluentui/react-components";
 import * as ESPLogicalFile from "src/ESPLogicalFile";
 import nlsHPCC from "src/nlsHPCC";
@@ -50,7 +51,7 @@ export const SubFiles: React.FunctionComponent<SubFilesProps> = ({
                 headerTooltip: nlsHPCC.Compressed,
                 formatter: (compressed) => {
                     if (compressed === true) {
-                        return <FontIcon iconName="zipFolder" />;
+                        return <FolderZipRegular />;
                     }
                     return <></>;
                 }
@@ -61,7 +62,7 @@ export const SubFiles: React.FunctionComponent<SubFilesProps> = ({
                 headerTooltip: nlsHPCC.Index,
                 formatter: (keyfile, row) => {
                     if (row.ContentType === "key") {
-                        return <FontIcon iconName="Permissions" />;
+                        return <KeyRegular />;
                     }
                     return <></>;
                 }
@@ -72,7 +73,7 @@ export const SubFiles: React.FunctionComponent<SubFilesProps> = ({
                 headerTooltip: nlsHPCC.Superfile,
                 formatter: (superfile) => {
                     if (superfile === true) {
-                        return <FontIcon iconName="Folder" />;
+                        return <FolderRegular />;
                     }
                     return <></>;
                 }

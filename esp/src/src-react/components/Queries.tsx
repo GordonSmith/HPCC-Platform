@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { PauseRegular, WarningRegular, DismissCircleRegular, CheckmarkCircleRegular } from "@fluentui/react-icons";
 import { Link } from "@fluentui/react-components";
 import * as WsWorkunits from "src/WsWorkunits";
 import * as ESPQuery from "src/ESPQuery";
@@ -99,7 +100,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
                 sortable: false,
                 formatter: (suspended) => {
                     if (suspended === true) {
-                        return <Icon iconName="Pause" />;
+                        return <PauseRegular />;
                     }
                     return "";
                 },
@@ -112,7 +113,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
                 sortable: false,
                 formatter: (error, row) => {
                     if (row.ErrorCount > 0) {
-                        return <Icon iconName="Warning" />;
+                        return <WarningRegular />;
                     }
                     return "";
                 },
@@ -126,7 +127,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
                 formatter: (mixed, row) => {
                     const mixedStates = row?.Clusters?.ClusterQueryState[0]?.MixedNodeStates ?? false;
                     if (mixedStates === true) {
-                        return <Icon iconName="Error" />;
+                        return <DismissCircleRegular />;
                     }
                     return "";
                 },
@@ -137,7 +138,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
                 width: 16,
                 formatter: (activated, row) => {
                     if (row.Activated === true) {
-                        return <Icon iconName="SkypeCircleCheck" />;
+                        return <CheckmarkCircleRegular />;
                     }
                     return "";
                 },

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { LockClosedFilled } from "@fluentui/react-icons";
 import { Link } from "@fluentui/react-components";
 import { SizeMe } from "../layouts/SizeMe";
 import * as ESPDFUWorkunit from "src/ESPDFUWorkunit";
@@ -107,7 +108,7 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
                 sortable: false,
                 formatter: (_protected) => {
                     if (_protected === true) {
-                        return <Icon iconName="LockSolid" />;
+                        return <LockClosedFilled />;
                     }
                     return "";
                 }
