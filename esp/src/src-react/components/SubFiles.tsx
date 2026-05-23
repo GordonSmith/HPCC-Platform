@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, FontIcon, ICommandBarItemProps, Link } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, FontIcon, ICommandBarItemProps } from "@fluentui/react";
+import { Link } from "@fluentui/react-components";
 import * as ESPLogicalFile from "src/ESPLogicalFile";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";

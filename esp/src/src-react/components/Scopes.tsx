@@ -1,6 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon, Link } from "@fluentui/react";
-import { makeStyles } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Icon } from "@fluentui/react";
+import { Link, makeStyles } from "@fluentui/react-components";
 import { DFUService } from "@hpcc-js/comms";
 import { SizeMe } from "../layouts/SizeMe";
 import * as WsDfu from "src/WsDfu";

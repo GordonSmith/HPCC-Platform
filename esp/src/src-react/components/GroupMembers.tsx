@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { Link } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import * as WsAccess from "src/ws_access";
 import nlsHPCC from "src/nlsHPCC";

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, DetailsRow, ICommandBarItemProps, IDetailsRowProps, Icon, Link } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, DetailsRow, ICommandBarItemProps, IDetailsRowProps, Icon } from "@fluentui/react";
+import { Link } from "@fluentui/react-components";
 import { hsl as d3Hsl } from "@hpcc-js/common";
 import { Workunit } from "@hpcc-js/comms";
 import { SizeMe } from "../layouts/SizeMe";

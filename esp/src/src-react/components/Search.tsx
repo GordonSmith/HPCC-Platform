@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link, ProgressIndicator } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, ProgressIndicator } from "@fluentui/react";
+import { Link, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
 import { SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
 import { useConst } from "@fluentui/react-hooks";
 import { ESPSearch } from "src/ESPSearch";

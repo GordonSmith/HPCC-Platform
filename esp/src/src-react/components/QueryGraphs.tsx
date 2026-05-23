@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ICommandBarItemProps, Link } from "@fluentui/react";
+import { CommandBar, ICommandBarItemProps } from "@fluentui/react";
+import { Link } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import * as ESPQuery from "src/ESPQuery";
 import * as Utility from "src/Utility";

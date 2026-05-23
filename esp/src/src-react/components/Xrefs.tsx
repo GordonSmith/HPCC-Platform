@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link, TextField } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, TextField } from "@fluentui/react";
+import { Link } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { HolyGrail } from "../layouts/HolyGrail";
 import nlsHPCC from "src/nlsHPCC";

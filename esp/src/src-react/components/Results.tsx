@@ -1,6 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, Link } from "@fluentui/react";
-import { makeStyles } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { Link, makeStyles } from "@fluentui/react-components";
 import { SizeMe } from "../layouts/SizeMe";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
@@ -72,7 +72,7 @@ export const Results: React.FunctionComponent<ResultsProps> = ({
                 label: nlsHPCC.Views, sortable: true,
                 formatter: (ResultViews, idx) => {
                     return <>
-                        {ResultViews?.map((item, idx) => <Link href='#' viewName={encodeURIComponent(item)}>{item}</Link>)}
+                        {ResultViews?.map((item, idx) => <Link href='#' data-view-name={encodeURIComponent(item)}>{item}</Link>)}
                     </>;
                 }
             }
