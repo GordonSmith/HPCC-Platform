@@ -1,6 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, SpinButton } from "@fluentui/react";
-import { Button, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent, Spinner } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { Button, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, Field, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent, SpinButton, SpinButtonChangeEvent, SpinButtonOnChangeData, Spinner } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useConst } from "@fluentui/react-hooks";
@@ -105,8 +105,8 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
     };
 
     const [downloadTotal, setDownloadTotal] = React.useState(totalRows);
-    const onDownloadTotalValidate = (value: string) => {
-        let v: number = parseInt(value);
+    const onDownloadTotalChange = (_ev: SpinButtonChangeEvent, data: SpinButtonOnChangeData) => {
+        let v: number = data.value ?? parseInt(data.displayValue ?? "", 10);
         if (isNaN(v)) {
             v = totalRows;
         } else if (v < 0) {
@@ -115,7 +115,6 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
             v = totalRows;
         }
         setDownloadTotal(v);
-        return String(v);
     };
 
     const [dedup] = React.useState(true);
@@ -129,16 +128,17 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
                 <DialogContent>
                     <p>{`Confirm total number of rows to download(max ${totalRows} rows).`}</p>
                     <StackShim tokens={stackTokens}>
-                        <SpinButton
-                            defaultValue={`${totalRows} `}
-                            label={"Download:"}
-                            min={0}
-                            max={totalRows}
-                            step={1}
-                            incrementButtonAriaLabel={"Increase value by 1"}
-                            decrementButtonAriaLabel={"Decrease value by 1"}
-                            onValidate={onDownloadTotalValidate}
-                        />
+                        <Field label="Download:">
+                            <SpinButton
+                                defaultValue={totalRows}
+                                min={0}
+                                max={totalRows}
+                                step={1}
+                                incrementButton={{ "aria-label": "Increase value by 1" }}
+                                decrementButton={{ "aria-label": "Decrease value by 1" }}
+                                onChange={onDownloadTotalChange}
+                            />
+                        </Field>
                         {column ?
                             <Checkbox label="De-duplicate" defaultChecked onChange={onDedup} /> :
                             undefined}
