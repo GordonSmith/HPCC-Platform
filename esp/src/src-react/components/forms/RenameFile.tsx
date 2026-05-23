@@ -1,5 +1,5 @@
 import * as React from "react";
-import { mergeStyleSets } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Button, Checkbox, Field, Input, Spinner } from "@fluentui/react-components";
 import { useConst } from "@fluentui/react-hooks";
 import { useForm, Controller } from "react-hook-form";

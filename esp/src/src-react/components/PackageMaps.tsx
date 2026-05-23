@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, IDropdownOption, mergeStyleSets } from "@fluentui/react";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, IDropdownOption } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Button, Dropdown, Label, Link, MessageBar, MessageBarActions, MessageBarBody, Option, makeStyles, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";

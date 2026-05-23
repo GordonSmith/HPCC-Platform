@@ -1,5 +1,5 @@
 import * as React from "react";
-import { mergeStyleSets } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Button, Field, Input, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";

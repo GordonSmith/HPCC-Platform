@@ -1,5 +1,6 @@
 import * as React from "react";
-import { IDropdownOption, mergeStyleSets } from "@fluentui/react";
+import { IDropdownOption } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Button, Checkbox, Dropdown, Field, Input, makeStyles, Option, Spinner, Tooltip } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";

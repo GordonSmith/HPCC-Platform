@@ -1,5 +1,6 @@
 import * as React from "react";
-import { FontIcon, mergeStyleSets, ThemeProvider } from "@fluentui/react";
+import { FontIcon, ThemeProvider } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 import { FluentProvider, Text } from "@fluentui/react-components";
 import { Palette } from "@hpcc-js/common";
 import { WUStateID } from "@hpcc-js/comms";

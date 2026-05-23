@@ -1,5 +1,6 @@
 import * as React from "react";
-import { IconButton, IContextualMenuItem, mergeStyleSets } from "@fluentui/react";
+import { IconButton, IContextualMenuItem } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Link, ToggleButton, makeStyles, tokens } from "@fluentui/react-components";
 import { NavDrawer, NavDrawerBody, NavDrawerFooter, NavItem } from "@fluentui/react-nav-preview";
 import {

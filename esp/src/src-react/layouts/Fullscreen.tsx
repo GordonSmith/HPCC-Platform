@@ -1,5 +1,5 @@
 import * as React from "react";
-import { mergeStyleSets } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Button } from "@fluentui/react-components";
 import { ArrowMaximize20Regular, ArrowMinimize20Regular } from "@fluentui/react-icons";
 import { useUserTheme } from "../hooks/theme";

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { mergeStyleSets, useTheme } from "@fluentui/react";
+import { useTheme } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 
 export interface StepProps {
     label?: string;

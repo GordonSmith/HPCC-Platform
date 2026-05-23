@@ -1,5 +1,5 @@
 import * as React from "react";
-import { mergeStyleSets } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Button, Field, Input, Radio, RadioGroup, Spinner } from "@fluentui/react-components";
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";

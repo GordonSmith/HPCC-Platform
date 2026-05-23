@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Button, Checkbox } from "@fluentui/react-components";
-import { mergeStyleSets } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 import { resetCookies, resetModernMode } from "src/Session";
 import nlsHPCC from "src/nlsHPCC";
 import { pushUrl, replaceUrl } from "../util/history";

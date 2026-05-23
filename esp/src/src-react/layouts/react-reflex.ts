@@ -1,4 +1,4 @@
-import { mergeStyleSets } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 export { ReflexContainer, ReflexElement, ReflexSplitter } from "react-reflex";
 
 import "react-reflex/styles.css";

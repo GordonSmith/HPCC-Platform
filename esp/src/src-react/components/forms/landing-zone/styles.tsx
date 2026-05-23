@@ -1,4 +1,5 @@
-import { FontWeights, getTheme, IIconProps, IStackStyles, mergeStyleSets } from "@fluentui/react";
+import { FontWeights, getTheme, IIconProps, IStackStyles } from "@fluentui/react";
+import { mergeStyleSets } from "@fluentui/style-utilities";
 
 const theme = getTheme();
 
