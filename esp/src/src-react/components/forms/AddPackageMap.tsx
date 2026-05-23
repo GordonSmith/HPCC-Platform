@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, Dropdown, IDropdownOption, TextField } from "@fluentui/react";
-import { Button, Spinner } from "@fluentui/react-components";
+import { Dropdown, IDropdownOption, TextField } from "@fluentui/react";
+import { Button, Checkbox, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { FileSprayService } from "@hpcc-js/comms";
@@ -212,7 +212,7 @@ export const AddPackageMap: React.FunctionComponent<AddPackageMapProps> = ({
                     control={control} name="Activate"
                     render={({
                         field: { onChange, name: fieldName, value }
-                    }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.Activate} />}
+                    }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Activate} />}
                 />
             </div>
             <div style={{ paddingTop: "10px" }}>
@@ -220,7 +220,7 @@ export const AddPackageMap: React.FunctionComponent<AddPackageMapProps> = ({
                     control={control} name="OverWrite"
                     render={({
                         field: { onChange, name: fieldName, value }
-                    }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.Overwrite} />}
+                    }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Overwrite} />}
                 />
             </div>
         </StackShim>

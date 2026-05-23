@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, ColorPicker, getColorFromString, IColor, TextField, TooltipHost } from "@fluentui/react";
-import { Button, Label, Spinner } from "@fluentui/react-components";
+import { ColorPicker, getColorFromString, IColor, TextField, TooltipHost } from "@fluentui/react";
+import { Button, Checkbox, Label, Spinner } from "@fluentui/react-components";
 import { useForm, Controller } from "react-hook-form";
 import { useUserTheme } from "../../hooks/theme";
 import { MessageBox } from "../../layouts/MessageBox";
@@ -99,7 +99,7 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
                     control={control} name={fieldName}
                     render={({
                         field: { onChange, name: fieldName, value }
-                    }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.EnableBannerText} />}
+                    }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.EnableBannerText} />}
                 />
             }
         />

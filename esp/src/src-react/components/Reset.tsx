@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button } from "@fluentui/react-components";
-import { mergeStyleSets, Checkbox } from "@fluentui/react";
+import { Button, Checkbox } from "@fluentui/react-components";
+import { mergeStyleSets } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { resetCookies, resetModernMode } from "src/Session";
 import nlsHPCC from "src/nlsHPCC";
@@ -47,15 +47,15 @@ export const ResetDialog: React.FunctionComponent<ResetDialogProps> = ({
             </>
         }>
             <StackShim tokens={{ childrenGap: 10 }}>
-                <Checkbox label={nlsHPCC.MetricOptions} checked={checkMetricOptions} onChange={(ev, checked) => setCheckMetricOptions(!!checked)} />
-                <Checkbox label={nlsHPCC.WorkunitOptions} checked={checkWorkunitOptions} onChange={(ev, checked) => setCheckWorkunitOptions(!!checked)} />
-                <Checkbox label={nlsHPCC.WorkunitSummarySplitter} checked={checkWorkunitSummarySplitter} onChange={(ev, checked) => setCheckWorkunitSummarySplitter(!!checked)} />
-                <Checkbox label={nlsHPCC.History} checked={checkHistory} onChange={(ev, checked) => setCheckHistoryCheckbox(!!checked)} />
-                <Checkbox label={nlsHPCC.Favorites} checked={checkFavorites} onChange={(ev, checked) => setCheckFavorites(!!checked)} />
-                <Checkbox label={nlsHPCC.ECLWatchVersion} checked={checkEclWatchVersion} onChange={(ev, checked) => setCheckEclWatchVersion(!!checked)} />
-                <Checkbox label={nlsHPCC.Theme} checked={checkTheme} onChange={(ev, checked) => setCheckTheme(!!checked)} />
-                <Checkbox label={nlsHPCC.NavWide} checked={checkNavWide} onChange={(ev, checked) => setCheckNavWide(!!checked)} />
-                <Checkbox label={nlsHPCC.Cookies} checked={checkCookies} onChange={(ev, checked) => setCheckCookies(!!checked)} />
+                <Checkbox label={nlsHPCC.MetricOptions} checked={checkMetricOptions} onChange={(_, data) => setCheckMetricOptions(!!data.checked)} />
+                <Checkbox label={nlsHPCC.WorkunitOptions} checked={checkWorkunitOptions} onChange={(_, data) => setCheckWorkunitOptions(!!data.checked)} />
+                <Checkbox label={nlsHPCC.WorkunitSummarySplitter} checked={checkWorkunitSummarySplitter} onChange={(_, data) => setCheckWorkunitSummarySplitter(!!data.checked)} />
+                <Checkbox label={nlsHPCC.History} checked={checkHistory} onChange={(_, data) => setCheckHistoryCheckbox(!!data.checked)} />
+                <Checkbox label={nlsHPCC.Favorites} checked={checkFavorites} onChange={(_, data) => setCheckFavorites(!!data.checked)} />
+                <Checkbox label={nlsHPCC.ECLWatchVersion} checked={checkEclWatchVersion} onChange={(_, data) => setCheckEclWatchVersion(!!data.checked)} />
+                <Checkbox label={nlsHPCC.Theme} checked={checkTheme} onChange={(_, data) => setCheckTheme(!!data.checked)} />
+                <Checkbox label={nlsHPCC.NavWide} checked={checkNavWide} onChange={(_, data) => setCheckNavWide(!!data.checked)} />
+                <Checkbox label={nlsHPCC.Cookies} checked={checkCookies} onChange={(_, data) => setCheckCookies(!!data.checked)} />
             </StackShim>
         </MessageBox>
     </div>;

@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, mergeStyleSets, TextField } from "@fluentui/react";
-import { Button, Spinner } from "@fluentui/react-components";
+import { mergeStyleSets, TextField } from "@fluentui/react";
+import { Button, Checkbox, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useConst } from "@fluentui/react-hooks";
 import { useForm, Controller } from "react-hook-form";
@@ -187,7 +187,7 @@ export const RenameFile: React.FunctionComponent<RenameFileProps> = ({
                     control={control} name="overwrite"
                     render={({
                         field: { onChange, name: fieldName, value }
-                    }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.Overwrite} />}
+                    }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Overwrite} />}
                 />
             </div>
         </StackShim>

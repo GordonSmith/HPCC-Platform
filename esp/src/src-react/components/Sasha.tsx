@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button } from "@fluentui/react-components";
-import { Dropdown, TextField, Checkbox } from "@fluentui/react";
+import { Button, Checkbox } from "@fluentui/react-components";
+import { Dropdown, TextField } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
 import { scopedLogger } from "@hpcc-js/util";
@@ -234,22 +234,22 @@ export const Sasha: React.FunctionComponent<SashaProps> = () => {
               <Checkbox
                 label="Archived"
                 checked={archived}
-                onChange={(e, checked) => setArchived(!!checked)}
+                onChange={(_, data) => setArchived(!!data.checked)}
               />
               <Checkbox
                 label="Online"
                 checked={online}
-                onChange={(e, checked) => setOnline(!!checked)}
+                onChange={(_, data) => setOnline(!!data.checked)}
               />
               <Checkbox
                 label="Include DT"
                 checked={includeDT}
-                onChange={(e, checked) => setIncludeDT(!!checked)}
+                onChange={(_, data) => setIncludeDT(!!data.checked)}
               />
               <Checkbox
                 label="Descending"
                 checked={descending}
-                onChange={(e, checked) => setDescending(!!checked)}
+                onChange={(_, data) => setDescending(!!data.checked)}
               />
             </StackShim>
           </StackShim>

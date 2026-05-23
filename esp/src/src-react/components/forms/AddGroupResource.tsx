@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, TextField } from "@fluentui/react";
-import { Button, Spinner } from "@fluentui/react-components";
+import { TextField } from "@fluentui/react";
+import { Button, Checkbox, Spinner } from "@fluentui/react-components";
 import { AccessService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -106,7 +106,7 @@ export const AddGroupResourceForm: React.FunctionComponent<AddGroupResourceFormP
                 control={control} name="allow_access"
                 render={({
                     field: { onChange, name: fieldName, value }
-                }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.AllowAccess} />}
+                }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.AllowAccess} />}
             />
         </div>
         <div style={{ paddingTop: "15px" }}>
@@ -114,7 +114,7 @@ export const AddGroupResourceForm: React.FunctionComponent<AddGroupResourceFormP
                 control={control} name="allow_read"
                 render={({
                     field: { onChange, name: fieldName, value }
-                }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.AllowRead} />}
+                }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.AllowRead} />}
             />
         </div>
         <div style={{ paddingTop: "15px" }}>
@@ -122,7 +122,7 @@ export const AddGroupResourceForm: React.FunctionComponent<AddGroupResourceFormP
                 control={control} name="allow_write"
                 render={({
                     field: { onChange, name: fieldName, value }
-                }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.AllowWrite} />}
+                }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.AllowWrite} />}
             />
         </div>
         <div style={{ paddingTop: "15px" }}>
@@ -130,7 +130,7 @@ export const AddGroupResourceForm: React.FunctionComponent<AddGroupResourceFormP
                 control={control} name="allow_full"
                 render={({
                     field: { onChange, name: fieldName, value }
-                }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.AllowFull} />}
+                }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.AllowFull} />}
             />
         </div>
     </MessageBox>;

@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, ICheckboxStyles, ISpinButtonStyles, SpinButton } from "@fluentui/react";
-import { Label } from "@fluentui/react-components";
+import { ISpinButtonStyles, SpinButton } from "@fluentui/react";
+import { Checkbox, Label } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { Workunit } from "@hpcc-js/comms";
 import nlsHPCC from "src/nlsHPCC";
@@ -17,7 +17,6 @@ const bufferLength = 16 * 1024;
 const unknownChar = String.fromCharCode(8226);
 
 const spinStyles: Partial<ISpinButtonStyles> = { root: { width: 100 }, spinButtonWrapper: { width: 50 } };
-const checkboxStyles: Partial<ICheckboxStyles> = { root: { marginTop: 4 } };
 
 const isCharPrintable = (char) => {
     const charCode = char.charCodeAt(0);
@@ -165,7 +164,7 @@ choosen(analysis_dataset, ${bufferLength});`;
             <Label>{nlsHPCC.Width}</Label>
             <SpinButton value={lineLength.toString()} min={1} onChange={onLineLengthChange} styles={spinStyles} />
             <Label>{nlsHPCC.EBCDIC}</Label>
-            <Checkbox onChange={(ev, checked) => setShowEbcdic(checked)} styles={checkboxStyles} />
+            <Checkbox onChange={(_, data) => setShowEbcdic(!!data.checked)} style={{ marginTop: 4 }} />
         </div>
         <TextSourceEditor text={text} readonly={true} />
     </>;

@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Checkbox, Dropdown, IDropdownOption, mergeStyleSets, TextField, TooltipHost } from "@fluentui/react";
+import { Dropdown, IDropdownOption, mergeStyleSets, TextField, TooltipHost } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
-import { Button, makeStyles, Spinner } from "@fluentui/react-components";
+import { Button, Checkbox, makeStyles, Spinner } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import * as FileSpray from "src/FileSpray";
@@ -369,14 +369,14 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                         control={control} name="overwrite"
                         render={({
                             field: { onChange, name: fieldName, value }
-                        }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.Overwrite} />}
+                        }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Overwrite} />}
                     /></td>
                     <td><Controller
                         control={control} name="replicate"
                         render={({
                             field: { onChange, name: fieldName, value }
                         }) => <TooltipHost content={nlsHPCC.ReplicateTooltip}>
-                                <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.Replicate} />
+                                <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Replicate} />
                             </TooltipHost>}
                     /></td>
                 </tr>
@@ -385,13 +385,13 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                             control={control} name="nosplit"
                             render={({
                                 field: { onChange, name: fieldName, value }
-                            }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.NoSplit} disabled={true} />}
+                            }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.NoSplit} disabled={true} />}
                         /></td>
                         <td><Controller
                             control={control} name="noCommon"
                             render={({
                                 field: { onChange, name: fieldName, value }
-                            }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.NoCommon} />}
+                            }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.NoCommon} />}
                         /></td>
                     </tr>
                     <tr>
@@ -399,13 +399,13 @@ export const JsonImportForm: React.FunctionComponent<JsonImportFormProps> = ({
                             control={control} name="compress"
                             render={({
                                 field: { onChange, name: fieldName, value }
-                            }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.Compress} />}
+                            }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Compress} />}
                         /></td>
                         <td><Controller
                             control={control} name="failIfNoSourceFile"
                             render={({
                                 field: { onChange, name: fieldName, value }
-                            }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.FailIfNoSourceFile} />}
+                            }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.FailIfNoSourceFile} />}
                         /></td>
                     </tr>
                     <tr>

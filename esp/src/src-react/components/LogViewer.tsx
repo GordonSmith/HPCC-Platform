@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Checkbox, CommandBar, ICommandBarItemProps } from "@fluentui/react";
+import { CommandBar, ICommandBarItemProps } from "@fluentui/react";
+import { Checkbox } from "@fluentui/react-components";
 import { Level } from "@hpcc-js/util";
 import { logColor } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
@@ -32,10 +33,10 @@ export const LogViewer: React.FunctionComponent<LogViewerProps> = ({
 
     //  Command Bar  ---
     const buttons = React.useMemo((): ICommandBarItemProps[] => [
-        { key: "errors", onRender: () => <Checkbox defaultChecked label={`${filterCounts.error || 0} ${nlsHPCC.Errors}`} onChange={(ev, value) => setErrorChecked(value)} styles={{ root: { paddingTop: 8, paddingRight: 8 } }} /> },
-        { key: "warnings", onRender: () => <Checkbox defaultChecked label={`${filterCounts.warning || 0} ${nlsHPCC.Warnings}`} onChange={(ev, value) => setWarningChecked(value)} styles={{ root: { paddingTop: 8, paddingRight: 8 } }} /> },
-        { key: "infos", onRender: () => <Checkbox defaultChecked label={`${filterCounts.info || 0} ${nlsHPCC.Infos}`} onChange={(ev, value) => setInfoChecked(value)} styles={{ root: { paddingTop: 8, paddingRight: 8 } }} /> },
-        { key: "others", onRender: () => <Checkbox defaultChecked label={`${filterCounts.other || 0} ${nlsHPCC.Others}`} onChange={(ev, value) => setOtherChecked(value)} styles={{ root: { paddingTop: 8, paddingRight: 8 } }} /> }
+        { key: "errors", onRender: () => <Checkbox defaultChecked label={`${filterCounts.error || 0} ${nlsHPCC.Errors}`} onChange={(_, data) => setErrorChecked(!!data.checked)} style={{ paddingTop: 8, paddingRight: 8 }} /> },
+        { key: "warnings", onRender: () => <Checkbox defaultChecked label={`${filterCounts.warning || 0} ${nlsHPCC.Warnings}`} onChange={(_, data) => setWarningChecked(!!data.checked)} style={{ paddingTop: 8, paddingRight: 8 }} /> },
+        { key: "infos", onRender: () => <Checkbox defaultChecked label={`${filterCounts.info || 0} ${nlsHPCC.Infos}`} onChange={(_, data) => setInfoChecked(!!data.checked)} style={{ paddingTop: 8, paddingRight: 8 }} /> },
+        { key: "others", onRender: () => <Checkbox defaultChecked label={`${filterCounts.other || 0} ${nlsHPCC.Others}`} onChange={(_, data) => setOtherChecked(!!data.checked)} style={{ paddingTop: 8, paddingRight: 8 }} /> }
     ], [filterCounts.error, filterCounts.info, filterCounts.other, filterCounts.warning]);
 
     //  Grid ---

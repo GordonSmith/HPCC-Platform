@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, CommandBar, ContextualMenuItemType, ICommandBarItemProps, SpinButton } from "@fluentui/react";
-import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent, Spinner } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, SpinButton } from "@fluentui/react";
+import { Button, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogOpenChangeData, DialogOpenChangeEvent, DialogSurface, DialogTitle, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent, Spinner } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useConst } from "@fluentui/react-hooks";
@@ -119,7 +119,7 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
     };
 
     const [dedup] = React.useState(true);
-    const onDedup = (ev: React.FormEvent<HTMLElement>, isChecked: boolean) => {
+    const onDedup = (ev: React.ChangeEvent<HTMLInputElement>, data: { checked: boolean | "mixed" }) => {
     };
 
     return <Dialog open={open} modalType="modal" onOpenChange={onOpenChange}>
@@ -140,7 +140,7 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
                             onValidate={onDownloadTotalValidate}
                         />
                         {column ?
-                            <Checkbox label="De-duplicate" boxSide="end" defaultChecked onChange={onDedup} /> :
+                            <Checkbox label="De-duplicate" defaultChecked onChange={onDedup} /> :
                             undefined}
                     </StackShim>
                 </DialogContent>

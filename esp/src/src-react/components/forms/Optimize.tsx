@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button } from "@fluentui/react-components";
-import { Checkbox, IDropdownOption, TextField } from "@fluentui/react";
+import { Button, Checkbox } from "@fluentui/react-components";
+import { IDropdownOption, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { DPWorkunit } from "src/DataPatterns/DPWorkunit";
@@ -102,7 +102,7 @@ export const Optimize: React.FunctionComponent<OptimizeProps> = ({
                 control={control} name="overwrite"
                 render={({
                     field: { onChange, name: fieldName, value }
-                }) => <Checkbox label={nlsHPCC.Overwrite} name={fieldName} checked={value} onChange={onChange} />}
+                }) => <Checkbox label={nlsHPCC.Overwrite} name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} />}
             />
         </div>
     </MessageBox>;

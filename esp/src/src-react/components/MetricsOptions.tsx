@@ -1,7 +1,7 @@
 import * as React from "react";
-import { DefaultButton, PrimaryButton, Checkbox, TextField, SelectionMode, Selection } from "@fluentui/react";
+import { DefaultButton, PrimaryButton, TextField, SelectionMode, Selection } from "@fluentui/react";
 import { useConst, useForceUpdate } from "@fluentui/react-hooks";
-import { Button, Dropdown, Option, SelectTabData, SelectTabEvent, Tab, TabList, makeStyles } from "@fluentui/react-components";
+import { Button, Checkbox, Dropdown, Option, SelectTabData, SelectTabEvent, Tab, TabList, makeStyles } from "@fluentui/react-components";
 import { BookmarkAddRegular, DeleteRegular, RenameRegular } from "@fluentui/react-icons";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
@@ -304,8 +304,8 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
                 }
                 {selectedTab === "graph" &&
                     <div className={styles.graphPanel} style={{ height: innerHeight }}>
-                        <Checkbox label={nlsHPCC.IgnoreGlobalStoreOutEdges} checked={dirtyView.ignoreGlobalStoreOutEdges} onChange={(ev, checked) => {
-                            setDirtyView(prev => ({ ...prev, ignoreGlobalStoreOutEdges: checked }));
+                        <Checkbox label={nlsHPCC.IgnoreGlobalStoreOutEdges} checked={dirtyView.ignoreGlobalStoreOutEdges} onChange={(_, data) => {
+                            setDirtyView(prev => ({ ...prev, ignoreGlobalStoreOutEdges: !!data.checked }));
                         }} />
                         <TextField label={nlsHPCC.SubgraphLabel} value={dirtyView.subgraphTpl} multiline autoAdjustHeight onChange={(evt, newValue) => {
                             setDirtyView(prev => ({ ...prev, subgraphTpl: newValue }));
@@ -320,8 +320,8 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
                 }
                 {selectedTab === "layout" &&
                     <div className={styles.layoutPanel} style={{ height: innerHeight }}>
-                        <Checkbox label={nlsHPCC.Timeline} checked={dirtyView.showTimeline} onChange={(ev, checked) => {
-                            setDirtyView(prev => ({ ...prev, showTimeline: checked }));
+                        <Checkbox label={nlsHPCC.Timeline} checked={dirtyView.showTimeline} onChange={(_, data) => {
+                            setDirtyView(prev => ({ ...prev, showTimeline: !!data.checked }));
                         }} />
                         <JSONSourceEditor json={dirtyView.layout} toolbar={false} onChange={obj => {
                             if (obj) {

@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button } from "@fluentui/react-components";
-import { Checkbox, IDropdownOption, mergeStyleSets } from "@fluentui/react";
+import { Button, Checkbox } from "@fluentui/react-components";
+import { IDropdownOption, mergeStyleSets } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { FileSprayService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -298,7 +298,7 @@ export const FileListForm: React.FunctionComponent<FileListFormProps> = ({
                 control={control} name="overwrite"
                 render={({
                     field: { onChange, name: fieldName, value }
-                }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.Overwrite} />}
+                }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Overwrite} />}
             />
         </StackShim>
     </MessageBox>;

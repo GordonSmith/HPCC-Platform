@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, TextField } from "@fluentui/react";
-import { Button, Spinner } from "@fluentui/react-components";
+import { TextField } from "@fluentui/react";
+import { Button, Checkbox, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
@@ -165,7 +165,7 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
                     control={control} name="DeletePrevious"
                     render={({
                         field: { onChange, name: fieldName, value }
-                    }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.DeletePrevious} />}
+                    }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.DeletePrevious} />}
                 />
             </div>
             <div style={{ paddingTop: "10px" }}>
@@ -173,7 +173,7 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
                     control={control} name="AllowForeignFiles"
                     render={({
                         field: { onChange, name: fieldName, value }
-                    }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.AllowForeignFiles} />}
+                    }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.AllowForeignFiles} />}
                 />
             </div>
             <div style={{ paddingTop: "10px" }}>
@@ -181,7 +181,7 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
                     control={control} name="PreloadAllPackages"
                     render={({
                         field: { onChange, name: fieldName, value }
-                    }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.PreloadAllPackages} />}
+                    }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.PreloadAllPackages} />}
                 />
             </div>
             <div style={{ paddingTop: "10px" }}>
@@ -189,7 +189,7 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
                     control={control} name="UpdateSuperFiles"
                     render={({
                         field: { onChange, name: fieldName, value }
-                    }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.UpdateSuperFiles} />}
+                    }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.UpdateSuperFiles} />}
                 />
             </div>
             <div style={{ paddingTop: "10px" }}>
@@ -197,7 +197,7 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
                     control={control} name="UpdateCloneFrom"
                     render={({
                         field: { onChange, name: fieldName, value }
-                    }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.UpdateCloneFrom} />}
+                    }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.UpdateCloneFrom} />}
                 />
             </div>
             <div style={{ paddingTop: "10px" }}>
@@ -205,7 +205,7 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
                     control={control} name="AppendCluster"
                     render={({
                         field: { onChange, name: fieldName, value }
-                    }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.AppendCluster} />}
+                    }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.AppendCluster} />}
                 />
             </div>
         </StackShim>

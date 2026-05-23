@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, ColorPicker, getColorFromString, IColor, TextField } from "@fluentui/react";
-import { Button, Label, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
+import { ColorPicker, getColorFromString, IColor, TextField } from "@fluentui/react";
+import { Button, Checkbox, Label, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
@@ -92,7 +92,7 @@ export function useBanner({ showForm, setShowForm }: useBannerProps): [React.Fun
                                 control={control} name={fieldName}
                                 render={({
                                     field: { onChange, name: fieldName, value }
-                                }) => <Checkbox name={fieldName} checked={value == 1} onChange={onChange} label={nlsHPCC.Enable} />}
+                                }) => <Checkbox name={fieldName} checked={value == 1} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Enable} />}
                             />
                         }
                     />

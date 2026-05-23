@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, Dropdown, IDropdownOption, mergeStyleSets, TextField, TooltipHost } from "@fluentui/react";
-import { Button, Spinner } from "@fluentui/react-components";
+import { Dropdown, IDropdownOption, mergeStyleSets, TextField, TooltipHost } from "@fluentui/react";
+import { Button, Checkbox, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -360,14 +360,14 @@ export const XmlImportForm: React.FunctionComponent<XmlImportFormProps> = ({
                         control={control} name="overwrite"
                         render={({
                             field: { onChange, name: fieldName, value }
-                        }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.Overwrite} />}
+                        }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Overwrite} />}
                     /></td>
                     <td><Controller
                         control={control} name="replicate"
                         render={({
                             field: { onChange, name: fieldName, value }
                         }) => <TooltipHost content={nlsHPCC.ReplicateTooltip}>
-                                <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.Replicate} />
+                                <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Replicate} />
                             </TooltipHost>}
                     /></td>
                 </tr>
@@ -376,13 +376,13 @@ export const XmlImportForm: React.FunctionComponent<XmlImportFormProps> = ({
                             control={control} name="nosplit"
                             render={({
                                 field: { onChange, name: fieldName, value }
-                            }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.NoSplit} />}
+                            }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.NoSplit} />}
                         /></td>
                         <td><Controller
                             control={control} name="noCommon"
                             render={({
                                 field: { onChange, name: fieldName, value }
-                            }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.NoCommon} />}
+                            }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.NoCommon} />}
                         /></td>
                     </tr>
                     <tr>
@@ -390,13 +390,13 @@ export const XmlImportForm: React.FunctionComponent<XmlImportFormProps> = ({
                             control={control} name="compress"
                             render={({
                                 field: { onChange, name: fieldName, value }
-                            }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.Compress} />}
+                            }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.Compress} />}
                         /></td>
                         <td><Controller
                             control={control} name="failIfNoSourceFile"
                             render={({
                                 field: { onChange, name: fieldName, value }
-                            }) => <Checkbox name={fieldName} checked={value} onChange={onChange} label={nlsHPCC.FailIfNoSourceFile} />}
+                            }) => <Checkbox name={fieldName} checked={value} onChange={(_, data) => onChange(data.checked)} label={nlsHPCC.FailIfNoSourceFile} />}
                         /></td>
                     </tr>
                     <tr>
