@@ -1,6 +1,5 @@
 import * as React from "react";
-import { TextField } from "@fluentui/react";
-import { Button, Checkbox, Spinner } from "@fluentui/react-components";
+import { Button, Checkbox, Field, Input, Spinner, Textarea } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
@@ -102,15 +101,14 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        placeholder={nlsHPCC.PartName}
-                        required={true}
-                        label={nlsHPCC.PartName}
-                        value={value}
-                        errorMessage={error && error?.message}
-                    />}
+                }) => <Field label={nlsHPCC.PartName} required validationMessage={error?.message}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            placeholder={nlsHPCC.PartName}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
                 rules={{
                     required: nlsHPCC.ValidationErrorRequired
                 }}
@@ -120,16 +118,14 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        required={true}
-                        label={nlsHPCC.Content}
-                        value={value}
-                        multiline={true}
-                        rows={16}
-                        errorMessage={error && error?.message}
-                    />}
+                }) => <Field label={nlsHPCC.Content} required validationMessage={error?.message}>
+                        <Textarea
+                            name={fieldName}
+                            value={value}
+                            rows={16}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
                 rules={{
                     required: nlsHPCC.ValidationErrorRequired
                 }}
@@ -139,26 +135,28 @@ export const AddPackageMapPart: React.FunctionComponent<AddPackageMapPartProps> 
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        placeholder={nlsHPCC.DaliIP}
-                        label={nlsHPCC.DaliIP}
-                        value={value}
-                    />}
+                }) => <Field label={nlsHPCC.DaliIP}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            placeholder={nlsHPCC.DaliIP}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
             />
             <Controller
                 control={control} name="SourceProcess"
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        placeholder={nlsHPCC.SourceProcess}
-                        label={nlsHPCC.SourceProcess}
-                        value={value}
-                    />}
+                }) => <Field label={nlsHPCC.SourceProcess}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            placeholder={nlsHPCC.SourceProcess}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
             />
             <div style={{ paddingTop: "15px" }}>
                 <Controller

@@ -1,6 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, TextField } from "@fluentui/react";
-import { Link } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "@fluentui/react";
+import { Input, Link } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { HolyGrail } from "../layouts/HolyGrail";
 import nlsHPCC from "src/nlsHPCC";
@@ -165,11 +165,11 @@ export const Xrefs: React.FunctionComponent<XrefsProps> = ({
         {
             key: "filterScopes",
             onRender: () => (
-                <TextField
-                    styles={{ root: { width: 250, marginLeft: 8, marginRight: 8, marginTop: 6 } }}
+                <Input
+                    style={{ width: 250, marginLeft: 8, marginRight: 8, marginTop: 6 }}
                     placeholder={nlsHPCC.ExampleScopePlaceholder}
                     value={filterScopes}
-                    onChange={(_, newValue) => handleFilterScopesChange(newValue || "")}
+                    onChange={(_, data) => handleFilterScopesChange(data.value || "")}
                 />
             )
         }

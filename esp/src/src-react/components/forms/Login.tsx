@@ -1,6 +1,6 @@
 import * as React from "react";
-import { mergeStyleSets, TextField } from "@fluentui/react";
-import { Button, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
+import { mergeStyleSets } from "@fluentui/react";
+import { Button, Field, Input, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -167,14 +167,13 @@ export const Login: React.FunctionComponent<LoginProps> = ({
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                onChange={onChange}
-                                required={true}
-                                label={nlsHPCC.UserID}
-                                value={value}
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.UserID} required validationMessage={error?.message}>
+                                <Input
+                                    name={fieldName}
+                                    value={value}
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                         rules={{
                             required: nlsHPCC.ValidationErrorRequired
                         }}
@@ -184,17 +183,14 @@ export const Login: React.FunctionComponent<LoginProps> = ({
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                type="password"
-                                onChange={onChange}
-                                required={true}
-                                label={nlsHPCC.Password}
-                                value={value}
-                                canRevealPassword
-                                revealPasswordAriaLabel={nlsHPCC.ShowPassword}
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.Password} required validationMessage={error?.message}>
+                                <Input
+                                    name={fieldName}
+                                    type="password"
+                                    value={value}
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                         rules={{
                             required: nlsHPCC.ValidationErrorRequired
                         }}

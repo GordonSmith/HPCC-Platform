@@ -1,7 +1,6 @@
 import * as React from "react";
-import { Button, Combobox, Field, MessageBar, MessageBarActions, MessageBarBody, Option } from "@fluentui/react-components";
+import { Button, Combobox, Field, Input, MessageBar, MessageBarActions, MessageBarBody, Option } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
-import { TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -104,13 +103,13 @@ export const CheckPermissionsForm: React.FunctionComponent<CheckPermissionsFormP
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        label={nlsHPCC.Scope}
-                        value={value}
-                        errorMessage={error && error?.message}
-                    />}
+                }) => <Field label={nlsHPCC.Scope} validationMessage={error?.message}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
                 rules={{
                     required: nlsHPCC.ValidationErrorRequired
                 }}
@@ -142,11 +141,9 @@ export const CheckPermissionsForm: React.FunctionComponent<CheckPermissionsFormP
                 </Combobox>
             </Field>
             {filePermissionResponse && (
-                <TextField
-                    label={nlsHPCC.FilePermission}
-                    value={filePermissionResponse}
-                    readOnly={true}
-                />
+                <Field label={nlsHPCC.FilePermission}>
+                    <Input value={filePermissionResponse} readOnly />
+                </Field>
             )}
             {showError &&
                 <div style={{ marginTop: 16 }}>

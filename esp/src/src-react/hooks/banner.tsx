@@ -1,6 +1,6 @@
 import * as React from "react";
-import { ColorPicker, getColorFromString, IColor, TextField } from "@fluentui/react";
-import { Button, Checkbox, Label, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
+import { ColorPicker, getColorFromString, IColor } from "@fluentui/react";
+import { Button, Checkbox, Field, Input, Label, MessageBar, MessageBarActions, MessageBarBody, Textarea } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
@@ -101,28 +101,26 @@ export function useBanner({ showForm, setShowForm }: useBannerProps): [React.Fun
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                onChange={onChange}
-                                multiline
-                                autoAdjustHeight
-                                label={nlsHPCC.BannerMessage}
-                                value={value}
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.BannerMessage} validationMessage={error?.message}>
+                                <Textarea
+                                    name={fieldName}
+                                    value={value}
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                     />
                     <Controller
                         control={control} name="BannerSize"
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                onChange={onChange}
-                                label={nlsHPCC.BannerSize}
-                                value={value}
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.BannerSize} validationMessage={error?.message}>
+                                <Input
+                                    name={fieldName}
+                                    value={value}
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                         rules={{
                             pattern: {
                                 value: /^[0-9]+$/i,
@@ -135,13 +133,13 @@ export function useBanner({ showForm, setShowForm }: useBannerProps): [React.Fun
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <TextField
-                                name={fieldName}
-                                onChange={onChange}
-                                label={nlsHPCC.BannerScroll}
-                                value={value}
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.BannerScroll} validationMessage={error?.message}>
+                                <Input
+                                    name={fieldName}
+                                    value={value}
+                                    onChange={(_, data) => onChange(data.value)}
+                                />
+                            </Field>}
                         rules={{
                             pattern: {
                                 value: /^[0-9]+$/i,

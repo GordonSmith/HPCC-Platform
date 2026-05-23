@@ -1,6 +1,6 @@
 import * as React from "react";
-import { IDropdownOption, TextField } from "@fluentui/react";
-import { Button, Checkbox, Dropdown, Field, Option, Spinner } from "@fluentui/react-components";
+import { IDropdownOption } from "@fluentui/react";
+import { Button, Checkbox, Dropdown, Field, Input, Option, Spinner, Textarea } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { FileSprayService } from "@hpcc-js/comms";
@@ -119,16 +119,14 @@ export const AddPackageMap: React.FunctionComponent<AddPackageMapProps> = ({
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        required={true}
-                        label={nlsHPCC.PackageContent}
-                        value={value}
-                        multiline={true}
-                        rows={16}
-                        errorMessage={error && error?.message}
-                    />}
+                }) => <Field label={nlsHPCC.PackageContent} required validationMessage={error?.message}>
+                        <Textarea
+                            name={fieldName}
+                            value={value}
+                            rows={16}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
                 rules={{
                     required: nlsHPCC.ValidationErrorRequired
                 }}
@@ -138,14 +136,13 @@ export const AddPackageMap: React.FunctionComponent<AddPackageMapProps> = ({
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        required={true}
-                        label={nlsHPCC.ID}
-                        value={value}
-                        errorMessage={error && error?.message}
-                    />}
+                }) => <Field label={nlsHPCC.ID} required validationMessage={error?.message}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
                 rules={{
                     required: nlsHPCC.ValidationErrorRequired
                 }}
@@ -191,12 +188,13 @@ export const AddPackageMap: React.FunctionComponent<AddPackageMapProps> = ({
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <TextField
-                        name={fieldName}
-                        onChange={onChange}
-                        label={nlsHPCC.RemoteDaliIP}
-                        value={value}
-                    />}
+                }) => <Field label={nlsHPCC.RemoteDaliIP}>
+                        <Input
+                            name={fieldName}
+                            value={value}
+                            onChange={(_, data) => onChange(data.value)}
+                        />
+                    </Field>}
             />
             <Controller
                 control={control} name="RemoteStorage"

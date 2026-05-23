@@ -1,7 +1,7 @@
 import * as React from "react";
-import { DefaultButton, PrimaryButton, TextField, SelectionMode, Selection } from "@fluentui/react";
+import { DefaultButton, PrimaryButton, SelectionMode, Selection } from "@fluentui/react";
 import { useConst, useForceUpdate } from "@fluentui/react-hooks";
-import { Button, Checkbox, Dropdown, Option, SelectTabData, SelectTabEvent, Tab, TabList, makeStyles } from "@fluentui/react-components";
+import { Button, Checkbox, Dropdown, Field, Input, Option, SelectTabData, SelectTabEvent, Tab, TabList, Textarea, makeStyles } from "@fluentui/react-components";
 import { BookmarkAddRegular, DeleteRegular, RenameRegular } from "@fluentui/react-icons";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
@@ -142,8 +142,8 @@ export const AddLabel: React.FunctionComponent<AddLabelProps> = ({
         }
     }, [defaultLabel, show]);
 
-    const onChangeAddLabel = React.useCallback((event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-        setLabel(newValue ?? "");
+    const onChangeAddLabel = React.useCallback((_: unknown, data: { value: string }) => {
+        setLabel(data.value ?? "");
     }, [],);
 
     return <MessageBox title={title} show={show} setShow={setShow} minWidth={width}
@@ -161,9 +161,9 @@ export const AddLabel: React.FunctionComponent<AddLabelProps> = ({
                 }}
             />
         </>}>
-        <TextField label={nlsHPCC.Label} value={label}
-            onChange={onChangeAddLabel}
-        />
+        <Field label={nlsHPCC.Label}>
+            <Input value={label} onChange={onChangeAddLabel} />
+        </Field>
     </MessageBox>;
 
 };
@@ -307,15 +307,21 @@ export const MetricsOptions: React.FunctionComponent<MetricsOptionsProps> = ({
                         <Checkbox label={nlsHPCC.IgnoreGlobalStoreOutEdges} checked={dirtyView.ignoreGlobalStoreOutEdges} onChange={(_, data) => {
                             setDirtyView(prev => ({ ...prev, ignoreGlobalStoreOutEdges: !!data.checked }));
                         }} />
-                        <TextField label={nlsHPCC.SubgraphLabel} value={dirtyView.subgraphTpl} multiline autoAdjustHeight onChange={(evt, newValue) => {
-                            setDirtyView(prev => ({ ...prev, subgraphTpl: newValue }));
-                        }} />
-                        <TextField label={nlsHPCC.ActivityLabel} value={dirtyView.activityTpl} multiline autoAdjustHeight onChange={(evt, newValue) => {
-                            setDirtyView(prev => ({ ...prev, activityTpl: newValue }));
-                        }} />
-                        <TextField label={nlsHPCC.EdgeLabel} value={dirtyView.edgeTpl} multiline autoAdjustHeight onChange={(evt, newValue) => {
-                            setDirtyView(prev => ({ ...prev, edgeTpl: newValue }));
-                        }} />
+                        <Field label={nlsHPCC.SubgraphLabel}>
+                            <Textarea value={dirtyView.subgraphTpl} onChange={(_, data) => {
+                                setDirtyView(prev => ({ ...prev, subgraphTpl: data.value }));
+                            }} />
+                        </Field>
+                        <Field label={nlsHPCC.ActivityLabel}>
+                            <Textarea value={dirtyView.activityTpl} onChange={(_, data) => {
+                                setDirtyView(prev => ({ ...prev, activityTpl: data.value }));
+                            }} />
+                        </Field>
+                        <Field label={nlsHPCC.EdgeLabel}>
+                            <Textarea value={dirtyView.edgeTpl} onChange={(_, data) => {
+                                setDirtyView(prev => ({ ...prev, edgeTpl: data.value }));
+                            }} />
+                        </Field>
                     </div>
                 }
                 {selectedTab === "layout" &&

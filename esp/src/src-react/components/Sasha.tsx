@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Button, Checkbox, Dropdown, Option } from "@fluentui/react-components";
-import { TextField } from "@fluentui/react";
+import { Button, Checkbox, Dropdown, Field, Input, Option } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
 import { scopedLogger } from "@hpcc-js/util";
@@ -169,66 +168,36 @@ export const Sasha: React.FunctionComponent<SashaProps> = () => {
 
         {["listECLWorkunit", "listDFUWorkunit"].includes(selectedOption) ? (
           <StackShim tokens={{ childrenGap: 10 }}>
-            <TextField
-              label={nlsHPCC.WUID}
-              value={wuid}
-              onChange={(event, newValue?: string) => setWuid(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
-            <TextField
-              label="Cluster"
-              value={cluster}
-              onChange={(event, newValue?: string) => setCluster(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
-            <TextField
-              label="Owner"
-              value={owner}
-              onChange={(event, newValue?: string) => setOwner(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
-            <TextField
-              label="Job Name"
-              value={jobName}
-              onChange={(event, newValue?: string) => setJobName(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
-            <TextField
-              label="State"
-              value={stateFilter}
-              onChange={(event, newValue?: string) => setStateFilter(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
-            <TextField
-              label="From Date"
-              value={fromDate}
-              onChange={(event, newValue?: string) => setFromDate(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
-            <TextField
-              label="To Date"
-              value={toDate}
-              onChange={(event, newValue?: string) => setToDate(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
-            <TextField
-              label="Before WU"
-              value={beforeWU}
-              onChange={(event, newValue?: string) => setBeforeWU(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
-            <TextField
-              label="After WU"
-              value={afterWU}
-              onChange={(event, newValue?: string) => setAfterWU(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
-            <TextField
-              label="Output Fields"
-              value={outputFields}
-              onChange={(event, newValue?: string) => setOutputFields(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
+            <Field label={nlsHPCC.WUID}>
+              <Input value={wuid} onChange={(_, data) => setWuid(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
+            <Field label="Cluster">
+              <Input value={cluster} onChange={(_, data) => setCluster(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
+            <Field label="Owner">
+              <Input value={owner} onChange={(_, data) => setOwner(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
+            <Field label="Job Name">
+              <Input value={jobName} onChange={(_, data) => setJobName(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
+            <Field label="State">
+              <Input value={stateFilter} onChange={(_, data) => setStateFilter(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
+            <Field label="From Date">
+              <Input value={fromDate} onChange={(_, data) => setFromDate(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
+            <Field label="To Date">
+              <Input value={toDate} onChange={(_, data) => setToDate(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
+            <Field label="Before WU">
+              <Input value={beforeWU} onChange={(_, data) => setBeforeWU(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
+            <Field label="After WU">
+              <Input value={afterWU} onChange={(_, data) => setAfterWU(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
+            <Field label="Output Fields">
+              <Input value={outputFields} onChange={(_, data) => setOutputFields(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
             <StackShim horizontal tokens={{ childrenGap: 20 }}>
               <Checkbox
                 label="Archived"
@@ -254,12 +223,9 @@ export const Sasha: React.FunctionComponent<SashaProps> = () => {
           </StackShim>
         ) : (
           (["restoreECLWorkUnit", "restoreDFUWorkUnit", "archiveECLWorkUnit", "archiveDFUWorkUnit"].includes(selectedOption)) && (
-            <TextField
-              label={nlsHPCC.WUID}
-              value={wuid}
-              onChange={(event, newValue?: string) => setWuid(newValue ?? "")}
-              styles={{ fieldGroup: { width: 400 } }}
-            />
+            <Field label={nlsHPCC.WUID}>
+              <Input value={wuid} onChange={(_, data) => setWuid(data.value ?? "")} style={{ width: 400 }} />
+            </Field>
           )
         )}
 
