@@ -1,6 +1,6 @@
 import * as React from "react";
-import { ChoiceGroup, DefaultButton, mergeStyleSets, PrimaryButton, TextField, } from "@fluentui/react";
-import { Spinner } from "@fluentui/react-components";
+import { DefaultButton, mergeStyleSets, PrimaryButton, TextField, } from "@fluentui/react";
+import { Radio, RadioGroup, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { scopedLogger } from "@hpcc-js/util";
@@ -117,15 +117,14 @@ export const AddToSuperfile: React.FunctionComponent<AddToSuperfileProps> = ({
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <ChoiceGroup
-                        name={fieldName}
-                        onChange={(evt, option) => onChange(option.key)}
-                        defaultSelectedKey="0"
-                        options={[
-                            { key: "0", text: nlsHPCC.CreateANewFile },
-                            { key: "1", text: nlsHPCC.AddToExistingSuperfile }
-                        ]}
-                    />}
+                }) => <RadioGroup
+                    name={fieldName}
+                    onChange={(_evt, data) => onChange(data.value)}
+                    defaultValue="0"
+                >
+                        <Radio value="0" label={nlsHPCC.CreateANewFile} />
+                        <Radio value="1" label={nlsHPCC.AddToExistingSuperfile} />
+                    </RadioGroup>}
             />
             {logicalFiles?.length > 0 &&
                 <StackShim>
