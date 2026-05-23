@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Icon, Shimmer } from "@fluentui/react";
+import { Icon } from "@fluentui/react";
+import { SkeletonItem } from "@fluentui/react-components";
 import { WsWorkunits, WorkunitsService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 import { SizeMe } from "../layouts/SizeMe";
@@ -236,10 +237,10 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
                 <DelayLoadedPanel visible={tab === "metrics"} size={size}>
                     <React.Suspense fallback={
                         <>
-                            <Shimmer />
-                            <Shimmer />
-                            <Shimmer />
-                            <Shimmer />
+                            <SkeletonItem />
+                            <SkeletonItem />
+                            <SkeletonItem />
+                            <SkeletonItem />
                         </>
                     }>
                         <Metrics wuid={wuid} targetsRoxie={targetsRoxie} parentUrl={`${parentUrl}/${wuid}/metrics`} viewSelection={state?.metrics?.view} lineageSelection={state?.metrics?.lineageSelection} selection={state?.metrics?.selection} />
@@ -274,10 +275,10 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
                 <DelayLoadedPanel visible={tab === "logicalgraph"} size={size}>
                     <React.Suspense fallback={
                         <>
-                            <Shimmer />
-                            <Shimmer />
-                            <Shimmer />
-                            <Shimmer />
+                            <SkeletonItem />
+                            <SkeletonItem />
+                            <SkeletonItem />
+                            <SkeletonItem />
                         </>
                     }>
                         <Metrics wuid={wuid} logicalGraph={true} parentUrl={`${parentUrl}/${wuid}/logicalgraph`} lineageSelection={state?.logicalgraph?.lineageSelection} selection={state?.logicalgraph?.selection} />
