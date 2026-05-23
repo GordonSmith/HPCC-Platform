@@ -1,7 +1,7 @@
 import * as React from "react";
-import { ContextualMenuItemType, DefaultButton, IconButton, IContextualMenuItem, IIconProps, IPersonaSharedProps, mergeStyleSets, Persona, PersonaSize } from "@fluentui/react";
+import { ContextualMenuItemType, DefaultButton, IconButton, IContextualMenuItem, IIconProps, mergeStyleSets } from "@fluentui/react";
 import { StackShim, StackItemShim } from "@fluentui/react-migration-v8-v9";
-import { Button, ButtonProps, CounterBadgeProps, CounterBadge, Link, SearchBox, Text, Toaster } from "@fluentui/react-components";
+import { Button, ButtonProps, CounterBadgeProps, CounterBadge, Link, Persona, SearchBox, Text, Toaster } from "@fluentui/react-components";
 import { WindowNewRegular } from "@fluentui/react-icons";
 import { Level, scopedLogger } from "@hpcc-js/util";
 import { cookie } from "src-dojo/index";
@@ -110,11 +110,11 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
         return titlebarColor && titlebarColor !== theme.palette.themeLight;
     }, [theme.palette, titlebarColor]);
 
-    const personaProps: IPersonaSharedProps = React.useMemo(() => {
+    const personaProps = React.useMemo(() => {
         return {
-            text: (currentUser?.firstName && currentUser?.lastName) ? currentUser.firstName + " " + currentUser.lastName : currentUser?.username,
+            name: (currentUser?.firstName && currentUser?.lastName) ? currentUser.firstName + " " + currentUser.lastName : currentUser?.username,
             secondaryText: currentUser?.accountType,
-            size: PersonaSize.size32
+            size: "medium" as const
         };
     }, [currentUser]);
 
@@ -339,7 +339,9 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
                 <StackShim horizontal>
                     {currentUser?.username &&
                         <StackItemShim styles={personaStyles}>
-                            <Persona {...personaProps} onClick={() => setShowMyAccount(true)} />
+                            <div onClick={() => setShowMyAccount(true)} style={{ cursor: "pointer" }}>
+                                <Persona {...personaProps} />
+                            </div>
                         </StackItemShim>
                     }
                     <StackItemShim align="center">
