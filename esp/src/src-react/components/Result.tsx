@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, CommandBar, ContextualMenuItemType, DefaultButton, Dialog, DialogFooter, DialogType, ICommandBarItemProps, MessageBar, MessageBarType, PrimaryButton, SpinButton } from "@fluentui/react";
-import { Spinner } from "@fluentui/react-components";
+import { Checkbox, CommandBar, ContextualMenuItemType, Dialog, DialogFooter, DialogType, ICommandBarItemProps, MessageBar, MessageBarType, SpinButton } from "@fluentui/react";
+import { Button, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useConst } from "@fluentui/react-hooks";
 import { Result as CommsResult, XSDXMLNode } from "@hpcc-js/comms";
@@ -144,8 +144,8 @@ const DownloadDialog: React.FunctionComponent<DownloadDialogProps> = ({
                 undefined}
         </StackShim>
         <DialogFooter>
-            <PrimaryButton onClick={handleOk} text="Ok" />
-            <DefaultButton onClick={handleCancel} text="Cancel" />
+            <Button appearance="primary" onClick={handleOk}>Ok</Button>
+            <Button onClick={handleCancel}>Cancel</Button>
         </DialogFooter>
     </Dialog>;
 };

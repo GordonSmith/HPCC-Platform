@@ -1,5 +1,6 @@
 import * as React from "react";
-import { DefaultButton, Dialog, DialogFooter, DialogType, MessageBar, MessageBarType, PrimaryButton } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { Dialog, DialogFooter, DialogType, MessageBar, MessageBarType } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
 import { AccountService, WsAccount } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -105,8 +106,8 @@ export const MyAccount: React.FunctionComponent<MyAccountProps> = ({
             }
         }} />
         <DialogFooter>
-            <PrimaryButton onClick={saveUser} text={nlsHPCC.Save} />
-            <DefaultButton onClick={() => { resetForm(); onClose(); }} text={nlsHPCC.Cancel} />
+            <Button appearance="primary" onClick={saveUser}>{nlsHPCC.Save}</Button>
+            <Button onClick={() => { resetForm(); onClose(); }}>{nlsHPCC.Cancel}</Button>
         </DialogFooter>
     </Dialog>;
 };

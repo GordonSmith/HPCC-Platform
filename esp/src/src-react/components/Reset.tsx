@@ -1,5 +1,6 @@
 import * as React from "react";
-import { PrimaryButton, DefaultButton, mergeStyleSets, Checkbox } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { mergeStyleSets, Checkbox } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { resetCookies, resetModernMode } from "src/Session";
 import nlsHPCC from "src/nlsHPCC";
@@ -41,46 +42,8 @@ export const ResetDialog: React.FunctionComponent<ResetDialogProps> = ({
     return <div className={styles.root}>
         <MessageBox show={show} setShow={setShow} title={`${nlsHPCC.ResetUserSettings}?`} footer={
             <>
-                <PrimaryButton text={nlsHPCC.Reset} onClick={async () => {
-                    if (checkMetricOptions) {
-                        await resetMetricsViews();
-                    }
-                    if (checkWorkunitOptions) {
-                        await resetWorkunitOptions();
-                    }
-                    if (checkWorkunitSummarySplitter) {
-                        await resetWorkunitSummarySplitter();
-                    }
-                    if (checkHistory) {
-                        await resetHistory();
-                    }
-                    if (checkFavorites) {
-                        await resetFavorites();
-                    }
-                    if (checkHistory) {
-                        await resetHistory();
-                    }
-                    if (checkEclWatchVersion) {
-                        await resetModernMode();
-                    }
-                    if (checkTheme) {
-                        await resetTheme();
-                    }
-                    if (checkNavWide) {
-                        await resetNavWide();
-                    }
-                    if (checkCookies) {
-                        await resetCookies();
-                        await resetCookieConsent();
-                    }
-                    setShow(false);
-                    replaceUrl("/");
-                    window.location.reload();
-                }} />
-                <DefaultButton text={nlsHPCC.Cancel} onClick={() => {
-                    setShow(false);
-                    pushUrl("/");
-                }} />
+                <Button appearance="primary" onClick={async () => { if (checkMetricOptions) { await resetMetricsViews(); } if (checkWorkunitOptions) { await resetWorkunitOptions(); } if (checkWorkunitSummarySplitter) { await resetWorkunitSummarySplitter(); } if (checkHistory) { await resetHistory(); } if (checkFavorites) { await resetFavorites(); } if (checkHistory) { await resetHistory(); } if (checkEclWatchVersion) { await resetModernMode(); } if (checkTheme) { await resetTheme(); } if (checkNavWide) { await resetNavWide(); } if (checkCookies) { await resetCookies(); await resetCookieConsent(); } setShow(false); replaceUrl("/"); window.location.reload(); }}>{nlsHPCC.Reset}</Button>
+                <Button onClick={() => { setShow(false); pushUrl("/"); }}>{nlsHPCC.Cancel}</Button>
             </>
         }>
             <StackShim tokens={{ childrenGap: 10 }}>

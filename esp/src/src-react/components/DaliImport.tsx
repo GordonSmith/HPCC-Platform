@@ -1,5 +1,6 @@
 import * as React from "react";
-import { DefaultButton, DetailsList, DetailsListLayoutMode, IColumn } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { DetailsList, DetailsListLayoutMode, IColumn } from "@fluentui/react";
 import { SizeMe } from "../layouts/SizeMe";
 import { csvParse } from "d3-dsv";
 import { DaliService } from "@hpcc-js/comms";
@@ -68,7 +69,7 @@ export const DaliImport: React.FunctionComponent<DaliImportProps> = ({
                 default:
                     logger.debug(`${id}: ${value}`);
             }
-        }} /><DefaultButton onClick={onSubmit} text={nlsHPCC.Submit} /></span>}
+        }} /><Button onClick={onSubmit}>{nlsHPCC.Submit}</Button></span>}
         main={<SizeMe>{({ size }) => {
             const height = `${size.height}px`;
             return <div style={{ position: "relative", width: "100%", height: "100%" }}>

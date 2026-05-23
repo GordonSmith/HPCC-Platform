@@ -1,6 +1,6 @@
 import * as React from "react";
-import { DefaultButton, IDropdownOption, MessageBar, MessageBarType, PrimaryButton, } from "@fluentui/react";
-import { Spinner } from "@fluentui/react-components";
+import { IDropdownOption, MessageBar, MessageBarType } from "@fluentui/react";
+import { Button, Spinner } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -79,8 +79,8 @@ export const UserAddGroupForm: React.FunctionComponent<UserAddGroupProps> = ({
     return <MessageBox show={showForm} setShow={closeForm} title={nlsHPCC.PleaseSelectAGroupToAddUser} minWidth={400}
         footer={<>
             <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
-            <PrimaryButton text={nlsHPCC.Add} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
-            <DefaultButton text={nlsHPCC.Cancel} onClick={() => { reset(defaultValues); closeForm(); }} />
+            <Button appearance="primary" disabled={submitDisabled} onClick={handleSubmit(onSubmit)}>{nlsHPCC.Add}</Button>
+            <Button onClick={() => { reset(defaultValues); closeForm(); }}>{nlsHPCC.Cancel}</Button>
         </>}>
         <Controller
             control={control} name="groupnames"

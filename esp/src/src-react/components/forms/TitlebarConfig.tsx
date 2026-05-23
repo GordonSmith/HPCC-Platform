@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox, ColorPicker, DefaultButton, getColorFromString, IColor, PrimaryButton, TextField, TooltipHost } from "@fluentui/react";
-import { Label, Spinner } from "@fluentui/react-components";
+import { Checkbox, ColorPicker, getColorFromString, IColor, TextField, TooltipHost } from "@fluentui/react";
+import { Button, Label, Spinner } from "@fluentui/react-components";
 import { useForm, Controller } from "react-hook-form";
 import { useUserTheme } from "../../hooks/theme";
 import { MessageBox } from "../../layouts/MessageBox";
@@ -86,9 +86,9 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
     return <MessageBox show={showForm} setShow={closeForm} title={nlsHPCC.SetToolbarColor} minWidth={400}
         footer={<>
             <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
-            <PrimaryButton text={nlsHPCC.OK} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
-            <DefaultButton text={nlsHPCC.Cancel} onClick={() => { reset(defaultValues); closeForm(); }} />
-            <DefaultButton text={nlsHPCC.Reset} onClick={() => { onReset(); }} />
+            <Button appearance="primary" disabled={submitDisabled} onClick={handleSubmit(onSubmit)}>{nlsHPCC.OK}</Button>
+            <Button onClick={() => { reset(defaultValues); closeForm(); }}>{nlsHPCC.Cancel}</Button>
+            <Button onClick={() => { onReset(); }}>{nlsHPCC.Reset}</Button>
         </>}>
         <Controller
             control={control} name="showEnvironmentTitle"

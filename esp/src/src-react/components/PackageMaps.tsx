@@ -1,6 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, DefaultButton, Dropdown, ICommandBarItemProps, IDropdownOption, IStackTokens, mergeStyleSets, MessageBar, MessageBarType } from "@fluentui/react";
-import { Label, Link, SelectTabData, SelectTabEvent, Tab, TabList, makeStyles } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, Dropdown, ICommandBarItemProps, IDropdownOption, IStackTokens, mergeStyleSets, MessageBar, MessageBarType } from "@fluentui/react";
+import { Button, Label, Link, makeStyles, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
 import { PackageProcessService } from "@hpcc-js/comms";
@@ -470,7 +470,7 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                                         />
                                     </StackShim>
                                     <StackShim horizontal tokens={validateMapStackTokens}>
-                                        <DefaultButton id="validateMap" text={nlsHPCC.Validate} onClick={validateActiveMap} />
+                                        <Button id="validateMap" onClick={validateActiveMap}>{nlsHPCC.Validate}</Button>
                                     </StackShim>
                                 </StackShim>
                             }
@@ -511,11 +511,8 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                                     </StackShim>
                                     <StackShim horizontal tokens={validateMapStackTokens}>
                                         <input id="uploadMapFromFile" type="file" className={validateMapStyles.displayNone} accept="*.xml" onChange={handleFileSelect} />
-                                        <DefaultButton
-                                            id="loadMapFromFile" text={nlsHPCC.LoadPackageFromFile}
-                                            onClick={handleLoadMapFromFileClick}
-                                        />
-                                        <DefaultButton id="validateMap" text={nlsHPCC.Validate} onClick={validateContents} />
+                                        <Button id="loadMapFromFile" onClick={handleLoadMapFromFileClick}>{nlsHPCC.LoadPackageFromFile}</Button>
+                                        <Button id="validateMap" onClick={validateContents}>{nlsHPCC.Validate}</Button>
                                     </StackShim>
                                 </StackShim>
                             }

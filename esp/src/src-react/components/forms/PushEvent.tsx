@@ -1,6 +1,6 @@
 import * as React from "react";
-import { DefaultButton, MessageBar, MessageBarType, PrimaryButton, TextField, } from "@fluentui/react";
-import { Spinner } from "@fluentui/react-components";
+import { MessageBar, MessageBarType, TextField } from "@fluentui/react";
+import { Button, Spinner } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -72,8 +72,8 @@ export const PushEventForm: React.FunctionComponent<PushEventProps> = ({
     return <MessageBox show={showForm} setShow={closeForm} title={nlsHPCC.PushEvent} minWidth={400}
         footer={<>
             <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
-            <PrimaryButton text={nlsHPCC.Apply} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
-            <DefaultButton text={nlsHPCC.Cancel} onClick={() => { reset(defaultValues); closeForm(); }} />
+            <Button appearance="primary" disabled={submitDisabled} onClick={handleSubmit(onSubmit)}>{nlsHPCC.Apply}</Button>
+            <Button onClick={() => { reset(defaultValues); closeForm(); }}>{nlsHPCC.Cancel}</Button>
         </>}>
         <Controller
             control={control} name="EventName"

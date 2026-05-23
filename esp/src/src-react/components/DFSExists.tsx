@@ -1,5 +1,6 @@
 import * as React from "react";
-import { DefaultButton, DetailsList, DetailsListLayoutMode, IColumn } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { DetailsList, DetailsListLayoutMode, IColumn } from "@fluentui/react";
 import { SizeMe } from "../layouts/SizeMe";
 import { DaliService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -43,7 +44,7 @@ export const DFSExists: React.FunctionComponent<DFSExistProps> = ({
             "FileName": { label: nlsHPCC.FileName, type: "string", value: fileName },
         }} onChange={(id, value) => {
             setFileName(value);
-        }} /><DefaultButton onClick={onSubmit} text={nlsHPCC.Submit} /></span>}
+        }} /><Button onClick={onSubmit}>{nlsHPCC.Submit}</Button></span>}
         main={<SizeMe>{({ size }) => {
             const height = `${size.height}px`;
             return <div style={{ position: "relative", width: "100%", height: "100%" }}>

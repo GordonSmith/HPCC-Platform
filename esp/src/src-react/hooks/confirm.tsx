@@ -1,5 +1,6 @@
 import * as React from "react";
-import { DefaultButton, Dialog, DialogFooter, PrimaryButton } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { Dialog, DialogFooter } from "@fluentui/react";
 import nlsHPCC from "src/nlsHPCC";
 
 interface useConfirmProps {
@@ -31,15 +32,8 @@ export function useConfirm({ title, message, items = [], onSubmit, submitLabel =
                 })}
             </div>
             <DialogFooter>
-                <PrimaryButton text={submitLabel}
-                    onClick={() => {
-                        if (typeof onSubmit === "function") {
-                            onSubmit();
-                        }
-                        setShow(false);
-                    }}
-                />
-                {cancelLabel && <DefaultButton text={cancelLabel} onClick={() => setShow(false)} />}
+                <Button appearance="primary" onClick={() => { if (typeof onSubmit === "function") { onSubmit(); } setShow(false); }}>{submitLabel}</Button>
+                {cancelLabel && <Button onClick={() => setShow(false)}>{cancelLabel}</Button>}
             </DialogFooter>
         </Dialog>;
     }, [cancelLabel, items, message, onSubmit, show, submitLabel, title]);

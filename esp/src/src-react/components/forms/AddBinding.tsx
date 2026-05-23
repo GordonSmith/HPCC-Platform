@@ -1,6 +1,6 @@
 import * as React from "react";
-import { DefaultButton, IDropdownOption, PrimaryButton, TextField, } from "@fluentui/react";
-import { Spinner } from "@fluentui/react-components";
+import { IDropdownOption, TextField } from "@fluentui/react";
+import { Button, Spinner } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { EsdlDefinitionsTextField, EsdlEspProcessesTextField } from "./Fields";
@@ -75,8 +75,8 @@ export const AddBindingForm: React.FunctionComponent<AddBindingFormProps> = ({
         minWidth={minWidth}
         footer={<>
             <Spinner label={nlsHPCC.Loading} labelPosition="after" style={{ display: spinnerHidden ? "none" : "inherit" }} />
-            <PrimaryButton text={nlsHPCC.Add} disabled={submitDisabled} onClick={handleSubmit(onSubmit)} />
-            <DefaultButton text={nlsHPCC.Cancel} onClick={() => closeForm()} />
+            <Button appearance="primary" disabled={submitDisabled} onClick={handleSubmit(onSubmit)}>{nlsHPCC.Add}</Button>
+            <Button onClick={() => closeForm()}>{nlsHPCC.Cancel}</Button>
         </>}>
         <Controller
             control={control} name="EspProcName"

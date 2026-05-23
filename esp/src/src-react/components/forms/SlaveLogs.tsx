@@ -1,5 +1,6 @@
 import * as React from "react";
-import { DefaultButton, Dropdown, PrimaryButton, TextField, } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { Dropdown, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -71,8 +72,8 @@ export const SlaveLogs: React.FunctionComponent<SlaveLogsProps> = ({
 
     return <MessageBox title={nlsHPCC.SlaveLogs} show={showForm} setShow={closeForm}
         footer={<>
-            <PrimaryButton text={nlsHPCC.Download} onClick={handleSubmit(onSubmit)} />
-            <DefaultButton text={nlsHPCC.Cancel} onClick={() => closeForm()} />
+            <Button appearance="primary" onClick={handleSubmit(onSubmit)}>{nlsHPCC.Download}</Button>
+            <Button onClick={() => closeForm()}>{nlsHPCC.Cancel}</Button>
         </>}>
         <Controller
             control={control} name="ThorProcess"

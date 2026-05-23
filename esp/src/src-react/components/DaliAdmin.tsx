@@ -1,7 +1,7 @@
 import * as React from "react";
-import { TextField, Checkbox, DefaultButton } from "@fluentui/react";
+import { TextField, Checkbox } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
-import { makeStyles } from "@fluentui/react-components";
+import { Button, makeStyles } from "@fluentui/react-components";
 import { SizeMe } from "../layouts/SizeMe";
 import { pushUrl } from "../util/history";
 import { pivotItemStyle } from "../layouts/pivot";
@@ -129,9 +129,9 @@ export const DaliAdmin: React.FunctionComponent<DaliAdminProps> = ({
                     <StackShim tokens={{ childrenGap: 12 }} styles={{ root: { maxWidth: 400 } }}>
                         <TextField label="Path" placeholder="/your/dfs/path" value={path} onChange={(_, v) => setPath(v || "")} />
                         <Checkbox label="Safe" checked={safe} onChange={(_, c) => setSafe(!!c)} />
-                        <DefaultButton onClick={() => confirmExport(true)}>
+                        <Button onClick={() => confirmExport(true)}>
                             {nlsHPCC.Export}
-                        </DefaultButton>
+                        </Button>
                     </StackShim>
                 );
             default:

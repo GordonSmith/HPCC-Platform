@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Checkbox, DefaultButton, IDropdownOption, PrimaryButton, TextField, } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { Checkbox, IDropdownOption, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { DPWorkunit } from "src/DataPatterns/DPWorkunit";
@@ -58,8 +59,8 @@ export const Optimize: React.FunctionComponent<OptimizeProps> = ({
 
     return <MessageBox show={showForm} setShow={closeForm} title={nlsHPCC.Optimize}
         footer={<>
-            <PrimaryButton text={nlsHPCC.Optimize} onClick={handleSubmit(onSubmit)} />
-            <DefaultButton text={nlsHPCC.Cancel} onClick={() => closeForm()} />
+            <Button appearance="primary" onClick={handleSubmit(onSubmit)}>{nlsHPCC.Optimize}</Button>
+            <Button onClick={() => closeForm()}>{nlsHPCC.Cancel}</Button>
         </>}>
         <Controller control={control} name="target" render={({
             field: { onChange, name: fieldName, value },

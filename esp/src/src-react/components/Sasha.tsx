@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Dropdown, TextField, PrimaryButton, Checkbox } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { Dropdown, TextField, Checkbox } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
 import { scopedLogger } from "@hpcc-js/util";
@@ -263,9 +264,9 @@ export const Sasha: React.FunctionComponent<SashaProps> = () => {
           )
         )}
 
-        <PrimaryButton type="submit" style={{ marginTop: 10, width: 150 }}>
+        <Button appearance="primary" type="submit" style={{ marginTop: 10, width: 150 }}>
           {nlsHPCC.Submit}
-        </PrimaryButton>
+        </Button>
         {defaultValue}
         {result && <div>{nlsHPCC.Results}: {result}</div>}
       </form>

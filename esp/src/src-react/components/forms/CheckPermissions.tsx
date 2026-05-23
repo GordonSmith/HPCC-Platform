@@ -1,5 +1,6 @@
 import * as React from "react";
-import { ComboBox, DefaultButton, IDropdownOption, MessageBar, MessageBarType, PrimaryButton, TextField } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { ComboBox, IDropdownOption, MessageBar, MessageBarType, TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -94,8 +95,8 @@ export const CheckPermissionsForm: React.FunctionComponent<CheckPermissionsFormP
     return (
         <MessageBox show={showForm} setShow={closeForm} title={nlsHPCC.CheckFilePermissions} minWidth={500}
             footer={<>
-                <PrimaryButton text={nlsHPCC.Submit} onClick={handleSubmit(onSubmit)} />
-                <DefaultButton text={nlsHPCC.Cancel} onClick={closeForm} />
+                <Button appearance="primary" onClick={handleSubmit(onSubmit)}>{nlsHPCC.Submit}</Button>
+                <Button onClick={closeForm}>{nlsHPCC.Cancel}</Button>
             </>}>
             <Controller
                 control={control} name="FileName"

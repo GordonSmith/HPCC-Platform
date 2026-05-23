@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Checkbox, DefaultButton, IDropdownOption, mergeStyleSets, PrimaryButton } from "@fluentui/react";
+import { Button } from "@fluentui/react-components";
+import { Checkbox, IDropdownOption, mergeStyleSets } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { FileSprayService } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -186,13 +187,9 @@ export const FileListForm: React.FunctionComponent<FileListFormProps> = ({
                     </div>
                 </div>
             }
-            <PrimaryButton text={nlsHPCC.Upload} onClick={handleSubmit(doSubmit)} disabled={isUploading} />
+            <Button appearance="primary" onClick={handleSubmit(doSubmit)} disabled={isUploading}>{nlsHPCC.Upload}</Button>
             {isUploading &&
-                <DefaultButton text={nlsHPCC.Cancel} onClick={() => {
-                    if (window.confirm(nlsHPCC.CancelUploadConfirm)) {
-                        cancelUpload();
-                    }
-                }} />
+                <Button onClick={() => { if (window.confirm(nlsHPCC.CancelUploadConfirm)) { cancelUpload(); } }}>{nlsHPCC.Cancel}</Button>
             }
         </>}>
         <StackShim>
