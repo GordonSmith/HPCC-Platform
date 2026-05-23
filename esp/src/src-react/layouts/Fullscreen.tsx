@@ -1,8 +1,7 @@
 import * as React from "react";
 import { mergeStyleSets } from "@fluentui/style-utilities";
-import { Button } from "@fluentui/react-components";
+import { Button, tokens } from "@fluentui/react-components";
 import { ArrowMaximize20Regular, ArrowMinimize20Regular } from "@fluentui/react-icons";
-import { useUserTheme } from "../hooks/theme";
 import { updateFullscreen } from "../util/history";
 
 export interface FullscreenProps {
@@ -14,7 +13,6 @@ export const FullscreenFrame: React.FunctionComponent<FullscreenProps> = ({
     fullscreen,
     children
 }) => {
-    const { themeV9 } = useUserTheme();
     const layoutStyles = React.useMemo(() => mergeStyleSets({
         fullscreen: {
             position: "fixed",
@@ -22,12 +20,12 @@ export const FullscreenFrame: React.FunctionComponent<FullscreenProps> = ({
             left: "0",
             width: "100%",
             height: "100%",
-            background: themeV9.colorNeutralBackground1,
+            background: tokens.colorNeutralBackground1,
         },
         normal: {
             height: "100%"
         }
-    }), [themeV9.colorNeutralBackground1]);
+    }), []);
 
     return <div className={fullscreen ? layoutStyles.fullscreen : layoutStyles.normal}>
         {children}

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { LockClosedFilled, FolderZipRegular, FolderRegular } from "@fluentui/react-icons";
-import { Link, makeStyles } from "@fluentui/react-components";
+import { Link, makeStyles, tokens } from "@fluentui/react-components";
 import { DFUService } from "@hpcc-js/comms";
 import { SizeMe } from "../layouts/SizeMe";
 import * as WsDfu from "src/WsDfu";
@@ -9,7 +9,6 @@ import { formatCost } from "src/Session";
 import * as Utility from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { useConfirm } from "../hooks/confirm";
-import { useUserTheme } from "../hooks/theme";
 import { useMyAccount } from "../hooks/user";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { pushUrl } from "../util/history";
@@ -404,7 +403,6 @@ export const ScopesBreadcrumb: React.FunctionComponent<ScopesBreadcrumbProps> = 
     scope
 }) => {
 
-    const { theme } = useUserTheme();
     const styles = useStyles();
 
     const [scopePath, setScopePath] = React.useState([]);
@@ -413,7 +411,7 @@ export const ScopesBreadcrumb: React.FunctionComponent<ScopesBreadcrumbProps> = 
         setScopePath(scope.split("::"));
     }, [scope]);
 
-    return <div className={styles.breadcrumbWrapper} style={{ borderTopColor: theme.palette.neutralLight, borderBottomColor: theme.palette.neutralLight }}>
+    return <div className={styles.breadcrumbWrapper} style={{ borderTopColor: tokens.colorNeutralStroke2, borderBottomColor: tokens.colorNeutralStroke2 }}>
         <Link href="#/scopes">Root Scope</Link>
         {(scope !== ".") &&
             <>

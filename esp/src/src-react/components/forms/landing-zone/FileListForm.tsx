@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Checkbox } from "@fluentui/react-components";
+import { Button, Checkbox, tokens } from "@fluentui/react-components";
 import { IDropdownOption } from "../Fields";
 import { mergeStyleSets } from "@fluentui/style-utilities";
 import { FileSprayService } from "@hpcc-js/comms";
@@ -8,7 +8,6 @@ import { useForm, Controller } from "react-hook-form";
 import { TargetDropzoneTextField, TargetFolderTextField, TargetServerTextField } from "../Fields";
 import { joinPath } from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
-import { useUserTheme } from "../../../hooks/theme";
 import { useFileUpload } from "../../../hooks/useFileUpload";
 import { MessageBox } from "../../../layouts/MessageBox";
 import { debounce } from "../../../util/throttle";
@@ -64,7 +63,6 @@ export const FileListForm: React.FunctionComponent<FileListFormProps> = ({
     const [os, setOs] = React.useState<number>();
 
     const { handleSubmit, control, reset } = useForm<FileListFormValues>({ defaultValues });
-    const { theme } = useUserTheme();
     const { uploadPct, isUploading, upload, cancelUpload: cancelXHR } = useFileUpload();
 
     const closeForm = React.useCallback(() => {
@@ -161,14 +159,14 @@ export const FileListForm: React.FunctionComponent<FileListFormProps> = ({
             progressBarWrapper: {
                 width: "100%",
                 height: 6,
-                background: theme.palette.neutralLight,
+                background: tokens.colorNeutralStroke2,
                 borderRadius: 3,
                 overflow: "hidden",
                 position: "relative"
             },
             progressBarFill: {
                 height: "100%",
-                background: theme.palette.themePrimary,
+                background: tokens.colorBrandBackground,
                 transition: "width .2s linear",
                 width: 0
             }

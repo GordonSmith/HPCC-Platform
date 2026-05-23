@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Checkbox } from "@fluentui/react-components";
+import { Button, Checkbox, tokens } from "@fluentui/react-components";
 import { mergeStyleSets } from "@fluentui/style-utilities";
 import { resetCookies, resetModernMode } from "src/Session";
 import nlsHPCC from "src/nlsHPCC";
@@ -7,7 +7,7 @@ import { pushUrl, replaceUrl } from "../util/history";
 import { resetMetricsViews } from "../hooks/metrics";
 import { resetHistory } from "../util/history";
 import { MessageBox } from "../layouts/MessageBox";
-import { resetNavWide, resetTheme, useUserTheme } from "../hooks/theme";
+import { resetNavWide, resetTheme } from "../hooks/theme";
 import { resetFavorites } from "../hooks/favorite";
 import { resetCookieConsent } from "./Frame";
 import { resetWorkunitOptions } from "./Workunits";
@@ -29,14 +29,13 @@ export const ResetDialog: React.FunctionComponent<ResetDialogProps> = ({
     const [checkTheme, setCheckTheme] = React.useState(true);
     const [checkCookies, setCheckCookies] = React.useState(false);
     const [checkNavWide, setCheckNavWide] = React.useState(true);
-    const { theme } = useUserTheme();
 
     const styles = React.useMemo(() => mergeStyleSets({
         root: {
             height: "100%",
-            backgroundColor: theme.semanticColors.bodyBackground
+            backgroundColor: tokens.colorNeutralBackground1
         },
-    }), [theme.semanticColors.bodyBackground]);
+    }), []);
 
     return <div className={styles.root}>
         <MessageBox show={show} setShow={setShow} title={`${nlsHPCC.ResetUserSettings}?`} footer={

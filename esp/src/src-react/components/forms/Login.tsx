@@ -1,11 +1,10 @@
 import * as React from "react";
 import { mergeStyleSets } from "@fluentui/style-utilities";
-import { Button, Field, Input, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
+import { Button, Field, Input, MessageBar, MessageBarActions, MessageBarBody, tokens } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import { useUserSession } from "../../hooks/user";
-import { useUserTheme } from "../../hooks/theme";
 import { replaceUrl } from "../../util/history";
 import * as Utility from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
@@ -42,8 +41,6 @@ export const Login: React.FunctionComponent<LoginProps> = ({
         }
         return loginMessage;
     }, [clearCookie]);
-
-    const { theme } = useUserTheme();
 
     const { createUserSession } = useUserSession();
 
@@ -86,7 +83,7 @@ export const Login: React.FunctionComponent<LoginProps> = ({
             width: "500px",
             padding: "20px 0",
             borderRadius: "5px",
-            backgroundColor: theme.palette.white,
+            backgroundColor: tokens.colorNeutralBackground1,
             margin: "auto",
             display: "flex",
             flexDirection: "column",
@@ -104,22 +101,22 @@ export const Login: React.FunctionComponent<LoginProps> = ({
             fontFamily: "'Segoe UI', 'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif",
             fontSize: "16px",
             fontWeight: "600",
-            border: `2px solid ${theme.palette.themePrimary}`,
+            border: `2px solid ${tokens.colorBrandBackground}`,
             cursor: "pointer",
             padding: "12px 36px",
             margin: "20px 0 0 0",
             borderRadius: "2px",
-            color: theme.palette.white,
-            background: theme.palette.themePrimary,
+            color: tokens.colorNeutralBackground1,
+            background: tokens.colorBrandBackground,
             "selectors": {
                 ":hover": {
-                    backgroundColor: theme.palette.themePrimary,
-                    border: `2px solid ${theme.palette.themePrimary}`,
-                    color: theme.palette.white,
+                    backgroundColor: tokens.colorBrandBackground,
+                    border: `2px solid ${tokens.colorBrandBackground}`,
+                    color: tokens.colorNeutralBackground1,
                 }
             }
         }
-    }), [theme]);
+    }), []);
 
     const onSubmit = React.useCallback(() => {
         handleSubmit(
