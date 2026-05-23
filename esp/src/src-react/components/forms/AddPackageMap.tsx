@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Dropdown, IDropdownOption, TextField } from "@fluentui/react";
-import { Button, Checkbox, Spinner } from "@fluentui/react-components";
+import { IDropdownOption, TextField } from "@fluentui/react";
+import { Button, Checkbox, Dropdown, Field, Option, Spinner } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { useForm, Controller } from "react-hook-form";
 import { FileSprayService } from "@hpcc-js/comms";
@@ -153,32 +153,38 @@ export const AddPackageMap: React.FunctionComponent<AddPackageMapProps> = ({
             <Controller
                 control={control} name="Target"
                 render={({
-                    field: { onChange, name: fieldName, value },
-                    fieldState: { error }
-                }) => <Dropdown
-                        key={fieldName}
-                        label={nlsHPCC.Target}
-                        options={targets}
-                        selectedKey={value}
-                        onChange={(evt, option) => {
-                            onChange(option.key);
-                        }}
-                    />}
+                    field: { onChange, name: fieldName, value }
+                }) => <Field label={nlsHPCC.Target}>
+                        <Dropdown
+                            key={fieldName}
+                            selectedOptions={value ? [String(value)] : []}
+                            onOptionSelect={(_evt, data) => {
+                                onChange(data.optionValue);
+                            }}
+                        >
+                            {targets?.map(opt => (
+                                <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
+                            ))}
+                        </Dropdown>
+                    </Field>}
             />
             <Controller
                 control={control} name="Process"
                 render={({
-                    field: { onChange, name: fieldName, value },
-                    fieldState: { error }
-                }) => <Dropdown
-                        key={fieldName}
-                        label={nlsHPCC.ProcessFilter}
-                        options={processes}
-                        selectedKey={value}
-                        onChange={(evt, option) => {
-                            onChange(option.key);
-                        }}
-                    />}
+                    field: { onChange, name: fieldName, value }
+                }) => <Field label={nlsHPCC.ProcessFilter}>
+                        <Dropdown
+                            key={fieldName}
+                            selectedOptions={value ? [String(value)] : []}
+                            onOptionSelect={(_evt, data) => {
+                                onChange(data.optionValue);
+                            }}
+                        >
+                            {processes?.map(opt => (
+                                <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
+                            ))}
+                        </Dropdown>
+                    </Field>}
             />
             <Controller
                 control={control} name="DaliIp"
@@ -195,17 +201,20 @@ export const AddPackageMap: React.FunctionComponent<AddPackageMapProps> = ({
             <Controller
                 control={control} name="RemoteStorage"
                 render={({
-                    field: { onChange, name: fieldName, value },
-                    fieldState: { error }
-                }) => <Dropdown
-                        key={fieldName}
-                        label={nlsHPCC.RemoteStorage}
-                        options={remoteTargets}
-                        selectedKey={value}
-                        onChange={(evt, option) => {
-                            onChange(option.key);
-                        }}
-                    />}
+                    field: { onChange, name: fieldName, value }
+                }) => <Field label={nlsHPCC.RemoteStorage}>
+                        <Dropdown
+                            key={fieldName}
+                            selectedOptions={value ? [String(value)] : []}
+                            onOptionSelect={(_evt, data) => {
+                                onChange(data.optionValue);
+                            }}
+                        >
+                            {remoteTargets?.map(opt => (
+                                <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
+                            ))}
+                        </Dropdown>
+                    </Field>}
             />
             <div style={{ paddingTop: "15px" }}>
                 <Controller

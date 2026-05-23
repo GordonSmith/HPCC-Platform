@@ -1,6 +1,6 @@
 import * as React from "react";
-import { CommandBar, ContextualMenuItemType, Dropdown, ICommandBarItemProps, IDropdownOption, IStackTokens, mergeStyleSets } from "@fluentui/react";
-import { Button, Label, Link, MessageBar, MessageBarActions, MessageBarBody, makeStyles, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
+import { CommandBar, ContextualMenuItemType, ICommandBarItemProps, IDropdownOption, IStackTokens, mergeStyleSets } from "@fluentui/react";
+import { Button, Dropdown, Label, Link, MessageBar, MessageBarActions, MessageBarBody, Option, makeStyles, SelectTabData, SelectTabEvent, Tab, TabList } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
@@ -123,18 +123,18 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
         setTotal,
         refreshTable } = useFluentStoreState({});
 
-    const changeActiveMapTarget = React.useCallback((evt, option) => {
-        setActiveMapTarget(option.key.toString());
+    const changeActiveMapTarget = React.useCallback((_evt, data) => {
+        setActiveMapTarget(String(data.optionValue));
     }, [setActiveMapTarget]);
-    const changeActiveMapProcess = React.useCallback((evt, option) => {
-        setActiveMapProcess(option.key.toString());
+    const changeActiveMapProcess = React.useCallback((_evt, data) => {
+        setActiveMapProcess(String(data.optionValue));
     }, [setActiveMapProcess]);
 
-    const changeContentsTarget = React.useCallback((evt, option) => {
-        setContentsTarget(option.key.toString());
+    const changeContentsTarget = React.useCallback((_evt, data) => {
+        setContentsTarget(String(data.optionValue));
     }, [setContentsTarget]);
-    const changeContentsProcess = React.useCallback((evt, option) => {
-        setContentsProcess(option.key.toString());
+    const changeContentsProcess = React.useCallback((_evt, data) => {
+        setContentsProcess(String(data.optionValue));
     }, [setContentsProcess]);
 
     const handleFileSelect = React.useCallback((evt) => {
@@ -459,17 +459,25 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                                         <Label>{nlsHPCC.Target}</Label>
                                         <Dropdown
                                             id="activeMapTarget" className={validateMapStyles.dropdown}
-                                            options={targets} placeholder={nlsHPCC.SelectEllipsis}
-                                            onChange={changeActiveMapTarget}
-                                        />
+                                            placeholder={nlsHPCC.SelectEllipsis}
+                                            onOptionSelect={changeActiveMapTarget}
+                                        >
+                                            {targets?.map(opt => (
+                                                <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
+                                            ))}
+                                        </Dropdown>
                                     </StackShim>
                                     <StackShim horizontal tokens={validateMapStackTokens}>
                                         <Label>{nlsHPCC.Process}</Label>
                                         <Dropdown
                                             id="activeMapProcess" className={validateMapStyles.dropdown}
-                                            options={processes} placeholder={nlsHPCC.SelectEllipsis}
-                                            onChange={changeActiveMapProcess}
-                                        />
+                                            placeholder={nlsHPCC.SelectEllipsis}
+                                            onOptionSelect={changeActiveMapProcess}
+                                        >
+                                            {processes?.map(opt => (
+                                                <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
+                                            ))}
+                                        </Dropdown>
                                     </StackShim>
                                     <StackShim horizontal tokens={validateMapStackTokens}>
                                         <Button id="validateMap" onClick={validateActiveMap}>{nlsHPCC.Validate}</Button>
@@ -499,17 +507,27 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                                         <Label>{nlsHPCC.Target}</Label>
                                         <Dropdown
                                             id="contentsTarget" className={validateMapStyles.dropdown}
-                                            options={targets} selectedKey={contentsTarget} placeholder={nlsHPCC.SelectEllipsis}
-                                            onChange={changeContentsTarget}
-                                        />
+                                            selectedOptions={contentsTarget ? [contentsTarget] : []}
+                                            placeholder={nlsHPCC.SelectEllipsis}
+                                            onOptionSelect={changeContentsTarget}
+                                        >
+                                            {targets?.map(opt => (
+                                                <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
+                                            ))}
+                                        </Dropdown>
                                     </StackShim>
                                     <StackShim horizontal tokens={validateMapStackTokens}>
                                         <Label>{nlsHPCC.Process}</Label>
                                         <Dropdown
                                             id="contentsProcess" className={validateMapStyles.dropdown}
-                                            options={processes} selectedKey={contentsProcess} placeholder={nlsHPCC.SelectEllipsis}
-                                            onChange={changeContentsProcess}
-                                        />
+                                            selectedOptions={contentsProcess ? [contentsProcess] : []}
+                                            placeholder={nlsHPCC.SelectEllipsis}
+                                            onOptionSelect={changeContentsProcess}
+                                        >
+                                            {processes?.map(opt => (
+                                                <Option key={String(opt.key)} text={opt.text} value={String(opt.key)}>{opt.text}</Option>
+                                            ))}
+                                        </Dropdown>
                                     </StackShim>
                                     <StackShim horizontal tokens={validateMapStackTokens}>
                                         <input id="uploadMapFromFile" type="file" className={validateMapStyles.displayNone} accept="*.xml" onChange={handleFileSelect} />

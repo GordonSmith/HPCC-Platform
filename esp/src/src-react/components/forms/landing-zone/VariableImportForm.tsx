@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Dropdown, IDropdownOption, mergeStyleSets, TextField } from "@fluentui/react";
-import { Button, Checkbox, Spinner, Tooltip } from "@fluentui/react-components";
+import { IDropdownOption, mergeStyleSets, TextField } from "@fluentui/react";
+import { Button, Checkbox, Dropdown, Field, Option, Spinner, Tooltip } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -295,19 +295,18 @@ export const VariableImportForm: React.FunctionComponent<VariableImportFormProps
                 render={({
                     field: { onChange, name: fieldName, value },
                     fieldState: { error }
-                }) => <Dropdown
-                        key={fieldName}
-                        label={nlsHPCC.Format}
-                        options={[
-                            { key: "recfmv", text: "recfmv" },
-                            { key: "recfmvb", text: "recfmvb" },
-                            { key: "variable", text: nlsHPCC.Variable },
-                            { key: "variablebigendian", text: nlsHPCC.VariableBigendian },
-                        ]}
-                        selectedKey={value}
-                        onChange={(evt, option) => onChange(option.key)}
-                        errorMessage={error && error?.message}
-                    />}
+                }) => <Field label={nlsHPCC.Format} validationMessage={error?.message}>
+                        <Dropdown
+                            key={fieldName}
+                            selectedOptions={value ? [value] : []}
+                            onOptionSelect={(_evt, data) => onChange(data.optionValue)}
+                        >
+                            <Option key="recfmv" text="recfmv" value="recfmv">recfmv</Option>
+                            <Option key="recfmvb" text="recfmvb" value="recfmvb">recfmvb</Option>
+                            <Option key="variable" text={nlsHPCC.Variable} value="variable">{nlsHPCC.Variable}</Option>
+                            <Option key="variablebigendian" text={nlsHPCC.VariableBigendian} value="variablebigendian">{nlsHPCC.VariableBigendian}</Option>
+                        </Dropdown>
+                    </Field>}
                 rules={{
                     required: `${nlsHPCC.SelectA} ${nlsHPCC.Format}`
                 }}

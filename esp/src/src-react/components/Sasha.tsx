@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button, Checkbox } from "@fluentui/react-components";
-import { Dropdown, TextField } from "@fluentui/react";
+import { Button, Checkbox, Dropdown, Option } from "@fluentui/react-components";
+import { TextField } from "@fluentui/react";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import nlsHPCC from "src/nlsHPCC";
 import { scopedLogger } from "@hpcc-js/util";
@@ -31,8 +31,8 @@ export const Sasha: React.FunctionComponent<SashaProps> = () => {
 
   const sashaService = new SashaService({ baseUrl: "" });
 
-  const handleOptionChange = (event: React.FormEvent<HTMLDivElement>, option: any) => {
-    setSelectedOption(option.key);
+  const handleOptionChange = (_event, data) => {
+    setSelectedOption(String(data.optionValue ?? ""));
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -152,21 +152,20 @@ export const Sasha: React.FunctionComponent<SashaProps> = () => {
       <form onSubmit={handleSubmit}>
         <Dropdown
           placeholder={nlsHPCC.SelectAnOption}
-          selectedKey={selectedOption}
-          onChange={handleOptionChange}
-          options={[
-            { key: "", text: nlsHPCC.SelectAnOption },
-            { key: "getVersion", text: nlsHPCC.GetVersion },
-            { key: "getLastServerMessage", text: nlsHPCC.GetLastServerMessage },
-            { key: "restoreECLWorkUnit", text: nlsHPCC.RestoreECLWorkunit },
-            { key: "restoreDFUWorkUnit", text: nlsHPCC.RestoreDFUWorkunit },
-            { key: "archiveECLWorkUnit", text: nlsHPCC.ArchiveECLWorkunit },
-            { key: "archiveDFUWorkUnit", text: nlsHPCC.ArchiveDFUWorkunit },
-            { key: "listECLWorkunit", text: nlsHPCC.ListECLWorkunit },
-            { key: "listDFUWorkunit", text: nlsHPCC.ListDFUWorkunit }
-          ]}
-          styles={{ dropdown: { width: 400 } }}
-        />
+          selectedOptions={selectedOption ? [selectedOption] : []}
+          onOptionSelect={handleOptionChange}
+          style={{ width: 400 }}
+        >
+          <Option key="" text={nlsHPCC.SelectAnOption} value="">{nlsHPCC.SelectAnOption}</Option>
+          <Option key="getVersion" text={nlsHPCC.GetVersion} value="getVersion">{nlsHPCC.GetVersion}</Option>
+          <Option key="getLastServerMessage" text={nlsHPCC.GetLastServerMessage} value="getLastServerMessage">{nlsHPCC.GetLastServerMessage}</Option>
+          <Option key="restoreECLWorkUnit" text={nlsHPCC.RestoreECLWorkunit} value="restoreECLWorkUnit">{nlsHPCC.RestoreECLWorkunit}</Option>
+          <Option key="restoreDFUWorkUnit" text={nlsHPCC.RestoreDFUWorkunit} value="restoreDFUWorkUnit">{nlsHPCC.RestoreDFUWorkunit}</Option>
+          <Option key="archiveECLWorkUnit" text={nlsHPCC.ArchiveECLWorkunit} value="archiveECLWorkUnit">{nlsHPCC.ArchiveECLWorkunit}</Option>
+          <Option key="archiveDFUWorkUnit" text={nlsHPCC.ArchiveDFUWorkunit} value="archiveDFUWorkUnit">{nlsHPCC.ArchiveDFUWorkunit}</Option>
+          <Option key="listECLWorkunit" text={nlsHPCC.ListECLWorkunit} value="listECLWorkunit">{nlsHPCC.ListECLWorkunit}</Option>
+          <Option key="listDFUWorkunit" text={nlsHPCC.ListDFUWorkunit} value="listDFUWorkunit">{nlsHPCC.ListDFUWorkunit}</Option>
+        </Dropdown>
 
         {["listECLWorkunit", "listDFUWorkunit"].includes(selectedOption) ? (
           <StackShim tokens={{ childrenGap: 10 }}>

@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button } from "@fluentui/react-components";
-import { Dropdown, TextField } from "@fluentui/react";
+import { Button, Dropdown, Field, Option } from "@fluentui/react-components";
+import { TextField } from "@fluentui/react";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -80,16 +80,19 @@ export const SlaveLogs: React.FunctionComponent<SlaveLogsProps> = ({
             render={({
                 field: { onChange, name: fieldName, value },
                 fieldState: { error }
-            }) => <Dropdown
-                    key={fieldName}
-                    label={nlsHPCC.ThorProcess}
-                    options={thorProcesses}
-                    required={true}
-                    onChange={(evt, option) => {
-                        onChange(option.key);
-                    }}
-                    errorMessage={error && error.message}
-                />}
+            }) => <Field label={nlsHPCC.ThorProcess} required validationMessage={error?.message}>
+                    <Dropdown
+                        key={fieldName}
+                        selectedOptions={value ? [value] : []}
+                        onOptionSelect={(_evt, data) => {
+                            onChange(data.optionValue);
+                        }}
+                    >
+                        {thorProcesses.map((opt: { key: string; text: string; }) => (
+                            <Option key={opt.key} text={opt.text} value={opt.key}>{opt.text}</Option>
+                        ))}
+                    </Dropdown>
+                </Field>}
             rules={{
                 required: nlsHPCC.ValidationErrorRequired
             }}
@@ -124,21 +127,20 @@ export const SlaveLogs: React.FunctionComponent<SlaveLogsProps> = ({
         <Controller
             control={control} name="FileFormat"
             render={({
-                field: { onChange, name: fieldName, value },
-                fieldState: { error }
-            }) => <Dropdown
-                    key={fieldName}
-                    label={nlsHPCC.File}
-                    options={[
-                        { key: "1", text: nlsHPCC.OriginalFile },
-                        { key: "2", text: nlsHPCC.Zip },
-                        { key: "3", text: nlsHPCC.GZip },
-                    ]}
-                    defaultSelectedKey="1"
-                    onChange={(evt, option) => {
-                        onChange(option.key);
-                    }}
-                />}
+                field: { onChange, name: fieldName, value }
+            }) => <Field label={nlsHPCC.File}>
+                    <Dropdown
+                        key={fieldName}
+                        defaultSelectedOptions={["1"]}
+                        onOptionSelect={(_evt, data) => {
+                            onChange(data.optionValue);
+                        }}
+                    >
+                        <Option key="1" text={nlsHPCC.OriginalFile} value="1">{nlsHPCC.OriginalFile}</Option>
+                        <Option key="2" text={nlsHPCC.Zip} value="2">{nlsHPCC.Zip}</Option>
+                        <Option key="3" text={nlsHPCC.GZip} value="3">{nlsHPCC.GZip}</Option>
+                    </Dropdown>
+                </Field>}
         />
     </MessageBox>;
 };

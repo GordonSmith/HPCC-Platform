@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Dropdown, IDropdownOption, mergeStyleSets, TextField } from "@fluentui/react";
-import { Button, Checkbox, Spinner, Tooltip } from "@fluentui/react-components";
+import { IDropdownOption, mergeStyleSets, TextField } from "@fluentui/react";
+import { Button, Checkbox, Dropdown, Field, Option, Spinner, Tooltip } from "@fluentui/react-components";
 import { StackShim } from "@fluentui/react-migration-v8-v9";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -314,24 +314,23 @@ export const DelimitedImportForm: React.FunctionComponent<DelimitedImportFormPro
                         render={({
                             field: { onChange, name: fieldName, value },
                             fieldState: { error }
-                        }) => <Dropdown
-                                key={fieldName}
-                                label={nlsHPCC.Format}
-                                options={[
-                                    { key: "1", text: "ASCII" },
-                                    { key: "2", text: "UTF-8" },
-                                    { key: "3", text: "UTF-8N" },
-                                    { key: "4", text: "UTF-16" },
-                                    { key: "5", text: "UTF-16LE" },
-                                    { key: "6", text: "UTF-16BE" },
-                                    { key: "7", text: "UTF-32" },
-                                    { key: "8", text: "UTF-32LE" },
-                                    { key: "9", text: "UTF-32BE" }
-                                ]}
-                                selectedKey={value}
-                                onChange={(evt, option) => onChange(option.key)}
-                                errorMessage={error && error?.message}
-                            />}
+                        }) => <Field label={nlsHPCC.Format} validationMessage={error?.message}>
+                                <Dropdown
+                                    key={fieldName}
+                                    selectedOptions={value ? [value] : []}
+                                    onOptionSelect={(_evt, data) => onChange(data.optionValue)}
+                                >
+                                    <Option key="1" text="ASCII" value="1">ASCII</Option>
+                                    <Option key="2" text="UTF-8" value="2">UTF-8</Option>
+                                    <Option key="3" text="UTF-8N" value="3">UTF-8N</Option>
+                                    <Option key="4" text="UTF-16" value="4">UTF-16</Option>
+                                    <Option key="5" text="UTF-16LE" value="5">UTF-16LE</Option>
+                                    <Option key="6" text="UTF-16BE" value="6">UTF-16BE</Option>
+                                    <Option key="7" text="UTF-32" value="7">UTF-32</Option>
+                                    <Option key="8" text="UTF-32LE" value="8">UTF-32LE</Option>
+                                    <Option key="9" text="UTF-32BE" value="9">UTF-32BE</Option>
+                                </Dropdown>
+                            </Field>}
                         rules={{
                             required: `${nlsHPCC.SelectA} ${nlsHPCC.Format}`
                         }}
