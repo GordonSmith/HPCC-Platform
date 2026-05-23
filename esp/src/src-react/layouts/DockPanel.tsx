@@ -1,13 +1,9 @@
 import * as React from "react";
-import { Theme } from "@fluentui/react";
 import { useConst } from "@fluentui/react-hooks";
-import { Theme as ThemeV9 } from "@fluentui/react-components";
 import { HTMLWidget, Widget, Utility } from "@hpcc-js/common";
 import { DockPanel as HPCCDockPanel, IClosable, WidgetAdapter } from "@hpcc-js/phosphor";
 import { compare2 } from "@hpcc-js/util";
 import { ReactRoot } from "src/react/render";
-import { lightTheme, lightThemeV9 } from "../themes";
-import { useUserTheme } from "../hooks/theme";
 import { AutosizeHpccJSComponent } from "./HpccJSAdapter";
 
 export interface PlaceholderProps {
@@ -22,8 +18,6 @@ export const Placeholder: React.FunctionComponent<PlaceholderProps> = ({
 
 export class ReactWidget extends HTMLWidget {
 
-    protected _theme: Theme = lightTheme;
-    protected _themeV9: ThemeV9 = lightThemeV9;
     protected _children = <div></div>;
 
     protected _div;
@@ -31,22 +25,6 @@ export class ReactWidget extends HTMLWidget {
 
     constructor() {
         super();
-    }
-
-    theme(): Theme;
-    theme(_: Theme): this;
-    theme(_?: Theme): this | Theme {
-        if (arguments.length === 0) return this._theme;
-        this._theme = _;
-        return this;
-    }
-
-    themeV9(): ThemeV9;
-    themeV9(_: ThemeV9): this;
-    themeV9(_?: ThemeV9): this | ThemeV9 {
-        if (arguments.length === 0) return this._themeV9;
-        this._themeV9 = _;
-        return this;
     }
 
     children(): React.JSX.Element;
@@ -207,7 +185,6 @@ export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
         return (Array.isArray(children) ? children : [children]).filter(item => !!item);
     }, [children]);
     const [prevItems, setPrevItems] = React.useState<React.ReactElement<DockPanelItemProps>[]>([]);
-    const { theme, themeV9 } = useUserTheme();
     const idx = useConst(() => new Map<string, ReactWidget>());
 
     const dockPanel = useConst(() => {
@@ -244,15 +221,13 @@ export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
             const reactWidget = idx.get(item.key);
             if (reactWidget) {
                 reactWidget
-                    .theme(theme)
-                    .themeV9(themeV9)
                     .children(item.props.children)
                     ;
             }
         });
         dockPanel.render();
         setPrevItems(items);
-    }, [prevItems, dockPanel, idx, items, theme, themeV9]);
+    }, [prevItems, dockPanel, idx, items]);
 
     React.useEffect(() => {
         if (layout === undefined) {
