@@ -1,14 +1,13 @@
 import * as React from "react";
-import { ContextualMenuItemType, DefaultButton, IconButton, IContextualMenuItem, IIconProps, mergeStyleSets } from "@fluentui/react";
-import { Button, ButtonProps, CounterBadgeProps, CounterBadge, Link, Persona, SearchBox, Text, Toaster } from "@fluentui/react-components";
-import { WindowNewRegular } from "@fluentui/react-icons";
+import { mergeStyleSets } from "@fluentui/style-utilities";
+import { Button, ButtonProps, CounterBadgeProps, CounterBadge, Link, Menu, MenuDivider, MenuItem, MenuList, MenuPopover, MenuTrigger, Persona, SearchBox, Text, Toaster, tokens } from "@fluentui/react-components";
+import { Alert24Filled, Alert24Regular, Apps24Regular, CheckmarkRegular, Navigation24Regular, WindowNewRegular } from "@fluentui/react-icons";
 import { Level, scopedLogger } from "@hpcc-js/util";
 import { cookie } from "src-dojo/index";
 
 import nlsHPCC from "src/nlsHPCC";
 import * as Utility from "src/Utility";
 
-import { useUserTheme } from "../hooks/theme";
 import { useBanner } from "../hooks/banner";
 import { useConfirm } from "../hooks/confirm";
 import { replaceUrl } from "../util/history";
@@ -35,10 +34,6 @@ const NewTabButton: React.FunctionComponent<ButtonProps> = (props) => {
     />;
 };
 
-const collapseMenuIcon: IIconProps = { iconName: "CollapseMenu" };
-
-const waffleIcon: IIconProps = { iconName: "WaffleOffice365" };
-
 const personaStyle: React.CSSProperties = {
     display: "flex",
     alignItems: "center"
@@ -57,7 +52,6 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
 }) => {
 
     const [, { opsCategory }] = useBuildInfo();
-    const { theme } = useUserTheme();
     const { userSession, setUserSession, deleteUserSession } = useUserSession();
     const [logIconColor, setLogIconColor] = React.useState<CounterBadgeProps["color"]>();
 
@@ -103,8 +97,8 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
     }, [searchValue]);
 
     const titlebarColorSet = React.useMemo(() => {
-        return titlebarColor && titlebarColor !== theme.palette.themeLight;
-    }, [theme.palette, titlebarColor]);
+        return !!titlebarColor;
+    }, [titlebarColor]);
 
     const personaProps = React.useMemo(() => {
         return {
@@ -118,7 +112,7 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
 
     const { setModernMode } = useModernMode();
     const onTechPreviewClick = React.useCallback(
-        (ev?: React.MouseEvent<HTMLButtonElement>, item?: IContextualMenuItem): void => {
+        (): void => {
             setModernMode(String(false));
             switchTechPreview(false, opsCategory);
         },
@@ -155,72 +149,27 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
         setLogIconColor(color);
     }, [log, logLastUpdated]);
 
-    const advMenuProps = React.useMemo(() => {
-        return {
-            items: [
-                { key: "banner", text: nlsHPCC.SetBanner, disabled: currentUser?.username !== "" && !isAdmin, onClick: () => setShowBannerConfig(true) },
-                { key: "toolbar", text: nlsHPCC.SetToolbar, disabled: currentUser?.username !== "" && !isAdmin, onClick: () => setShowTitlebarConfig(true) },
-                { key: "divider_1", itemType: ContextualMenuItemType.Divider },
-                { key: "docs", href: "https://hpccsystems.com/training/documentation/", text: nlsHPCC.Documentation, target: "_blank" },
-                { key: "downloads", href: "https://hpccsystems.com/download", text: nlsHPCC.Downloads, target: "_blank" },
-                { key: "releaseNotes", href: "https://hpccsystems.com/download/release-notes", text: nlsHPCC.ReleaseNotes, target: "_blank" },
-                {
-                    key: "additionalResources", text: nlsHPCC.AdditionalResources, subMenuProps: {
-                        items: [
-                            { key: "redBook", href: "https://hpcc-systems.github.io/HPCC-Platform/devdoc/red_book/HPCC-Systems-Red-Book.html", text: nlsHPCC.RedBook, target: "_blank" },
-                            { key: "forums", href: "https://hpccsystems.com/bb/", text: nlsHPCC.Forums, target: "_blank" },
-                            { key: "issues", href: "https://hpccsystems.atlassian.net/issues/", text: nlsHPCC.IssueReporting, target: "_blank" },
-                        ]
-                    }
-                },
-                { key: "divider_2", itemType: ContextualMenuItemType.Divider },
-                {
-                    key: "lock", text: nlsHPCC.Lock, disabled: !currentUser?.username, onClick: () => {
-                        fetch("/esp/lock", {
-                            method: "post"
-                        }).then(() => {
-                            setUserSession({ ...userSession });
-                            replaceUrl("/login", true);
-                        });
-                    }
-                },
-                {
-                    key: "logout", text: nlsHPCC.Logout, disabled: !currentUser?.username, onClick: () => {
-                        fetch("/esp/logout", {
-                            method: "post"
-                        }).then(data => {
-                            if (data) {
-                                deleteUserSession().then(() => {
-                                    Utility.deleteCookie("ECLWatchUser");
-                                    Utility.deleteCookie("ESPSessionID");
-                                    Utility.deleteCookie("Status");
-                                    Utility.deleteCookie("User");
-                                    Utility.deleteCookie("ESPSessionState");
-                                    window.location.reload();
-                                });
-                            }
-                        });
-                    }
-                },
-                { key: "divider_3", itemType: ContextualMenuItemType.Divider },
-                { key: "config", href: "#/topology/configuration", text: nlsHPCC.Configuration },
-                {
-                    key: "eclwatchv9", text: "ECL Watch v9",
-                    canCheck: true,
-                    isChecked: true,
-                    onClick: onTechPreviewClick
-                },
-                { key: "divider_4", itemType: ContextualMenuItemType.Divider },
-                {
-                    key: "reset",
-                    href: "/esp/files/index.html#/reset",
-                    text: nlsHPCC.ResetUserSettings
-                },
-                { key: "about", text: nlsHPCC.About, onClick: () => setShowAbout(true) }
-            ],
-            directionalHintFixed: true
-        };
-    }, [currentUser?.username, deleteUserSession, isAdmin, onTechPreviewClick, setUserSession, userSession]);
+    const onLockClick = React.useCallback(() => {
+        fetch("/esp/lock", { method: "post" }).then(() => {
+            setUserSession({ ...userSession });
+            replaceUrl("/login", true);
+        });
+    }, [setUserSession, userSession]);
+
+    const onLogoutClick = React.useCallback(() => {
+        fetch("/esp/logout", { method: "post" }).then(data => {
+            if (data) {
+                deleteUserSession().then(() => {
+                    Utility.deleteCookie("ECLWatchUser");
+                    Utility.deleteCookie("ESPSessionID");
+                    Utility.deleteCookie("Status");
+                    Utility.deleteCookie("User");
+                    Utility.deleteCookie("ESPSessionState");
+                    window.location.reload();
+                });
+            }
+        });
+    }, [deleteUserSession]);
 
     const btnStyles = React.useMemo(() => mergeStyleSets({
         errorsWarnings: {
@@ -228,12 +177,12 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
             background: "transparent",
             minWidth: 48,
             padding: "0 10px 0 4px",
-            color: titlebarColor ? Utility.textColor(titlebarColor) : theme.semanticColors.link
+            color: titlebarColor ? Utility.textColor(titlebarColor) : tokens.colorBrandForegroundLink
         },
         errorsWarningsCount: {
             margin: "-3px 0 0 -3px"
         }
-    }), [theme.semanticColors.link, titlebarColor]);
+    }), [titlebarColor]);
 
     React.useEffect(() => {
         switch (log.reduce((prev, cur) => Math.max(prev, cur.level), Level.debug)) {
@@ -255,7 +204,7 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
                 setLogIconColor("informative");
                 break;
         }
-    }, [log, logLastUpdated, theme]);
+    }, [log, logLastUpdated]);
 
     const features = useCheckFeatures();
 
@@ -309,18 +258,18 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
         }
     }, [currentUser, setPasswordExpiredConfirm]);
 
-    return <div style={{ backgroundColor: titlebarColorSet ? titlebarColor : theme.palette.themeLight }}>
+    return <div style={{ backgroundColor: titlebarColorSet ? titlebarColor : tokens.colorBrandBackground2 }}>
         <BannerMessageBar />
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ alignSelf: "center" }}>
                 <div style={{ display: "flex", flexDirection: "row" }}>
                     <div>
-                        <IconButton iconProps={waffleIcon} onClick={() => setNavWideMode(!navWideMode)} style={{ width: 48, height: 48, color: titlebarColorSet ? Utility.textColor(titlebarColor) : theme.palette.themeDarker }} />
+                        <Button appearance="transparent" icon={<Apps24Regular />} onClick={() => setNavWideMode(!navWideMode)} style={{ width: 48, height: 48, color: titlebarColorSet ? Utility.textColor(titlebarColor) : tokens.colorBrandForeground2 }} />
                     </div>
                     <div style={{ alignSelf: "center" }}>
                         <Link href="#/activities">
                             <Text size={400} block truncate wrap={false}>
-                                <b title="ECL Watch" style={{ paddingLeft: "8px", color: titlebarColorSet ? Utility.textColor(titlebarColor) : theme.palette.themeDarker }}>
+                                <b title="ECL Watch" style={{ paddingLeft: "8px", color: titlebarColorSet ? Utility.textColor(titlebarColor) : tokens.colorBrandForeground2 }}>
                                     {(showEnvironmentTitle && environmentTitle) ? environmentTitle : "ECL Watch"}
                                 </b>
                             </Text>
@@ -341,12 +290,47 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
                         </div>
                     }
                     <div style={{ alignSelf: "center" }}>
-                        <DefaultButton onClick={() => setShowLogViewer(true)} title={nlsHPCC.ErrorWarnings} iconProps={{ iconName: logCount > 0 ? "RingerSolid" : "Ringer" }} className={btnStyles.errorsWarnings}>
+                        <Button onClick={() => setShowLogViewer(true)} title={nlsHPCC.ErrorWarnings} icon={logCount > 0 ? <Alert24Filled /> : <Alert24Regular />} className={btnStyles.errorsWarnings}>
                             <CounterBadge appearance="filled" size="small" color={logIconColor} count={logCount} />
-                        </DefaultButton>
+                        </Button>
                     </div>
                     <div style={{ alignSelf: "center" }}>
-                        <IconButton title={nlsHPCC.Advanced} iconProps={collapseMenuIcon} menuProps={advMenuProps} style={{ color: titlebarColorSet ? Utility.textColor(titlebarColor) : theme.palette.themeDarker }} />
+                        <Menu>
+                            <MenuTrigger disableButtonEnhancement>
+                                <Button appearance="transparent" icon={<Navigation24Regular />} title={nlsHPCC.Advanced} style={{ color: titlebarColorSet ? Utility.textColor(titlebarColor) : tokens.colorBrandForeground2 }} />
+                            </MenuTrigger>
+                            <MenuPopover>
+                                <MenuList>
+                                    <MenuItem disabled={currentUser?.username !== "" && !isAdmin} onClick={() => setShowBannerConfig(true)}>{nlsHPCC.SetBanner}</MenuItem>
+                                    <MenuItem disabled={currentUser?.username !== "" && !isAdmin} onClick={() => setShowTitlebarConfig(true)}>{nlsHPCC.SetToolbar}</MenuItem>
+                                    <MenuDivider />
+                                    <MenuItem onClick={() => window.open("https://hpccsystems.com/training/documentation/", "_blank", "noopener")}>{nlsHPCC.Documentation}</MenuItem>
+                                    <MenuItem onClick={() => window.open("https://hpccsystems.com/download", "_blank", "noopener")}>{nlsHPCC.Downloads}</MenuItem>
+                                    <MenuItem onClick={() => window.open("https://hpccsystems.com/download/release-notes", "_blank", "noopener")}>{nlsHPCC.ReleaseNotes}</MenuItem>
+                                    <Menu>
+                                        <MenuTrigger disableButtonEnhancement>
+                                            <MenuItem>{nlsHPCC.AdditionalResources}</MenuItem>
+                                        </MenuTrigger>
+                                        <MenuPopover>
+                                            <MenuList>
+                                                <MenuItem onClick={() => window.open("https://hpcc-systems.github.io/HPCC-Platform/devdoc/red_book/HPCC-Systems-Red-Book.html", "_blank", "noopener")}>{nlsHPCC.RedBook}</MenuItem>
+                                                <MenuItem onClick={() => window.open("https://hpccsystems.com/bb/", "_blank", "noopener")}>{nlsHPCC.Forums}</MenuItem>
+                                                <MenuItem onClick={() => window.open("https://hpccsystems.atlassian.net/issues/", "_blank", "noopener")}>{nlsHPCC.IssueReporting}</MenuItem>
+                                            </MenuList>
+                                        </MenuPopover>
+                                    </Menu>
+                                    <MenuDivider />
+                                    <MenuItem disabled={!currentUser?.username} onClick={onLockClick}>{nlsHPCC.Lock}</MenuItem>
+                                    <MenuItem disabled={!currentUser?.username} onClick={onLogoutClick}>{nlsHPCC.Logout}</MenuItem>
+                                    <MenuDivider />
+                                    <MenuItem onClick={() => { window.location.href = "#/topology/configuration"; }}>{nlsHPCC.Configuration}</MenuItem>
+                                    <MenuItem icon={<CheckmarkRegular />} onClick={onTechPreviewClick}>ECL Watch v9</MenuItem>
+                                    <MenuDivider />
+                                    <MenuItem onClick={() => { window.location.href = "/esp/files/index.html#/reset"; }}>{nlsHPCC.ResetUserSettings}</MenuItem>
+                                    <MenuItem onClick={() => setShowAbout(true)}>{nlsHPCC.About}</MenuItem>
+                                </MenuList>
+                            </MenuPopover>
+                        </Menu>
                     </div>
                 </div>
                 <Toaster toasterId={toasterId} position={"top-end"} pauseOnHover />
