@@ -1,7 +1,6 @@
 import * as React from "react";
 
-import { FontSizes, FontWeights, ITooltipProps, TooltipHost } from "@fluentui/react";
-import { useId } from "@fluentui/react-hooks";
+import { Tooltip, tokens, useId } from "@fluentui/react-components";
 
 interface StackTableProps {
     label?: string;
@@ -29,14 +28,14 @@ export const StackTable: React.FunctionComponent<StackTableProps> = ({
         marginTop: 6
     },
     headerStyle = {
-        height: FontSizes.medium,
-        fontWeight: FontWeights.bold
+        height: tokens.fontSizeBase300,
+        fontWeight: tokens.fontWeightBold
     },
     labelStyle = {
-        height: FontSizes.medium,
+        height: tokens.fontSizeBase300,
     },
     valueStyle = {
-        height: FontSizes.small,
+        height: tokens.fontSizeBase200,
         paddingLeft: 6,
         minWidth: 50,
         maxWidth: 200,
@@ -46,34 +45,32 @@ export const StackTable: React.FunctionComponent<StackTableProps> = ({
 
     const tooltipId = useId("tooltip");
 
-    const tooltipProps: ITooltipProps = {
-        onRenderContent: () => (
-            <div style={{ display: "flex", flexDirection: "column", margin: 10, padding: 0 }}>
-                {
-                    data
-                        .filter((n, i) => i >= rowCount)
-                        .map((row, rowIdx) => {
-                            return <div key={rowIdx}>
-                                <div style={{ display: "flex", flexDirection: "row", ...tableRowStyle }}>
-                                    {
-                                        row.map((n, i) => {
-                                            return <div
-                                                key={i}
-                                                style={{ flexGrow: i === 0 ? 1 : 0, ...(i === 0 ? labelStyle : valueStyle) }}
-                                            >
-                                                {n}
-                                            </div>
-                                                ;
-                                        })
-                                    }
-                                </div>
+    const tooltipContent = (
+        <div style={{ display: "flex", flexDirection: "column", margin: 10, padding: 0 }}>
+            {
+                data
+                    .filter((n, i) => i >= rowCount)
+                    .map((row, rowIdx) => {
+                        return <div key={rowIdx}>
+                            <div style={{ display: "flex", flexDirection: "row", ...tableRowStyle }}>
+                                {
+                                    row.map((n, i) => {
+                                        return <div
+                                            key={i}
+                                            style={{ flexGrow: i === 0 ? 1 : 0, ...(i === 0 ? labelStyle : valueStyle) }}
+                                        >
+                                            {n}
+                                        </div>
+                                            ;
+                                    })
+                                }
                             </div>
-                                ;
-                        })
-                }
-            </div>
-        ),
-    };
+                        </div>
+                            ;
+                    })
+            }
+        </div>
+    );
     const labelStackItem = label === "" ? undefined : <div
         key="label"
         style={{ flexGrow: 0, ...headerStyle }}
@@ -112,9 +109,11 @@ export const StackTable: React.FunctionComponent<StackTableProps> = ({
         key="tooltip-wrapper"
         style={{ flexGrow: 0 }}
     >
-        <TooltipHost
-            id={tooltipId}
-            tooltipProps={tooltipProps}
+        <Tooltip
+            relationship="description"
+            positioning="above"
+            withArrow
+            content={{ children: tooltipContent, id: tooltipId }}
         >
             <div style={{ display: "flex", flexDirection: "row", ...tableRowStyle }}>
                 <div key="label" style={{ flexGrow: 1, ...labelStyle }}>
@@ -124,7 +123,7 @@ export const StackTable: React.FunctionComponent<StackTableProps> = ({
                     {overflowValue}
                 </div>
             </div>
-        </TooltipHost>
+        </Tooltip>
     </div>
         ;
 
