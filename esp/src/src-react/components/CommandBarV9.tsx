@@ -23,14 +23,71 @@ import {
     ToolbarButton,
     ToolbarDivider,
 } from "@fluentui/react-components";
-import { Icon, ICommandBarItemProps as _ICommandBarItemProps } from "@fluentui/react";
+import {
+    ArrowClockwise16Regular, ArrowDownload16Regular, ArrowLeft16Regular, ArrowRight16Regular,
+    ArrowUpload16Regular, AutoFitWidth20Regular, CheckmarkCircle16Regular, CodeBlock16Regular,
+    ContactCard16Regular, Copy16Regular, DataBarVertical16Regular, Delete16Regular,
+    Dismiss16Regular, Eye16Regular, LockClosed16Regular, LockOpen16Regular,
+    Maximize16Regular, Save16Regular, Settings16Regular, TableLink16Regular,
+    TableRegular, TextBulletListRegular, Timeline20Regular, TopSpeed16Regular,
+    WindowEdit16Regular, ZoomFit16Regular, ZoomFit20Regular, ZoomIn16Regular, ZoomOut16Regular,
+} from "@fluentui/react-icons";
 
-/**
- * Extended ICommandBarItemProps: adds optional `iconElement` for custom SVG / react-icon
- * elements that bypass the string-name icon registry. When both `iconProps.iconName` and
- * `iconElement` are provided, `iconElement` takes precedence.
- */
-export type ICommandBarItemProps = _ICommandBarItemProps & { iconElement?: React.ReactElement };
+// ─── Local type replacing @fluentui/react ICommandBarItemProps ────────────────
+export interface ICommandBarItemProps {
+    key: string;
+    text?: string;
+    title?: string;
+    disabled?: boolean;
+    className?: string;
+    iconProps?: { iconName?: string };
+    /** Custom SVG / react-icon element; takes precedence over iconProps.iconName. */
+    iconElement?: React.ReactElement;
+    iconOnly?: boolean;
+    canCheck?: boolean;
+    checked?: boolean;
+    hidden?: boolean;
+    href?: string;
+    subMenuProps?: { items: ICommandBarItemProps[] };
+    itemType?: number;
+    onRender?: (item: any, dismissMenu?: () => void) => React.ReactNode;
+    onClick?: (ev?: React.MouseEvent<HTMLElement>, item?: any) => boolean | void;
+    role?: string;
+}
+
+// ─── v8 icon name → v9 SVG element mapping ───────────────────────────────────
+const ICON_MAP: Record<string, React.ReactElement> = {
+    AnalyticsView: <DataBarVertical16Regular />,
+    BarChartVertical: <DataBarVertical16Regular />,
+    BulletedTreeList: <TextBulletListRegular />,
+    Cancel: <Dismiss16Regular />,
+    ComplianceAudit: <CheckmarkCircle16Regular />,
+    Contact: <ContactCard16Regular />,
+    Copy: <Copy16Regular />,
+    Delete: <Delete16Regular />,
+    Download: <ArrowDownload16Regular />,
+    FileHTML: <CodeBlock16Regular />,
+    FitPage: <ZoomFit16Regular />,
+    FitWidth: <AutoFitWidth20Regular />,
+    Lock: <LockClosed16Regular />,
+    NavigateBack: <ArrowLeft16Regular />,
+    NavigateBackMirrored: <ArrowRight16Regular />,
+    Refresh: <ArrowClockwise16Regular />,
+    Relationship: <TableLink16Regular />,
+    Save: <Save16Regular />,
+    ScaleVolume: <Maximize16Regular />,
+    Settings: <Settings16Regular />,
+    SpeedHigh: <TopSpeed16Regular />,
+    Table: <TableRegular />,
+    TimelineProgress: <Timeline20Regular />,
+    Unlock: <LockOpen16Regular />,
+    Upload: <ArrowUpload16Regular />,
+    View: <Eye16Regular />,
+    WindowEdit: <WindowEdit16Regular />,
+    ZoomIn: <ZoomIn16Regular />,
+    ZoomOut: <ZoomOut16Regular />,
+    ZoomToFit: <ZoomFit20Regular />,
+};
 
 /**
  * Local replacement for v8 ContextualMenuItemType enum — same numeric values.
@@ -46,18 +103,18 @@ interface CommandBarV9Props {
 function renderIcon(iconName?: string, iconElement?: React.ReactElement): React.ReactElement | undefined {
     if (iconElement) return iconElement;
     if (!iconName) return undefined;
-    return <Icon iconName={iconName} />;
+    return ICON_MAP[iconName];
 }
 
 function renderSubMenuItem(sub: ICommandBarItemProps): React.ReactNode {
-    if ((sub as any).hidden) return null;
+    if (sub.hidden) return null;
     if (sub.itemType === ContextualMenuItemType.Divider) {
         // MenuList separator is not directly available; render a horizontal rule.
         return <div key={sub.key} style={{ height: 1, background: "var(--colorNeutralStroke2)", margin: "4px 0" }} />;
     }
     return <MenuItem
         key={sub.key}
-        icon={renderIcon(sub.iconProps?.iconName, (sub as ICommandBarItemProps).iconElement)}
+        icon={renderIcon(sub.iconProps?.iconName, sub.iconElement)}
         disabled={sub.disabled}
         onClick={sub.onClick as any}
     >
@@ -66,7 +123,7 @@ function renderSubMenuItem(sub: ICommandBarItemProps): React.ReactNode {
 }
 
 function renderItem(item: ICommandBarItemProps): React.ReactNode {
-    if ((item as any).hidden) return null;
+    if (item.hidden) return null;
     if (item.onRender) {
         return <React.Fragment key={item.key}>{item.onRender(item as any, () => undefined) as any}</React.Fragment>;
     }
