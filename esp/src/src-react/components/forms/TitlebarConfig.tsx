@@ -2,7 +2,6 @@ import * as React from "react";
 import { ColorPicker, getColorFromString, IColor } from "@fluentui/react";
 import { Button, Checkbox, Field, Input, Label, Spinner, Tooltip } from "@fluentui/react-components";
 import { useForm, Controller } from "react-hook-form";
-import { useUserTheme } from "../../hooks/theme";
 import { MessageBox } from "../../layouts/MessageBox";
 import { useGlobalStore } from "../../hooks/store";
 
@@ -31,7 +30,6 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
     showForm,
     setShowForm
 }) => {
-    const { theme } = useUserTheme();
     const { handleSubmit, control, reset } = useForm<TitlebarConfigValues>({ defaultValues });
     const [submitDisabled, setSubmitDisabled] = React.useState(false);
     const [spinnerHidden, setSpinnerHidden] = React.useState(true);
@@ -75,13 +73,13 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
     }, [resetEnvironmentTitle, resetShowEnvironmentTitle, resetTitlebarColor]);
 
     React.useEffect(() => {
-        setColor(getColorFromString(titlebarColor ?? theme.palette.themeLight));
+        setColor(getColorFromString(titlebarColor ?? "#b6dff3"));
         const values = {
             showEnvironmentTitle: showEnvironmentTitle,
             environmentTitle: environmentTitle ?? "ECL Watch"
         };
         reset(values);
-    }, [environmentTitle, reset, showEnvironmentTitle, theme.palette.themeLight, titlebarColor]);
+    }, [environmentTitle, reset, showEnvironmentTitle, titlebarColor]);
 
     return <MessageBox show={showForm} setShow={closeForm} title={nlsHPCC.SetToolbarColor} minWidth={400}
         footer={<>
