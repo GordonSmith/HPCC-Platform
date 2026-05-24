@@ -23,9 +23,14 @@ import {
     ToolbarButton,
     ToolbarDivider,
 } from "@fluentui/react-components";
-import { ContextualMenuItemType, Icon, ICommandBarItemProps } from "@fluentui/react";
+import { ContextualMenuItemType, Icon, ICommandBarItemProps as _ICommandBarItemProps } from "@fluentui/react";
 
-export type { ICommandBarItemProps };
+/**
+ * Extended ICommandBarItemProps: adds optional `iconElement` for custom SVG / react-icon
+ * elements that bypass the string-name icon registry. When both `iconProps.iconName` and
+ * `iconElement` are provided, `iconElement` takes precedence.
+ */
+export type ICommandBarItemProps = _ICommandBarItemProps & { iconElement?: React.ReactElement };
 export { ContextualMenuItemType };
 
 interface CommandBarV9Props {
@@ -33,7 +38,8 @@ interface CommandBarV9Props {
     farItems?: ICommandBarItemProps[];
 }
 
-function renderIcon(iconName?: string): React.ReactElement | undefined {
+function renderIcon(iconName?: string, iconElement?: React.ReactElement): React.ReactElement | undefined {
+    if (iconElement) return iconElement;
     if (!iconName) return undefined;
     return <Icon iconName={iconName} />;
 }
@@ -46,7 +52,7 @@ function renderSubMenuItem(sub: ICommandBarItemProps): React.ReactNode {
     }
     return <MenuItem
         key={sub.key}
-        icon={renderIcon(sub.iconProps?.iconName)}
+        icon={renderIcon(sub.iconProps?.iconName, (sub as ICommandBarItemProps).iconElement)}
         disabled={sub.disabled}
         onClick={sub.onClick as any}
     >
@@ -62,7 +68,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
     if (item.itemType === ContextualMenuItemType.Divider) {
         return <ToolbarDivider key={item.key} />;
     }
-    const icon = renderIcon(item.iconProps?.iconName);
+    const icon = renderIcon(item.iconProps?.iconName, item.iconElement);
     const title = item.iconOnly ? item.text : undefined;
     const label = item.iconOnly ? undefined : item.text;
 
