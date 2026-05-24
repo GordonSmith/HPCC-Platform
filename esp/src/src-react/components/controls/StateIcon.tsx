@@ -1,11 +1,35 @@
 import * as React from "react";
-import { FontIcon, ThemeProvider } from "@fluentui/react";
 import { mergeStyleSets } from "@fluentui/style-utilities";
 import { FluentProvider, Text } from "@fluentui/react-components";
+import {
+    ArchiveRegular, CheckmarkCircleRegular, ClockRegular, FlashRegular,
+    LockClosedFilled, LockOpenRegular, PauseCircleRegular, PlayRegular,
+    ProhibitedRegular, QuestionCircleRegular, SettingsRegular, WarningRegular
+} from "@fluentui/react-icons";
 import { Palette } from "@hpcc-js/common";
 import { WUStateID } from "@hpcc-js/comms";
 import { useWorkunit } from "../../hooks/workunit";
 import { useUserTheme } from "../../hooks/theme";
+
+const ICON_MAP: Record<string, React.FunctionComponent<{ className?: string; style?: React.CSSProperties }>> = {
+    "Archive": ArchiveRegular,
+    "Blocked": ProhibitedRegular,
+    "LightningBolt": FlashRegular,
+    "LockSolid": LockClosedFilled,
+    "Pause": PauseCircleRegular,
+    "Play": PlayRegular,
+    "Settings": SettingsRegular,
+    "SkypeCheck": CheckmarkCircleRegular,
+    "SkypeClock": ClockRegular,
+    "StatusCircleQuestionMark": QuestionCircleRegular,
+    "Unlock": LockOpenRegular,
+    "Warning": WarningRegular,
+};
+
+function renderStateIcon(iconName: string, className?: string, style?: React.CSSProperties): React.ReactElement {
+    const IconComponent = ICON_MAP[iconName] ?? QuestionCircleRegular;
+    return <IconComponent className={className} style={style} />;
+}
 
 //  v8 fluentui semanticColors equivalents — preserved as literal hex so the
 //  hpcc-js Palette.textColor() helper can compute contrast against them.
@@ -133,21 +157,19 @@ export const StateIcon: React.FunctionComponent<StateIconProps> = ({
 }) => {
     const ss = classSet[size];
 
-    const { theme, themeV9 } = useUserTheme();
+    const { themeV9 } = useUserTheme();
 
     const overlayIconColor = Palette.textColor(overlayColor);
 
-    return <FluentProvider theme={themeV9} className={ss.placeholder} >
-        <ThemeProvider theme={theme} className={ss.placeholder} title={title}>
-            <span className={ss.iconPlaceholder}>
-                <FontIcon iconName={iconName} className={ss.icon} />
+    return <FluentProvider theme={themeV9} className={ss.placeholder} title={title}>
+        <span className={ss.iconPlaceholder}>
+            {renderStateIcon(iconName, ss.icon)}
+        </span>
+        {overlayName &&
+            <span className={ss.overlayPlaceholder} style={{ backgroundColor: overlayColor, borderColor: WHITE }}>
+                {renderStateIcon(overlayName, ss.overlay, { color: overlayIconColor })}
             </span>
-            {overlayName &&
-                <span className={ss.overlayPlaceholder} style={{ backgroundColor: overlayColor, borderColor: WHITE }}>
-                    <FontIcon iconName={overlayName} className={ss.overlay} style={{ color: overlayIconColor }} />
-                </span>
-            }
-        </ThemeProvider>
+        }
     </FluentProvider>;
 };
 
@@ -168,7 +190,7 @@ export const WorkunitPersona: React.FunctionComponent<WorkunitPersonaProps> = ({
     const { workunit } = useWorkunit(wuid);
     const [overlayName, setOverlayName] = React.useState("");
     const [overlayColor, setOverlayColor] = React.useState("");
-    const { theme, themeV9 } = useUserTheme();
+    const { themeV9 } = useUserTheme();
 
     React.useEffect(() => {
         switch (workunit?.StateID) {
@@ -228,17 +250,15 @@ export const WorkunitPersona: React.FunctionComponent<WorkunitPersonaProps> = ({
         }
     }, [workunit, workunit?.StateID]);
 
-    return <FluentProvider theme={themeV9} style={{ paddingTop: 4, flexGrow: 1, height: 26 }}>
-        <ThemeProvider theme={theme} title={workunit?.State}>
-            {showProtected &&
-                <span style={{ marginLeft: 8, marginRight: 2 }}>
-                    <StateIcon iconName={workunit?.Protected ? "LockSolid" : "Unlock"} size={size} />
-                </span>
-            }
-            <StateIcon iconName="Settings" overlayName={overlayName} overlayColor={overlayColor} size={size} />
-            {showWuid &&
-                <Text size={500} weight="bold" style={{ paddingLeft: "4px" }}>{wuid}</Text>
-            }
-        </ThemeProvider>
+    return <FluentProvider theme={themeV9} style={{ paddingTop: 4, flexGrow: 1, height: 26 }} title={workunit?.State}>
+        {showProtected &&
+            <span style={{ marginLeft: 8, marginRight: 2 }}>
+                <StateIcon iconName={workunit?.Protected ? "LockSolid" : "Unlock"} size={size} />
+            </span>
+        }
+        <StateIcon iconName="Settings" overlayName={overlayName} overlayColor={overlayColor} size={size} />
+        {showWuid &&
+            <Text size={500} weight="bold" style={{ paddingLeft: "4px" }}>{wuid}</Text>
+        }
     </FluentProvider>;
 };
