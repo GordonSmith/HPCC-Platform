@@ -23,7 +23,7 @@ import {
     ToolbarButton,
     ToolbarDivider,
 } from "@fluentui/react-components";
-import { ContextualMenuItemType, Icon, ICommandBarItemProps as _ICommandBarItemProps } from "@fluentui/react";
+import { Icon, ICommandBarItemProps as _ICommandBarItemProps } from "@fluentui/react";
 
 /**
  * Extended ICommandBarItemProps: adds optional `iconElement` for custom SVG / react-icon
@@ -31,7 +31,12 @@ import { ContextualMenuItemType, Icon, ICommandBarItemProps as _ICommandBarItemP
  * `iconElement` are provided, `iconElement` takes precedence.
  */
 export type ICommandBarItemProps = _ICommandBarItemProps & { iconElement?: React.ReactElement };
-export { ContextualMenuItemType };
+
+/**
+ * Local replacement for v8 ContextualMenuItemType enum — same numeric values.
+ * This lets consumers drop their @fluentui/react import for the item-type constant.
+ */
+export const ContextualMenuItemType = { Normal: 0, Divider: 1, Header: 2, Section: 3 } as const;
 
 interface CommandBarV9Props {
     items: ICommandBarItemProps[];
