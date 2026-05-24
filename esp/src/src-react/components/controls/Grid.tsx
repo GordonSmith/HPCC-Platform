@@ -1,11 +1,196 @@
 import * as React from "react";
-import { DetailsListLayoutMode, DetailsRow, Dropdown, IColumn as _IColumn, IDetailsHeaderProps, IDetailsListStyles, Selection, TooltipHost, TooltipOverflowMode, IRenderFunction, IDetailsRowProps, SelectionMode, ConstrainMode, ISelection, ScrollablePane, ShimmeredDetailsList, Sticky } from "@fluentui/react";
+import { Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell, TableSelectionCell, TableResizeHandle, Tooltip, Select, SkeletonItem, makeStyles, tokens } from "@fluentui/react-components";
 import { ICommandBarItemProps } from "../CommandBarV9";
-import { tokens } from "@fluentui/react-components";
-
-export { SelectionMode, Selection, DetailsRow };
-export type { IDetailsRowProps };
 import { mergeStyleSets } from "@fluentui/style-utilities";
+
+// ─── Local replacements for @fluentui/react exports ─────────────────────────
+
+export const SelectionMode = { none: 0, single: 1, multiple: 2 } as const;
+export type SelectionMode = typeof SelectionMode[keyof typeof SelectionMode];
+
+export interface ISelectionOptions {
+    getKey?: (item: any) => string;
+    canSelectItem?: (item: any, index?: number) => boolean;
+    onSelectionChanged?: () => void;
+    onItemsChanged?: () => void;
+}
+
+export interface ISelection {
+    getSelection(): any[];
+    getSelectedIndices(): number[];
+    setItems(items: any[], shouldClearSelection?: boolean): void;
+    setIndexSelected(index: number, isSelected: boolean, shouldAnchor: boolean): void;
+    setAllSelected(isAllSelected: boolean): void;
+    setKeySelected(key: string, isSelected: boolean, shouldAnchor: boolean): void;
+    setChangeEvents(isEnabled: boolean, suppressEvents?: boolean): void;
+    getItems(): any[];
+}
+
+export class Selection implements ISelection {
+    private _items: any[] = [];
+    private _selectedKeys: Set<string> = new Set();
+    private _changeEventsEnabled = true;
+    private _pendingChange = false;
+    private readonly _getKey: (item: any) => string;
+    private readonly _canSelectItem?: (item: any, index?: number) => boolean;
+    private readonly _onSelectionChanged?: () => void;
+    private readonly _onItemsChanged?: () => void;
+    private _changeListeners: Array<() => void> = [];
+
+    constructor(options?: ISelectionOptions) {
+        this._getKey = options?.getKey ?? ((item: any) => item?.key ?? String(item));
+        this._canSelectItem = options?.canSelectItem;
+        this._onSelectionChanged = options?.onSelectionChanged;
+        this._onItemsChanged = options?.onItemsChanged;
+    }
+
+    addChangeListener(listener: () => void): void { this._changeListeners.push(listener); }
+    removeChangeListener(listener: () => void): void { this._changeListeners = this._changeListeners.filter(l => l !== listener); }
+
+    private _fireChange(): void {
+        if (this._changeEventsEnabled) {
+            this._onSelectionChanged?.();
+            this._changeListeners.forEach(l => l());
+        } else {
+            this._pendingChange = true;
+        }
+    }
+
+    getItems(): any[] { return this._items; }
+    getSelection(): any[] { return this._items.filter(item => this._selectedKeys.has(this._getKey(item))); }
+    getSelectedIndices(): number[] {
+        return this._items.reduce((acc: number[], item, index) => {
+            if (this._selectedKeys.has(this._getKey(item))) acc.push(index);
+            return acc;
+        }, []);
+    }
+
+    setItems(items: any[], shouldClearSelection = false): void {
+        this._items = items;
+        if (shouldClearSelection) { this._selectedKeys.clear(); }
+        this._onItemsChanged?.();
+    }
+
+    setIndexSelected(index: number, isSelected: boolean, _shouldAnchor: boolean): void {
+        const item = this._items[index];
+        if (!item) return;
+        if (this._canSelectItem && !this._canSelectItem(item, index)) return;
+        const key = this._getKey(item);
+        if (isSelected) { this._selectedKeys.add(key); } else { this._selectedKeys.delete(key); }
+        this._fireChange();
+    }
+
+    setAllSelected(isAllSelected: boolean): void {
+        if (isAllSelected) {
+            this._items.forEach((item, index) => {
+                if (!this._canSelectItem || this._canSelectItem(item, index)) {
+                    this._selectedKeys.add(this._getKey(item));
+                }
+            });
+        } else { this._selectedKeys.clear(); }
+        this._fireChange();
+    }
+
+    setKeySelected(key: string, isSelected: boolean, _shouldAnchor: boolean): void {
+        if (isSelected) { this._selectedKeys.add(key); } else { this._selectedKeys.delete(key); }
+        this._fireChange();
+    }
+
+    setChangeEvents(isEnabled: boolean, suppressEvents = false): void {
+        this._changeEventsEnabled = isEnabled;
+        if (isEnabled && this._pendingChange && !suppressEvents) {
+            this._pendingChange = false;
+            this._onSelectionChanged?.();
+            this._changeListeners.forEach(l => l());
+        }
+    }
+}
+
+// Internal column type (replaces v8 _IColumn)
+interface IColumn {
+    key: string;
+    name: string;
+    fieldName?: string;
+    minWidth?: number;
+    maxWidth?: number;
+    isResizable?: boolean;
+    isSorted?: boolean;
+    isSortedDescending?: boolean;
+    iconName?: string;
+    isIconOnly?: boolean;
+    flexGrow?: number;
+    data: FluentColumn;
+    onRender?: (item: any, index: number, column: IColumn) => React.ReactNode;
+}
+
+// Row props — exported for consumers (Workunits.tsx)
+export interface IDetailsRowProps {
+    item: any;
+    itemIndex: number;
+    _internal?: {
+        columns: IColumn[];
+        selectionMode: SelectionMode;
+        isSelected: boolean;
+        onToggle: () => void;
+    };
+}
+
+const useGridStyles = makeStyles({
+    cell: {
+        borderRight: "1px solid var(--colorNeutralBackground5)",
+        overflow: "hidden",
+        "&:has(.bgFilled)": { color: "white", boxShadow: "inset 1px 0 var(--colorNeutralBackground1), inset -1px 1px var(--colorNeutralBackground1)" },
+        "&:has(.bgGreen)": { background: "green" },
+        "&:has(.bgOrange)": { background: "orange" },
+        "&:has(.bgRed)": { background: "red" },
+    },
+    row: {
+        userSelect: "text",
+        borderBottom: "1px solid var(--colorNeutralBackground5)",
+        "&:hover": { backgroundColor: tokens.colorNeutralBackground2 },
+        "&[aria-selected='true']": { backgroundColor: tokens.colorBrandBackground2 },
+    },
+    header: {
+        position: "sticky",
+        top: 0,
+        zIndex: 2,
+        backgroundColor: tokens.colorNeutralBackground1,
+        borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    },
+    headerCell: {
+        cursor: "pointer",
+        userSelect: "none",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+});
+
+export const DetailsRow: React.FunctionComponent<IDetailsRowProps> = ({ item, itemIndex, _internal }) => {
+    const styles = useGridStyles();
+    if (!_internal) return null;
+    const { columns, selectionMode, isSelected, onToggle } = _internal;
+    return <TableRow
+        className={styles.row}
+        aria-selected={isSelected}
+        onClick={selectionMode !== SelectionMode.none ? onToggle : undefined}
+        style={{ cursor: selectionMode !== SelectionMode.none ? "pointer" : "default" }}
+    >
+        {selectionMode === SelectionMode.multiple && (
+            <TableSelectionCell type="checkbox" checked={isSelected} style={{ width: 32, minWidth: 32, maxWidth: 32 }} onClick={e => { e.stopPropagation(); onToggle(); }} />
+        )}
+        {selectionMode === SelectionMode.single && (
+            <TableSelectionCell type="radio" checked={isSelected} style={{ width: 32, minWidth: 32, maxWidth: 32 }} onClick={e => { e.stopPropagation(); onToggle(); }} />
+        )}
+        {columns.map(col => (
+            <TableCell key={col.key} className={styles.cell} style={{ width: col.minWidth ?? 70, minWidth: col.minWidth ?? 70, maxWidth: col.maxWidth, flexGrow: col.flexGrow ?? 0 }}>
+                {col.onRender ? col.onRender(item, itemIndex, col) : <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(item[col.fieldName ?? col.key] ?? "")}</span>}
+            </TableCell>
+        ))}
+    </TableRow>;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 import { Pagination } from "@fluentui/react-experiments/lib/Pagination";
 import { useConst } from "@fluentui/react-hooks";
 import { BaseStore, Memory, QueryRequest, QuerySortItem } from "src/store/Memory";
@@ -39,34 +224,36 @@ export interface FluentColumn {
     formatter?: (value: any, row: any) => any;
     csvFormatter?: (value: any, row: any) => string;
     className?: (value: any, row: any) => string;
-    fluentColumn?: Partial<_IColumn>;
+    fluentColumn?: Partial<IColumn>;
 }
 
 export type FluentColumns = { [key: string]: FluentColumn };
 
-interface IColumn extends _IColumn {
-    data: FluentColumn;
+function isISelection(selection: any): selection is ISelection {
+    return typeof selection === "object" && selection !== null && "setAllSelected" in selection;
 }
 
 function tooltipItemRenderer(item: any, index: number, column: IColumn) {
-    const id = `${column.key}-${index}`;
     const value = item[column.fieldName || column.key];
     const className = column.data.className ? column.data.className(value, item) : "";
     const style: React.CSSProperties = {
         display: "flex",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
         justifyContent: column.data.justify === "right" ? "flex-end" : "flex-start"
     };
-    return <TooltipHost id={id} content={value ?? ""} overflowMode={TooltipOverflowMode.Parent}>
-        {column.data.formatter ?
-            <span style={style} className={className} aria-describedby={id}>{column.data.formatter(value, item) ?? ""}</span> :
-            <span style={style} className={className} aria-describedby={id}>{value ?? ""}</span>
-        }
-    </TooltipHost>;
+    const content = column.data.formatter
+        ? <span style={style} className={className}>{column.data.formatter(value, item) ?? ""}</span>
+        : <span style={style} className={className}>{value ?? ""}</span>;
+    return <Tooltip content={String(value ?? "")} relationship="description" withArrow>
+        <span style={{ display: "block", overflow: "hidden" }}>{content}</span>
+    </Tooltip>;
 }
 
 function updateColumnSorted(columns: IColumn[], attr: any, desc: boolean) {
     for (const column of columns) {
-        const isSorted = column.key == attr;
+        const isSorted = column.key === attr;
         column.isSorted = isSorted;
         column.isSortedDescending = isSorted && desc;
     }
@@ -85,8 +272,9 @@ function columnsAdapter(columns: FluentColumns, columnWidths: Map<string, any>):
                     fieldName: column.field ?? key,
                     iconName: column.headerIcon,
                     isIconOnly: !!column.headerIcon,
+                    minWidth: width ?? 70,
+                    maxWidth: width,
                     data: column,
-                    styles: { root: { width, ":hover": { cursor: column?.sortable !== false ? "pointer" : "default" } } },
                     onRender: (item: any, index: number, col: IColumn) => {
                         col.minWidth = column.width ?? 70;
                         return tooltipItemRenderer(item, index, col);
@@ -106,7 +294,6 @@ function columnsAdapter(columns: FluentColumns, columnWidths: Map<string, any>):
                     iconName: column.headerIcon,
                     isIconOnly: !!column.headerIcon,
                     data: column,
-                    styles: { root: { width, ":hover": { cursor: column?.sortable !== false ? "pointer" : "default" } } },
                     onRender: (item: any, index: number, col: IColumn) => {
                         col.minWidth = column.width ?? 70;
                         col.maxWidth = column.width;
@@ -118,30 +305,6 @@ function columnsAdapter(columns: FluentColumns, columnWidths: Map<string, any>):
     }
     return retVal;
 }
-
-const gridStyles = (height: string): Partial<IDetailsListStyles> => {
-    return {
-        root: {
-            height,
-            minHeight: height,
-            maxHeight: height,
-            selectors: {
-                ".ms-DetailsHeader-cellName": { fontSize: "13.5px" },
-                ".ms-DetailsRow": { userSelect: "text", borderBottom: "1px solid var(--colorNeutralBackground5)" },
-                ".ms-DetailsRow-cell": { borderRight: "1px solid var(--colorNeutralBackground5)" },
-                ".ms-DetailsRow-cell:has(.bgFilled)": { color: "white", boxShadow: "inset 1px 0 var(--colorNeutralBackground1), inset -1px 1px var(--colorNeutralBackground1)" },
-                ".ms-DetailsRow-cell:has(.bgGreen)": { background: "green" },
-                ".ms-DetailsRow-cell:has(.bgOrange)": { background: "orange" },
-                ".ms-DetailsRow-cell:has(.bgRed)": { background: "red" }
-            }
-        },
-        headerWrapper: {
-            position: "sticky",
-            top: 0,
-            zIndex: 2,
-        }
-    };
-};
 
 export function useCopyButtons(columns: FluentColumns, selection: any[], filename: string): ICommandBarItemProps[] {
 
@@ -173,10 +336,6 @@ function useRefreshTable(): RefreshTable {
 
 export interface FluentStoreStateProps {
     page?: number
-}
-
-function isISelection(selection: any): selection is ISelection {
-    return typeof selection === "object" && "setAllSelected" in selection;
 }
 
 export interface FluentStoreStateResponse {
@@ -213,7 +372,7 @@ interface FluentStoreGridProps {
     selectionMode?: SelectionMode,
     setSelection: ISelection | ((selection: any[]) => void),
     setTotal: (total: number) => void,
-    onRenderRow?: IRenderFunction<IDetailsRowProps>,
+    onRenderRow?: (props: IDetailsRowProps) => React.ReactNode,
     canSelectRow?: (item: any, index: number) => boolean
 }
 
@@ -237,17 +396,36 @@ const FluentStoreGrid: React.FunctionComponent<FluentStoreGridProps> = ({
     const [items, setItems] = React.useState<any[]>([]);
     const [loaded, setLoaded] = React.useState(false);
     const [columnWidths] = useNonReactiveEphemeralPageStore("columnWidths");
+    const [columnSizes, setColumnSizes] = React.useState<Map<string, number>>(new Map());
+    const [selectionVersion, setSelectionVersion] = React.useState(0);
 
     const handlerRef = React.useRef<ISelection>(null);
     const selectionHandler = useConst(() => {
         handlerRef.current = isISelection(setSelection) ? setSelection : new Selection({
             canSelectItem: (item: any, index?: number) => canSelectRow ? canSelectRow(item, index ?? -1) : true,
             onSelectionChanged: () => {
-                setSelection(handlerRef.current!.getSelection());
+                (setSelection as (s: any[]) => void)(handlerRef.current!.getSelection());
+                setSelectionVersion(v => v + 1);
             }
         });
         return handlerRef.current;
     });
+
+    // Subscribe to external ISelection changes (MetricsOptions ISelection form)
+    React.useEffect(() => {
+        if (isISelection(setSelection) && setSelection instanceof Selection) {
+            const listener = () => setSelectionVersion(v => v + 1);
+            setSelection.addChangeListener(listener);
+            return () => setSelection.removeChangeListener(listener);
+        }
+    }, [setSelection]);
+
+    // Derive selected indices for rendering (re-derived when selectionVersion changes)
+    const selectedIndices = React.useMemo(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        selectionVersion; // ensure re-computation when selection changes
+        return new Set<number>(selectionHandler.getSelectedIndices());
+    }, [selectionVersion, selectionHandler]);
 
     const abortController = React.useRef<AbortController>();
 
@@ -269,10 +447,12 @@ const FluentStoreGrid: React.FunctionComponent<FluentStoreGridProps> = ({
             setTotal(total);
         });
         storeQuery.then(items => {
-            const selectedIndices = selectionHandler.getSelectedIndices();
+            const prevIndices = selectionHandler.getSelectedIndices();
             setLoaded(true);
             setItems(items);
-            selectedIndices.forEach(index => selectionHandler.setIndexSelected(index, true, false));
+            selectionHandler.setItems(items, false);
+            prevIndices.forEach(index => selectionHandler.setIndexSelected(index, true, false));
+            setSelectionVersion(v => v + 1);
         });
     }, [count, selectionHandler, start, store], [query, sorted]);
 
@@ -286,11 +466,17 @@ const FluentStoreGrid: React.FunctionComponent<FluentStoreGridProps> = ({
         setSorted(sort);
     }, [], [sort]);
 
-    const fluentColumns: IColumn[] = React.useMemo(() => {
-        return columnsAdapter(memoizedColumns, columnWidths);
-    }, [columnWidths, memoizedColumns]);
+    const effectiveColumnWidths = React.useMemo(() => {
+        const merged = new Map(columnWidths as Map<string, number>);
+        columnSizes.forEach((v, k) => merged.set(k, v));
+        return merged;
+    }, [columnWidths, columnSizes]);
 
-    // prune invalid selections when the data set or the condition allowing selection changes
+    const fluentColumns: IColumn[] = React.useMemo(() => {
+        return columnsAdapter(memoizedColumns, effectiveColumnWidths);
+    }, [effectiveColumnWidths, memoizedColumns]);
+
+    // Prune invalid selections when canSelectRow or items change
     React.useEffect(() => {
         if (!canSelectRow || isISelection(setSelection)) return;
 
@@ -311,7 +497,8 @@ const FluentStoreGrid: React.FunctionComponent<FluentStoreGridProps> = ({
         selectionHandler.setChangeEvents(true, true);
 
         if (changed) {
-            setSelection(selectionHandler.getSelection());
+            (setSelection as (s: any[]) => void)(selectionHandler.getSelection());
+            setSelectionVersion(v => v + 1);
         }
     }, [items, canSelectRow, selectionHandler, setSelection]);
 
@@ -319,63 +506,147 @@ const FluentStoreGrid: React.FunctionComponent<FluentStoreGridProps> = ({
         updateColumnSorted(fluentColumns, sorted?.attribute as string, sorted?.descending);
     }, [fluentColumns, sorted]);
 
-    const onColumnClick = React.useCallback((event: React.MouseEvent<HTMLElement>, column: IColumn) => {
+    const onColumnClick = React.useCallback((column: IColumn) => {
         if (memoizedColumns[column.key]?.sortable === false) return;
 
-        let sorted = column.isSorted;
+        let isSorted = column.isSorted;
         let isSortedDescending: boolean = column.isSortedDescending;
-        if (!sorted) {
-            sorted = true;
+        if (!isSorted) {
+            isSorted = true;
             isSortedDescending = false;
         } else if (!isSortedDescending) {
             isSortedDescending = true;
         } else {
-            sorted = false;
+            isSorted = false;
             isSortedDescending = false;
         }
         setSorted({
-            attribute: sorted ? column.key : "",
-            descending: sorted ? isSortedDescending : false
+            attribute: isSorted ? column.key : "",
+            descending: isSorted ? isSortedDescending : false
         });
-        updateSort(sorted, isSortedDescending, column.key);
+        updateSort(isSorted, isSortedDescending, column.key);
     }, [memoizedColumns]);
 
-    const renderDetailsHeader = React.useCallback((props: IDetailsHeaderProps, defaultRender?: any) => {
-        return <Sticky>
-            {defaultRender({
-                ...props,
-                onRenderColumnHeaderTooltip: (tooltipHostProps) => {
-                    return <TooltipHost {...tooltipHostProps} content={tooltipHostProps?.column?.data?.headerTooltip ?? ""} />;
-                },
-                styles: { root: { paddingTop: 1 } }
-            })}
-        </Sticky>;
-    }, []);
-
-    const columnResize = React.useCallback((column: IColumn, newWidth: number, columnIndex?: number) => {
-        columnWidths.set(column.key, newWidth);
+    const handleColumnResize = React.useCallback((colKey: string, newWidth: number) => {
+        columnWidths.set(colKey, newWidth);
+        setColumnSizes(prev => new Map(prev).set(colKey, newWidth));
     }, [columnWidths]);
 
-    return <div style={{ position: "relative", height: "100%" }}>
-        <ScrollablePane>
-            <ShimmeredDetailsList
-                compact={true}
-                enableShimmer={!loaded}
-                items={items}
-                columns={fluentColumns}
-                layoutMode={DetailsListLayoutMode.fixedColumns}
-                constrainMode={ConstrainMode.unconstrained}
-                selection={selectionHandler}
-                isSelectedOnFocus={false}
-                selectionPreservedOnEmptyClick={true}
-                onColumnHeaderClick={onColumnClick}
-                onRenderDetailsHeader={renderDetailsHeader}
-                onColumnResize={columnResize}
-                onRenderRow={onRenderRow}
-                detailsListStyles={gridStyles(height)}
-                selectionMode={selectionMode}
-            />
-        </ScrollablePane>
+    const onRowToggle = React.useCallback((index: number) => {
+        if (selectionMode === SelectionMode.none) return;
+        if (selectionMode === SelectionMode.single) {
+            selectionHandler.setAllSelected(false);
+            selectionHandler.setIndexSelected(index, true, false);
+        } else {
+            const isSelected = selectionHandler.getSelectedIndices().includes(index);
+            selectionHandler.setIndexSelected(index, !isSelected, false);
+        }
+        if (!isISelection(setSelection)) {
+            (setSelection as (s: any[]) => void)(selectionHandler.getSelection());
+        }
+        setSelectionVersion(v => v + 1);
+    }, [selectionMode, selectionHandler, setSelection]);
+
+    const onSelectAll = React.useCallback(() => {
+        const allSelected = items.length > 0 && items.every((_, i) => selectedIndices.has(i));
+        selectionHandler.setAllSelected(!allSelected);
+        if (!isISelection(setSelection)) {
+            (setSelection as (s: any[]) => void)(selectionHandler.getSelection());
+        }
+        setSelectionVersion(v => v + 1);
+    }, [items, selectionHandler, setSelection, selectedIndices]);
+
+    const styles = useGridStyles();
+
+    const allSelected = items.length > 0 && items.every((_, i) => selectedIndices.has(i));
+    const someSelected = !allSelected && items.some((_, i) => selectedIndices.has(i));
+    const shimmerCount = Math.min(Math.max(count, 5), 15);
+
+    return <div style={{ position: "relative", height, overflow: "auto" }}>
+        <Table style={{ tableLayout: "fixed", minWidth: "max-content" }} size="small">
+            <TableHeader className={styles.header}>
+                <TableRow>
+                    {selectionMode === SelectionMode.multiple && (
+                        <TableSelectionCell
+                            type="checkbox"
+                            checked={allSelected ? true : someSelected ? "mixed" : false}
+                            onClick={onSelectAll}
+                            style={{ width: 32, minWidth: 32, maxWidth: 32 }}
+                        />
+                    )}
+                    {selectionMode === SelectionMode.single && (
+                        <TableSelectionCell type="radio" checked={false} style={{ width: 32, minWidth: 32, maxWidth: 32 }} />
+                    )}
+                    {fluentColumns.map(col => (
+                        <TableHeaderCell
+                            key={col.key}
+                            className={styles.headerCell}
+                            style={{ width: col.minWidth ?? 70, minWidth: col.minWidth ?? 70, maxWidth: col.maxWidth, flexGrow: col.flexGrow ?? 0 }}
+                            onClick={() => onColumnClick(col)}
+                            sortDirection={col.isSorted ? (col.isSortedDescending ? "descending" : "ascending") : undefined}
+                            data-column-key={col.key}
+                        >
+                            {col.isIconOnly
+                                ? <span title={col.data?.headerTooltip ?? col.name} aria-label={col.name}>&#x2002;</span>
+                                : (col.name || "")}
+                            {col.isResizable !== false && (
+                                <TableResizeHandle
+                                    onClick={e => e.stopPropagation()}
+                                    onMouseDown={(e: React.MouseEvent) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const startX = e.clientX;
+                                        const startWidth = col.minWidth ?? 70;
+                                        const onMouseMove = (ev: MouseEvent) => { handleColumnResize(col.key, Math.max(40, startWidth + (ev.clientX - startX))); };
+                                        const onMouseUp = () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
+                                        window.addEventListener("mousemove", onMouseMove);
+                                        window.addEventListener("mouseup", onMouseUp);
+                                    }}
+                                />
+                            )}
+                        </TableHeaderCell>
+                    ))}
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {!loaded ? (
+                    Array.from({ length: shimmerCount }).map((_, i) => (
+                        <TableRow key={`shimmer-${i}`} className={styles.row}>
+                            {selectionMode !== SelectionMode.none && (
+                                <TableCell style={{ width: 32, minWidth: 32, maxWidth: 32 }}>
+                                    <SkeletonItem style={{ height: "12px", width: "12px" }} />
+                                </TableCell>
+                            )}
+                            {fluentColumns.map(col => (
+                                <TableCell key={col.key} className={styles.cell} style={{ width: col.minWidth ?? 70 }}>
+                                    <SkeletonItem style={{ height: "12px" }} />
+                                </TableCell>
+                            ))}
+                        </TableRow>
+                    ))
+                ) : (
+                    items.map((item, index) => {
+                        const isSelected = selectedIndices.has(index);
+                        const selectable = !canSelectRow || canSelectRow(item, index);
+                        const rowProps: IDetailsRowProps = {
+                            item,
+                            itemIndex: index,
+                            _internal: {
+                                columns: fluentColumns,
+                                selectionMode: selectable ? selectionMode : SelectionMode.none,
+                                isSelected,
+                                onToggle: () => onRowToggle(index),
+                            }
+                        };
+                        const reactKey = item?.key ?? item?.id ?? item?.Wuid ?? String(index);
+                        if (onRenderRow) {
+                            return <React.Fragment key={reactKey}>{onRenderRow(rowProps)}</React.Fragment>;
+                        }
+                        return <DetailsRow key={reactKey} {...rowProps} />;
+                    })
+                )}
+            </TableBody>
+        </Table>
     </div>;
 };
 
@@ -391,7 +662,7 @@ interface FluentGridProps {
     setSelection: ISelection | ((selection: any[]) => void),
     setTotal: (total: number) => void,
     refresh: RefreshTable,
-    onRenderRow?: IRenderFunction<IDetailsRowProps>,
+    onRenderRow?: (props: IDetailsRowProps) => React.ReactNode,
     canSelectRow?: (item: any, index: number) => boolean
 }
 
@@ -419,8 +690,7 @@ export const FluentGrid: React.FunctionComponent<FluentGridProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [constStore, data, /*refresh*/]);
 
-    return <FluentStoreGrid store={constStore} columns={columns} sort={sort} start={0} count={data.length} height={height} selectionMode={selectionMode} setSelection={setSelection} setTotal={setTotal} refresh={refresh} onRenderRow={onRenderRow} canSelectRow={canSelectRow}>
-    </FluentStoreGrid>;
+    return <FluentStoreGrid store={constStore} columns={columns} sort={sort} start={0} count={data.length} height={height} selectionMode={selectionMode} setSelection={setSelection} setTotal={setTotal} refresh={refresh} onRenderRow={onRenderRow} canSelectRow={canSelectRow} />;
 };
 
 interface FluentPagedGridProps {
@@ -436,7 +706,7 @@ interface FluentPagedGridProps {
     setSelection: ISelection | ((selection: any[]) => void),
     setTotal: (total: number) => void,
     refresh: RefreshTable,
-    onRenderRow?: IRenderFunction<IDetailsRowProps>,
+    onRenderRow?: (props: IDetailsRowProps) => React.ReactNode,
     canSelectRow?: (item: any, index: number) => boolean
 }
 
@@ -475,8 +745,7 @@ export const FluentPagedGrid: React.FunctionComponent<FluentPagedGridProps> = ({
         setPage(_page);
     }, [pageNum]);
 
-    return <FluentStoreGrid store={store} query={query} columns={columns} sort={sortBy} start={page * pageSize} count={pageSize} height={height} selectionMode={selectionMode} setSelection={setSelection} setTotal={setTotal} refresh={refresh} onRenderRow={onRenderRow} canSelectRow={canSelectRow}>
-    </FluentStoreGrid>;
+    return <FluentStoreGrid store={store} query={query} columns={columns} sort={sortBy} start={page * pageSize} count={pageSize} height={height} selectionMode={selectionMode} setSelection={setSelection} setTotal={setTotal} refresh={refresh} onRenderRow={onRenderRow} canSelectRow={canSelectRow} />;
 };
 
 interface FluentPagedFooterProps {
@@ -543,12 +812,6 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
         }
     }), []);
 
-    const dropdownChange = React.useCallback((evt, option) => {
-        const newPageSize = option.key as number;
-        setPage(Math.floor((page * pageSize) / newPageSize));
-        setPersistedPageSize(newPageSize);
-    }, [page, pageSize, setPersistedPageSize]);
-
     React.useEffect(() => {
         const maxPage = Math.ceil(total / pageSize) - 1;
         if (maxPage >= 0 && page > maxPage) {   //  maxPage can be -1 if total is 0
@@ -579,15 +842,13 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
             />
         </div>
         <div style={{ alignSelf: "center" }}>
-            <Dropdown id="pageSize" options={[
-                { key: 10, text: "10" },
-                { key: 25, text: "25" },
-                { key: 50, text: "50" },
-                { key: 100, text: "100" },
-                { key: 250, text: "250" },
-                { key: 500, text: "500" },
-                { key: 1000, text: "1000" }
-            ]} selectedKey={pageSize} onChange={dropdownChange} />
+            <Select id="pageSize" value={String(pageSize)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                const newPageSize = Number(e.target.value);
+                setPage(Math.floor((page * pageSize) / newPageSize));
+                setPersistedPageSize(newPageSize);
+            }}>
+                {[10, 25, 50, 100, 250, 500, 1000].map(n => <option key={n} value={String(n)}>{n}</option>)}
+            </Select>
         </div>
     </div>;
 };
