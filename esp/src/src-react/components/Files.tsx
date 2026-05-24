@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Icon } from "@fluentui/react";
+import { DocumentDismissRegular, DocumentRegular, FolderZipRegular, InfoRegular, ListRegular, LockClosedFilled } from "@fluentui/react-icons";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { Link } from "@fluentui/react-components";
 import { scopedLogger } from "@hpcc-js/util";
@@ -25,6 +25,14 @@ import { ShortVerticalDivider } from "./Common";
 import { SizeMe } from "../layouts/SizeMe";
 
 const logger = scopedLogger("src-react/components/Files.tsx");
+
+const FILE_STATE_ICONS: Record<string, React.ReactElement> = {
+    "Page": <DocumentRegular />,
+    "Info2": <InfoRegular />,
+    "PageList": <ListRegular />,
+    "RemoveFromShoppingList": <DocumentDismissRegular />,
+    "PageRemove": <DocumentDismissRegular />,
+};
 
 const FilterFields: Fields = {
     "LogicalName": { type: "string", label: nlsHPCC.Name, placeholder: nlsHPCC.somefile },
@@ -165,7 +173,7 @@ export const Files: React.FunctionComponent<FilesProps> = ({
                 sortable: false,
                 formatter: (_protected, row) => {
                     if (row.IsProtected === true) {
-                        return <Icon iconName="LockSolid" />;
+                        return <LockClosedFilled />;
                     }
                     return "";
                 },
@@ -178,7 +186,7 @@ export const Files: React.FunctionComponent<FilesProps> = ({
                 sortable: false,
                 formatter: (_compressed, row) => {
                     if (row.IsCompressed === true) {
-                        return <Icon iconName="ZipFolder" />;
+                        return <FolderZipRegular />;
                     }
                     return "";
                 },
@@ -193,8 +201,9 @@ export const Files: React.FunctionComponent<FilesProps> = ({
                         return name;
                     }
                     const url = "#/files/" + (row.NodeGroup ? row.NodeGroup + "/" : "") + name;
+                    const stateIconName = file.getStateIcon ? file.getStateIcon() : "";
                     return <>
-                        <Icon iconName={file.getStateIcon ? file.getStateIcon() : ""} />
+                        {FILE_STATE_ICONS[stateIconName] ?? null}
                         &nbsp;
                         <Link href={url}>{name}</Link>
                     </>;
