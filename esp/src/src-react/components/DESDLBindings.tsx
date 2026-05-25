@@ -12,7 +12,6 @@ import * as Utility from "src/Utility";
 import * as WsESDLConfig from "src/WsESDLConfig";
 import { AddBindingForm } from "./forms/AddBinding";
 import { HolyGrail } from "../layouts/HolyGrail";
-import { ShortVerticalDivider } from "./Common";
 import { selector, tree } from "./DojoGrid";
 import { pushUrl } from "../util/history";
 
@@ -187,7 +186,7 @@ export const DESDLBindings: React.FunctionComponent<ESDLBindingProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshGrid()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection,
             onClick: () => {
@@ -204,7 +203,7 @@ export const DESDLBindings: React.FunctionComponent<ESDLBindingProps> = ({
             key: "add", text: nlsHPCC.AddBinding,
             onClick: () => setShowAddBinding(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "delete", text: nlsHPCC.DeleteBinding, disabled: !uiState.hasSelection,
             onClick: () => setShowDeleteConfirm(true),

@@ -13,7 +13,6 @@ import { pushParams } from "../util/history";
 import { FluentPagedGrid, FluentPagedFooter, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 import { Fields } from "./forms/Fields";
 import { Filter } from "./forms/Filter";
-import { ShortVerticalDivider } from "./Common";
 import { SizeMe } from "../layouts/SizeMe";
 
 const FilterFields: Fields = {
@@ -188,7 +187,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshTable.call()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
             onClick: () => {
@@ -205,7 +204,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
             key: "delete", text: nlsHPCC.Delete, disabled: !uiState.hasSelection, iconProps: { iconName: "Delete" },
             onClick: () => setShowDeleteConfirm(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "Suspend", text: nlsHPCC.Suspend, disabled: !uiState.isSuspended,
             onClick: () => {
@@ -230,7 +229,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
                 WsWorkunits.WUQuerysetQueryAction(selection, "Deactivate").then(() => refreshTable.call());
             }
         },
-        { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_3", itemType: ContextualMenuItemType.Divider },
         {
             key: "filter", text: nlsHPCC.Filter, disabled: store !== undefined || wuid !== undefined, iconProps: { iconName: hasFilter ? "FilterSolid" : "Filter" },
             onClick: () => {

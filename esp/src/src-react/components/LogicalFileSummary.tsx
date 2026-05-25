@@ -12,7 +12,6 @@ import { getStateImageName, IFile } from "src/ESPLogicalFile";
 import { useConfirm } from "../hooks/confirm";
 import { useFile } from "../hooks/file";
 import { useMyAccount } from "../hooks/user";
-import { ShortVerticalDivider } from "./Common";
 import { TableGroup } from "./forms/Groups";
 import { CopyFile } from "./forms/CopyFile";
 import { DesprayFile } from "./forms/DesprayFile";
@@ -115,7 +114,7 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
             key: "copyFilename", text: nlsHPCC.CopyLogicalFilename, iconProps: { iconName: "Copy" },
             onClick: () => navigator?.clipboard?.writeText(logicalFile)
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "save", text: nlsHPCC.Save, iconProps: { iconName: "Save" }, disabled: !canSave,
             onClick: () => {
@@ -137,7 +136,7 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
             key: "delete", text: nlsHPCC.Delete, iconProps: { iconName: "Delete" }, disabled: !file,
             onClick: () => setShowDeleteConfirm(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "protect", text: nlsHPCC.Protect, iconProps: { iconName: "Lock" }, disabled: protectedByCurrentUser,
             onClick: () => {
@@ -160,7 +159,7 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
                     .catch(err => logger.error(err));
             }
         },
-        { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_3", itemType: ContextualMenuItemType.Divider },
         {
             key: "copyFile", text: nlsHPCC.Copy, disabled: !file,
             onClick: () => setShowCopyFile(true)
@@ -173,7 +172,7 @@ export const LogicalFileSummary: React.FunctionComponent<LogicalFileSummaryProps
             key: "despray", text: nlsHPCC.Despray, disabled: !file,
             onClick: () => setShowDesprayFile(true)
         },
-        { key: "divider_4", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_4", itemType: ContextualMenuItemType.Divider },
         {
             key: "replicate", text: nlsHPCC.Replicate, disabled: !canReplicateFlag || !replicateFlag,
             onClick: () => setShowReplicateFile(true)

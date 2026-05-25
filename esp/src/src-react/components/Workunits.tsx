@@ -23,7 +23,6 @@ import { FluentPagedGrid, FluentPagedFooter, useCopyButtons, useFluentStoreState
 import { Fields } from "./forms/Fields";
 import { Filter } from "./forms/Filter";
 import { ZAPImport } from "./forms/ZAPImport";
-import { ShortVerticalDivider } from "./Common";
 import { SashaService, WsSasha } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
 
@@ -203,7 +202,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshTable.call()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
             onClick: () => {
@@ -220,7 +219,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
             key: "delete", text: nlsHPCC.Delete, disabled: !uiState.hasNotProtected, iconProps: { iconName: "Delete" },
             onClick: () => setShowDeleteConfirm(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "setFailed", text: nlsHPCC.SetToFailed, disabled: !uiState.hasNotProtected,
             onClick: () => { WsWorkunits.WUAction(selection, "SetToFailed").then(() => refreshTable.call()); }
@@ -229,7 +228,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
             key: "abort", text: nlsHPCC.Abort, disabled: !uiState.hasNotCompleted,
             onClick: () => setShowAbortConfirm(true)
         },
-        { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_3", itemType: ContextualMenuItemType.Divider },
         {
             key: "restore", text: nlsHPCC.Restore, disabled: !(filter.Type === true && uiState.hasSelection),
             onClick: () => {
@@ -256,7 +255,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                 WsWorkunits.WUAction(selection, "Unprotect").then(() => refreshTable.call());
             }
         },
-        { key: "divider_4", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_4", itemType: ContextualMenuItemType.Divider },
         {
             key: "filter", text: nlsHPCC.Filter, disabled: !!store, iconProps: { iconName: hasFilter ? "FilterSolid" : "Filter" },
             onClick: () => { setShowFilter(true); }
@@ -272,7 +271,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                 pushParams(filter);
             }
         },
-        { key: "divider_5", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_5", itemType: ContextualMenuItemType.Divider },
         {
             key: "timeline", text: nlsHPCC.Timeline, canCheck: true, checked: showTimeline, iconProps: { iconName: "TimelineProgress" },
             onClick: () => {

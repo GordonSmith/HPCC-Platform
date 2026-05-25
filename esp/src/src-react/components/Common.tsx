@@ -1,9 +1,5 @@
-import * as React from "react";
-import { Divider } from "@fluentui/react-components";
 import * as Utility from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
-
-export const ShortVerticalDivider = () => <Divider vertical style={{ paddingTop: "20%", height: "60%" }} />;
 
 export function createCopyDownloadSelection(columns, selection: any, filename: string) {
     return [{

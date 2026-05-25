@@ -5,7 +5,6 @@ import { scopedLogger } from "@hpcc-js/util";
 import { pushUrl } from "../util/history";
 import { TableGroup } from "./forms/Groups";
 import { useConfirm } from "../hooks/confirm";
-import { ShortVerticalDivider } from "./Common";
 import * as ESPQuery from "src/ESPQuery";
 import * as WsWorkunits from "src/WsWorkunits";
 import nlsHPCC from "src/nlsHPCC";
@@ -70,7 +69,7 @@ export const QuerySummary: React.FunctionComponent<QuerySummaryProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => { query?.refresh(); }
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "save", text: nlsHPCC.Save, iconProps: { iconName: "Save" }, disabled: !canSave,
             onClick: () => {
@@ -93,7 +92,7 @@ export const QuerySummary: React.FunctionComponent<QuerySummaryProps> = ({
             key: "delete", text: nlsHPCC.Delete, iconProps: { iconName: "Delete" },
             onClick: () => setShowDeleteConfirm(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "reset", text: nlsHPCC.Reset, onClick: () => setShowResetConfirm(true)
         },

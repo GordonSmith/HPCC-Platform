@@ -10,7 +10,6 @@ import { useConfirm } from "../hooks/confirm";
 import { useFile, useSubfiles } from "../hooks/file";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
-import { ShortVerticalDivider } from "./Common";
 import { pushUrl } from "../util/history";
 
 const defaultUIState = {
@@ -143,7 +142,7 @@ export const SubFiles: React.FunctionComponent<SubFilesProps> = ({
                 }
             }
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "delete", text: nlsHPCC.RemoveSubfiles, iconProps: { iconName: "Delete" }, disabled: !uiState.hasSelection,
             onClick: () => setShowDeleteSubfilesConfirm(true)

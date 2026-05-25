@@ -14,24 +14,44 @@
  */
 import * as React from "react";
 import {
+    makeStyles,
     Menu,
     MenuItem,
     MenuList,
     MenuPopover,
     MenuTrigger,
+    Overflow,
+    OverflowItem,
     Toolbar,
     ToolbarButton,
     ToolbarDivider,
+    ToolbarGroup,
+    useIsOverflowItemVisible,
+    useOverflowMenu,
 } from "@fluentui/react-components";
 import {
     ArrowClockwise16Regular, ArrowDownload16Regular, ArrowLeft16Regular, ArrowRight16Regular,
     ArrowUpload16Regular, AutoFitWidth20Regular, CheckmarkCircle16Regular, CodeBlock16Regular,
     ContactCard16Regular, Copy16Regular, DataBarVertical16Regular, Delete16Regular,
     Dismiss16Regular, Eye16Regular, LockClosed16Regular, LockOpen16Regular,
-    Maximize16Regular, Save16Regular, Settings16Regular, TableLink16Regular,
+    Maximize16Regular, MoreHorizontal16Regular, Save16Regular, Settings16Regular, TableLink16Regular,
     TableRegular, TextBulletListRegular, Timeline20Regular, TopSpeed16Regular,
     WindowEdit16Regular, ZoomFit16Regular, ZoomFit20Regular, ZoomIn16Regular, ZoomOut16Regular,
 } from "@fluentui/react-icons";
+
+const useStyles = makeStyles({
+    toolbar: {
+        justifyContent: "space-between",
+    },
+    itemsGroup: {
+        flex: "1 1 0",
+        overflow: "hidden",
+        minWidth: "0",
+    },
+    farItemsGroup: {
+        flex: "0 0 auto",
+    },
+});
 
 // ─── Local type replacing @fluentui/react ICommandBarItemProps ────────────────
 export interface ICommandBarItemProps {
@@ -128,7 +148,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
         return <React.Fragment key={item.key}>{item.onRender(item as any, () => undefined) as any}</React.Fragment>;
     }
     if (item.itemType === ContextualMenuItemType.Divider) {
-        return <ToolbarDivider key={item.key} />;
+        return <ToolbarDivider />;
     }
     const icon = renderIcon(item.iconProps?.iconName, item.iconElement);
     const title = item.iconOnly ? item.text : undefined;
@@ -137,7 +157,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
     if (item.subMenuProps) {
         return <Menu key={item.key}>
             <MenuTrigger disableButtonEnhancement>
-                <ToolbarButton role="menuitem" icon={icon} disabled={item.disabled} disabledFocusable={item.disabled} title={title}>{label}</ToolbarButton>
+                <ToolbarButton role="menuitem" icon={icon} disabled={item.disabled} disabledFocusable={item.disabled} title={title} style={{ whiteSpace: "nowrap" }}>{label}</ToolbarButton>
             </MenuTrigger>
             <MenuPopover>
                 <MenuList>
@@ -158,6 +178,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
             disabledFocusable={item.disabled}
             title={title}
             appearance={item.checked ? "primary" : undefined}
+            style={{ whiteSpace: "nowrap" }}
             onClick={item.onClick as any}
         >
             {label}
@@ -173,6 +194,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
             disabled={item.disabled}
             disabledFocusable={item.disabled}
             title={title}
+            style={{ whiteSpace: "nowrap" }}
         >
             {label}
         </ToolbarButton>;
@@ -183,20 +205,81 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
         icon={icon}
         disabled={item.disabled}
         disabledFocusable={item.disabled}
+        appearance="transparent"
         title={title}
+        style={{ whiteSpace: "nowrap" }}
         onClick={item.onClick as any}
     >
         {label}
     </ToolbarButton>;
 }
 
+const OverflowMenuEntry: React.FunctionComponent<{ item: ICommandBarItemProps }> = ({ item }) => {
+    const isVisible = useIsOverflowItemVisible(item.key);
+    if (isVisible || item.hidden || item.itemType === ContextualMenuItemType.Divider) return null;
+    return (
+        <MenuItem
+            icon={renderIcon(item.iconProps?.iconName, item.iconElement)}
+            disabled={item.disabled}
+            onClick={item.onClick as any}
+        >
+            {item.text}
+        </MenuItem>
+    );
+};
+
+const ToolbarOverflowMenu: React.FunctionComponent<{ items: ICommandBarItemProps[] }> = ({ items }) => {
+    const { ref, isOverflowing } = useOverflowMenu<HTMLButtonElement>();
+    return (
+        <Menu>
+            <MenuTrigger disableButtonEnhancement>
+                <ToolbarButton
+                    ref={ref}
+                    icon={<MoreHorizontal16Regular />}
+                    aria-label="More items"
+                    style={{ display: isOverflowing ? undefined : "none" }}
+                />
+            </MenuTrigger>
+            {isOverflowing && (
+                <MenuPopover>
+                    <MenuList>
+                        {items.map(item => <OverflowMenuEntry key={item.key} item={item} />)}
+                    </MenuList>
+                </MenuPopover>
+            )}
+        </Menu>
+    );
+};
+
 export const CommandBar: React.FunctionComponent<CommandBarV9Props> = ({ items, farItems }) => {
-    // role="menubar" preserves the v8 CommandBar ARIA contract (Playwright tests
-    // query getByRole("menubar") / getByRole("menuitem")). v9 Toolbar's default
-    // role is "toolbar" which would break those locators.
-    return <Toolbar role="menubar" size="small" style={{ display: "flex", alignItems: "center" }}>
-        {items.map(renderItem)}
-        {farItems && farItems.length > 0 && <div style={{ flex: 1 }} />}
-        {farItems?.map(renderItem)}
+    const styles = useStyles();
+    return <Toolbar role="menubar" className={styles.toolbar}>
+        <Overflow padding={40}>
+            <ToolbarGroup role="presentation" className={styles.itemsGroup}>
+                {items.map(item => {
+                    if (item.hidden || item.onRender) {
+                        return renderItem(item);
+                    }
+                    if (item.subMenuProps) {
+                        return (
+                            <OverflowItem key={item.key} id={item.key}>
+                                <span style={{ display: "inline-flex" }}>
+                                    {renderItem(item)}
+                                </span>
+                            </OverflowItem>
+                        );
+                    }
+                    return (
+                        <OverflowItem key={item.key} id={item.key}>
+                            {renderItem(item) as React.ReactElement}
+                        </OverflowItem>
+                    );
+                })}
+                <ToolbarOverflowMenu items={items} />
+            </ToolbarGroup>
+        </Overflow>
+        <ToolbarGroup role="presentation" className={styles.farItemsGroup}>
+            {farItems?.map(renderItem)}
+        </ToolbarGroup>
     </Toolbar>;
 };

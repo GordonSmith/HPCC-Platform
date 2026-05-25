@@ -5,7 +5,6 @@ import { scopedLogger } from "@hpcc-js/util";
 import * as WsAccess from "src/ws_access";
 import nlsHPCC from "src/nlsHPCC";
 import { GroupMemberStore, CreateGroupMemberStore } from "src/ws_access";
-import { ShortVerticalDivider } from "./Common";
 import { useConfirm } from "../hooks/confirm";
 import { useBuildInfo } from "../hooks/platform";
 import { pushUrl } from "../util/history";
@@ -108,7 +107,7 @@ export const GroupMembers: React.FunctionComponent<GroupMembersProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshTable.call()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection,
             onClick: () => {
@@ -121,7 +120,7 @@ export const GroupMembers: React.FunctionComponent<GroupMembersProps> = ({
                 }
             }
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "add", text: nlsHPCC.Add,
             onClick: () => setShowAdd(true)

@@ -10,7 +10,6 @@ import { useConfirm } from "../hooks/confirm";
 import { pushUrl } from "../util/history";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
-import { ShortVerticalDivider } from "./Common";
 import { AddPackageMapPart } from "./forms/AddPackageMapPart";
 import { selector } from "./DojoGrid";
 
@@ -99,7 +98,7 @@ export const PackageMapParts: React.FunctionComponent<PackageMapPartsProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "add", text: nlsHPCC.Add,
             onClick: () => setShowAddPartForm(true)
@@ -108,7 +107,7 @@ export const PackageMapParts: React.FunctionComponent<PackageMapPartsProps> = ({
             key: "delete", text: nlsHPCC.RemovePart, disabled: !uiState.hasSelection,
             onClick: () => setShowDeleteConfirm(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "getPart", text: nlsHPCC.GetPart, disabled: !uiState.hasSelection,
             onClick: () => {

@@ -20,7 +20,6 @@ import { Fields } from "./forms/Fields";
 import { Filter } from "./forms/Filter";
 import { RemoteCopy } from "./forms/RemoteCopy";
 import { RenameFile } from "./forms/RenameFile";
-import { ShortVerticalDivider } from "./Common";
 
 const useStyles = makeStyles({
     outerWrapper: {
@@ -270,7 +269,7 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
             onClick: () => {
@@ -288,12 +287,12 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
             key: "delete", text: nlsHPCC.Delete, disabled: !uiState.hasSelection, iconProps: { iconName: "Delete" },
             onClick: () => setShowDeleteConfirm(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "remoteCopy", text: nlsHPCC.RemoteCopy,
             onClick: () => setShowRemoteCopy(true)
         },
-        { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_3", itemType: ContextualMenuItemType.Divider },
         {
             key: "copy", text: nlsHPCC.Copy, disabled: !uiState.hasSelection,
             onClick: () => setShowCopy(true)
@@ -310,7 +309,7 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
             key: "despray", text: nlsHPCC.Despray, disabled: !uiState.hasSelection,
             onClick: () => setShowDesprayFile(true)
         },
-        { key: "divider_4", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_4", itemType: ContextualMenuItemType.Divider },
         {
             key: "filter", text: nlsHPCC.Filter, disabled: !data, iconProps: { iconName: hasFilter ? "FilterSolid" : "Filter" },
             onClick: () => setShowFilter(true)
@@ -322,7 +321,7 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
                 window.location.href = "#/files";
             }
         },
-        { key: "divider_5", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_5", itemType: ContextualMenuItemType.Divider },
         {
             key: "mine", text: nlsHPCC.Mine, disabled: !currentUser?.username || !data.length, iconProps: { iconName: "Contact" }, canCheck: true, checked: filter.Owner === currentUser.username,
             onClick: () => {

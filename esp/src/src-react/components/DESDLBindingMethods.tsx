@@ -10,7 +10,6 @@ import { MemoryTreeStore } from "src/store/Tree";
 import nlsHPCC from "src/nlsHPCC";
 import * as WsESDLConfig from "src/WsESDLConfig";
 import { useGrid } from "../hooks/grid";
-import { ShortVerticalDivider } from "./Common";
 import { editor, tree } from "./DojoGrid";
 
 const logger = scopedLogger("src-react/components/ESDLBindingMethods.tsx");
@@ -132,7 +131,7 @@ export const DESDLBindingMethods: React.FunctionComponent<DESDLBindingMethodsPro
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshGrid()
         },
-        { key: "divider_4", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_4", itemType: ContextualMenuItemType.Divider },
         {
             key: "save", text: nlsHPCC.Save,
             onClick: () => saveConfiguration()

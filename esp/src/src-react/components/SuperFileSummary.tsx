@@ -7,7 +7,6 @@ import nlsHPCC from "src/nlsHPCC";
 import * as Utility from "src/Utility";
 import { useConfirm } from "../hooks/confirm";
 import { useFile } from "../hooks/file";
-import { ShortVerticalDivider } from "./Common";
 import { TableGroup } from "./forms/Groups";
 import { CopyFile } from "./forms/CopyFile";
 import { replaceUrl } from "../util/history";
@@ -69,7 +68,7 @@ export const SuperFileSummary: React.FunctionComponent<SuperFileSummaryProps> = 
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "save", text: nlsHPCC.Save, iconProps: { iconName: "Save" }, disabled: !canSave,
             onClick: () => {
@@ -87,7 +86,7 @@ export const SuperFileSummary: React.FunctionComponent<SuperFileSummaryProps> = 
             key: "delete", text: nlsHPCC.DeleteSuperfile, iconProps: { iconName: "Delete" }, disabled: !file,
             onClick: () => setShowDeleteConfirm(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "copyFile", text: nlsHPCC.Copy, disabled: !file,
             onClick: () => setShowCopyFile(true)

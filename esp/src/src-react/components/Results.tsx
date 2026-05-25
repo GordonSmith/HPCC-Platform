@@ -9,7 +9,6 @@ import { HolyGrail } from "../layouts/HolyGrail";
 import { pivotItemStyle } from "../layouts/pivot";
 import { hashHistory } from "../util/history";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
-import { ShortVerticalDivider } from "./Common";
 import { Result } from "./Result";
 import { OverflowTabList, TabInfo } from "./controls/TabbedPanes/index";
 
@@ -85,7 +84,7 @@ export const Results: React.FunctionComponent<ResultsProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
             onClick: () => {

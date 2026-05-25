@@ -11,7 +11,6 @@ import { useUserStore } from "../hooks/store";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeComponent, AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { isLayoutComplete, LayoutStatus, MetricGraph, MetricGraphWidget } from "../util/metricGraph";
-import { ShortVerticalDivider } from "./Common";
 import { BreadcrumbInfo, OverflowBreadcrumb } from "./controls/OverflowBreadcrumb";
 
 const LineageIcon = bundleIcon(Folder20Filled, Folder20Regular);
@@ -241,7 +240,7 @@ export const MetricsGraph: React.FunctionComponent<MetricsGraphProps> = ({
                 }
             }
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "tofit", title: nlsHPCC.ZoomAll, iconProps: { iconName: "ScaleVolume" },
             onClick: () => metricGraphWidget.zoomToFit()

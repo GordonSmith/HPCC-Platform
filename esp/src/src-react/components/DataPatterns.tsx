@@ -10,7 +10,6 @@ import { useFile } from "../hooks/file";
 import { useWorkunit } from "../hooks/workunit";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { Optimize } from "./forms/Optimize";
-import { ShortVerticalDivider } from "./Common";
 import { TargetClusterTextField } from "./forms/Fields";
 import { WUStatus } from "src/react/wuStatus";
 
@@ -71,7 +70,7 @@ export const DataPatterns: React.FunctionComponent<DataPatternsProps> = ({
                 refreshData(true);
             }
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "analyze", text: nlsHPCC.Analyze, iconProps: { iconName: "AnalyticsView" },
             disabled: !!wu || !file?.Ecl,
@@ -104,13 +103,13 @@ export const DataPatterns: React.FunctionComponent<DataPatternsProps> = ({
                 });
             }
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "optimize", text: nlsHPCC.Optimize,
             disabled: !isComplete,
             onClick: () => setShowOptimize(true)
         },
-        { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_3", itemType: ContextualMenuItemType.Divider },
         {
             key: "wuid", text: wuid,
             href: `#/workunits/${wuid}`,

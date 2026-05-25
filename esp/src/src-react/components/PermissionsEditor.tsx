@@ -6,7 +6,6 @@ import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
 import { useConfirm } from "../hooks/confirm";
 import { HolyGrail } from "../layouts/HolyGrail";
-import { ShortVerticalDivider } from "./Common";
 import { AddGroupResourceForm } from "./forms/AddGroupResource";
 
 const logger = scopedLogger("src-react/components/PermissionsEditor.tsx");
@@ -122,12 +121,12 @@ export const PermissionsEditor: React.FunctionComponent<PermissionsEditorProps> 
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "add", text: nlsHPCC.Add,
             onClick: () => setShowAddGroup(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "delete", text: nlsHPCC.Delete, disabled: selectedIndex < 0,
             onClick: () => setShowDeleteConfirm(true)

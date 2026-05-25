@@ -14,7 +14,6 @@ import { useLocalStore } from "../hooks/store";
 import { pushUrl, replaceUrl } from "../util/history";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { DockPanel, DockPanelItem, ResetableDockPanel } from "../layouts/DockPanel";
-import { ShortVerticalDivider } from "./Common";
 import { TableGroup } from "./forms/Groups";
 import { PublishQueryForm } from "./forms/PublishQuery";
 import { SlaveLogs } from "./forms/SlaveLogs";
@@ -149,7 +148,7 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
                 navigator?.clipboard?.writeText(JSON.stringify(parseOtTraceParent(otTraceParent)));
             }
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "save", text: nlsHPCC.Save, iconProps: { iconName: "Save" }, disabled: !canSave,
             onClick: () => {
@@ -171,7 +170,7 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
             onClick: () => workunit?.restore().catch(err => logger.error(err))
 
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "reschedule", text: nlsHPCC.Reschedule, disabled: !canReschedule,
             onClick: () => workunit?.reschedule().catch(err => logger.error(err))
@@ -180,7 +179,7 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
             key: "deschedule", text: nlsHPCC.Deschedule, disabled: !canDeschedule,
             onClick: () => workunit?.deschedule().catch(err => logger.error(err))
         },
-        { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_3", itemType: ContextualMenuItemType.Divider },
         {
             key: "setToFailed", text: nlsHPCC.SetToFailed, disabled: workunit?.Archived || workunit?.isComplete() || workunit?.isDeleted(),
             onClick: () => workunit?.setToFailed().catch(err => logger.error(err))
@@ -189,7 +188,7 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
             key: "abort", text: nlsHPCC.Abort, disabled: workunit?.Archived || workunit?.isComplete() || workunit?.isDeleted(),
             onClick: () => workunit?.abort().catch(err => logger.error(err))
         },
-        { key: "divider_4", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_4", itemType: ContextualMenuItemType.Divider },
         {
             key: "recover", text: nlsHPCC.Recover, disabled: workunit?.Archived || !workunit?.isComplete() || workunit?.isDeleted(),
             onClick: () => workunit?.resubmit().catch(err => logger.error(err))
@@ -208,17 +207,17 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
                 }).catch(err => logger.error(err));
             }
         },
-        { key: "divider_5", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_5", itemType: ContextualMenuItemType.Divider },
         {
             key: "publish", text: nlsHPCC.Publish, disabled: !canDelete,
             onClick: () => setShowPublishForm(true)
         },
-        { key: "divider_6", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_6", itemType: ContextualMenuItemType.Divider },
         {
             key: "zap", text: nlsHPCC.ZAP, disabled: !canDelete,
             onClick: () => setShowZapForm(true)
         },
-        { key: "divider_7", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_7", itemType: ContextualMenuItemType.Divider },
         {
             key: "slaveLogs", text: nlsHPCC.SlaveLogs, disabled: !workunit?.ThorLogList,
             onClick: () => setShowThorSlaveLogs(true)

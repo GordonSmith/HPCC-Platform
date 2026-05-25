@@ -2,7 +2,6 @@ import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { Link } from "@fluentui/react-components";
 import { MachineService } from "@hpcc-js/comms";
-import { ShortVerticalDivider } from "./Common";
 import * as Utility from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 import { tree } from "./DojoGrid";
@@ -110,7 +109,7 @@ export const Monitoring: React.FunctionComponent<MonitoringProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
             onClick: () => {

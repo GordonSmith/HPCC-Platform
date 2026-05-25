@@ -13,7 +13,6 @@ import { pushParams } from "../util/history";
 import { Fields } from "./forms/Fields";
 import { Filter } from "./forms/Filter";
 import { PushEventForm } from "./forms/PushEvent";
-import { ShortVerticalDivider } from "./Common";
 import { QuerySortItem } from "src/store/Store";
 import { useMyAccount } from "../hooks/user";
 
@@ -126,7 +125,7 @@ export const EventScheduler: React.FunctionComponent<EventSchedulerProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !selection.length, iconProps: { iconName: "WindowEdit" },
             onClick: () => {
@@ -143,7 +142,7 @@ export const EventScheduler: React.FunctionComponent<EventSchedulerProps> = ({
             key: "deschedule", text: nlsHPCC.Deschedule, disabled: !selection.length, iconProps: { iconName: "Delete" },
             onClick: () => setShowDescheduleConfirm(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "filter", text: nlsHPCC.Filter, disabled: !!store, iconProps: { iconName: hasFilter ? "FilterSolid" : "Filter" },
             onClick: () => setShowFilter(true)
@@ -152,7 +151,7 @@ export const EventScheduler: React.FunctionComponent<EventSchedulerProps> = ({
             key: "pushEvent", text: nlsHPCC.PushEvent,
             onClick: () => setShowPushEvent(true)
         },
-        { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_3", itemType: ContextualMenuItemType.Divider },
         {
             key: "mine", text: nlsHPCC.Mine, disabled: !currentUser?.username || !total, iconProps: { iconName: "Contact" }, canCheck: true, checked: filter["Owner"] === currentUser.username,
             onClick: () => {

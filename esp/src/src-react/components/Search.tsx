@@ -6,7 +6,6 @@ import { ESPSearch } from "src/ESPSearch";
 import nlsHPCC from "src/nlsHPCC";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
-import { ShortVerticalDivider } from "./Common";
 import { Workunits } from "./Workunits";
 import { Files } from "./Files";
 import { Queries } from "./Queries";
@@ -110,7 +109,7 @@ export const Search: React.FunctionComponent<SearchProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
             onClick: () => {

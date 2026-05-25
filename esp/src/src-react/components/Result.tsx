@@ -14,7 +14,6 @@ import { HolyGrail } from "../layouts/HolyGrail";
 import { AutosizeHpccJSComponent } from "../layouts/HpccJSAdapter";
 import { pushParams, replaceUrl } from "../util/history";
 import { getESPBaseURL } from "../util/espUrl";
-import { ShortVerticalDivider } from "./Common";
 import { Fields } from "./forms/Fields";
 import { Filter } from "./forms/Filter";
 
@@ -360,14 +359,14 @@ export const Result: React.FunctionComponent<ResultProps> = ({
                 }
             }
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "filter", text: nlsHPCC.Filter, iconProps: { iconName: hasFilter ? "FilterSolid" : "Filter" },
             onClick: () => {
                 setShowFilter(true);
             }
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "html", text: nlsHPCC.HTML, iconProps: { iconName: "FileHTML" }, canCheck: true, checked: renderHTML, disabled: !hasHtml,
             onClick: (ev, item) => {

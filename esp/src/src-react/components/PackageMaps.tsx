@@ -14,7 +14,6 @@ import { pushParams, pushUrl } from "../util/history";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { ReflexContainer, ReflexElement, ReflexSplitter } from "../layouts/react-reflex";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
-import { ShortVerticalDivider } from "./Common";
 import { Fields } from "./forms/Fields";
 import { Filter } from "./forms/Filter";
 import { AddPackageMap } from "./forms/AddPackageMap";
@@ -281,7 +280,7 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection,
             onClick: () => {
@@ -302,7 +301,7 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
             key: "delete", text: nlsHPCC.Delete, disabled: !uiState.hasSelection,
             onClick: () => setShowDeleteConfirm(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "activate", text: nlsHPCC.Activate, disabled: selection.length !== 1,
             onClick: () => {
@@ -342,7 +341,7 @@ export const PackageMaps: React.FunctionComponent<PackageMapsProps> = ({
                     });
             }
         },
-        { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_3", itemType: ContextualMenuItemType.Divider },
         {
             key: "filter", text: nlsHPCC.Filter, disabled: !!store, iconProps: { iconName: hasFilter ? "FilterSolid" : "Filter" },
             onClick: () => {

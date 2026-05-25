@@ -11,7 +11,6 @@ import { HolyGrail } from "../layouts/HolyGrail";
 import { DockPanel, DockPanelItem, ResetableDockPanel } from "../layouts/DockPanel";
 import { AutosizeComponent } from "../layouts/HpccJSAdapter";
 import { pushUrl } from "../util/history";
-import { ShortVerticalDivider } from "./Common";
 import { ECLArchiveTree } from "./ECLArchiveTree";
 import { ECLArchiveEditor } from "./ECLArchiveEditor";
 import { MetricsPropertiesTables } from "./MetricsPropertiesTables";
@@ -106,7 +105,7 @@ export const ECLArchive: React.FunctionComponent<ECLArchiveProps> = ({
                 pushUrl(`${parentUrl}`);
             }
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
     ], [parentUrl, refreshArchive, refreshMetrics]);
 
     const rightButtons = React.useMemo((): ICommandBarItemProps[] => [

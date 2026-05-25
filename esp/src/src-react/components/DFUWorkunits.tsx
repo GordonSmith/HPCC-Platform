@@ -16,7 +16,6 @@ import { pushParams } from "../util/history";
 import { FluentPagedGrid, FluentPagedFooter, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 import { Filter } from "./forms/Filter";
 import { Fields } from "./forms/Fields";
-import { ShortVerticalDivider } from "./Common";
 import { selector } from "./DojoGrid";
 import { SashaService, WsSasha } from "@hpcc-js/comms";
 import { scopedLogger } from "@hpcc-js/util";
@@ -198,7 +197,7 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshTable.call()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
             onClick: () => {
@@ -215,12 +214,12 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
             key: "delete", text: nlsHPCC.Delete, disabled: !uiState.hasNotProtected, iconProps: { iconName: "Delete" },
             onClick: () => setShowDeleteConfirm(true)
         },
-        { key: "divider_2", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_2", itemType: ContextualMenuItemType.Divider },
         {
             key: "setFailed", text: nlsHPCC.SetToFailed, disabled: !uiState.hasNotProtected,
             onClick: () => { FileSpray.DFUWorkunitsAction(selection, "SetToFailed"); }
         },
-        { key: "divider_3", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_3", itemType: ContextualMenuItemType.Divider },
         {
             key: "restore", text: nlsHPCC.Restore, disabled: !uiState.hasSelection,
             onClick: () => {
@@ -245,7 +244,7 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
             key: "unprotect", text: nlsHPCC.Unprotect, disabled: !uiState.hasProtected,
             onClick: () => { FileSpray.DFUWorkunitsAction(selection, "Unprotect").then(() => refreshTable.call()); }
         },
-        { key: "divider_4", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_4", itemType: ContextualMenuItemType.Divider },
         {
             key: "filter", text: nlsHPCC.Filter, disabled: !!store, iconProps: { iconName: hasFilter ? "FilterSolid" : "Filter" },
             onClick: () => {

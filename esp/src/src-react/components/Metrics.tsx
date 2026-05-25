@@ -16,7 +16,6 @@ import { DockPanel, DockPanelItem, ResetableDockPanel } from "../layouts/DockPan
 import { pushUrl, replaceUrl } from "../util/history";
 import { debounce } from "../util/throttle";
 import { ErrorBoundary } from "../util/errorBoundary";
-import { ShortVerticalDivider } from "./Common";
 import { MetricsOptions } from "./MetricsOptions";
 import { MetricsPropertiesTables } from "./MetricsPropertiesTables";
 import { MetricsSQL } from "./MetricsSQL";
@@ -353,7 +352,7 @@ export const Metrics: React.FunctionComponent<MetricsProps> = ({
             key: "hotspot", text: nlsHPCC.Hotspots, hidden: logicalGraph, iconProps: { iconName: "SpeedHigh" },
             disabled: !hotspots, onClick: () => onHotspot()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "views", text: viewId, hidden: logicalGraph, iconProps: { iconName: "View" },
             subMenuProps: {

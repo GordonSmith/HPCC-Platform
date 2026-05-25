@@ -10,7 +10,6 @@ import { HolyGrail } from "../layouts/HolyGrail";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
 import { Fields } from "./forms/Fields";
 import { Filter } from "./forms/Filter";
-import { ShortVerticalDivider } from "./Common";
 
 const FilterFields: Fields = {
     "Name": { type: "string", label: nlsHPCC.Name, placeholder: nlsHPCC.TargetNamePlaceholder },
@@ -84,7 +83,7 @@ export const SourceFiles: React.FunctionComponent<SourceFilesProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
             key: "open", text: nlsHPCC.Open, disabled: !uiState.hasSelection, iconProps: { iconName: "WindowEdit" },
             onClick: () => {

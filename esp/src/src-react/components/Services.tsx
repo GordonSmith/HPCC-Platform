@@ -6,7 +6,6 @@ import nlsHPCC from "src/nlsHPCC";
 import { HolyGrail } from "../layouts/HolyGrail";
 import { useServices } from "../hooks/resources";
 import { FluentGrid, useCopyButtons, useFluentStoreState, FluentColumns } from "./controls/Grid";
-import { ShortVerticalDivider } from "./Common";
 
 interface ServicesProps {
 }
@@ -38,7 +37,7 @@ export const Services: React.FunctionComponent<ServicesProps> = ({
             key: "refresh", text: nlsHPCC.Refresh, iconProps: { iconName: "Refresh" },
             onClick: () => refreshData()
         },
-        { key: "divider_1", itemType: ContextualMenuItemType.Divider, onRender: () => <ShortVerticalDivider /> },
+        { key: "divider_1", itemType: ContextualMenuItemType.Divider },
     ], [refreshData]);
 
     const copyButtons = useCopyButtons(columns, selection, "services");
