@@ -124,6 +124,7 @@ export = {
         CodeGenerator: "Code Generator",
         Col: "Col",
         CollapseAll: "Collapse All",
+        ColourTokens: "Colour Tokens",
         Columns: "Columns",
         ColumnMode: "Column Mode",
         Command: "Command",

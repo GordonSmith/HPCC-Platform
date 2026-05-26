@@ -1,6 +1,5 @@
 import * as React from "react";
-import { mergeStyleSets } from "@fluentui/style-utilities";
-import { Button, Link, Menu, MenuItem, MenuList, MenuPopover, MenuTrigger, SplitButton, ToggleButton, makeStyles, tokens } from "@fluentui/react-components";
+import { Button, Link, Menu, MenuButton, MenuItem, MenuList, MenuPopover, MenuTrigger, SplitButton, ToggleButton, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
 import { NavDrawer, NavDrawerBody, NavDrawerFooter, NavItem } from "@fluentui/react-nav-preview";
 import {
     Home20Filled, Home20Regular, TextGrammarLightning20Filled, TextGrammarLightning20Regular,
@@ -9,9 +8,10 @@ import {
     Organization20Filled, Organization20Regular,
     ShieldBadge20Filled, ShieldBadge20Regular,
     WeatherSunnyRegular, WeatherMoonRegular,
-    ChevronLeft20Regular, ChevronRight20Regular,
     History20Regular, Star20Filled, Star20Regular,
-    bundleIcon, FluentIcon
+    bundleIcon, FluentIcon,
+    ArrowCircleDownRegular,
+    ArrowCircleUpRegular
 } from "@fluentui/react-icons";
 import nlsHPCC from "src/nlsHPCC";
 import { containerized, bare_metal } from "src/BuildInfo";
@@ -362,6 +362,53 @@ export const MainNavigation: React.FunctionComponent<MainNavigationProps> = ({
 
 //  Second Level Nav  ---
 
+const useSubNavStyles = makeStyles({
+    wrapper: {
+        marginLeft: "4px",
+        display: "flex",
+        alignItems: "center",
+    },
+    link: {
+        backgroundColor: tokens.colorNeutralBackground1,
+        color: tokens.colorNeutralForeground1,
+        display: "inline-block",
+        margin: "2px",
+        padding: "0 10px",
+        fontSize: "14px",
+        textDecorationLine: "none",
+        ":hover": {
+            backgroundColor: tokens.colorBrandBackground,
+            color: tokens.colorNeutralBackground1,
+            textDecorationLine: "none",
+        },
+        ":focus": {
+            color: tokens.colorNeutralForeground1,
+        },
+        ":active": {
+            color: tokens.colorNeutralForeground1,
+            textDecorationLine: "none",
+        },
+        ":focus:hover": {
+            color: tokens.colorNeutralBackground1,
+        },
+        ":active:hover": {
+            color: tokens.colorNeutralBackground1,
+            textDecorationLine: "none",
+        },
+    },
+    active: {
+        backgroundColor: tokens.colorBrandBackground,
+        color: tokens.colorNeutralForegroundOnBrand,
+        ":focus": {
+            color: tokens.colorNeutralForegroundOnBrand,
+        },
+    },
+    disabled: {
+        backgroundColor: tokens.colorNeutralBackgroundDisabled,
+        color: tokens.colorNeutralForegroundDisabled,
+    },
+});
+
 interface SubNavigationProps {
     hashPath: string;
 }
@@ -392,58 +439,9 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
         return subNavSelectedKey(hashPath);
     }, [hashPath]);
 
-    const navStyles = React.useMemo(() => mergeStyleSets({
-        wrapper: {
-            marginLeft: 4,
-        },
-        link: {
-            background: tokens.colorNeutralBackground1,
-            color: tokens.colorNeutralForeground1,
-            display: "inline-block",
-            margin: 2,
-            padding: "0 10px",
-            fontSize: 14,
-            textDecoration: "none",
-            selectors: {
-                ":hover": {
-                    background: tokens.colorBrandBackground,
-                    color: tokens.colorNeutralBackground1,
-                    textDecoration: "none",
-                },
-                ":focus": {
-                    color: tokens.colorNeutralForeground1
-                },
-                ":active": {
-                    color: tokens.colorNeutralForeground1,
-                    textDecoration: "none"
-                },
-                ":focus:hover": {
-                    color: tokens.colorNeutralBackground1,
-                },
-                ":active:hover": {
-                    color: tokens.colorNeutralBackground1,
-                    textDecoration: "none"
-                }
-            }
-        },
-        active: {
-            background: tokens.colorBrandBackground,
-            color: tokens.colorNeutralBackground1,
-            selectors: {
-                ":focus": {
-                    color: tokens.colorNeutralBackground1
-                }
-            }
-        }
-    }), []);
+    const navStyles = useSubNavStyles();
 
     const { logsEnabled, logsStatusMessage } = useLogAccessInfo();
-    const linkStyle = React.useCallback((disabled) => {
-        return disabled ? {
-            background: tokens.colorNeutralBackgroundDisabled,
-            color: tokens.colorNeutralForegroundDisabled
-        } : {};
-    }, []);
 
     const favoriteMenu: HistoryItem[] = React.useMemo(() => {
         const retVal: HistoryItem[] = [];
@@ -481,12 +479,11 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
                                 title={row.itemKey === "/topology/logs" && !logsEnabled ? logsStatusMessage : ""}
                                 key={`MenuLink_${idx}`}
                                 href={`#${row.itemKey}`}
-                                className={[
+                                className={mergeClasses(
                                     navStyles.link,
-                                    row.itemKey === subNav ? navStyles.active : "",
-                                    !subNav && row.itemKey === "/topology/configuration" ? navStyles.active : ""
-                                ].join(" ")}
-                                style={linkStyle(linkDisabled)}
+                                    (row.itemKey === subNav || (!subNav && row.itemKey === "/topology/configuration")) ? navStyles.active : undefined,
+                                    linkDisabled ? navStyles.disabled : undefined
+                                )}
                             >
                                 {row.headerText}
                             </Link>;
@@ -503,11 +500,11 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
                 </div>
             </div>
             <div style={{ alignSelf: "center" }}>
-                {nextPrev?.next && <Button appearance="transparent" title={nlsHPCC.NextWorkunit} icon={<ChevronRight20Regular />} onClick={() => nextPrev.next()} />}
-                {nextPrev?.previous && <Button appearance="transparent" title={nlsHPCC.PreviousWorkunit} icon={<ChevronLeft20Regular />} onClick={() => nextPrev.previous()} />}
+                {nextPrev?.next && <Button appearance="transparent" title={nlsHPCC.NextWorkunit} icon={<ArrowCircleDownRegular />} onClick={() => nextPrev.next()} />}
+                {nextPrev?.previous && <Button appearance="transparent" title={nlsHPCC.PreviousWorkunit} icon={<ArrowCircleUpRegular />} onClick={() => nextPrev.previous()} />}
                 <Menu>
-                    <MenuTrigger disableButtonEnhancement>
-                        <Button appearance="transparent" title={nlsHPCC.History} icon={<History20Regular />} />
+                    <MenuTrigger>
+                        <MenuButton appearance="transparent" title={nlsHPCC.History} icon={<History20Regular />} />
                     </MenuTrigger>
                     <MenuPopover>
                         <MenuList>

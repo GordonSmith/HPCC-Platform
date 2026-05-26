@@ -42,14 +42,21 @@ import {
 const useStyles = makeStyles({
     toolbar: {
         justifyContent: "space-between",
+        gap: "0",
     },
     itemsGroup: {
         flex: "1 1 0",
         overflow: "hidden",
         minWidth: "0",
+        gap: "0",
     },
     farItemsGroup: {
         flex: "0 0 auto",
+        gap: "0",
+    },
+    button: {
+        paddingInline: "6px",
+        minWidth: "auto",
     },
 });
 
@@ -142,7 +149,7 @@ function renderSubMenuItem(sub: ICommandBarItemProps): React.ReactNode {
     </MenuItem>;
 }
 
-function renderItem(item: ICommandBarItemProps): React.ReactNode {
+function renderItem(item: ICommandBarItemProps, buttonClassName?: string): React.ReactNode {
     if (item.hidden) return null;
     if (item.onRender) {
         return <React.Fragment key={item.key}>{item.onRender(item as any, () => undefined) as any}</React.Fragment>;
@@ -157,7 +164,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
     if (item.subMenuProps) {
         return <Menu key={item.key}>
             <MenuTrigger disableButtonEnhancement>
-                <ToolbarButton role="menuitem" icon={icon} disabled={item.disabled} disabledFocusable={item.disabled} title={title} style={{ whiteSpace: "nowrap" }}>{label}</ToolbarButton>
+                <ToolbarButton role="menuitem" icon={icon} disabled={item.disabled} disabledFocusable={item.disabled} title={title} className={buttonClassName} style={{ whiteSpace: "nowrap" }}>{label}</ToolbarButton>
             </MenuTrigger>
             <MenuPopover>
                 <MenuList>
@@ -167,9 +174,6 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
         </Menu>;
     }
     if (item.canCheck) {
-        // Render as a ToolbarButton that visually reflects the checked state via
-        // the v9 `primary` appearance; ToolbarToggleButton requires parent-managed
-        // checkedValues which would change the call-site contract.
         return <ToolbarButton
             key={item.key}
             role="menuitem"
@@ -178,6 +182,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
             disabledFocusable={item.disabled}
             title={title}
             appearance={item.checked ? "primary" : undefined}
+            className={buttonClassName}
             style={{ whiteSpace: "nowrap" }}
             onClick={item.onClick as any}
         >
@@ -194,6 +199,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
             disabled={item.disabled}
             disabledFocusable={item.disabled}
             title={title}
+            className={buttonClassName}
             style={{ whiteSpace: "nowrap" }}
         >
             {label}
@@ -207,6 +213,7 @@ function renderItem(item: ICommandBarItemProps): React.ReactNode {
         disabledFocusable={item.disabled}
         appearance="transparent"
         title={title}
+        className={buttonClassName}
         style={{ whiteSpace: "nowrap" }}
         onClick={item.onClick as any}
     >
@@ -258,20 +265,20 @@ export const CommandBar: React.FunctionComponent<CommandBarV9Props> = ({ items, 
             <ToolbarGroup role="presentation" className={styles.itemsGroup}>
                 {items.map(item => {
                     if (item.hidden || item.onRender) {
-                        return renderItem(item);
+                        return renderItem(item, styles.button);
                     }
                     if (item.subMenuProps) {
                         return (
                             <OverflowItem key={item.key} id={item.key}>
                                 <span style={{ display: "inline-flex" }}>
-                                    {renderItem(item)}
+                                    {renderItem(item, styles.button)}
                                 </span>
                             </OverflowItem>
                         );
                     }
                     return (
                         <OverflowItem key={item.key} id={item.key}>
-                            {renderItem(item) as React.ReactElement}
+                            {renderItem(item, styles.button) as React.ReactElement}
                         </OverflowItem>
                     );
                 })}
@@ -279,7 +286,7 @@ export const CommandBar: React.FunctionComponent<CommandBarV9Props> = ({ items, 
             </ToolbarGroup>
         </Overflow>
         <ToolbarGroup role="presentation" className={styles.farItemsGroup}>
-            {farItems?.map(renderItem)}
+            {farItems?.map(item => renderItem(item, styles.button))}
         </ToolbarGroup>
     </Toolbar>;
 };

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { mergeStyleSets } from "@fluentui/style-utilities";
 import { Button, ButtonProps, CounterBadgeProps, CounterBadge, Link, Menu, MenuDivider, MenuItem, MenuList, MenuPopover, MenuTrigger, Persona, SearchBox, Text, Toaster, tokens } from "@fluentui/react-components";
-import { Alert24Filled, Alert24Regular, Apps24Regular, CheckmarkRegular, Navigation24Regular, WindowNewRegular } from "@fluentui/react-icons";
+import { Alert24Filled, Alert24Regular, CheckmarkRegular, GridDotsRegular, Navigation24Regular, WindowNewRegular } from "@fluentui/react-icons";
 import { Level, scopedLogger } from "@hpcc-js/util";
 import { cookie } from "src-dojo/index";
 
@@ -13,6 +13,7 @@ import { useConfirm } from "../hooks/confirm";
 import { replaceUrl } from "../util/history";
 import { useECLWatchLogger } from "../hooks/logging";
 import { useBuildInfo, useModernMode, useCheckFeatures } from "../hooks/platform";
+import { cmake_build_type } from "src/BuildInfo";
 import { useGlobalStore } from "../hooks/store";
 import { PasswordStatus, useMyAccount, useUserSession } from "../hooks/user";
 
@@ -21,6 +22,7 @@ import { switchTechPreview } from "./controls/ComingSoon";
 import { About } from "./About";
 import { MyAccount } from "./MyAccount";
 import { LogViewerDialog } from "./LogViewerDialog";
+import { ColourTokens } from "./ColourTokens";
 import { debounce } from "../util/throttle";
 
 const logger = scopedLogger("src-react/components/Title.tsx");
@@ -62,6 +64,7 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
     const { currentUser, isAdmin } = useMyAccount();
 
     const [showTitlebarConfig, setShowTitlebarConfig] = React.useState(false);
+    const [showColourTokens, setShowColourTokens] = React.useState(false);
     const [showEnvironmentTitle] = useGlobalStore("HPCCPlatformWidget_Toolbar_Active", false, true);
     const [environmentTitle] = useGlobalStore("HPCCPlatformWidget_Toolbar_Text", undefined, true);
     const [titlebarColor] = useGlobalStore("HPCCPlatformWidget_Toolbar_Color", undefined, true);
@@ -258,13 +261,13 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
         }
     }, [currentUser, setPasswordExpiredConfirm]);
 
-    return <div style={{ backgroundColor: titlebarColorSet ? titlebarColor : tokens.colorBrandBackground2 }}>
+    return <div style={{ backgroundColor: titlebarColorSet ? titlebarColor : tokens.colorBrandBackground2Hover }}>
         <BannerMessageBar />
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ alignSelf: "center" }}>
                 <div style={{ display: "flex", flexDirection: "row" }}>
-                    <div>
-                        <Button appearance="transparent" icon={<Apps24Regular />} onClick={() => setNavWideMode(!navWideMode)} style={{ width: 48, height: 48, color: titlebarColorSet ? Utility.textColor(titlebarColor) : tokens.colorBrandForeground2 }} />
+                    <div style={{ width: 48, height: 48, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                        <Button appearance="transparent" icon={<GridDotsRegular />} onClick={() => setNavWideMode(!navWideMode)} style={{ color: titlebarColorSet ? Utility.textColor(titlebarColor) : tokens.colorBrandForeground2 }} />
                     </div>
                     <div style={{ alignSelf: "center" }}>
                         <Link href="#/activities">
@@ -290,11 +293,12 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
                         </div>
                     }
                     <div style={{ alignSelf: "center" }}>
-                        <Button onClick={() => setShowLogViewer(true)} title={nlsHPCC.ErrorWarnings} icon={logCount > 0 ? <Alert24Filled /> : <Alert24Regular />} className={btnStyles.errorsWarnings}>
+                        <Button size="small" appearance="transparent" onClick={() => setShowLogViewer(true)} title={nlsHPCC.ErrorWarnings} icon={logCount > 0 ? <Alert24Filled /> : <Alert24Regular />} className={btnStyles.errorsWarnings}>
                             <CounterBadge appearance="filled" size="small" color={logIconColor} count={logCount} />
                         </Button>
                     </div>
-                    <div style={{ alignSelf: "center" }}>
+                    {/* <div style={{ alignSelf: "center" }}> */}
+                    <div style={{ width: 40, height: 48, display: "flex", justifyContent: "center", alignItems: "center" }}>
                         <Menu>
                             <MenuTrigger disableButtonEnhancement>
                                 <Button appearance="transparent" icon={<Navigation24Regular />} title={nlsHPCC.Advanced} style={{ color: titlebarColorSet ? Utility.textColor(titlebarColor) : tokens.colorBrandForeground2 }} />
@@ -328,6 +332,8 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
                                     <MenuDivider />
                                     <MenuItem onClick={() => { window.location.href = "/esp/files/index.html#/reset"; }}>{nlsHPCC.ResetUserSettings}</MenuItem>
                                     <MenuItem onClick={() => setShowAbout(true)}>{nlsHPCC.About}</MenuItem>
+                                    {cmake_build_type === "Debug" && <MenuDivider />}
+                                    {cmake_build_type === "Debug" && <MenuItem onClick={() => setShowColourTokens(true)}>{nlsHPCC.ColourTokens}</MenuItem>}
                                 </MenuList>
                             </MenuPopover>
                         </Menu>
@@ -337,6 +343,7 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
             </div>
         </div>
         <About eclwatchVersion="9" show={showAbout} onClose={() => setShowAbout(false)} ></About>
+        <ColourTokens show={showColourTokens} onClose={() => setShowColourTokens(false)} />
         <MyAccount currentUser={currentUser} show={showMyAccount} onClose={() => setShowMyAccount(false)}></MyAccount>
         <LogViewerDialog show={showLogViewer} onClose={() => setShowLogViewer(false)} />
         <TitlebarConfig showForm={showTitlebarConfig} setShowForm={setShowTitlebarConfig} />
