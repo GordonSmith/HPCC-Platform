@@ -170,7 +170,7 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
                 selectorType: "checkbox"
             },
             IsProtected: {
-                headerIcon: "LockSolid",
+                headerIconElement: <LockClosedFilled aria-label={nlsHPCC.Protected} />,
                 width: 25,
                 sortable: false,
                 formatter: (_protected) => {
@@ -181,7 +181,7 @@ export const Scopes: React.FunctionComponent<ScopesProps> = ({
                 }
             },
             IsCompressed: {
-                headerIcon: "ZipFolder",
+                headerIconElement: <FolderZipRegular aria-label={nlsHPCC.Compressed} />,
                 width: 25,
                 sortable: false,
                 formatter: (compressed) => {

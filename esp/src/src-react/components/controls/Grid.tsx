@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell, TableSelectionCell, TableResizeHandle, Tooltip, Select, SkeletonItem, makeStyles, tokens } from "@fluentui/react-components";
+import { Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell, TableSelectionCell, TableResizeHandle, Tooltip, Dropdown, Option, SkeletonItem, makeStyles, tokens } from "@fluentui/react-components";
 import { ICommandBarItemProps } from "../CommandBarV9";
-import { mergeStyleSets } from "@fluentui/style-utilities";
+
 
 // ─── Local replacements for @fluentui/react exports ─────────────────────────
 
@@ -127,6 +127,7 @@ interface IColumn {
 export interface IDetailsRowProps {
     item: any;
     itemIndex: number;
+    overlayElement?: React.ReactNode;
     _internal?: {
         columns: IColumn[];
         selectionMode: SelectionMode;
@@ -166,7 +167,7 @@ const useGridStyles = makeStyles({
     },
 });
 
-export const DetailsRow: React.FunctionComponent<IDetailsRowProps> = ({ item, itemIndex, _internal }) => {
+export const DetailsRow: React.FunctionComponent<IDetailsRowProps> = ({ item, itemIndex, _internal, overlayElement }) => {
     const styles = useGridStyles();
     if (!_internal) return null;
     const { columns, selectionMode, isSelected, onToggle } = _internal;
@@ -174,24 +175,26 @@ export const DetailsRow: React.FunctionComponent<IDetailsRowProps> = ({ item, it
         className={styles.row}
         aria-selected={isSelected}
         onClick={selectionMode !== SelectionMode.none ? onToggle : undefined}
-        style={{ cursor: selectionMode !== SelectionMode.none ? "pointer" : "default" }}
+        style={{ position: "relative", cursor: selectionMode !== SelectionMode.none ? "pointer" : "default" }}
     >
         {selectionMode === SelectionMode.multiple && (
-            <TableSelectionCell type="checkbox" checked={isSelected} style={{ width: 32, minWidth: 32, maxWidth: 32 }} onClick={e => { e.stopPropagation(); onToggle(); }} />
+            <TableSelectionCell type="checkbox" checked={isSelected} style={{ width: 32, minWidth: 32, maxWidth: 32, borderRight: "1px solid var(--colorNeutralBackground5)" }} onClick={e => { e.stopPropagation(); onToggle(); }} />
         )}
         {selectionMode === SelectionMode.single && (
-            <TableSelectionCell type="radio" checked={isSelected} style={{ width: 32, minWidth: 32, maxWidth: 32 }} onClick={e => { e.stopPropagation(); onToggle(); }} />
+            <TableSelectionCell type="radio" checked={isSelected} style={{ width: 32, minWidth: 32, maxWidth: 32, borderRight: "1px solid var(--colorNeutralBackground5)" }} onClick={e => { e.stopPropagation(); onToggle(); }} />
         )}
         {columns.map(col => (
-            <TableCell key={col.key} className={styles.cell} style={{ width: col.minWidth ?? 70, minWidth: col.minWidth ?? 70, maxWidth: col.maxWidth, flexGrow: col.flexGrow ?? 0 }}>
+            <TableCell key={col.key} className={styles.cell} style={{ width: (col.data?.width !== undefined || col.maxWidth !== undefined) ? col.minWidth ?? 70 : undefined, minWidth: col.minWidth ?? 70, maxWidth: col.maxWidth, flexGrow: col.flexGrow ?? 0 }}>
                 {col.onRender ? col.onRender(item, itemIndex, col) : <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(item[col.fieldName ?? col.key] ?? "")}</span>}
             </TableCell>
         ))}
+        {overlayElement}
     </TableRow>;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-import { Pagination } from "@fluentui/react-experiments/lib/Pagination";
+import { Button } from "@fluentui/react-components";
+import { ChevronDoubleLeft20Regular, ChevronLeft20Regular, ChevronRight20Regular, ChevronDoubleRight20Regular } from "@fluentui/react-icons";
 import { useConst } from "@fluentui/react-hooks";
 import { BaseStore, Memory, QueryRequest, QuerySortItem } from "src/store/Memory";
 import nlsHPCC from "src/nlsHPCC";
@@ -215,7 +218,7 @@ export interface FluentColumn {
     label?: string;
     field?: string;
     width?: number;
-    headerIcon?: string;
+    headerIconElement?: React.ReactNode;
     headerTooltip?: string;
     sortable?: boolean;
     disabled?: boolean | ((item: any) => boolean);
@@ -263,20 +266,19 @@ function columnsAdapter(columns: FluentColumns, columnWidths: Map<string, any>):
     const retVal: IColumn[] = [];
     for (const key in columns) {
         const column = columns[key];
-        const width = columnWidths.get(key) ?? column.width;
+        const persistedWidth = columnWidths.get(key);
+        const width = persistedWidth ?? column.width;
         if (column?.selectorType === undefined && column?.hidden !== true) {
             if (column?.fluentColumn) {
                 retVal.push({
                     key,
                     name: column.label ?? key,
                     fieldName: column.field ?? key,
-                    iconName: column.headerIcon,
-                    isIconOnly: !!column.headerIcon,
+                    isIconOnly: !!column.headerIconElement,
                     minWidth: width ?? 70,
-                    maxWidth: width,
+                    maxWidth: persistedWidth,
                     data: column,
                     onRender: (item: any, index: number, col: IColumn) => {
-                        col.minWidth = column.width ?? 70;
                         return tooltipItemRenderer(item, index, col);
                     },
                     ...column.fluentColumn
@@ -287,16 +289,13 @@ function columnsAdapter(columns: FluentColumns, columnWidths: Map<string, any>):
                     name: column.label ?? key,
                     fieldName: column.field ?? key,
                     minWidth: width ?? 70,
-                    maxWidth: width,
+                    maxWidth: persistedWidth,
                     isResizable: true,
                     isSorted: false,
                     isSortedDescending: false,
-                    iconName: column.headerIcon,
-                    isIconOnly: !!column.headerIcon,
+                    isIconOnly: !!column.headerIconElement,
                     data: column,
                     onRender: (item: any, index: number, col: IColumn) => {
-                        col.minWidth = column.width ?? 70;
-                        col.maxWidth = column.width;
                         return tooltipItemRenderer(item, index, col);
                     }
                 } as IColumn);
@@ -402,6 +401,7 @@ const FluentStoreGrid: React.FunctionComponent<FluentStoreGridProps> = ({
     const handlerRef = React.useRef<ISelection>(null);
     const selectionHandler = useConst(() => {
         handlerRef.current = isISelection(setSelection) ? setSelection : new Selection({
+            getKey: (item: any) => String(store.getIdentity(item)),
             canSelectItem: (item: any, index?: number) => canSelectRow ? canSelectRow(item, index ?? -1) : true,
             onSelectionChanged: () => {
                 (setSelection as (s: any[]) => void)(handlerRef.current!.getSelection());
@@ -571,39 +571,37 @@ const FluentStoreGrid: React.FunctionComponent<FluentStoreGridProps> = ({
                             type="checkbox"
                             checked={allSelected ? true : someSelected ? "mixed" : false}
                             onClick={onSelectAll}
-                            style={{ width: 32, minWidth: 32, maxWidth: 32 }}
+                            style={{ width: 32, minWidth: 32, maxWidth: 32, borderRight: "1px solid var(--colorNeutralBackground5)" }}
                         />
                     )}
                     {selectionMode === SelectionMode.single && (
-                        <TableSelectionCell type="radio" checked={false} style={{ width: 32, minWidth: 32, maxWidth: 32 }} />
+                        <TableSelectionCell type="radio" checked={false} style={{ width: 32, minWidth: 32, maxWidth: 32, borderRight: "1px solid var(--colorNeutralBackground5)" }} />
                     )}
                     {fluentColumns.map(col => (
                         <TableHeaderCell
                             key={col.key}
                             className={styles.headerCell}
-                            style={{ width: col.minWidth ?? 70, minWidth: col.minWidth ?? 70, maxWidth: col.maxWidth, flexGrow: col.flexGrow ?? 0 }}
+                            style={{ width: (col.data?.width !== undefined || col.maxWidth !== undefined) ? col.minWidth ?? 70 : undefined, minWidth: col.minWidth ?? 70, maxWidth: col.maxWidth, flexGrow: col.flexGrow ?? 0, borderRight: "1px solid var(--colorNeutralBackground5)" }}
                             onClick={() => onColumnClick(col)}
                             sortDirection={col.isSorted ? (col.isSortedDescending ? "descending" : "ascending") : undefined}
                             data-column-key={col.key}
+                            aside={loaded && col.isResizable !== false ? <TableResizeHandle
+                                onClick={e => e.stopPropagation()}
+                                onMouseDown={(e: React.MouseEvent) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const startX = e.clientX;
+                                    const startWidth = col.minWidth ?? 70;
+                                    const onMouseMove = (ev: MouseEvent) => { handleColumnResize(col.key, Math.max(40, startWidth + (ev.clientX - startX))); };
+                                    const onMouseUp = () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
+                                    window.addEventListener("mousemove", onMouseMove);
+                                    window.addEventListener("mouseup", onMouseUp);
+                                }}
+                            /> : undefined}
                         >
                             {col.isIconOnly
-                                ? <span title={col.data?.headerTooltip ?? col.name} aria-label={col.name}>&#x2002;</span>
+                                ? <Tooltip content={col.data?.headerTooltip ?? col.name} relationship="label"><span aria-label={col.name} style={{ display: "flex", alignItems: "center" }}>{col.data?.headerIconElement ?? <span>&#x2002;</span>}</span></Tooltip>
                                 : (col.name || "")}
-                            {col.isResizable !== false && (
-                                <TableResizeHandle
-                                    onClick={e => e.stopPropagation()}
-                                    onMouseDown={(e: React.MouseEvent) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        const startX = e.clientX;
-                                        const startWidth = col.minWidth ?? 70;
-                                        const onMouseMove = (ev: MouseEvent) => { handleColumnResize(col.key, Math.max(40, startWidth + (ev.clientX - startX))); };
-                                        const onMouseUp = () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
-                                        window.addEventListener("mousemove", onMouseMove);
-                                        window.addEventListener("mouseup", onMouseUp);
-                                    }}
-                                />
-                            )}
                         </TableHeaderCell>
                     ))}
                 </TableRow>
@@ -618,7 +616,7 @@ const FluentStoreGrid: React.FunctionComponent<FluentStoreGridProps> = ({
                                 </TableCell>
                             )}
                             {fluentColumns.map(col => (
-                                <TableCell key={col.key} className={styles.cell} style={{ width: col.minWidth ?? 70 }}>
+                                <TableCell key={col.key} className={styles.cell} style={{ width: (col.data?.width !== undefined || col.maxWidth !== undefined) ? col.minWidth ?? 70 : undefined, minWidth: col.minWidth ?? 70 }}>
                                     <SkeletonItem style={{ height: "12px" }} />
                                 </TableCell>
                             ))}
@@ -777,41 +775,6 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
         setPageSize(pageSize);
     }, [pageSize, setPageSize]);
 
-    const paginationStyles = React.useMemo(() => mergeStyleSets({
-        root: {
-            padding: "10px 12px 10px 6px",
-            display: "grid",
-            gridTemplateColumns: "9fr 1fr",
-            gridColumnGap: "10px"
-        },
-        pageControls: {
-            ".ms-Pagination-container": {
-                flexDirection: "row-reverse",
-                justifyContent: "space-between"
-            },
-            ".ms-Pagination-container > :first-child": {
-                display: "flex"
-            },
-            ".ms-Pagination-container .ms-Button-icon": {
-                color: tokens.colorBrandBackground
-            },
-            ".ms-Pagination-container .ms-Pagination-pageNumber": {
-                color: tokens.colorNeutralForeground1
-            },
-            ".ms-Pagination-container button:hover": {
-                backgroundColor: tokens.colorNeutralBackground2
-            },
-            ".ms-Pagination-container .is-disabled .ms-Button-icon": {
-                color: tokens.colorNeutralForegroundDisabled
-            }
-        },
-        paginationLabel: {
-            fontWeight: 600,
-            marginLeft: "6px",
-            color: tokens.colorNeutralForeground1,
-        }
-    }), []);
-
     React.useEffect(() => {
         const maxPage = Math.ceil(total / pageSize) - 1;
         if (maxPage >= 0 && page > maxPage) {   //  maxPage can be -1 if total is 0
@@ -824,31 +787,44 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
         setPage(_page);
     }, [pageNum]);
 
-    return <div style={{ display: "flex", flexDirection: "row" }} className={paginationStyles.root}>
-        <div className={paginationStyles.pageControls}>
-            <Pagination
-                selectedPageIndex={page} itemsPerPage={pageSize} totalItemCount={total >= 0 ? total : -1}
-                pageCount={Math.ceil(total / pageSize)} format="buttons" onPageChange={index => {
-                    setPage(Math.round(index));
-                    updatePage(Math.round(index + 1).toString());
-                }}
-                onRenderVisibleItemLabel={props => {
-                    const start = props.totalItemCount === 0 ? 0 : props.selectedPageIndex === 0 ? 1 : (props.selectedPageIndex * props.itemsPerPage) + 1;
-                    const end = (props.itemsPerPage * (props.selectedPageIndex + 1)) > props.totalItemCount ? props.totalItemCount : props.itemsPerPage * (props.selectedPageIndex + 1);
-                    return <div className={paginationStyles.paginationLabel}>
-                        {start} {props.strings.divider} {end >= 0 ? end : 1} {nlsHPCC.Of.toLowerCase()} {props.totalItemCount >= 0 ? props.totalItemCount : "???"} {nlsHPCC.Rows} {selectionCount ? `(${selectionCount} ${nlsHPCC.Selected})` : ""}
-                    </div>;
-                }}
-            />
-        </div>
-        <div style={{ alignSelf: "center" }}>
-            <Select id="pageSize" value={String(pageSize)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                const newPageSize = Number(e.target.value);
+    const pageCount = Math.ceil(total / pageSize);
+    const start = total === 0 ? 0 : page === 0 ? 1 : (page * pageSize) + 1;
+    const end = Math.min(pageSize * (page + 1), total);
+
+    const visiblePages = React.useMemo(() => {
+        const pages: number[] = [];
+        const maxVisible = 5;
+        let from = Math.max(0, page - Math.floor(maxVisible / 2));
+        const to = Math.min(pageCount - 1, from + maxVisible - 1);
+        from = Math.max(0, to - maxVisible + 1);
+        for (let i = from; i <= to; i++) pages.push(i);
+        return pages;
+    }, [page, pageCount]);
+
+    const goTo = React.useCallback((p: number) => {
+        setPage(p);
+        updatePage((p + 1).toString());
+    }, []);
+
+    return <div style={{ display: "flex", alignItems: "center", padding: "6px 12px 6px 6px", gap: "2px" }}>
+        <span style={{ flex: "1 1 0", fontWeight: 600, marginLeft: "6px", color: tokens.colorNeutralForeground1, whiteSpace: "nowrap" }}>
+            {start}–{end >= 0 ? end : 1} {nlsHPCC.Of.toLowerCase()} {total >= 0 ? total : "???"} {nlsHPCC.Rows}{selectionCount ? ` (${selectionCount} ${nlsHPCC.Selected})` : ""}
+        </span>
+        <Button appearance="subtle" size="small" icon={<ChevronDoubleLeft20Regular />} disabled={page === 0} onClick={() => goTo(0)} />
+        <Button appearance="subtle" size="small" icon={<ChevronLeft20Regular />} disabled={page === 0} onClick={() => goTo(page - 1)} />
+        {visiblePages.map(p => (
+            <Button key={p} appearance={p === page ? "primary" : "subtle"} size="small" style={{ minWidth: "28px", padding: "0 4px" }} onClick={() => goTo(p)}>{p + 1}</Button>
+        ))}
+        <Button appearance="subtle" size="small" icon={<ChevronRight20Regular />} disabled={page >= pageCount - 1} onClick={() => goTo(page + 1)} />
+        <Button appearance="subtle" size="small" icon={<ChevronDoubleRight20Regular />} disabled={page >= pageCount - 1} onClick={() => goTo(pageCount - 1)} />
+        <Dropdown size="small" value={String(pageSize)} selectedOptions={[String(pageSize)]} style={{ minWidth: "80px" }}
+            onOptionSelect={(_, data) => {
+                const newPageSize = Number(data.optionValue);
                 setPage(Math.floor((page * pageSize) / newPageSize));
                 setPersistedPageSize(newPageSize);
-            }}>
-                {[10, 25, 50, 100, 250, 500, 1000].map(n => <option key={n} value={String(n)}>{n}</option>)}
-            </Select>
-        </div>
+            }}
+        >
+            {[10, 25, 50, 100, 250, 500, 1000].map(n => <Option key={n} value={String(n)}>{String(n)}</Option>)}
+        </Dropdown>
     </div>;
 };

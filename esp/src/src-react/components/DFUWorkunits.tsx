@@ -102,7 +102,7 @@ export const DFUWorkunits: React.FunctionComponent<DFUWorkunitsProps> = ({
                 selectorType: "checkbox"
             }),
             isProtected: {
-                headerIcon: "LockSolid",
+                headerIconElement: <LockClosedFilled aria-label={nlsHPCC.Protected} />,
                 width: 18,
                 sortable: false,
                 formatter: (_protected) => {

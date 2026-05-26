@@ -166,7 +166,7 @@ export const Files: React.FunctionComponent<FilesProps> = ({
                 selectorType: "checkbox"
             },
             IsProtected: {
-                headerIcon: "LockSolid",
+                headerIconElement: <LockClosedFilled aria-label={nlsHPCC.Protected} />,
                 headerTooltip: nlsHPCC.Protected,
                 width: 16,
                 sortable: false,
@@ -179,7 +179,7 @@ export const Files: React.FunctionComponent<FilesProps> = ({
                 field: nlsHPCC.Protected,
             },
             IsCompressed: {
-                headerIcon: "ZipFolder",
+                headerIconElement: <FolderZipRegular aria-label={nlsHPCC.Compressed} />,
                 headerTooltip: nlsHPCC.Compressed,
                 width: 16,
                 sortable: false,

@@ -46,7 +46,7 @@ export const SubFiles: React.FunctionComponent<SubFilesProps> = ({
             sel: { width: 27, selectorType: "checkbox" },
             IsCompressed: {
                 width: 25, sortable: false,
-                headerIcon: "ZipFolder",
+                headerIconElement: <FolderZipRegular aria-label={nlsHPCC.Compressed} />,
                 headerTooltip: nlsHPCC.Compressed,
                 formatter: (compressed) => {
                     if (compressed === true) {
@@ -57,7 +57,7 @@ export const SubFiles: React.FunctionComponent<SubFilesProps> = ({
             },
             IsKeyFile: {
                 width: 25, sortable: false,
-                headerIcon: "Permissions",
+                headerIconElement: <KeyRegular aria-label={nlsHPCC.Index} />,
                 headerTooltip: nlsHPCC.Index,
                 formatter: (keyfile, row) => {
                     if (row.ContentType === "key") {
@@ -68,7 +68,7 @@ export const SubFiles: React.FunctionComponent<SubFilesProps> = ({
             },
             isSuperfile: {
                 width: 25, sortable: false,
-                headerIcon: "Folder",
+                headerIconElement: <FolderRegular aria-label={nlsHPCC.Superfile} />,
                 headerTooltip: nlsHPCC.Superfile,
                 formatter: (superfile) => {
                     if (superfile === true) {

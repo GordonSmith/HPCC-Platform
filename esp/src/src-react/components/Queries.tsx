@@ -1,6 +1,6 @@
 import * as React from "react";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
-import { PauseRegular, WarningRegular, DismissCircleRegular, CheckmarkCircleRegular } from "@fluentui/react-icons";
+import { PauseRegular, WarningRegular, DismissCircleRegular, CheckmarkCircleRegular, ErrorCircleRegular } from "@fluentui/react-icons";
 import { Link } from "@fluentui/react-components";
 import * as WsWorkunits from "src/WsWorkunits";
 import * as ESPQuery from "src/ESPQuery";
@@ -93,7 +93,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
                 selectorType: "checkbox"
             },
             Suspended: {
-                headerIcon: "Pause",
+                headerIconElement: <PauseRegular aria-label={nlsHPCC.Suspended} />,
                 headerTooltip: nlsHPCC.Suspended,
                 width: 16,
                 sortable: false,
@@ -106,7 +106,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
                 field: nlsHPCC.Suspended,
             },
             ErrorCount: {
-                headerIcon: "Warning",
+                headerIconElement: <WarningRegular aria-label={nlsHPCC.ErrorWarnings} />,
                 headerTooltip: nlsHPCC.ErrorWarnings,
                 width: 16,
                 sortable: false,
@@ -119,7 +119,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
                 field: nlsHPCC.ErrorWarnings,
             },
             MixedNodeStates: {
-                headerIcon: "Error",
+                headerIconElement: <ErrorCircleRegular aria-label={nlsHPCC.Protected} />,
                 headerTooltip: nlsHPCC.MixedNodeStates,
                 width: 16,
                 sortable: false,
@@ -132,7 +132,7 @@ export const Queries: React.FunctionComponent<QueriesProps> = ({
                 },
             },
             Activated: {
-                headerIcon: "SkypeCircleCheck",
+                headerIconElement: <CheckmarkCircleRegular aria-label={nlsHPCC.Active} />,
                 headerTooltip: nlsHPCC.Active,
                 width: 16,
                 formatter: (activated, row) => {

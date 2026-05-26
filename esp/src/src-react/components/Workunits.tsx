@@ -111,7 +111,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                 selectorType: "checkbox"
             },
             Protected: {
-                headerIcon: "LockSolid",
+                headerIconElement: <LockClosedFilled aria-label={nlsHPCC.Protected} />,
                 headerTooltip: nlsHPCC.Protected,
                 width: 16,
                 sortable: true,
@@ -124,12 +124,12 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                 field: nlsHPCC.Protected,
             },
             Wuid: {
-                label: nlsHPCC.WUID, width: 120,
+                label: nlsHPCC.WUID, width: 180,
                 sortable: true,
                 formatter: (Wuid: string, wu: Workunit) => {
                     const search = calcSearch(filter);
                     return <>
-                        <img src={getStateImage(wu.StateID, wu.isComplete(), wu.Archived)} alt="" style={{ minWidth: "16px" }} />
+                        <img src={getStateImage(wu.StateID, wu.isComplete(), wu.Archived)} alt="" style={{ width: "16px", height: "16px" }} />
                         &nbsp;
                         <Link href={search ? `#/workunits!${calcSearch(filter)}/${Wuid}` : `#/workunits/${Wuid}`}>{Wuid}</Link >
                     </>;
@@ -314,7 +314,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
         setUIState(state);
     }, [selection]);
 
-    const renderRowTimings = React.useCallback((props: IDetailsRowProps, size: { readonly width: number; readonly height: number; }) => {
+    const renderRowTimings = React.useCallback((props: IDetailsRowProps) => {
         if (showTimeline && props?.item?.__timeline_timings) {
             const total = props.item.__timeline_timings.page.end - props.item.__timeline_timings.page.start;
             const startPct = 100 - (props.item.__timeline_timings.start - props.item.__timeline_timings.page.start) / total * 100;
@@ -322,8 +322,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
             const backgroundColor = palette(props.item.Cluster);
             const borderColor = d3Hsl(backgroundColor).darker().toString();
 
-            return <div style={{ position: "relative", width: `${size.width - 4}px` }}>
-                <DetailsRow {...props} />
+            return <DetailsRow {...props} overlayElement={
                 <div style={{
                     position: "absolute",
                     top: 4,
@@ -337,7 +336,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                     opacity: .33,
                     pointerEvents: "none"
                 }} />
-            </div>;
+            } />;
         }
         return <DetailsRow {...props} />;
     }, [palette, showTimeline]);
@@ -361,7 +360,7 @@ export const Workunits: React.FunctionComponent<WorkunitsProps> = ({
                                 setSelection={setSelection}
                                 setTotal={setTotal}
                                 refresh={refreshTable}
-                                onRenderRow={showTimeline ? props => renderRowTimings(props, size) : undefined}
+                                onRenderRow={showTimeline ? renderRowTimings : undefined}
                             ></FluentPagedGrid>
                         </div>
                     </div>
