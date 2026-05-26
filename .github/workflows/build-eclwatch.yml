@@ -50,5 +50,5 @@ jobs:
         with:
           name: ${{ inputs.asset-name }}
           path: |
-            esp/src/build/dist/**/*
+            esp/src/build/dist/
           if-no-files-found: error
