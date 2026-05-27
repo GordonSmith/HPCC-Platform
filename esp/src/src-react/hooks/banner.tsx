@@ -1,6 +1,6 @@
 import * as React from "react";
-import { ColorPicker, getColorFromString, IColor } from "@fluentui/react";
-import { Button, Checkbox, Field, Input, Label, MessageBar, MessageBarActions, MessageBarBody, Textarea } from "@fluentui/react-components";
+import { tinycolor } from "@ctrl/tinycolor";
+import { Button, Checkbox, ColorArea, ColorPicker, ColorSlider, Field, Input, Label, MessageBar, MessageBarActions, MessageBarBody, Textarea } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { useForm, Controller } from "react-hook-form";
 import nlsHPCC from "src/nlsHPCC";
@@ -28,8 +28,6 @@ interface useBannerProps {
     setShowForm: (_: boolean) => void;
 }
 
-const white = getColorFromString("#ffffff");
-
 export function useBanner({ showForm, setShowForm }: useBannerProps): [React.FunctionComponent, React.FunctionComponent] {
 
     const { activity } = useActivity();
@@ -40,8 +38,8 @@ export function useBanner({ showForm, setShowForm }: useBannerProps): [React.Fun
     const [showBanner, setShowBanner] = React.useState(activity?.ShowBanner == 1 || false);
 
     const { handleSubmit, control, reset } = useForm<BannerConfigValues>({ defaultValues });
-    const [color, setColor] = React.useState(white);
-    const updateColor = React.useCallback((evt: any, colorObj: IColor) => setColor(colorObj), []);
+    const [color, setColor] = React.useState<{ h: number; s: number; v: number; a?: number }>(tinycolor("#ffffff").toHsv());
+    const updateColor = React.useCallback((_: unknown, data: { color: { h: number; s: number; v: number; a?: number } }) => setColor(data.color), []);
 
     const closeForm = React.useCallback(() => {
         setShowForm(false);
@@ -51,7 +49,7 @@ export function useBanner({ showForm, setShowForm }: useBannerProps): [React.Fun
         handleSubmit(
             (data, evt) => {
                 const request: any = data;
-                request.BannerColor = color.str;
+                request.BannerColor = tinycolor(color).toHexString();
                 request.BannerAction = request.BannerAction === true ? "1" : "0";
                 setBannerColor(request.BannerColor);
                 setBannerMessage(request.BannerContent);
@@ -65,7 +63,7 @@ export function useBanner({ showForm, setShowForm }: useBannerProps): [React.Fun
 
     React.useEffect(() => {
         if (!activity?.BannerColor) return;
-        setColor(getColorFromString(activity?.BannerColor));
+        setColor(tinycolor(activity?.BannerColor).toHsv());
         const values = {
             BannerAction: activity?.ShowBanner || 0,
             BannerContent: activity?.BannerContent || "",
@@ -149,10 +147,10 @@ export function useBanner({ showForm, setShowForm }: useBannerProps): [React.Fun
                 </div>
                 <div>
                     <Label>{nlsHPCC.BannerColor}</Label>
-                    <ColorPicker
-                        onChange={updateColor}
-                        color={color}
-                    />
+                    <ColorPicker color={color} onColorChange={updateColor}>
+                        <ColorArea />
+                        <ColorSlider />
+                    </ColorPicker>
                 </div>
             </div>
         </MessageBox>;

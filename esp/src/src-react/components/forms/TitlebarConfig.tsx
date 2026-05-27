@@ -1,6 +1,6 @@
 import * as React from "react";
-import { ColorPicker, getColorFromString, IColor } from "@fluentui/react";
-import { Button, Checkbox, Field, Input, Label, Spinner, Tooltip } from "@fluentui/react-components";
+import { tinycolor } from "@ctrl/tinycolor";
+import { Button, Checkbox, ColorArea, ColorPicker, ColorSlider, Field, Input, Label, Spinner, Tooltip } from "@fluentui/react-components";
 import { useForm, Controller } from "react-hook-form";
 import { MessageBox } from "../../layouts/MessageBox";
 import { useGlobalStore } from "../../hooks/store";
@@ -24,8 +24,6 @@ interface TitlebarConfigProps {
     setShowForm: (_: boolean) => void;
 }
 
-const white = getColorFromString("#ffffff");
-
 export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
     showForm,
     setShowForm
@@ -33,8 +31,8 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
     const { handleSubmit, control, reset } = useForm<TitlebarConfigValues>({ defaultValues });
     const [submitDisabled, setSubmitDisabled] = React.useState(false);
     const [spinnerHidden, setSpinnerHidden] = React.useState(true);
-    const [color, setColor] = React.useState(white);
-    const updateColor = React.useCallback((evt: any, colorObj: IColor) => setColor(colorObj), []);
+    const [color, setColor] = React.useState<{ h: number; s: number; v: number; a?: number }>(tinycolor("#ffffff").toHsv());
+    const updateColor = React.useCallback((_: unknown, data: { color: { h: number; s: number; v: number; a?: number } }) => setColor(data.color), []);
     const [showEnvironmentTitle, setShowEnvironmentTitle] = useGlobalStore("HPCCPlatformWidget_Toolbar_Active", false, true);
     const [environmentTitle, setEnvironmentTitle] = useGlobalStore("HPCCPlatformWidget_Toolbar_Text", undefined, true);
     const [titlebarColor, setTitlebarColor] = useGlobalStore("HPCCPlatformWidget_Toolbar_Color", undefined, true);
@@ -49,7 +47,7 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
                 setSubmitDisabled(true);
                 setSpinnerHidden(false);
                 const request: any = data;
-                request.titlebarColor = color.str;
+                request.titlebarColor = tinycolor(color).toHexString();
 
                 setShowEnvironmentTitle(request?.showEnvironmentTitle);
                 setEnvironmentTitle(request?.environmentTitle);
@@ -73,7 +71,7 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
     }, [resetEnvironmentTitle, resetShowEnvironmentTitle, resetTitlebarColor]);
 
     React.useEffect(() => {
-        setColor(getColorFromString(titlebarColor ?? "#b6dff3"));
+        setColor(tinycolor(titlebarColor ?? "#b6dff3").toHsv());
         const values = {
             showEnvironmentTitle: showEnvironmentTitle,
             environmentTitle: environmentTitle ?? "ECL Watch"
@@ -120,10 +118,10 @@ export const TitlebarConfig: React.FunctionComponent<TitlebarConfigProps> = ({
         <Tooltip content={nlsHPCC.BannerColorTooltip} relationship="label">
             <div>
                 <Label aria-describedby="bannerColorTooltip">{nlsHPCC.BannerColor}</Label>
-                <ColorPicker
-                    onChange={updateColor}
-                    color={color}
-                />
+                <ColorPicker color={color} onColorChange={updateColor}>
+                    <ColorArea />
+                    <ColorSlider />
+                </ColorPicker>
             </div>
         </Tooltip>
     </MessageBox>;
