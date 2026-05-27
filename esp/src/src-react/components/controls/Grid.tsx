@@ -764,8 +764,12 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
     setPageSize
 }) => {
     const [page, setPage] = React.useState(pageNum - 1);
-    const [pageSize, setPersistedPageSize] = useUserStore(`${persistID}_pageSize`, 25);
+    const [storedPageSize, persistPageSize] = useUserStore(`${persistID}_pageSize`, 25);
+    const [pageSize, setPageSizeSync] = React.useState<number | undefined>(storedPageSize);
 
+    React.useEffect(() => {
+        setPageSizeSync(storedPageSize);
+    }, [storedPageSize]);
 
     React.useEffect(() => {
         setPageNum(page + 1);
@@ -820,8 +824,11 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
         <Dropdown size="small" value={String(pageSize)} selectedOptions={[String(pageSize)]} style={{ minWidth: "80px" }}
             onOptionSelect={(_, data) => {
                 const newPageSize = Number(data.optionValue);
-                setPage(Math.floor((page * pageSize) / newPageSize));
-                setPersistedPageSize(newPageSize);
+                const newPage = Math.floor((page * (pageSize ?? 25)) / newPageSize);
+                setPage(newPage);
+                setPageSizeSync(newPageSize);
+                persistPageSize(newPageSize);
+                updatePage((newPage + 1).toString());
             }}
         >
             {[10, 25, 50, 100, 250, 500, 1000].map(n => <Option key={n} value={String(n)}>{String(n)}</Option>)}

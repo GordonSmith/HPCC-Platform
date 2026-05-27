@@ -1,6 +1,6 @@
 import * as React from "react";
 import { mergeStyleSets } from "@fluentui/style-utilities";
-import { Button, ButtonProps, CounterBadgeProps, CounterBadge, Link, Menu, MenuDivider, MenuItem, MenuList, MenuPopover, MenuTrigger, Persona, SearchBox, Text, Toaster, tokens } from "@fluentui/react-components";
+import { Button, ButtonProps, CounterBadgeProps, CounterBadge, Link, Menu, MenuDivider, MenuItem, MenuList, MenuPopover, MenuTrigger, Persona, SearchBox, Text, Toaster, makeStyles, tokens } from "@fluentui/react-components";
 import { Alert24Filled, Alert24Regular, CheckmarkRegular, GridDotsRegular, Navigation24Regular, WindowNewRegular } from "@fluentui/react-icons";
 import { Level, scopedLogger } from "@hpcc-js/util";
 import { cookie } from "src-dojo/index";
@@ -36,10 +36,15 @@ const NewTabButton: React.FunctionComponent<ButtonProps> = (props) => {
     />;
 };
 
-const personaStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center"
-};
+const useStyles = makeStyles({
+    personaWrapper: {
+        display: "flex",
+        alignItems: "center",
+        "& span": {
+            lineHeight: tokens.lineHeightBase600
+        }
+    },
+});
 
 const DAY = 1000 * 60 * 60 * 24;
 
@@ -71,6 +76,8 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
 
     const [showBannerConfig, setShowBannerConfig] = React.useState(false);
     const [BannerMessageBar, BannerConfig] = useBanner({ showForm: showBannerConfig, setShowForm: setShowBannerConfig });
+
+    const styles = useStyles();
 
     const [PasswordExpiredConfirm, setPasswordExpiredConfirm] = useConfirm({
         title: nlsHPCC.PasswordExpiration,
@@ -286,7 +293,7 @@ export const DevTitle: React.FunctionComponent<DevTitleProps> = ({
             <div style={{ alignSelf: "center" }}>
                 <div style={{ display: "flex", flexDirection: "row" }}>
                     {currentUser?.username &&
-                        <div style={personaStyle}>
+                        <div className={styles.personaWrapper}>
                             <div onClick={() => setShowMyAccount(true)} style={{ cursor: "pointer" }}>
                                 <Persona {...personaProps} />
                             </div>

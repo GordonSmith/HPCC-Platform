@@ -522,7 +522,7 @@ export const LandingZone: React.FunctionComponent<LandingZoneProps> = ({
         },
         { key: "divider_1", itemType: ContextualMenuItemType.Divider },
         {
-            key: "preview", text: nlsHPCC.Preview, disabled: !selection.length, iconProps: { iconName: "ComplianceAudit" },
+            key: "preview", text: nlsHPCC.Preview, disabled: !selection.length, iconProps: { iconName: "DocumentText" },
             onClick: () => {
                 if (selection.length === 1) {
                     window.location.href = `#/landingzone/preview/${selection[0].getLogicalFile()}`;
