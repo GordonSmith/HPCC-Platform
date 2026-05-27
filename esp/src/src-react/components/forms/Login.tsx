@@ -1,6 +1,5 @@
 import * as React from "react";
-import { mergeStyleSets } from "@fluentui/style-utilities";
-import { Button, Field, Input, MessageBar, MessageBarActions, MessageBarBody, tokens } from "@fluentui/react-components";
+import { Button, Field, Input, makeStyles, MessageBar, MessageBarActions, MessageBarBody } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import { useForm, Controller } from "react-hook-form";
@@ -10,6 +9,38 @@ import * as Utility from "src/Utility";
 import nlsHPCC from "src/nlsHPCC";
 
 const logger = scopedLogger("src-react/components/forms/Login.tsx");
+
+const useStyles = makeStyles({
+    root: {
+        height: "100%",
+        backgroundColor: "#1a9bd7",
+    },
+    container: {
+        width: "99%",
+        position: "absolute",
+        top: "50%",
+        transform: "translateY(-50%)",
+    },
+    formContainer: {
+        width: "500px",
+        padding: "20px 0",
+        borderRadius: "5px",
+        backgroundColor: "#fff",
+        margin: "auto",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        "& .fui-Input": {
+            width: "300px",
+        },
+        "& .fui-Field": {
+            margin: "10px 0 0 0"
+        },
+        "& .fui-Button": {
+            margin: "20px 0 0 0"
+        }
+    },
+});
 
 interface LoginFormValues {
     username: string;
@@ -68,55 +99,7 @@ export const Login: React.FunctionComponent<LoginProps> = ({
         }
     }, [consumeLoginMessage]);
 
-    const loginStyles = React.useMemo(() => mergeStyleSets({
-        root: {
-            height: "100%",
-            backgroundColor: "#1A9BD7"
-        },
-        container: {
-            width: "99%",
-            position: "absolute",
-            top: "50%",
-            transform: "translateY(-50%)",
-        },
-        formContainer: {
-            width: "500px",
-            padding: "20px 0",
-            borderRadius: "5px",
-            backgroundColor: tokens.colorNeutralBackground1,
-            margin: "auto",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            "selectors": {
-                "p": {
-                    fontSize: "15px"
-                },
-                ".ms-TextField": {
-                    width: "300px"
-                }
-            }
-        },
-        button: {
-            fontFamily: "'Segoe UI', 'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif",
-            fontSize: "16px",
-            fontWeight: "600",
-            border: `2px solid ${tokens.colorBrandBackground}`,
-            cursor: "pointer",
-            padding: "12px 36px",
-            margin: "20px 0 0 0",
-            borderRadius: "2px",
-            color: tokens.colorNeutralBackground1,
-            background: tokens.colorBrandBackground,
-            "selectors": {
-                ":hover": {
-                    backgroundColor: tokens.colorBrandBackground,
-                    border: `2px solid ${tokens.colorBrandBackground}`,
-                    color: tokens.colorNeutralBackground1,
-                }
-            }
-        }
-    }), []);
+    const loginStyles = useStyles();
 
     const onSubmit = React.useCallback(() => {
         handleSubmit(
@@ -157,8 +140,9 @@ export const Login: React.FunctionComponent<LoginProps> = ({
         <div className={loginStyles.container}>
             <div className={loginStyles.formContainer}>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    <img src={Utility.getImageURL("Loginlogo.png")} alt="" />
-                    <p>{nlsHPCC.PleaseLogIntoECLWatch}</p>
+                    <center>
+                        <img id="logo" src="eclwatch/img/hpccsystems.svg" alt="HPCC Systems" style={{ width: "206px" }} />
+                    </center>
                     <Controller
                         control={control} name="username"
                         render={({
@@ -200,8 +184,7 @@ export const Login: React.FunctionComponent<LoginProps> = ({
                             </MessageBar>
                         </div>
                     }
-
-                    <button type="submit" className={loginStyles.button}>{nlsHPCC.Login}</button>
+                    <Button type="submit" appearance="primary">{nlsHPCC.Login}</Button>
                 </form>
             </div>
         </div>

@@ -46,7 +46,7 @@ async function loadUI() {
         import("./components/forms/Login").then(_ => {
             try {
                 const root = ReactRoot.create(document.getElementById("placeholder"));
-                root.render(_.Login, {});
+                root.lightThemedRender(_.Login, {});
                 document.getElementById("loadingOverlay").remove();
             } catch (e) {
                 logger.error(e);
