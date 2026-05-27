@@ -1,8 +1,7 @@
 import * as React from "react";
 import { ScrollablePane, ScrollbarVisibility, Sticky, StickyPositionType } from "./controls/ScrollablePane";
-import { IDropdownOption } from "./forms/Fields";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
-import { mergeStyleSets } from "@fluentui/style-utilities";
+import { makeStyles } from "@fluentui/react-components";
 import nlsHPCC from "src/nlsHPCC";
 import { DPWorkunit } from "src/DataPatterns/DPWorkunit";
 import { Report } from "src/DataPatterns/Report";
@@ -13,13 +12,11 @@ import { Optimize } from "./forms/Optimize";
 import { TargetClusterTextField } from "./forms/Fields";
 import { WUStatus } from "src/react/wuStatus";
 
-const dpStyles = mergeStyleSets({
+const useStyles = makeStyles({
     inlineDropdown: {
+        minWidth: "100px",
         marginTop: "6px",
-        ".ms-Dropdown": {
-            minWidth: "100px"
-        }
-    }
+    },
 });
 
 interface DataPatternsProps {
@@ -31,6 +28,7 @@ export const DataPatterns: React.FunctionComponent<DataPatternsProps> = ({
     cluster,
     logicalFile
 }) => {
+    const styles = useStyles();
 
     const { file } = useFile(cluster, logicalFile);
     const dpWu = React.useMemo(() => {
@@ -82,15 +80,15 @@ export const DataPatterns: React.FunctionComponent<DataPatternsProps> = ({
         },
         {
             key: "targetCluster", itemType: ContextualMenuItemType.Normal,
-            commandBarButtonAs: () => <TargetClusterTextField
+            onRender: () => <TargetClusterTextField
                 key="targetClusterField"
                 disabled={!!wu}
                 placeholder={nlsHPCC.Target}
-                className={dpStyles.inlineDropdown}
+                className={styles.inlineDropdown}
                 required={true}
                 selectedKey={targetCluster}
-                onChange={(ev, row: IDropdownOption) => {
-                    setTargetCluster(row.key as string);
+                onChange={(ev, option) => {
+                    if (option && !Array.isArray(option)) setTargetCluster(option.key as string);
                 }}
             />
         }, {
@@ -114,7 +112,7 @@ export const DataPatterns: React.FunctionComponent<DataPatternsProps> = ({
             key: "wuid", text: wuid,
             href: `#/workunits/${wuid}`,
         }
-    ].filter(row => row.key !== "wuid" || !!wuid), [dpWu, file, isComplete, refreshData, targetCluster, wu, wuid]);
+    ].filter(row => row.key !== "wuid" || !!wuid), [dpWu, file, isComplete, refreshData, styles.inlineDropdown, targetCluster, wu, wuid]);
 
     const rightButtons = React.useMemo((): ICommandBarItemProps[] => [
     ], []);
