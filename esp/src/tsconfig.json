@@ -44,7 +44,8 @@
         "src-dojo/index.ts",
         "src-dojo/nls/**/*",
         "src/index.ts",
-        "src-react/index.tsx"
+        "src-react/index.tsx",
+        "src-react/quick-test.tsx"
     ],
     "watchOptions": {
         "watchFile": "useFsEvents",

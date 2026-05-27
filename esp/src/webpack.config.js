@@ -99,6 +99,10 @@ module.exports = function (env) {
                 import: "./lib/src-react/index",
                 dependOn: ["src-lib", "src-dojo"],
             },
+            "quick-test": {
+                import: "./lib/src-react/quick-test",
+                dependOn: ["src-lib", "src-dojo"],
+            },
         },
         output: {
             filename: "[name].eclwatch.js",

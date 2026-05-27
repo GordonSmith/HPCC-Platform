@@ -500,8 +500,8 @@ export const SubNavigation: React.FunctionComponent<SubNavigationProps> = ({
                 </div>
             </div>
             <div style={{ alignSelf: "center" }}>
-                {nextPrev?.next && <Button appearance="transparent" title={nlsHPCC.NextWorkunit} icon={<ArrowCircleDownRegular />} onClick={() => nextPrev.next()} />}
-                {nextPrev?.previous && <Button appearance="transparent" title={nlsHPCC.PreviousWorkunit} icon={<ArrowCircleUpRegular />} onClick={() => nextPrev.previous()} />}
+                {nextPrev?.next && <Button appearance="transparent" title={nlsHPCC.NextWorkunit} icon={<ArrowCircleUpRegular />} onClick={() => nextPrev.next()} />}
+                {nextPrev?.previous && <Button appearance="transparent" title={nlsHPCC.PreviousWorkunit} icon={<ArrowCircleDownRegular />} onClick={() => nextPrev.previous()} />}
                 <Menu>
                     <MenuTrigger>
                         <MenuButton appearance="transparent" title={nlsHPCC.History} icon={<History20Regular />} />

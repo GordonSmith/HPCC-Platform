@@ -81,6 +81,11 @@ export class ResetableDockPanel extends HPCCDockPanel {
     protected _origLayout: DockPanelLayout | undefined;
     protected _lastLayout: DockPanelLayout | undefined;
     protected _visibility: { [id: string]: boolean };
+    protected _disposed = false;
+
+    markDisposed() {
+        this._disposed = true;
+    }
 
     resetLayout() {
         if (this._origLayout) {
@@ -142,7 +147,9 @@ export class ResetableDockPanel extends HPCCDockPanel {
 
     //  Exposed Events  ---
     private _lazyVisibilityChanged = Utility.debounce(async () => {
-        this.visibilityChanged(this._visibility);
+        if (!this._disposed) {
+            this.visibilityChanged(this._visibility);
+        }
     }, 60);
 
     visibilityChanged(visibility: { [id: string]: boolean }) {
@@ -187,18 +194,32 @@ export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
     const [prevItems, setPrevItems] = React.useState<React.ReactElement<DockPanelItemProps>[]>([]);
     const idx = useConst(() => new Map<string, ReactWidget>());
 
+    // Keep refs to the latest callbacks to avoid stale closures
+    const onDockPanelCreateRef = React.useRef(onDockPanelCreate);
+    onDockPanelCreateRef.current = onDockPanelCreate;
+
+    const onDockPanelVisibilityChangedRef = React.useRef(onDockPanelVisibilityChanged);
+    onDockPanelVisibilityChangedRef.current = onDockPanelVisibilityChanged;
+
     const dockPanel = useConst(() => {
         const retVal = new ResetableDockPanel();
-        if (onDockPanelCreate) {
-            setTimeout(() => {
-                onDockPanelCreate(retVal);
-            }, 0);
-        }
-        if (onDockPanelVisibilityChanged) {
-            retVal.on("visibilityChanged", visibility => onDockPanelVisibilityChanged(visibility), true);
-        }
+        retVal.on("visibilityChanged", visibility => onDockPanelVisibilityChangedRef.current?.(visibility), true);
         return retVal;
     });
+
+    // Call onCreate once after mount, with cleanup for the pending timeout and disposal on unmount
+    React.useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        if (onDockPanelCreateRef.current) {
+            timeoutId = setTimeout(() => {
+                onDockPanelCreateRef.current?.(dockPanel);
+            }, 0);
+        }
+        return () => {
+            if (timeoutId !== undefined) clearTimeout(timeoutId);
+            dockPanel.markDisposed();
+        };
+    }, [dockPanel]);
 
     React.useEffect(() => {
         dockPanel?.hideSingleTabs(hideSingleTabs);
@@ -207,8 +228,9 @@ export const DockPanel: React.FunctionComponent<DockPanelProps> = ({
     React.useEffect(() => {
         const diffs = compare2(prevItems, items, item => item.key);
         diffs.exit.forEach(item => {
+            const reactWidget = idx.get(item.key);
             idx.delete(item.key);
-            dockPanel.removeWidget(idx.get(item.key));
+            dockPanel.removeWidget(reactWidget);
         });
         diffs.enter.forEach(item => {
             const reactWidget = new ReactWidget()
