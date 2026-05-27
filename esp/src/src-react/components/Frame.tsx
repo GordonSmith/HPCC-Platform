@@ -11,6 +11,7 @@ import { MainNavigation, SubNavigation } from "./Menu";
 import { CookieConsent } from "./forms/CookieConsent";
 import { userKeyValStore } from "src/KeyValStore";
 import { fireIdle, initSession, lock, unlock } from "src/Session";
+import { PortalRenderer } from "src/react/portalStore";
 import { useGlobalStore } from "../hooks/store";
 import { useNavWide, useUserTheme } from "../hooks/theme";
 import { useGlobalWorkunitNotes } from "../hooks/workunit";
@@ -118,5 +119,6 @@ export const Frame: React.FunctionComponent<FrameProps> = () => {
         <CookieConsent showCookieConsent={showCookieConsent} onApply={(n: boolean) => {
             userKeyValStore().set(USER_COOKIE_CONSENT, n ? "1" : "0");
         }} />
+        <PortalRenderer />
     </FluentProvider >;
 };

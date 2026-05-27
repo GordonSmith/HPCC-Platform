@@ -3,7 +3,7 @@ import { useConst } from "@fluentui/react-hooks";
 import { HTMLWidget, Widget, Utility } from "@hpcc-js/common";
 import { DockPanel as HPCCDockPanel, IClosable, WidgetAdapter } from "@hpcc-js/phosphor";
 import { compare2 } from "@hpcc-js/util";
-import { ReactRoot } from "src/react/render";
+import { addPortal, removePortal, updatePortal } from "src/react/portalStore";
 import { AutosizeHpccJSComponent } from "./HpccJSAdapter";
 
 export interface PlaceholderProps {
@@ -21,7 +21,6 @@ export class ReactWidget extends HTMLWidget {
     protected _children = <div></div>;
 
     protected _div;
-    protected _root: ReactRoot;
 
     constructor() {
         super();
@@ -38,7 +37,7 @@ export class ReactWidget extends HTMLWidget {
     enter(domNode, element) {
         super.enter(domNode, element);
         this._div = element.append("div");
-        this._root = ReactRoot.create(this._div.node());
+        addPortal(this.id(), this._div.node());
     }
 
     update(domNode, element) {
@@ -47,11 +46,11 @@ export class ReactWidget extends HTMLWidget {
             .style("width", `${this.width()}px`)
             .style("height", `${this.height()}px`)
             ;
-        this._root?.themedRender(Placeholder, { children: this._children });
+        updatePortal(this.id(), <Placeholder>{this._children}</Placeholder>);
     }
 
     exit(domNode, element) {
-        this._root?.dispose();
+        removePortal(this.id());
         super.exit(domNode, element);
     }
 

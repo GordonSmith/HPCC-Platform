@@ -249,9 +249,9 @@ function tooltipItemRenderer(item: any, index: number, column: IColumn) {
     const content = column.data.formatter
         ? <span style={style} className={className}>{column.data.formatter(value, item) ?? ""}</span>
         : <span style={style} className={className}>{value ?? ""}</span>;
-    // TODO: GJS return <Tooltip content={String(value ?? "")} relationship="description" withArrow>
-    return <span style={{ display: "block", overflow: "hidden" }}>{content}</span>;
-    // TODO: GJS </Tooltip>;
+    return <Tooltip content={String(value ?? "")} relationship="description" withArrow>
+        <span style={{ display: "block", overflow: "hidden" }}>{content}</span>
+    </Tooltip>;
 }
 
 function updateColumnSorted(columns: IColumn[], attr: any, desc: boolean) {
