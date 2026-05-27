@@ -562,8 +562,13 @@ const FluentStoreGrid: React.FunctionComponent<FluentStoreGridProps> = ({
     const someSelected = !allSelected && items.some((_, i) => selectedIndices.has(i));
     const shimmerCount = Math.min(Math.max(count, 5), 15);
 
+    const totalMinWidth = React.useMemo(() => {
+        const selectionCellWidth = selectionMode !== SelectionMode.none ? 32 : 0;
+        return selectionCellWidth + fluentColumns.reduce((sum, col) => sum + (col.minWidth ?? 70), 0);
+    }, [fluentColumns, selectionMode]);
+
     return <div style={{ position: "relative", height, overflow: "auto" }}>
-        <Table style={{ tableLayout: "fixed", minWidth: "max-content" }} size="small">
+        <Table style={{ tableLayout: "fixed", minWidth: totalMinWidth }} size="small">
             <TableHeader className={styles.header}>
                 <TableRow>
                     {selectionMode === SelectionMode.multiple && (
