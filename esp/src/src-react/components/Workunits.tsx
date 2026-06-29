@@ -45,8 +45,10 @@ const FilterFields: Fields = {
     "LogicalFile": { type: "string", label: nlsHPCC.LogicalFile, placeholder: nlsHPCC.somefile },
     "LogicalFileSearchType": { type: "logicalfile-type", label: nlsHPCC.LogicalFileType, placeholder: "", disabled: (params: Fields) => !params.LogicalFile.value },
     "LastNDays": { type: "string", label: nlsHPCC.LastNDays, placeholder: "2" },
-    "StartDate": { type: "datetime", label: nlsHPCC.FromDate },
-    "EndDate": { type: "datetime", label: nlsHPCC.ToDate },
+    "StartDate": { type: "date", label: nlsHPCC.FromDate },
+    "StartTime": { type: "time", label: nlsHPCC.FromTime },
+    "EndDate": { type: "date", label: nlsHPCC.ToDate },
+    "EndTime": { type: "time", label: nlsHPCC.ToTime },
 };
 
 const defaultUIState = {
