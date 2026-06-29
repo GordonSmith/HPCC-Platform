@@ -40,7 +40,7 @@ interface DropdownProps {
     optional?: boolean;
     disabled?: boolean;
     errorMessage?: string;
-    onChange?: (event: React.SyntheticEvent<HTMLDivElement> | undefined, option?: IDropdownOption, index?: number) => void;
+    onChange?: (event: React.SyntheticEvent<HTMLDivElement>, option?: IDropdownOption, index?: number) => void;
     placeholder?: string;
     className?: string
 }
@@ -124,7 +124,7 @@ interface AsyncDropdownProps {
     multiSelect?: boolean;
     valueSeparator?: string;
     errorMessage?: string;
-    onChange?: (event: React.SyntheticEvent<HTMLDivElement> | undefined, option?: IDropdownOption | IDropdownOption[], index?: number) => void;
+    onChange?: (event: React.SyntheticEvent<HTMLDivElement>, option?: IDropdownOption | IDropdownOption[], index?: number) => void;
     placeholder?: string;
     className?: string;
     fieldClass?: string;
@@ -287,7 +287,7 @@ interface DropdownMultiProps {
     optional?: boolean;
     disabled?: boolean;
     errorMessage?: string;
-    onChange?: (event?: React.SyntheticEvent<HTMLDivElement>, value?: string) => void;
+    onChange?: (event: React.SyntheticEvent<HTMLDivElement>, value?: string) => void;
     placeholder?: string;
     className?: string
 }
@@ -767,7 +767,7 @@ export interface TargetFolderTextFieldProps extends Omit<ComboboxProps, "options
     required?: boolean;
     errorMessage?: string;
     onInputValueChange?: (text: any) => void;
-    onChange?: (event?: React.SyntheticEvent<HTMLElement>, option?: IComboBoxOption, index?: number, value?: string) => void;
+    onChange?: (event: React.SyntheticEvent<HTMLElement>, option?: IComboBoxOption, index?: number, value?: string) => void;
 }
 
 export const TargetFolderTextField: React.FunctionComponent<TargetFolderTextFieldProps> = (props) => {
