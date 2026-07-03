@@ -9,6 +9,7 @@ import { useDeepCallback, useDeepEffect, useDeepMemo } from "../../hooks/deepHoo
 import { useUserStore, useNonReactiveEphemeralPageStore } from "../../hooks/store";
 import { ICommandBarItemProps } from "../CommandBarV9";
 import { createCopyDownloadSelection } from "../Common";
+import { AutoSizeMe, type Size } from "../../layouts/SizeMe";
 
 // ─── Local replacements for @fluentui/react exports ─────────────────────────
 
@@ -759,4 +760,18 @@ export const FluentPagedFooter: React.FunctionComponent<FluentPagedFooterProps> 
             {[10, 25, 50, 100, 250, 500, 1000].map(n => <Option key={n} value={String(n)}>{String(n)}</Option>)}
         </Dropdown>
     </div>;
+};
+
+export interface AutoSizeFluentGridProps extends Omit<FluentGridProps, "height"> {
+}
+
+export const AutoSizeFluentGrid: React.FunctionComponent<AutoSizeFluentGridProps> = (props) => {
+    const [size, setSize] = React.useState<Size>({ width: 1, height: 1 });
+
+    return <AutoSizeMe setSize={setSize}>
+        <FluentGrid
+            {...props}
+            height={`${size.height}px`}
+        ></FluentGrid>
+    </AutoSizeMe>;
 };
