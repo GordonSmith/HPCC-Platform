@@ -1,5 +1,7 @@
 import * as React from "react";
-import { Label, makeStyles } from "@fluentui/react-components";
+import { Button, Label, makeStyles } from "@fluentui/react-components";
+import { CopyRegular } from "@fluentui/react-icons";
+import nlsHPCC from "src/nlsHPCC";
 import { createInputs, Fields } from "./Fields";
 
 interface FieldsTableProps {
@@ -36,7 +38,9 @@ const useStyles = makeStyles({
         }
     },
     wrapper: { padding: "0 0 1em 0.3em" },
-    label: { marginBottom: 0 }
+    label: { marginBottom: 0 },
+    fieldCellInner: { display: "flex", alignItems: "center", gap: "4px" },
+    fieldContent: { flex: 1, minWidth: 0, maxWidth: "95%" }
 });
 
 export const TableGroup: React.FunctionComponent<FieldsTableProps> = ({
@@ -52,9 +56,23 @@ export const TableGroup: React.FunctionComponent<FieldsTableProps> = ({
     return <table className={styles.tableGroupRoot} style={{ width }}>
         <tbody>
             {formFields.map((ff) => {
+                const onCopy = fields[ff.id]?.onCopy;
                 return <tr key={ff.id}>
                     <td className={styles.labelCell}><Label htmlFor={ff.id}>{ff.label}</Label></td>
-                    <td className={styles.fieldCell}>{ff.field}</td>
+                    <td className={styles.fieldCell}>
+                        <div className={styles.fieldCellInner}>
+                            <div className={styles.fieldContent}>{ff.field}</div>
+                            {onCopy &&
+                                <Button
+                                    size="small"
+                                    icon={<CopyRegular />}
+                                    title={nlsHPCC.CopyToClipboard}
+                                    aria-label={nlsHPCC.CopyToClipboard}
+                                    onClick={onCopy}
+                                />
+                            }
+                        </div>
+                    </td>
                 </tr>;
             })}
         </tbody>

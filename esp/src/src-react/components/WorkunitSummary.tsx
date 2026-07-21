@@ -1,7 +1,7 @@
 import * as React from "react";
 import { ScrollablePane, ScrollbarVisibility } from "./controls/ScrollablePane";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
-import { Button, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent } from "@fluentui/react-components";
+import { Button, Card, Link, makeStyles, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent, tokens } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
@@ -21,6 +21,7 @@ import { ZAPDialog } from "./forms/ZAPDialog";
 import { InfoGrid } from "./InfoGrid";
 import { WorkunitPersona } from "./controls/StateIcon";
 import { localKeyValStore } from "src/KeyValStore";
+import { copyToClipboard } from "src/Utility";
 
 const logger = scopedLogger("../components/WorkunitSummary.tsx");
 
@@ -30,10 +31,6 @@ export function resetWorkunitSummarySplitter() {
     const store = localKeyValStore();
     return store?.delete(WU_SUMMARY_SPLITTER);
 }
-
-// .../eclwatch/img/opentelemetry-icon-color.svg inlined as React element
-const OT_ICON_COLORED = <svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="-12.70 -12.70 1024.40 1024.40" style={{ width: 16, height: 16 }}><path fill="#f5a800" d="M528.7 545.9c-42 42-42 110.1 0 152.1s110.1 42 152.1 0 42-110.1 0-152.1-110.1-42-152.1 0zm113.7 113.8c-20.8 20.8-54.5 20.8-75.3 0-20.8-20.8-20.8-54.5 0-75.3 20.8-20.8 54.5-20.8 75.3 0 20.8 20.7 20.8 54.5 0 75.3zm36.6-643l-65.9 65.9c-12.9 12.9-12.9 34.1 0 47l257.3 257.3c12.9 12.9 34.1 12.9 47 0l65.9-65.9c12.9-12.9 12.9-34.1 0-47L725.9 16.7c-12.9-12.9-34-12.9-46.9 0zM217.3 858.8c11.7-11.7 11.7-30.8 0-42.5l-33.5-33.5c-11.7-11.7-30.8-11.7-42.5 0L72.1 852l-.1.1-19-19c-10.5-10.5-27.6-10.5-38 0-10.5 10.5-10.5 27.6 0 38l114 114c10.5 10.5 27.6 10.5 38 0s10.5-27.6 0-38l-19-19 .1-.1 69.2-69.2z" /><path fill="#425cc7" d="M565.9 205.9L419.5 352.3c-13 13-13 34.4 0 47.4l90.4 90.4c63.9-46 153.5-40.3 211 17.2l73.2-73.2c13-13 13-34.4 0-47.4L613.3 205.9c-13-13.1-34.4-13.1-47.4 0zm-94 322.3l-53.4-53.4c-12.5-12.5-33-12.5-45.5 0L184.7 663.2c-12.5 12.5-12.5 33 0 45.5l106.7 106.7c12.5 12.5 33 12.5 45.5 0L458 694.1c-25.6-52.9-21-116.8 13.9-165.9z" /></svg>;
-const OT_ICON_DISABLED = <svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="-12.70 -12.70 1024.40 1024.40" style={{ width: 16, height: 16 }}><path fill="var(--colorNeutralForegroundDisabled)" d="M528.7 545.9c-42 42-42 110.1 0 152.1s110.1 42 152.1 0 42-110.1 0-152.1-110.1-42-152.1 0zm113.7 113.8c-20.8 20.8-54.5 20.8-75.3 0-20.8-20.8-20.8-54.5 0-75.3 20.8-20.8 54.5-20.8 75.3 0 20.8 20.7 20.8 54.5 0 75.3zm36.6-643l-65.9 65.9c-12.9 12.9-12.9 34.1 0 47l257.3 257.3c12.9 12.9 34.1 12.9 47 0l65.9-65.9c12.9-12.9 12.9-34.1 0-47L725.9 16.7c-12.9-12.9-34-12.9-46.9 0zM217.3 858.8c11.7-11.7 11.7-30.8 0-42.5l-33.5-33.5c-11.7-11.7-30.8-11.7-42.5 0L72.1 852l-.1.1-19-19c-10.5-10.5-27.6-10.5-38 0-10.5 10.5-10.5 27.6 0 38l114 114c10.5 10.5 27.6 10.5 38 0s10.5-27.6 0-38l-19-19 .1-.1 69.2-69.2z" /><path fill="var(--colorNeutralForegroundDisabled)" d="M565.9 205.9L419.5 352.3c-13 13-13 34.4 0 47.4l90.4 90.4c63.9-46 153.5-40.3 211 17.2l73.2-73.2c13-13 13-34.4 0-47.4L613.3 205.9c-13-13.1-34.4-13.1-47.4 0zm-94 322.3l-53.4-53.4c-12.5-12.5-33-12.5-45.5 0L184.7 663.2c-12.5 12.5-12.5 33 0 45.5l106.7 106.7c12.5 12.5 33 12.5 45.5 0L458 694.1c-25.6-52.9-21-116.8 13.9-165.9z" /></svg>;
 
 interface OtTraceSchema {
     traceId: string;
@@ -50,6 +47,60 @@ const parseOtTraceParent = (parent: string = ""): OtTraceSchema => {
     }
     return retVal;
 };
+
+const useStyles = makeStyles({
+    wuSummaryHeader: {
+        position: "sticky",
+        top: 0,
+        marginBottom: "8px",
+        background: tokens.colorNeutralBackground1,
+        borderBottom: `1px solid ${tokens.colorNeutralBackground1Pressed}`,
+        zIndex: 2,
+        display: "flex",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        alignItems: "center",
+        containerType: "inline-size"
+    },
+    wuPersona: {
+        marginTop: "-6px",
+        "@container (max-width: 1020px)": {
+            marginTop: "0"
+        },
+        "@container (max-width: 900px)": {
+            flexBasis: "100%"
+        }
+    },
+    linkWrapper: {
+        margin: "-6px 10px 0 14px",
+        "& span": {
+            fontWeight: "bold"
+        },
+        "& a": {
+            marginLeft: "6px",
+        },
+        "@container (max-width: 1020px)": {
+            marginTop: "0"
+        }
+    },
+    cardsWrapper: {
+        display: "flex",
+        gap: "12px",
+        margin: "0 0 10px 10px",
+        alignItems: "flex-start"
+    },
+    detailsCard: {
+        width: "100%",
+        alignSelf: "flex-start",
+        overflowX: "auto"
+    },
+    costsCard: {
+        alignSelf: "flex-start",
+        marginLeft: "auto",
+        marginRight: "12px",
+        overflow: "visible"
+    }
+});
 
 interface MessageBarContent {
     type: MessageBarIntent;
@@ -82,6 +133,8 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
     const [dockpanel, setDockpanel] = React.useState<ResetableDockPanel>();
     const [layout, setLayout] = useLocalStore<[number, number]>(WU_SUMMARY_SPLITTER, [0.67, 0.33], false);
 
+    const styles = useStyles();
+
     const [messageBarContent, setMessageBarContent] = React.useState<MessageBarContent | undefined>();
     const dismissMessageBar = React.useCallback(() => setMessageBarContent(undefined), []);
     const showMessageBar = React.useCallback((content: MessageBarContent) => {
@@ -91,6 +144,52 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
             window.clearTimeout(t);
         }, 2400);
     }, [dismissMessageBar]);
+
+    const [minimized, setMinimized] = React.useState(false);
+    const preMinimizeSizes = React.useRef<[number, number] | null>(null);
+
+    const handleMinimize = React.useCallback(() => {
+        if (!dockpanel) return;
+        const dpLayout: any = dockpanel.getLayout();
+        if (Array.isArray(dpLayout?.main?.sizes) && dpLayout.main.sizes.length === 2) {
+            preMinimizeSizes.current = [...dpLayout.main.sizes] as [number, number];
+            const totalHeight = (dockpanel as any).node?.clientHeight ?? 400;
+            const minimizedFraction = 32 / totalHeight;
+            dpLayout.main.sizes = [1 - minimizedFraction, minimizedFraction];
+            dockpanel.layout(dpLayout).lazyRender();
+        }
+        setMinimized(true);
+    }, [dockpanel]);
+
+    const handleRestore = React.useCallback(() => {
+        if (!dockpanel || !preMinimizeSizes.current) return;
+        const dpLayout: any = dockpanel.getLayout();
+        dpLayout.main.sizes = [...preMinimizeSizes.current];
+        dockpanel.layout(dpLayout).lazyRender();
+        setMinimized(false);
+    }, [dockpanel]);
+
+    React.useEffect(() => {
+        if (!dockpanel) return;
+        const origLayoutChanged = dockpanel.layoutChanged.bind(dockpanel);
+        dockpanel.layoutChanged = function () {
+            origLayoutChanged();
+            setMinimized(prev => {
+                if (!prev) return prev;
+                const dpLayout: any = dockpanel.getLayout();
+                if (Array.isArray(dpLayout?.main?.sizes) && dpLayout.main.sizes.length === 2) {
+                    const totalHeight = (dockpanel as any).node?.clientHeight ?? 400;
+                    if (dpLayout.main.sizes[1] * totalHeight > 32) {
+                        return false;
+                    }
+                }
+                return prev;
+            });
+        };
+        return () => {
+            dockpanel.layoutChanged = origLayoutChanged;
+        };
+    }, [dockpanel]);
 
     React.useEffect(() => {
         setJobname(workunit?.Jobname);
@@ -133,19 +232,6 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
             onClick: () => {
                 refresh(true);
                 refreshSavings();
-            }
-        },
-        {
-            key: "copy", text: nlsHPCC.CopyWUID, iconProps: { iconName: "Copy" },
-            onClick: () => {
-                navigator?.clipboard?.writeText(wuid);
-            }
-        },
-        {
-            key: "copyOtel", text: nlsHPCC.CopyOpenTelemetry, iconElement: otTraceParent === "" ? OT_ICON_DISABLED : OT_ICON_COLORED,
-            disabled: otTraceParent === "",
-            onClick: () => {
-                navigator?.clipboard?.writeText(JSON.stringify(parseOtTraceParent(otTraceParent)));
             }
         },
         { key: "divider_1", itemType: ContextualMenuItemType.Divider },
@@ -222,7 +308,7 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
             key: "slaveLogs", text: nlsHPCC.SlaveLogs, disabled: !workunit?.ThorLogList,
             onClick: () => setShowThorSlaveLogs(true)
         },
-    ], [wuProtected, canDelete, canDeschedule, canReschedule, canSave, description, jobname, otTraceParent, refresh, refreshSavings, setShowDeleteConfirm, showMessageBar, workunit, wuid]);
+    ], [wuProtected, canDelete, canDeschedule, canReschedule, canSave, description, jobname, refresh, refreshSavings, setShowDeleteConfirm, showMessageBar, workunit]);
 
     React.useEffect(() => {
         if (dockpanel && layout) {
@@ -286,52 +372,73 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
                 <DockPanelItem key="summary" title="Summary">
                     <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto}>
                         <div className="pane-content">
-                            <div style={{ zIndex: 2, display: "flex", flexDirection: "row", justifyContent: "space-between" }}>
-                                <WorkunitPersona wuid={wuid} />
-                                <WUStatus workunit={workunit}></WUStatus>
-                            </div>
-                            <TableGroup fields={{
-                                "wuid": { label: nlsHPCC.WUID, type: "string", value: wuid, readonly: true },
-                                "otTraceId": { label: nlsHPCC.Trace, type: "string", value: otTraceId, readonly: true },
-                                "otSpanId": { label: nlsHPCC.Span, type: "string", value: otSpanId, readonly: true },
-                                "action": { label: nlsHPCC.Action, type: "string", value: workunit?.ActionEx, readonly: true },
-                                "state": { label: nlsHPCC.State, type: "string", value: workunit?.State + (workunit?.StateEx ? ` (${workunit.StateEx})` : ""), readonly: true },
-                                "owner": { label: nlsHPCC.Owner, type: "string", value: workunit?.Owner, readonly: true },
-                                "jobname": { label: nlsHPCC.JobName, type: "string", value: jobname },
-                                "description": { label: nlsHPCC.Description, type: "string", value: description },
-                                "potentialSavings": { label: nlsHPCC.PotentialSavings, type: "string", value: `${formatCost(potentialSavings)} (${totalCosts > 0 ? Math.round((potentialSavings / totalCosts) * 10000) / 100 : 0}%)`, readonly: true },
-                                "compileCost": { label: nlsHPCC.CompileCost, type: "string", value: `${formatCost(workunit?.CompileCost)}`, readonly: true },
-                                "executeCost": { label: nlsHPCC.ExecuteCost, type: "string", value: `${formatCost(workunit?.ExecuteCost)}`, readonly: true },
-                                "fileAccessCost": { label: nlsHPCC.FileAccessCost, type: "string", value: `${formatCost(workunit?.FileAccessCost)}`, readonly: true },
-                                "protected": { label: nlsHPCC.Protected, type: "checkbox", value: wuProtected },
-                                "cluster": { label: nlsHPCC.Cluster, type: "string", value: workunit?.Cluster, readonly: true },
-                                ...(engineRedirected && engineRedirectSuffix ? { "clusterRedirect": { label: nlsHPCC.RedirectedTo, type: "string", value: engineRedirectSuffix, readonly: true } } : {}),
-                                "totalClusterTime": { label: nlsHPCC.TotalClusterTime, type: "string", value: workunit?.TotalClusterTime ? workunit?.TotalClusterTime : "0.00", readonly: true },
-                                "abortedBy": { label: nlsHPCC.AbortedBy, type: "string", value: workunit?.AbortBy, readonly: true },
-                                "abortedTime": { label: nlsHPCC.AbortedTime, type: "string", value: workunit?.AbortTime, readonly: true },
-                                "ServiceNamesCustom": { label: nlsHPCC.Services, type: "string", value: serviceNames, readonly: true, multiline: true },
-                            }} onChange={(id, value) => {
-                                switch (id) {
-                                    case "jobname":
-                                        setJobname(value);
-                                        break;
-                                    case "description":
-                                        setDescription(value);
-                                        break;
-                                    case "protected":
-                                        setWuProtected(value);
-                                        break;
-                                    default:
-                                        logger.debug(`${id}:  ${value}`);
+                            <div className={styles.wuSummaryHeader}>
+                                <div className={styles.wuPersona}>
+                                    <WorkunitPersona wuid={wuid} />
+                                </div>
+                                {jobname &&
+                                    <div className={styles.linkWrapper}>
+                                        <span>{nlsHPCC.JobName}:</span>
+                                        <Link as="a" title={nlsHPCC.ViewWUsWithSimilarName} href={`#/workunits?Jobname=*${encodeURIComponent(jobname)}*`}>{jobname}</Link>
+                                    </div>
                                 }
-                            }} />
+                                {workunit?.Owner &&
+                                    <div className={styles.linkWrapper}>
+                                        <span>{nlsHPCC.Owner}:</span>
+                                        <Link as="a" title={nlsHPCC.ViewWUsByOwner} href={`#/workunits?Owner=${encodeURIComponent(workunit?.Owner)}`}>{workunit?.Owner}</Link>
+                                    </div>
+                                }
+                                <WUStatus wuid={wuid}></WUStatus>
+                            </div>
+                            <div className={styles.cardsWrapper}>
+                                <Card className={styles.detailsCard}>
+                                    <TableGroup fields={{
+                                        "state": { label: nlsHPCC.State, type: "string", value: workunit?.State + (workunit?.StateEx ? ` (${workunit.StateEx})` : ""), readonly: true },
+                                        "action": { label: nlsHPCC.Action, type: "string", value: workunit?.ActionEx, readonly: true },
+                                        "cluster": { label: nlsHPCC.Cluster, type: "string", value: workunit?.Cluster, readonly: true },
+                                        ...(engineRedirected && engineRedirectSuffix ? { "clusterRedirect": { label: nlsHPCC.RedirectedTo, type: "string", value: engineRedirectSuffix, readonly: true } } : {}),
+                                        "totalClusterTime": { label: nlsHPCC.TotalClusterTime, type: "string", value: workunit?.TotalClusterTime ? workunit?.TotalClusterTime : "0.00", readonly: true },
+                                        "otel": { label: nlsHPCC.OpenTelemetry, type: "string", value: (otTraceId) ? `${otTraceId} / ${otSpanId}` : "", readonly: true, onCopy: () => copyToClipboard(JSON.stringify(parseOtTraceParent(otTraceParent))) },
+                                        "owner": { label: nlsHPCC.Owner, type: "string", value: workunit?.Owner, readonly: true, onCopy: () => copyToClipboard(workunit?.Owner) },
+                                        "jobname": { label: nlsHPCC.JobName, type: "string", value: jobname, onCopy: () => copyToClipboard(jobname) },
+                                        "description": { label: nlsHPCC.Description, type: "string", value: description },
+                                        "protected": { label: nlsHPCC.Protected, type: "checkbox", value: wuProtected },
+                                        "ServiceNamesCustom": { label: nlsHPCC.Services, type: "string", value: serviceNames, readonly: true, multiline: true },
+                                        "abortedBy": { label: nlsHPCC.AbortedBy, type: "string", value: workunit?.AbortBy, readonly: true },
+                                        "abortedTime": { label: nlsHPCC.AbortedTime, type: "string", value: workunit?.AbortTime, readonly: true },
+                                    }} onChange={(id, value) => {
+                                        switch (id) {
+                                            case "jobname":
+                                                setJobname(value);
+                                                break;
+                                            case "description":
+                                                setDescription(value);
+                                                break;
+                                            case "protected":
+                                                setWuProtected(value);
+                                                break;
+                                            default:
+                                                logger.debug(`${id}:  ${value}`);
+                                        }
+                                    }} />
+                                </Card>
+                                <Card size="small" className={styles.costsCard}>
+                                    <TableGroup fields={{
+                                        "potentialSavings": { label: nlsHPCC.PotentialSavings, type: "string", value: `${formatCost(potentialSavings)} (${totalCosts > 0 ? Math.round((potentialSavings / totalCosts) * 10000) / 100 : 0}%)`, readonly: true },
+                                        "compileCost": { label: nlsHPCC.CompileCost, type: "string", value: `${formatCost(workunit?.CompileCost)}`, readonly: true },
+                                        "executeCost": { label: nlsHPCC.ExecuteCost, type: "string", value: `${formatCost(workunit?.ExecuteCost)}`, readonly: true },
+                                        "fileAccessCost": { label: nlsHPCC.FileAccessCost, type: "string", value: `${formatCost(workunit?.FileAccessCost)}`, readonly: true },
+                                    }} />
+                                </Card>
+                            </div>
                         </div>
                     </ScrollablePane>
                 </DockPanelItem>
                 <DockPanelItem key="errWarn" title="ErrWarn" padding={4} location="split-bottom" relativeTo="helpersTable">
-                    <InfoGrid wuid={wuid}></InfoGrid>
+                    <InfoGrid wuid={wuid} minimized={minimized} onMinimize={handleMinimize} onRestore={handleRestore}></InfoGrid>
                 </DockPanelItem>
             </DockPanel>
+
             <PublishQueryForm wuid={wuid} showForm={showPublishForm} setShowForm={setShowPublishForm} />
             <ZAPDialog wuid={wuid} showForm={showZapForm} setShowForm={setShowZapForm} />
             <SlaveLogs wuid={wuid} showForm={showThorSlaveLogs} setShowForm={setShowThorSlaveLogs} />
