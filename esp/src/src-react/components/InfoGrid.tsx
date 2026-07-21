@@ -4,6 +4,7 @@ import { CommandBar, ICommandBarItemProps } from "./CommandBarV9";
 import { Badge, Checkbox, FluentProvider, Link, tokens } from "@fluentui/react-components";
 import { ArrowMaximizeRegular, ArrowMinimizeRegular, ArrowMinimizeVerticalRegular, ArrowMaximizeVerticalRegular } from "@fluentui/react-icons";
 import { SizeMe } from "../layouts/SizeMe";
+import { warningBadgeStyle, dangerBadgeStyle } from "../themes";
 import { formatCost, formatTwoDigits } from "src/Session";
 import nlsHPCC from "src/nlsHPCC";
 import { useUserTheme } from "../hooks/theme";
@@ -68,9 +69,9 @@ export const InfoGrid: React.FunctionComponent<InfoGridProps> = ({
 
     //  Command Bar  ---
     const buttons = React.useMemo((): ICommandBarItemProps[] => [
-        { key: "errors", onRender: () => <Checkbox defaultChecked onChange={(_, data) => setErrorChecked(!!data.checked)} style={{ marginRight: 8 }} label={<span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><span style={{ color: tokens.colorStatusDangerForeground1 }}>{nlsHPCC.Errors} </span><Badge appearance="tint" color="danger">{filterCounts.error || 0}</Badge></span>} /> },
-        { key: "costs", onRender: () => <Checkbox defaultChecked onChange={(_, data) => setCostChecked(!!data.checked)} style={{ marginRight: 8 }} label={<span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><span style={{ color: tokens.colorStatusDangerForeground1 }}>{nlsHPCC.Costs} </span><Badge appearance="tint" color="danger">{filterCounts.cost || 0}</Badge></span>} /> },
-        { key: "warnings", onRender: () => <Checkbox defaultChecked onChange={(_, data) => setWarningChecked(!!data.checked)} style={{ marginRight: 8 }} label={<span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><span style={{ color: tokens.colorStatusWarningForeground1 }}>{nlsHPCC.Warnings} </span><Badge appearance="tint" color="warning">{filterCounts.warning || 0}</Badge></span>} /> },
+        { key: "errors", onRender: () => <Checkbox defaultChecked onChange={(_, data) => setErrorChecked(!!data.checked)} style={{ marginRight: 8 }} label={<span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><span style={{ color: tokens.colorStatusDangerForeground1 }}>{nlsHPCC.Errors} </span><Badge appearance="tint" color="danger" style={dangerBadgeStyle}>{filterCounts.error || 0}</Badge></span>} /> },
+        { key: "costs", onRender: () => <Checkbox defaultChecked onChange={(_, data) => setCostChecked(!!data.checked)} style={{ marginRight: 8 }} label={<span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><span style={{ color: tokens.colorStatusDangerForeground1 }}>{nlsHPCC.Costs} </span><Badge appearance="tint" color="danger" style={dangerBadgeStyle}>{filterCounts.cost || 0}</Badge></span>} /> },
+        { key: "warnings", onRender: () => <Checkbox defaultChecked onChange={(_, data) => setWarningChecked(!!data.checked)} style={{ marginRight: 8 }} label={<span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><span style={{ color: tokens.colorStatusWarningForeground1 }}>{nlsHPCC.Warnings} </span><Badge appearance="tint" color="warning" style={warningBadgeStyle}>{filterCounts.warning || 0}</Badge></span>} /> },
         { key: "infos", onRender: () => <Checkbox checked={infoChecked} onChange={(_, data) => setInfoChecked(!!data.checked)} style={{ marginRight: 8 }} label={<span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><span>{nlsHPCC.Infos} </span><Badge appearance="tint" color="informative">{filterCounts.info || 0}</Badge></span>} /> },
         { key: "others", onRender: () => <Checkbox defaultChecked onChange={(_, data) => setOtherChecked(!!data.checked)} style={{ marginRight: 8 }} label={<span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><span>{nlsHPCC.Others} </span><Badge appearance="tint" color="informative">{filterCounts.other || 0}</Badge></span>} /> }
     ], [infoChecked, filterCounts.cost, filterCounts.error, filterCounts.info, filterCounts.other, filterCounts.warning]);

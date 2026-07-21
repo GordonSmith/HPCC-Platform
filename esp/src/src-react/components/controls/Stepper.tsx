@@ -1,5 +1,6 @@
 import * as React from "react";
-import { makeStyles, tokens } from "@fluentui/react-components";
+import { makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
+import { CheckmarkCircle20Filled, Warning20Filled } from "@fluentui/react-icons";
 
 const useStepStyles = makeStyles({
     wrapper: {
@@ -12,19 +13,25 @@ const useStepStyles = makeStyles({
         border: `1px solid ${tokens.colorNeutralForegroundDisabled}`,
         borderRadius: "5px"
     },
-    svg: {
-        color: tokens.colorNeutralForeground1,
-        fill: "currentColor",
-        width: "1em",
-        height: "1em",
-        fontSize: "1.5rem",
+    icon: {
+        marginRight: "3px"
+    },
+    stepNumber: {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "20px",
+        height: "20px",
         marginRight: "3px",
-        "& text": { color: tokens.colorNeutralBackground1 }
+        borderRadius: "50%",
+        backgroundColor: tokens.colorNeutralForeground1,
+        color: tokens.colorNeutralBackground1,
+        fontSize: "0.75rem",
+        fontWeight: 600
     },
     failed: { color: `${tokens.colorPaletteRedForeground1} !important` },
     completed: {
-        color: tokens.colorBrandBackground,
-        "& circle": { color: tokens.colorNeutralBackground1 }
+        color: tokens.colorBrandBackground
     },
     label: {
         fontSize: "0.875rem",
@@ -92,21 +99,13 @@ const Step: React.FunctionComponent<StepProps> = ({
         {showConnector ? <div className={stepStyles.connector}></div> : ""}
         <div className={stepStyles.wrapper}>
             {failed ?
-                <svg className={[stepStyles.svg, stepStyles.failed].join(" ")} viewBox={"0 0 24 24"}>
-                    <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"></path>
-                </svg> :
+                <Warning20Filled className={mergeClasses(stepStyles.icon, stepStyles.failed)} /> :
                 completed ?
-                    <svg className={[stepStyles.svg, stepStyles.completed].join(" ")} viewBox={"0 0 24 24"}>
-                        <circle cx="12" cy="12" r="12"></circle>
-                        <path d="M12 0a12 12 0 1 0 0 24 12 12 0 0 0 0-24zm-2 17l-5-5 1.4-1.4 3.6 3.6 7.6-7.6L19 8l-9 9z"></path>
-                    </svg> :
-                    <svg className={stepStyles.svg} viewBox={"0 0 24 24"}>
-                        <circle cx="12" cy="12" r="12"></circle>
-                        <text x="7" y="18">{step}</text>
-                    </svg>
+                    <CheckmarkCircle20Filled className={mergeClasses(stepStyles.icon, stepStyles.completed)} /> :
+                    <span className={stepStyles.stepNumber}>{step}</span>
             }
             {failed ?
-                <span className={[stepStyles.failed, stepStyles.label].join(" ")}>{label}</span> :
+                <span className={mergeClasses(stepStyles.label, stepStyles.failed)}>{label}</span> :
                 <>
                     <span className={stepStyles.label}>{label}</span>
                     {timing ? <span className={stepStyles.timing}>{timing}</span> : <></>}
