@@ -1782,6 +1782,16 @@ IThorActivityIterator *CGraphBase::getConnectedIterator(bool branchOnConditional
     return new CGraphTraverseConnectedIterator(*this, branchOnConditional);
 }
 
+IThorActivityIterator *CGraphBase::getSinkIterator() const
+{
+    return new CGraphElementArrayIterator(activeSinks);
+}
+
+IThorActivityIterator *CGraphBase::getAllSinkIterator() const
+{
+    return new CGraphElementArrayIterator(sinks);
+}
+
 bool CGraphBase::wait(unsigned timeout)
 {
     CTimeMon tm(timeout);

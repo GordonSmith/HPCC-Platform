@@ -1558,7 +1558,7 @@ protected:
     Heaplet *prev;
     const IRowAllocatorCache *allocatorCache;
     CHeap * const heap;
-    memsize_t chunkCapacity;
+    memsize_t chunkCapacity = 0;
     std::atomic_uint nextSpace; // guaranteed to be set if it is in the maybeFreeList.
     
     inline unsigned getActivityId(unsigned allocatorId) const
@@ -1583,6 +1583,11 @@ public:
     virtual void getPeakActivityUsage(IActivityMemoryUsageMap *map) const = 0;
     virtual bool isFull() const = 0;
     virtual void releaseAllRows() = 0;
+
+    virtual void releaseStorageAndDestroy()
+    {
+        delete this;
+    }
 
     void operator delete(void * p)
     {
@@ -2468,9 +2473,9 @@ protected:
     }
 
 public:
-    HugeHeaplet(CHeap * _heap, const IRowAllocatorCache *_allocatorCache, memsize_t _hugeSize, unsigned _allocatorId) : Heaplet(_heap, _allocatorCache, calcCapacity(_hugeSize))
+    HugeHeaplet(CHeap * _heap, const IRowAllocatorCache *_allocatorCache, memsize_t _hugeSize, unsigned _allocatorId)
+        : Heaplet(_heap, _allocatorCache, calcCapacity(_hugeSize)), allocatorId(_allocatorId), rowCount(0)
     {
-        allocatorId = _allocatorId;
     }
 
     memsize_t setCapacity(memsize_t newsize)
@@ -2494,19 +2499,11 @@ public:
         return HEAPLET_DATA_AREA_OFFSET(HugeHeaplet);
     }
 
-    void operator delete(void * p)
+    virtual void releaseStorageAndDestroy() override
     {
-        // MORE: Depending on the members/methods of an Object in the delete operator 
-        //      is not a good idea, specially if another class derives from it.
-        //      This is OK for the time being since no object derive from this
-        //      and we provide/control both operators, new and delete.
-        //
-        //      I thought of alloc extra (4 bytes) at allocation for communication
-        //      between new and delete were the size of the memory is stored, and what is
-        //      returned from new is a ptr passed the 4 bytes, but that may not work fine
-        //      with HeapletBase::findbase() called from release. Might want to put at end
-        //      of alloc space !!!! Future work/design...
-        subfree_aligned(p, ((HugeHeaplet*)p)->_sizeInPages());
+        unsigned pages = _sizeInPages();
+        this->~HugeHeaplet();
+        subfree_aligned(this, pages);
     }
 
     virtual void noteReleased(const void *ptr)
@@ -3038,7 +3035,7 @@ public:
                     logctx.CTXLOG("RoxieMemMgr: CChunkingRowManager d-tor freeing heaplet linked in active list - addr=%p rowMgr=%p",
                             finger, this);
                 Heaplet *next = getNext(finger);
-                delete finger;
+                finger->releaseStorageAndDestroy();
                 finger = next;
             } while (finger != heaplets);
         }
@@ -3243,7 +3240,7 @@ public:
         //It is possible (but very unlikely) for another thread to have added this block to the space list.
         //Ensure it is not on the list.
         removeFromSpaceList(finger);
-        delete finger;
+        finger->releaseStorageAndDestroy();
         return size;
     }
 
@@ -6458,7 +6455,7 @@ void CChunkedHeap::releaseAllRows()
         {
             Heaplet *next = getNext(finger);
             finger->releaseAllRows();
-            delete finger;
+            finger->releaseStorageAndDestroy();
             finger = next;
         } while (finger != heaplets);
 

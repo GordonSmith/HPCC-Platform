@@ -43,6 +43,9 @@ if(JAVAEMBED AND USE_JAVA)
         endif()
         find_package(Java 1.8 COMPONENTS Development)
         find_package(JNI)
+        if(NOT Java_FOUND OR NOT JNI_FOUND OR NOT JNI_INCLUDE_DIRS OR NOT JAVA_JVM_LIBRARY)
+            message(WARNING "Skipping javaembed plugin: Java development/JNI components were not found")
+        else()
         set(
             SRCS
             javaembed.cpp)
@@ -120,6 +123,7 @@ if(JAVAEMBED AND USE_JAVA)
             nbcd
             roxiemem
             jlib)
+        endif()
     endif()
 endif()
 if(PLATFORM OR CLIENTTOOLS_ONLY)

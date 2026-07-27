@@ -1,0 +1,17 @@
+diff --git a/src/jemalloc_cpp.cpp b/src/jemalloc_cpp.cpp
+index 1234567..abcdefg 100644
+--- a/src/jemalloc_cpp.cpp
++++ b/src/jemalloc_cpp.cpp
+@@ -100,11 +100,11 @@ JEMALLOC_NOINLINE static void *
+ 	}
+ 
+ 	if (ptr == nullptr && !nothrow)
+-		std::__throw_bad_alloc();
++		throw std::bad_alloc();
+ 	return ptr;
+ }
+ 
+ template <bool IsNoExcept>
+ JEMALLOC_NOINLINE static void *
+ fallbackNewImpl(std::size_t size) noexcept(IsNoExcept) {
+

@@ -541,13 +541,23 @@ public:
             if (*xmlTag == '"' || *xmlTag == '\'')
                 xmlTag++;
             size_t len = strlen(xmlTag);
-            if (*(xmlTag+len-1)=='"' || *(xmlTag+len-1)=='\'')
+            if (len && (*(xmlTag+len-1)=='"' || *(xmlTag+len-1)=='\''))
                 len--;
-            strncpy(buffer, xmlTag, len);
+            if (len >= sizeof(buffer))
+                len = sizeof(buffer) - 1;
+            if (len)
+                memcpy(buffer, xmlTag, len);
             buffer[len] = 0;
         }
         else
-            strcpy(buffer,name);
+        {
+            size_t len = strlen(name);
+            if (len >= sizeof(buffer))
+                len = sizeof(buffer) - 1;
+            if (len)
+                memcpy(buffer, name, len);
+            buffer[len] = 0;
+        }
         return buffer;
     }
 

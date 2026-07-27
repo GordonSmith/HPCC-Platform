@@ -733,14 +733,8 @@ public:
         return new CGraphElementIterator(containers);
     }
     IThorActivityIterator *getConnectedIterator(bool branchOnConditional=true) const;
-    IThorActivityIterator *getSinkIterator() const
-    {
-        return new CGraphElementArrayIterator(activeSinks);
-    }
-    IThorActivityIterator *getAllSinkIterator() const
-    {
-        return new CGraphElementArrayIterator(sinks);
-    }
+    IThorActivityIterator *getSinkIterator() const;
+    IThorActivityIterator *getAllSinkIterator() const;
     IPropertyTree &queryXGMML() const { return *xgmml; }
     void addActivity(CGraphElementBase *element)
     {
