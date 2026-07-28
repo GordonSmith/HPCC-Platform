@@ -770,8 +770,11 @@ public:
 
           for (int idx=0; idx<stag.getLength(); idx++)
           {
-              buffer.appendf(" %s=\"", stag.getRawName(idx));
-              buffer.append(stag.getValue(idx));
+              const char *rawName = stag.getRawName(idx);
+              const char *rawValue = stag.getValue(idx);
+              buffer.appendf(" %s=\"", rawName ? rawName : "");
+              if (rawValue)
+                buffer.append(rawValue);
               buffer.append('\"');
           }
 

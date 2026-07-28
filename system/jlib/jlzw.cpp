@@ -1810,7 +1810,7 @@ public:
             return false;
         recsize = header->recsize;
         numrows = header->numrows;
-        RRDheader *headercopy;
+        RRDheader *headercopy = nullptr;
         if (copy) {
             size32_t sz = header->totsize-header->firstrlesize+recsize;
             headercopy = (RRDheader *)buf.allocate(sz);

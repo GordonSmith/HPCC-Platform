@@ -28,14 +28,66 @@ project(javaembed)
 if(JAVAEMBED AND USE_JAVA)
     ADD_PLUGIN(javaembed)
     if(MAKE_JAVAEMBED)
+        # On macOS with Homebrew openjdk, the JDK is installed under libexec and
+        # CMake's FindJNI does not search there by default. Provide a hint so
+        # both find_package(Java) and find_package(JNI) can locate the headers.
+        if(APPLE AND NOT DEFINED ENV{JAVA_HOME})
+            execute_process(
+                COMMAND brew --prefix openjdk
+                OUTPUT_VARIABLE HOMEBREW_OPENJDK_PREFIX
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET)
+            if(HOMEBREW_OPENJDK_PREFIX)
+                set(ENV{JAVA_HOME} "${HOMEBREW_OPENJDK_PREFIX}/libexec/openjdk.jdk/Contents/Home")
+            endif()
+        endif()
+        
         find_package(Java 1.8 COMPONENTS Development)
+
+        # Prefer JAVA_HOME if exported; otherwise derive JDK home from resolved java/javac paths.
+        set(_javaHome "")
+        if(DEFINED ENV{JAVA_HOME} AND NOT "$ENV{JAVA_HOME}" STREQUAL "")
+            set(_javaHome "$ENV{JAVA_HOME}")
+        elseif(Java_JAVAC_EXECUTABLE)
+            get_filename_component(_javaCompiler "${Java_JAVAC_EXECUTABLE}" REALPATH)
+            get_filename_component(_javaBinDir "${_javaCompiler}" DIRECTORY)
+            get_filename_component(_javaHome "${_javaBinDir}/.." ABSOLUTE)
+        elseif(Java_JAVA_EXECUTABLE)
+            get_filename_component(_javaRuntime "${Java_JAVA_EXECUTABLE}" REALPATH)
+            get_filename_component(_javaBinDir "${_javaRuntime}" DIRECTORY)
+            get_filename_component(_javaHome "${_javaBinDir}/.." ABSOLUTE)
+        endif()
+
+        if(_javaHome AND EXISTS "${_javaHome}/include/jni.h")
+            # Seed FindJNI cache entries to avoid persistent NOTFOUND values from older configure runs.
+            set(JAVA_INCLUDE_PATH "${_javaHome}/include" CACHE PATH "JNI include path" FORCE)
+            set(JAVA_AWT_INCLUDE_PATH "${_javaHome}/include" CACHE PATH "JNI AWT include path" FORCE)
+            if(EXISTS "${_javaHome}/include/linux/jni_md.h")
+                set(JAVA_INCLUDE_PATH2 "${_javaHome}/include/linux" CACHE PATH "JNI platform include path" FORCE)
+            elseif(EXISTS "${_javaHome}/include/darwin/jni_md.h")
+                set(JAVA_INCLUDE_PATH2 "${_javaHome}/include/darwin" CACHE PATH "JNI platform include path" FORCE)
+            endif()
+            if(EXISTS "${_javaHome}/lib/server/libjvm.so")
+                set(JAVA_JVM_LIBRARY "${_javaHome}/lib/server/libjvm.so" CACHE FILEPATH "JVM shared library" FORCE)
+            endif()
+            if(EXISTS "${_javaHome}/lib/libjawt.so")
+                set(JAVA_AWT_LIBRARY "${_javaHome}/lib/libjawt.so" CACHE FILEPATH "JAWT shared library" FORCE)
+            endif()
+        endif()
+
         find_package(JNI)
+        set(JNI_INCLUDE_DIRS_CLEAN)
+        foreach(_jniInc ${JNI_INCLUDE_DIRS})
+            if(NOT _jniInc MATCHES "-NOTFOUND$")
+                list(APPEND JNI_INCLUDE_DIRS_CLEAN ${_jniInc})
+            endif()
+        endforeach()
         set(
             SRCS
             javaembed.cpp)
 
         include_directories(
-            ${JNI_INCLUDE_DIRS}
+            ${JNI_INCLUDE_DIRS_CLEAN}
             ./../../system/include
             ./../../rtl/eclrtl
             ./../../rtl/include

@@ -1536,7 +1536,7 @@ protected:
     Heaplet *prev;
     const IRowAllocatorCache *allocatorCache;
     CHeap * const heap;
-    memsize_t chunkCapacity;
+    memsize_t chunkCapacity = 0;
     std::atomic_uint nextSpace; // guaranteed to be set if it is in the maybeFreeList.
     
     inline unsigned getActivityId(unsigned allocatorId) const
@@ -2472,6 +2472,10 @@ public:
         return HEAPLET_DATA_AREA_OFFSET(HugeHeaplet);
     }
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
     void operator delete(void * p)
     {
         // MORE: Depending on the members/methods of an Object in the delete operator 
@@ -2486,6 +2490,9 @@ public:
         //      of alloc space !!!! Future work/design...
         subfree_aligned(p, ((HugeHeaplet*)p)->_sizeInPages());
     }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     virtual void noteReleased(const void *ptr)
     {

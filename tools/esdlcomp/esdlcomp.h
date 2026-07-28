@@ -505,12 +505,14 @@ public:
     {
         static char buffer[256];
         const char* xmlTag = getMetaString("xml_tag", NULL);
-        if (xmlTag) {
+        if (xmlTag && *xmlTag) {
             if (*xmlTag == '"' || *xmlTag == '\'')
                 xmlTag++;
-            int len = strlen(xmlTag);
-            if (*(xmlTag+len-1)=='"' || *(xmlTag+len-1)=='\'')
+            size_t len = strlen(xmlTag);
+            if (len && (*(xmlTag+len-1)=='"' || *(xmlTag+len-1)=='\''))
                 len--;
+            if (len >= sizeof(buffer))
+                len = sizeof(buffer)-1;
             strncpy(buffer, xmlTag, len);
             buffer[len] = 0;
         }

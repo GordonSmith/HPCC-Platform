@@ -1,0 +1,17 @@
+--- a/absl/container/internal/hash_policy_traits.h
++++ b/absl/container/internal/hash_policy_traits.h
+@@ -158,11 +158,13 @@ class hash_policy_traits {
+   // that has been specialization for the key type and hash function.
+   template <class Hash>
+   static constexpr bool has_hash_slot_fn() {
+-    return Policy::template get_hash_slot_fn<Hash>() == nullptr
+-        ? false
+-        : true;
++    auto fn = Policy::template get_hash_slot_fn<Hash>();
++    return fn != nullptr;
+   }
++
+   template <class Hash>
+   static size_t hash_slot_fn(const void* a, const void* b) {
+     return Policy::template get_hash_slot_fn<Hash>()(a, b);
+   }

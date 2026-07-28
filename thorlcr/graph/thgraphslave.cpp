@@ -1153,6 +1153,10 @@ bool CSlaveGraph::preStart(size32_t parentExtractSz, const byte *parentExtract)
 
 void CSlaveGraph::start()
 {
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
     progressActive.store(true); // remains true whilst graph is running
     setProgressUpdated(); // may remain true after graph is running
     bool forceAsync = !queryOwner() || isGlobal();
@@ -1172,10 +1176,17 @@ void CSlaveGraph::start()
         if (globals->getPropBool("@watchdogProgressEnabled"))
             jobS->queryProgressHandler()->startGraph(*this);
     }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 }
 
 void CSlaveGraph::connect()
 {
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
     CriticalBlock b(progressCrit);
     Owned<IThorActivityIterator> iter = getConnectedIterator(false);
     ForEach(*iter)
@@ -1187,6 +1198,9 @@ void CSlaveGraph::connect()
         CSlaveActivity *sinkAct = (CSlaveActivity *)container.queryActivity();
         sinkAct->connectInputStreams(true);
     }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 }
 
 void CSlaveGraph::executeSubGraph(size32_t parentExtractSz, const byte *parentExtract)

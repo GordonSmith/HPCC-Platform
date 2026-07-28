@@ -1,0 +1,27 @@
+diff --git a/include/wasmtime.hh b/include/wasmtime.hh
+index 982a6c1..d4a9f68 100644
+--- a/include/wasmtime.hh
++++ b/include/wasmtime.hh
+@@ -1755,6 +1755,8 @@ class Store;
+   * embedding. It's suitable to place private data structures in here which
+   * WebAssembly will not have access to, only other host functions will have
+   * access to them.
+   */
++class Val;
++
+ class ExternRef {
+    friend class Val;
+@@ -1780,7 +1780,10 @@ public:
+   /// Note that `val` should be safe to send across threads and should own any
+   /// memory that it points to. Also note that `ExternRef` is similar to a
+   /// `std::shared_ptr` in that there can be many references to the same value.
+-  template <typename T>
+-  explicit ExternRef(T val)
++  template <typename T,
++            typename = std::enable_if_t<
++                !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, ExternRef> &&
++                !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Val>>>
++  explicit ExternRef(T val)
+       : ExternRef(wasmtime_externref_new(
+             std::make_unique<std::any>(std::move(val)).release(), finalizer)) {}
+   /// Performs a shallow copy of another `externref` value, creating another

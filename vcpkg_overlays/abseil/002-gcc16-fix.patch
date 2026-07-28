@@ -1,0 +1,22 @@
+--- a/absl/container/internal/hash_policy_traits.h
++++ b/absl/container/internal/hash_policy_traits.h
+@@ -155,6 +155,12 @@ public:
+   template <class Hash>
+   static constexpr HashSlotFn get_hash_slot_fn() {
+ // get_hash_slot_fn may return nullptr to signal that non type erased function
+ // should be used. GCC warns against comparing function address with nullptr.
++#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ >= 16)
++    // GCC 16: function pointer comparisons not allowed in constexpr
++    return &hash_slot_fn_non_type_erased<Hash>;
++#else
+ #if defined(__GNUC__) && !defined(__clang__)
+ #pragma GCC diagnostic push
+ // silent error: the address of * will never be NULL [-Werror=address]
+@@ -165,6 +171,7 @@ public:
+                ? &hash_slot_fn_non_type_erased<Hash>
+                : Policy::template get_hash_slot_fn<Hash>();
+ #endif
++#endif
+   }
+ 
+   // Whether small object optimization is enabled. True by default.
