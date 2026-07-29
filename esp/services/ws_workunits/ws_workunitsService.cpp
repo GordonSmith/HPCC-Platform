@@ -1567,64 +1567,77 @@ bool CWsWorkunitsEx::onWUInfo(IEspContext &context, IEspWUInfoRequest &req, IEsp
             getArchivedWUInfo(context, sashaServerIp.get(), sashaServerPort, wuid.str(), resp);
         else
         {
+            unsigned long flags=0;
+            if (req.getTruncateEclTo64k())
+                flags|=WUINFO_TruncateEclTo64k;
+            if (req.getIncludeExceptions())
+                flags|=WUINFO_IncludeExceptions;
+            if (req.getIncludeGraphs())
+                flags|=WUINFO_IncludeGraphs;
+            if (req.getIncludeSourceFiles())
+                flags|=WUINFO_IncludeSourceFiles;
+            if (req.getIncludeResults())
+                flags|=WUINFO_IncludeResults;
+            if (req.getIncludeVariables())
+                flags|=WUINFO_IncludeVariables;
+            if (req.getIncludeTimers())
+                flags|=WUINFO_IncludeTimers;
+            if (req.getIncludeDebugValues())
+                flags|=WUINFO_IncludeDebugValues;
+            if (req.getIncludeApplicationValues())
+                flags|=WUINFO_IncludeApplicationValues;
+            if (req.getIncludeWorkflows())
+                flags|=WUINFO_IncludeWorkflows;
+            if (!req.getSuppressResultSchemas())
+                flags|=WUINFO_IncludeEclSchemas;
+            if (req.getIncludeXmlSchemas())
+                flags|=WUINFO_IncludeXmlSchema;
+            if (req.getIncludeResultsViewNames())
+                flags|=WUINFO_IncludeResultsViewNames;
+            if (req.getIncludeResourceURLs())
+                flags|=WUINFO_IncludeResourceURLs;
+            if (req.getIncludeECL())
+                flags|=WUINFO_IncludeECL;
+            if (req.getIncludeHelpers())
+                flags|=WUINFO_IncludeHelpers;
+            if (req.getIncludeAllowedClusters())
+                flags|=WUINFO_IncludeAllowedClusters;
+            if (req.getIncludeTotalClusterTime())
+                flags|=WUINFO_IncludeTotalClusterTime;
+            if (req.getIncludeServiceNames())
+                flags|=WUINFO_IncludeServiceNames;
+            if (req.getIncludeProcesses())
+                flags|=WUINFO_IncludeProcesses;
+            if (req.getIncludeFileSummaries())
+                flags|=WUINFO_IncludeFileSummaries;
+
+            PROGLOG("WUInfo: %s %lx", wuid.str(), flags);
+
             try
             {
+                // Try to open the workunit from Dali. If not found, fall back to archived.
+                // Note: We only catch ECLWATCH_CANNOT_OPEN_WORKUNIT here, which is thrown
+                // by ensureWsWorkunitAccess() or the WsWuInfo constructor if the workunit is not found in Dali.
+                // Exceptions from getInfo() should propagate. Exceptions from getResourceInfo()
+                // are caught and handled below since loading the DLL may fail if dafilesrv is unavailable.
                 //The access is checked here because getArchivedWUInfo() has its own access check.
                 ensureWsWorkunitAccess(context, wuid.str(), SecAccess_Read);
-
-                unsigned long flags=0;
-                if (req.getTruncateEclTo64k())
-                    flags|=WUINFO_TruncateEclTo64k;
-                if (req.getIncludeExceptions())
-                    flags|=WUINFO_IncludeExceptions;
-                if (req.getIncludeGraphs())
-                    flags|=WUINFO_IncludeGraphs;
-                if (req.getIncludeSourceFiles())
-                    flags|=WUINFO_IncludeSourceFiles;
-                if (req.getIncludeResults())
-                    flags|=WUINFO_IncludeResults;
-                if (req.getIncludeVariables())
-                    flags|=WUINFO_IncludeVariables;
-                if (req.getIncludeTimers())
-                    flags|=WUINFO_IncludeTimers;
-                if (req.getIncludeDebugValues())
-                    flags|=WUINFO_IncludeDebugValues;
-                if (req.getIncludeApplicationValues())
-                    flags|=WUINFO_IncludeApplicationValues;
-                if (req.getIncludeWorkflows())
-                    flags|=WUINFO_IncludeWorkflows;
-                if (!req.getSuppressResultSchemas())
-                    flags|=WUINFO_IncludeEclSchemas;
-                if (req.getIncludeXmlSchemas())
-                    flags|=WUINFO_IncludeXmlSchema;
-                if (req.getIncludeResultsViewNames())
-                    flags|=WUINFO_IncludeResultsViewNames;
-                if (req.getIncludeResourceURLs())
-                    flags|=WUINFO_IncludeResourceURLs;
-                if (req.getIncludeECL())
-                    flags|=WUINFO_IncludeECL;
-                if (req.getIncludeHelpers())
-                    flags|=WUINFO_IncludeHelpers;
-                if (req.getIncludeAllowedClusters())
-                    flags|=WUINFO_IncludeAllowedClusters;
-                if (req.getIncludeTotalClusterTime())
-                    flags|=WUINFO_IncludeTotalClusterTime;
-                if (req.getIncludeServiceNames())
-                    flags|=WUINFO_IncludeServiceNames;
-                if (req.getIncludeProcesses())
-                    flags|=WUINFO_IncludeProcesses;
-                if (req.getIncludeFileSummaries())
-                    flags|=WUINFO_IncludeFileSummaries;
-
-                PROGLOG("WUInfo: %s %lx", wuid.str(), flags);
-
                 WsWuInfo winfo(context, wuid.str());
                 winfo.getInfo(resp.updateWorkunit(), flags);
 
                 if (req.getIncludeResultsViewNames()||req.getIncludeResourceURLs()||(version >= 1.50))
                 {
                     StringArray views, urls;
-                    winfo.getResourceInfo(views, urls, WUINFO_IncludeResultsViewNames|WUINFO_IncludeResourceURLs);
+                    try
+                    {
+                        winfo.getResourceInfo(views, urls, WUINFO_IncludeResultsViewNames|WUINFO_IncludeResourceURLs);
+                    }
+                    catch(IException* e)
+                    {
+                        // Loading the DLL may fail or timeout if dafilesrv is unavailable
+                        // This is not critical for the WUInfo response
+                        e->Release();
+                    }
                     IEspECLWorkunit& eclWU = resp.updateWorkunit();
                     if (req.getIncludeResultsViewNames())
                         resp.setResultViews(views);
@@ -1641,7 +1654,8 @@ bool CWsWorkunitsEx::onWUInfo(IEspContext &context, IEspWUInfoRequest &req, IEsp
             {
                 if (e->errorCode() != ECLWATCH_CANNOT_OPEN_WORKUNIT)
                     throw e;
-                // getArchivedWUInfo can throw, so release the exception before calling it
+                // WU not found in Dali - try archive. Release the exception first
+                // since getArchivedWUInfo can also throw.
                 e->Release();
                 getArchivedWUInfo(context, sashaServerIp.get(), sashaServerPort, wuid.str(), resp);
             }

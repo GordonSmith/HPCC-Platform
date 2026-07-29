@@ -1926,7 +1926,18 @@ void WsWuInfo::getResult(IConstWUResult &r, IArrayOf<IEspECLResult>& results, un
     bool showFileContent = false;
     Owned<IDistributedFile> df = NULL;
     if (filename.length())
-        df.setown(getLogicalFileData(context, filename.str(), showFileContent));
+    {
+        try
+        {
+            df.setown(getLogicalFileData(context, filename.str(), showFileContent));
+        }
+        catch (IException *e)
+        {
+            // Timeout or other error looking up file metadata - continue without it
+            // This is not critical for the WUInfo response
+            e->Release();
+        }
+    }
 
     StringBuffer value, link;
     if (r.getResultStatus() == ResultStatusUndefined)
@@ -2168,11 +2179,62 @@ void WsWuInfo::getHelpFiles(IConstWUQuery* query, WUFileType type, IArrayOf<IEsp
         StringArray postMortemFiles;
         if (cur.getType() != FileTypePostMortem)
             helpersCount++;
+        else if (flags & WUINFO_IncludeHelpers)
+        {
+            // Only enumerate PostMortem files when helpers are explicitly requested,
+            // since this may require a remote dafilesrv connection.
+            cur.getName(name);
+            try
+            {
+                // Check if the file is local before attempting enumeration.
+                // For remote files, avoid a 10-second TCP timeout by not connecting.
+                RemoteFilename rfn;
+                rfn.setRemotePath(name.str());
+                if (rfn.isLocal())
+                {
+                    Owned<IFile> f = createIFile(name.str());
+                    getPostMortemFiles(f, helpersCount, postMortemFiles);
+                }
+                else
+                {
+                    // Remote PostMortem file - count as 1 without trying to connect
+                    helpersCount++;
+                    postMortemFiles.append(name.str());
+                }
+            }
+            catch (IException *e)
+            {
+                // File not accessible - count as 1 and continue
+                e->Release();
+                helpersCount++;
+            }
+        }
         else
         {
+            // Not requesting helpers - still enumerate local PostMortem paths for accurate count
+            // but avoid remote connections
             cur.getName(name);
-            Owned<IFile> f = createIFile(name.str());
-            getPostMortemFiles(f, helpersCount, postMortemFiles);
+            try
+            {
+                RemoteFilename rfn;
+                rfn.setRemotePath(name.str());
+                if (rfn.isLocal())
+                {
+                    Owned<IFile> f = createIFile(name.str());
+                    getPostMortemFiles(f, helpersCount, postMortemFiles);
+                }
+                else
+                {
+                    // Remote PostMortem file - count as 1 without trying to connect
+                    helpersCount++;
+                }
+            }
+            catch (IException *e)
+            {
+                // File not accessible - count as 1 and continue
+                e->Release();
+                helpersCount++;
+            }
         }
 
         if (!(flags & WUINFO_IncludeHelpers))
@@ -2208,9 +2270,15 @@ void WsWuInfo::getHelpFiles(IConstWUQuery* query, WUFileType type, IArrayOf<IEsp
             h->setDescription(description.str());
             if (version >= 1.43)
             {
-                offset_t fileSize;
-                if (getFileSize(name.str(), Ip.str(), fileSize))
-                    h->setFileSize(fileSize);
+                // Only try to get file size if the file is local to avoid
+                // a 10-second dafilesrv connection timeout for remote files.
+                SocketEndpoint ep(Ip.str());
+                if (!Ip.length() || ep.isLocal())
+                {
+                    offset_t fileSize;
+                    if (getFileSize(name.str(), Ip.str(), fileSize))
+                        h->setFileSize(fileSize);
+                }
             }
             if (version >= 1.58)
             {

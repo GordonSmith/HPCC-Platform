@@ -787,6 +787,31 @@ ILoadedDllEntry *WuWebView::loadDll(bool force)
 {
     if (!dll && dllname.length() && (force || delayedDll))
     {
+        // Quick check using location metadata (no network connections) to avoid a
+        // 10-second TCP timeout if the DLL resources are not available locally.
+        // If the DLL is only available via remote access (e.g., dafilesrv), skip loading.
+        {
+            Owned<IDllEntry> entry(queryDllServer().getEntry(dllname.str()));
+            if (entry)
+            {
+                try
+                {
+                    Owned<IDllLocation> loc(entry->getBestLocationCandidate());
+                    DllLocationType locType = loc ? loc->queryLocation() : DllLocationNowhere;
+                    if (!loc || locType < DllLocationLocal)
+                    {
+                        delayedDll = false;
+                        return nullptr;
+                    }
+                }
+                catch (IException *e)
+                {
+                    e->Release();
+                    delayedDll = false;
+                    return nullptr;
+                }
+            }
+        }
         try
         {
             dll.setown(queryDllServer().loadDllResources(dllname.str(), DllLocationAnywhere));
