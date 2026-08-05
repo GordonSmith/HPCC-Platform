@@ -38,7 +38,7 @@ interface InfoGridProps {
     wuid?: string;
     syntaxErrors?: any[];
     minimized?: boolean;
-    onMinimize?: () => void;
+    onMinimize?: (commandBarHeight: number) => void;
     onRestore?: () => void;
 }
 
@@ -256,6 +256,8 @@ export const InfoGrid: React.FunctionComponent<InfoGridProps> = ({
         }];
     }, [fullscreen]);
 
+    const commandBarRef = React.useRef<HTMLDivElement>(null);
+
     const minimizeButton = React.useMemo((): ICommandBarItemProps[] => {
         if (!onMinimize && !onRestore) return [];
         return [{
@@ -264,12 +266,12 @@ export const InfoGrid: React.FunctionComponent<InfoGridProps> = ({
             iconOnly: true,
             disabled: fullscreen,
             iconElement: minimized ? <ArrowMaximizeVerticalRegular /> : <ArrowMinimizeVerticalRegular />,
-            onClick: () => minimized ? onRestore?.() : onMinimize?.()
+            onClick: () => minimized ? onRestore?.() : onMinimize?.(commandBarRef.current?.offsetHeight ?? 44)
         }];
     }, [fullscreen, minimized, onMinimize, onRestore]);
 
     const content = <div style={{ height: "100%", overflow: "hidden" }}>
-        <CommandBar items={buttons} farItems={[...copyButtons, ...minimizeButton, ...fullscreenButton]} />
+        <div ref={commandBarRef}><CommandBar items={buttons} farItems={[...copyButtons, ...minimizeButton, ...fullscreenButton]} /></div>
         <SizeMe >{({ size }) =>
             <FluentGrid
                 data={data}

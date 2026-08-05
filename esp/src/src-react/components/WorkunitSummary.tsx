@@ -2,7 +2,7 @@ import * as React from "react";
 import { ScrollablePane, ScrollbarVisibility } from "./controls/ScrollablePane";
 import { CommandBar, ContextualMenuItemType, ICommandBarItemProps } from "./CommandBarV9";
 import { Button, Card, Link, makeStyles, MessageBar, MessageBarActions, MessageBarBody, MessageBarIntent, tokens } from "@fluentui/react-components";
-import { DismissRegular } from "@fluentui/react-icons";
+import { DismissRegular, PersonRegular } from "@fluentui/react-icons";
 import { scopedLogger } from "@hpcc-js/util";
 import nlsHPCC from "src/nlsHPCC";
 import { WUStatus } from "src/react/index";
@@ -73,23 +73,41 @@ const useStyles = makeStyles({
     },
     linkWrapper: {
         margin: "-6px 10px 0 14px",
-        "& span": {
-            fontWeight: "bold"
-        },
-        "& a": {
-            marginLeft: "6px",
-        },
         "@container (max-width: 1020px)": {
             marginTop: "0"
         }
     },
+    linkSeparator: {
+        color: tokens.colorNeutralForeground3,
+        margin: "0 6px"
+    },
+    jobNameLink: {
+        alignItems: "center",
+        display: "inline-flex",
+        gap: "4px",
+        lineHeight: "20px",
+        verticalAlign: "middle"
+    },
+    ownerIcon: {
+        fontSize: "16px",
+        lineHeight: 1,
+        transform: "translateY(1px)"
+    },
+    ownerLink: {
+        alignItems: "center",
+        display: "inline-flex",
+        gap: "4px",
+        lineHeight: "20px",
+        verticalAlign: "middle"
+    },
+
     cardsWrapper: {
         display: "flex",
         gap: "12px",
         margin: "0 0 10px 10px",
         alignItems: "flex-start"
     },
-    detailsCard: {
+    detailsPanel: {
         width: "100%",
         alignSelf: "flex-start",
         overflowX: "auto"
@@ -146,26 +164,37 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
     }, [dismissMessageBar]);
 
     const [minimized, setMinimized] = React.useState(false);
+    const minimizedRef = React.useRef(false);
     const preMinimizeSizes = React.useRef<[number, number] | null>(null);
+    // Target fraction we ask lumino for; the panel/tabBar minimum-size constraints
+    // mean the fraction lumino actually settles on can be noticeably larger, so we
+    // recalibrate against the real settled value the first time it's reported.
+    const minimizedFractionRef = React.useRef<number>(0);
+    const awaitingSettledFractionRef = React.useRef(false);
 
-    const handleMinimize = React.useCallback(() => {
+    const handleMinimize = React.useCallback((commandBarHeight: number) => {
         if (!dockpanel) return;
         const dpLayout: any = dockpanel.getLayout();
-        if (Array.isArray(dpLayout?.main?.sizes) && dpLayout.main.sizes.length === 2) {
-            preMinimizeSizes.current = [...dpLayout.main.sizes] as [number, number];
-            const totalHeight = (dockpanel as any).node?.clientHeight ?? 400;
-            const minimizedFraction = 32 / totalHeight;
-            dpLayout.main.sizes = [1 - minimizedFraction, minimizedFraction];
-            dockpanel.layout(dpLayout).lazyRender();
-        }
+        if (!Array.isArray(dpLayout?.main?.sizes) || dpLayout.main.sizes.length !== 2) return;
+        preMinimizeSizes.current = [...dpLayout.main.sizes] as [number, number];
+        const dockNode = dockpanel.dockNode();
+        const totalHeight = dockNode?.clientHeight ?? 400;
+        const tabBarHeight = (dockNode?.querySelector(".lm-TabBar") as HTMLElement)?.offsetHeight ?? 28;
+        minimizedFractionRef.current = (tabBarHeight + commandBarHeight) / totalHeight;
+        awaitingSettledFractionRef.current = true;
+        dockpanel.layout({ ...dpLayout, main: { ...dpLayout.main, sizes: [1 - minimizedFractionRef.current, minimizedFractionRef.current] } }).lazyRender();
+        minimizedRef.current = true;
         setMinimized(true);
     }, [dockpanel]);
 
+    //  Only the sizes are restored, so any other layout changes made while minimized are preserved.
     const handleRestore = React.useCallback(() => {
         if (!dockpanel || !preMinimizeSizes.current) return;
         const dpLayout: any = dockpanel.getLayout();
-        dpLayout.main.sizes = [...preMinimizeSizes.current];
-        dockpanel.layout(dpLayout).lazyRender();
+        if (!Array.isArray(dpLayout?.main?.sizes) || dpLayout.main.sizes.length !== 2) return;
+        awaitingSettledFractionRef.current = false;
+        dockpanel.layout({ ...dpLayout, main: { ...dpLayout.main, sizes: [...preMinimizeSizes.current] } }).lazyRender();
+        minimizedRef.current = false;
         setMinimized(false);
     }, [dockpanel]);
 
@@ -174,14 +203,21 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
         const origLayoutChanged = dockpanel.layoutChanged.bind(dockpanel);
         dockpanel.layoutChanged = function () {
             origLayoutChanged();
+            const dpLayout: any = dockpanel.getLayout();
+            if (!Array.isArray(dpLayout?.main?.sizes) || dpLayout.main.sizes.length !== 2) return;
+            // The first layoutChanged after minimizing reflects lumino's actual
+            // (constrained) result, not our requested fraction - use it as the
+            // real baseline instead of treating it as a user-driven resize.
+            if (awaitingSettledFractionRef.current) {
+                minimizedFractionRef.current = dpLayout.main.sizes[1];
+                awaitingSettledFractionRef.current = false;
+                return;
+            }
             setMinimized(prev => {
                 if (!prev) return prev;
-                const dpLayout: any = dockpanel.getLayout();
-                if (Array.isArray(dpLayout?.main?.sizes) && dpLayout.main.sizes.length === 2) {
-                    const totalHeight = (dockpanel as any).node?.clientHeight ?? 400;
-                    if (dpLayout.main.sizes[1] * totalHeight > 32) {
-                        return false;
-                    }
+                if (dpLayout.main.sizes[1] > minimizedFractionRef.current * 1.1) {
+                    minimizedRef.current = false;
+                    return false;
                 }
                 return prev;
             });
@@ -324,9 +360,14 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
     React.useEffect(() => {
         return () => {
             if (dockpanel) {
-                const dpLayout: any = dockpanel.getLayout();
-                if (Array.isArray(dpLayout?.main?.sizes) && dpLayout.main.sizes.length === 2) {
-                    setLayout(dpLayout.main.sizes);
+                // While minimized the dock panel's real sizes are the collapsed
+                // ones, so persist the pre-minimize sizes instead to avoid saving
+                // a layout that looks minimized but reopens with the control unaware of it.
+                const sizes = minimizedRef.current && preMinimizeSizes.current
+                    ? preMinimizeSizes.current
+                    : (dockpanel.getLayout() as any)?.main?.sizes;
+                if (Array.isArray(sizes) && sizes.length === 2) {
+                    setLayout(sizes as [number, number]);
                 }
             }
         };
@@ -376,22 +417,23 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
                                 <div className={styles.wuPersona}>
                                     <WorkunitPersona wuid={wuid} />
                                 </div>
-                                {jobname &&
+                                {(jobname || workunit?.Owner) &&
                                     <div className={styles.linkWrapper}>
-                                        <span>{nlsHPCC.JobName}:</span>
-                                        <Link as="a" title={nlsHPCC.ViewWUsWithSimilarName} href={`#/workunits?Jobname=*${encodeURIComponent(jobname)}*`}>{jobname}</Link>
-                                    </div>
-                                }
-                                {workunit?.Owner &&
-                                    <div className={styles.linkWrapper}>
-                                        <span>{nlsHPCC.Owner}:</span>
-                                        <Link as="a" title={nlsHPCC.ViewWUsByOwner} href={`#/workunits?Owner=${encodeURIComponent(workunit?.Owner)}`}>{workunit?.Owner}</Link>
+                                        {jobname &&
+                                            <Link as="a" className={styles.jobNameLink} title={nlsHPCC.ViewWUsWithSimilarName} href={`#/workunits?Jobname=*${encodeURIComponent(jobname)}*`}>{jobname}</Link>
+                                        }
+                                        {jobname && workunit?.Owner &&
+                                            <span className={styles.linkSeparator}>-</span>
+                                        }
+                                        {workunit?.Owner &&
+                                            <Link as="a" className={styles.ownerLink} title={nlsHPCC.ViewWUsByOwner} href={`#/workunits?Owner=${encodeURIComponent(workunit?.Owner)}`}><PersonRegular className={styles.ownerIcon} />{workunit?.Owner}</Link>
+                                        }
                                     </div>
                                 }
                                 <WUStatus wuid={wuid}></WUStatus>
                             </div>
                             <div className={styles.cardsWrapper}>
-                                <Card className={styles.detailsCard}>
+                                <div className={styles.detailsPanel}>
                                     <TableGroup fields={{
                                         "state": { label: nlsHPCC.State, type: "string", value: workunit?.State + (workunit?.StateEx ? ` (${workunit.StateEx})` : ""), readonly: true },
                                         "action": { label: nlsHPCC.Action, type: "string", value: workunit?.ActionEx, readonly: true },
@@ -421,7 +463,7 @@ export const WorkunitSummary: React.FunctionComponent<WorkunitSummaryProps> = ({
                                                 logger.debug(`${id}:  ${value}`);
                                         }
                                     }} />
-                                </Card>
+                                </div>
                                 <Card size="small" className={styles.costsCard}>
                                     <TableGroup fields={{
                                         "potentialSavings": { label: nlsHPCC.PotentialSavings, type: "string", value: `${formatCost(potentialSavings)} (${totalCosts > 0 ? Math.round((potentialSavings / totalCosts) * 10000) / 100 : 0}%)`, readonly: true },
