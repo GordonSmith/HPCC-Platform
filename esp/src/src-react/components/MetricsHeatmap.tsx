@@ -1,6 +1,5 @@
 import * as React from "react";
-import { createPortal } from "react-dom";
-import { makeStyles, tokens, Tooltip, Dropdown, Option, Field } from "@fluentui/react-components";
+import { makeStyles, tokens, Dropdown, Option, Field } from "@fluentui/react-components";
 import { hierarchy, treemap } from "d3-hierarchy";
 import { scaleLinear } from "d3-scale";
 import { Palette } from "@hpcc-js/common";
@@ -9,7 +8,7 @@ import { IScope } from "@hpcc-js/comms";
 import { useUserTheme } from "../hooks/theme";
 import { brandVariants } from "../themes";
 import { MetricGraph } from "../util/metricGraph";
-import { buildTooltipRows, renderTooltipValue } from "./MetricsGraphTooltip";
+import { MetricsTooltip } from "./MetricsGraphTooltip";
 import { SizeMe, Size } from "../layouts/SizeMe";
 import { CommandBar, ICommandBarItemProps } from "./CommandBarV9";
 
@@ -60,46 +59,6 @@ const useStyles = makeStyles({
         height: "100%",
         fontSize: "14px",
         color: tokens.colorNeutralForeground2,
-    },
-    hoverAnchor: {
-        position: "fixed",
-        width: "1px",
-        height: "1px",
-        pointerEvents: "none",
-        zIndex: 10000,
-    },
-    tooltipContent: {
-        display: "grid",
-        rowGap: "8px",
-        maxHeight: "320px",
-        maxWidth: "520px",
-        overflowY: "auto",
-        overflowX: "hidden",
-    },
-    tooltipId: {
-        fontWeight: "700",
-        fontSize: "13px",
-        lineHeight: "18px",
-        wordBreak: "break-word",
-    },
-    tooltipLabel: {
-        fontWeight: "400",
-        fontSize: "12px",
-        lineHeight: "16px",
-        opacity: 0.95,
-        wordBreak: "break-word",
-    },
-    tooltipBlock: {
-        display: "grid",
-        rowGap: "2px",
-    },
-    tooltipTitle: {
-        fontWeight: "700",
-        fontSize: "11px",
-        opacity: 0.8,
-    },
-    tooltipValue: {
-        wordBreak: "break-word",
     },
 });
 
@@ -190,6 +149,22 @@ export const MetricsHeatmap: React.FunctionComponent<MetricsHeatmapProps> = ({
         if (!activity) return;
         setTooltip({ x: event.clientX, y: event.clientY, activity });
     }, []);
+
+    const hideTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearHideTimer = React.useCallback(() => {
+        if (hideTimerRef.current !== null) {
+            clearTimeout(hideTimerRef.current);
+            hideTimerRef.current = null;
+        }
+    }, []);
+
+    const scheduleHide = React.useCallback((delay = 800) => {
+        clearHideTimer();
+        hideTimerRef.current = setTimeout(() => setTooltip(null), delay);
+    }, [clearHideTimer]);
+
+    React.useEffect(() => () => { clearHideTimer(); }, [clearHideTimer]);
 
     // Filter to activities only
     const activities = React.useMemo(() => {
@@ -427,11 +402,8 @@ export const MetricsHeatmap: React.FunctionComponent<MetricsHeatmapProps> = ({
                                                         tabIndex={0}
                                                         role="button"
                                                         aria-label={`${node.data?.name}: ${formatted}`}
-                                                        onMouseEnter={event => showTooltip(event, node.data.activity)}
-                                                        onMouseMove={event => showTooltip(event, node.data.activity)}
-                                                        onMouseLeave={() => {
-                                                            setTooltip(null);
-                                                        }}
+                                                        onMouseEnter={event => { clearHideTimer(); showTooltip(event, node.data.activity); }}
+                                                        onMouseLeave={() => scheduleHide()}
                                                         onClick={() => {
                                                             onActivitySelected([id]);
                                                         }}
@@ -468,31 +440,13 @@ export const MetricsHeatmap: React.FunctionComponent<MetricsHeatmapProps> = ({
                         }}
                     </SizeMe>
 
-                    {tooltip && typeof document !== "undefined" && createPortal(
-                        <Tooltip
-                            content={
-                                <div className={styles.tooltipContent}>
-                                    <div className={styles.tooltipId}>{tooltip.activity.id}</div>
-                                    {tooltip.activity.Label ? <div className={styles.tooltipLabel}>{tooltip.activity.Label}</div> : null}
-                                    {buildTooltipRows(tooltip.activity, metricGraph)
-                                        .filter(row => row.key.toLowerCase() !== "id")
-                                        .map((row, i) => (
-                                            <div key={`${row.key}-${i}`} className={styles.tooltipBlock}>
-                                                <div className={styles.tooltipTitle}>{row.label ?? row.key}</div>
-                                                <div className={styles.tooltipValue}>{renderTooltipValue(row.value)}</div>
-                                            </div>
-                                        ))}
-                                </div>
-                            }
-                            relationship="label"
-                            visible
-                            withArrow
-                            positioning="above-start"
-                        >
-                            <div className={styles.hoverAnchor} style={{ left: tooltip.x, top: tooltip.y }} />
-                        </Tooltip>,
-                        document.body
-                    )}
+                    {tooltip && <MetricsTooltip
+                        item={tooltip.activity}
+                        metricGraph={metricGraph}
+                        anchor={{ left: tooltip.x, top: tooltip.y }}
+                        onMouseEnter={clearHideTimer}
+                        onMouseLeave={() => scheduleHide(0)}
+                    />}
                 </div>
             )}
         </div>

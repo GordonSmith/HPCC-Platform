@@ -293,8 +293,56 @@ export interface MetricsGraphTooltipProps {
     showTooltips: boolean;
 }
 
-export const MetricsGraphTooltip: React.FunctionComponent<MetricsGraphTooltipProps> = ({ metricGraph, metricGraphWidget, selection, showTooltips }) => {
+export interface MetricsTooltipProps {
+    item: any;
+    metricGraph?: MetricGraph;
+    anchor: { left: number; top: number };
+    onMouseEnter: () => void;
+    onMouseLeave: () => void;
+}
+
+export const MetricsTooltip: React.FunctionComponent<MetricsTooltipProps> = ({ item, metricGraph, anchor, onMouseEnter, onMouseLeave }) => {
     const styles = useStyles();
+    const tooltipRows = React.useMemo(() => buildTooltipRows(item, metricGraph), [item, metricGraph]);
+    const idRow = tooltipRows.find(row => row.key.toLowerCase() === "id");
+    const labelRow = item?.Label ? `${item.Label}` : "";
+    const detailRows = tooltipRows.filter(row => row.key.toLowerCase() !== "id");
+
+    if (typeof document === "undefined") {
+        return null;
+    }
+
+    return createPortal(
+        <Tooltip
+            content={
+                <div
+                    className={styles.tooltipContent}
+                    data-metric-tooltip="true"
+                    onMouseEnter={onMouseEnter}
+                    onMouseLeave={onMouseLeave}
+                >
+                    <div className={styles.tooltipId}>{renderTooltipValue(idRow?.value ?? item?.id ?? "")}</div>
+                    {labelRow ? <div className={styles.tooltipLabel}>{renderTooltipValue(labelRow)}</div> : null}
+                    {detailRows.map((row, idx) =>
+                        <div key={`${row.key}-${idx}`} className={styles.tooltipBlock}>
+                            <div className={styles.tooltipTitle}>{row.label ?? row.key}</div>
+                            <div className={styles.tooltipValue}>{renderTooltipValue(row.value)}</div>
+                        </div>
+                    )}
+                </div>
+            }
+            relationship="label"
+            visible
+            withArrow
+            positioning="above-start"
+        >
+            <div className={styles.hoverAnchor} style={{ left: anchor.left, top: anchor.top }} />
+        </Tooltip>,
+        document.body
+    );
+};
+
+export const MetricsGraphTooltip: React.FunctionComponent<MetricsGraphTooltipProps> = ({ metricGraph, metricGraphWidget, selection, showTooltips }) => {
     const [hoverDetail, setHoverDetail] = React.useState<MetricGraphHoverDetail | undefined>(undefined);
     const hoverHideTimer = React.useRef<number | undefined>(undefined);
     const isTooltipHovered = React.useRef<boolean>(false);
@@ -327,48 +375,6 @@ export const MetricsGraphTooltip: React.FunctionComponent<MetricsGraphTooltipPro
         }
         return metricGraph.item(hoverDetail.id);
     }, [hoverDetail?.id, metricGraph]);
-
-    const hoverRows = React.useMemo(() => {
-        if (!metricGraph) {
-            return [];
-        }
-        return buildTooltipRows(hoverItem, metricGraph);
-    }, [hoverItem, metricGraph]);
-
-    const hoverContent = React.useMemo(() => {
-        if (!hoverDetail?.id) {
-            return null;
-        }
-        const idRow = hoverRows.find(row => row.key.toLowerCase() === "id");
-        const labelRow = hoverItem?.Label ? `${hoverItem.Label}` : "";
-        const detailRows = hoverRows.filter(row => row.key.toLowerCase() !== "id");
-
-        return <div
-            className={styles.tooltipContent}
-            data-metric-tooltip="true"
-            onMouseEnter={() => {
-                isTooltipHovered.current = true;
-                isTooltipTransitioning.current = false;
-                pendingHoverDetail.current = undefined;
-                clearHoverHideTimer();
-            }}
-            onMouseLeave={() => {
-                isTooltipHovered.current = false;
-                isTooltipTransitioning.current = false;
-                pendingHoverDetail.current = undefined;
-                scheduleHoverHide(0);
-            }}
-        >
-            <div className={styles.tooltipId}>{renderTooltipValue(idRow?.value ?? hoverDetail.id)}</div>
-            {labelRow ? <div className={styles.tooltipLabel}>{renderTooltipValue(labelRow)}</div> : null}
-            {detailRows.map((row, idx) =>
-                <div key={`${row.key}-${idx}`} className={styles.tooltipBlock}>
-                    <div className={styles.tooltipTitle}>{row.label ?? row.key}</div>
-                    <div className={styles.tooltipValue}>{renderTooltipValue(row.value)}</div>
-                </div>
-            )}
-        </div>;
-    }, [clearHoverHideTimer, hoverDetail?.id, hoverItem?.Label, hoverRows, scheduleHoverHide, styles.tooltipBlock, styles.tooltipContent, styles.tooltipId, styles.tooltipLabel, styles.tooltipTitle, styles.tooltipValue]);
 
     const hoverAnchor = React.useMemo(() => {
         if (!hoverDetail) {
@@ -462,10 +468,21 @@ export const MetricsGraphTooltip: React.FunctionComponent<MetricsGraphTooltipPro
         return null;
     }
 
-    return createPortal(
-        <Tooltip content={hoverContent} relationship="label" visible withArrow positioning="above-start">
-            <div className={styles.hoverAnchor} style={{ left: hoverAnchor.left, top: hoverAnchor.top }} />
-        </Tooltip>,
-        document.body
-    );
+    return <MetricsTooltip
+        item={hoverItem}
+        metricGraph={metricGraph}
+        anchor={hoverAnchor}
+        onMouseEnter={() => {
+            isTooltipHovered.current = true;
+            isTooltipTransitioning.current = false;
+            pendingHoverDetail.current = undefined;
+            clearHoverHideTimer();
+        }}
+        onMouseLeave={() => {
+            isTooltipHovered.current = false;
+            isTooltipTransitioning.current = false;
+            pendingHoverDetail.current = undefined;
+            scheduleHoverHide(0);
+        }}
+    />;
 };

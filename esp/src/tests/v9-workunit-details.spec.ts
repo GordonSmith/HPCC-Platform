@@ -16,7 +16,6 @@ test.describe("V9 Workunit Details", () => {
             }
         }
         await page.goto(`index.html#/workunits/${wuid}`);
-        await page.waitForLoadState("networkidle");
     });
 
     test("Should display the workunit details page with all expected tabs", async ({ page, browserName }) => {
@@ -107,23 +106,19 @@ test.describe("V9 Workunit Details", () => {
 
         // Click on Variables tab
         await page.getByRole("tab", { name: "Variables" }).click();
-        await page.waitForLoadState("networkidle");
         await expect(page.getByRole("tab", { name: "Variables" })).toHaveAttribute("aria-selected", "true");
 
         // Click on Outputs tab
         await page.getByRole("tab", { name: "Outputs" }).click();
-        await page.waitForLoadState("networkidle");
         await expect(page.getByRole("tab", { name: "Outputs" })).toHaveAttribute("aria-selected", "true");
 
         // Go back to summary
         await page.getByRole("tab", { name: wuid }).click();
-        await page.waitForLoadState("networkidle");
         await expect(page.getByRole("tab", { name: wuid })).toHaveAttribute("aria-selected", "true");
     });
 
     test("Should display variables tab content when clicked", async ({ page }) => {
         await page.getByRole("tab", { name: "Variables" }).click();
-        await page.waitForLoadState("networkidle");
 
         // Check for variables grid or content — accept DetailsList, v9 grid, or empty state
         const hasContent = await page.locator(".ms-DetailsList, .fui-TableBody, [data-testid='variables']").count() > 0;
@@ -135,7 +130,6 @@ test.describe("V9 Workunit Details", () => {
 
     test("Should display outputs tab content when clicked", async ({ page }) => {
         await page.getByRole("tab", { name: "Outputs" }).click();
-        await page.waitForLoadState("networkidle");
 
         // Verify the tab is selected — outputs may be empty for some workunits
         await expect(page.getByRole("tab", { name: "Outputs" })).toHaveAttribute("aria-selected", "true");
@@ -144,7 +138,6 @@ test.describe("V9 Workunit Details", () => {
     test("Should refresh workunit data when refresh button is clicked", async ({ page }) => {
         // Click refresh button
         await page.getByRole("menuitem", { name: "Refresh" }).click();
-        await page.waitForLoadState("networkidle");
 
         // Verify page still displays correctly after refresh
         await expect(page.getByText("State")).toBeVisible();
@@ -205,7 +198,6 @@ test.describe("V9 Workunit Details", () => {
             return;
         }
         await clickTab(page, "ECL");
-        await page.waitForLoadState("networkidle");
         // Tab navigated — just verify it's selected
         await expect(eclTab).toHaveAttribute("aria-selected", "true");
     });
@@ -279,7 +271,6 @@ test.describe("V9 Workunit Details", () => {
 
         // Refresh the page to verify the change was persisted
         await page.getByRole("menuitem", { name: "Refresh" }).click();
-        await page.waitForLoadState("networkidle");
 
         // Wait for the description field to be updated with the saved value
         await expect(descriptionField).toHaveValue(testDescription, { timeout: 10000 });
@@ -302,7 +293,6 @@ test.describe("V9 Workunit Details", () => {
 
     test("Should display processes tab content when clicked", async ({ page }) => {
         await page.getByRole("tab", { name: "Processes" }).click();
-        await page.waitForLoadState("networkidle");
 
         // Verify the tab is selected
         await expect(page.getByRole("tab", { name: "Processes" })).toHaveAttribute("aria-selected", "true");
@@ -348,11 +338,9 @@ test.describe("V9 Workunit Details", () => {
         }
 
         await page.goto(`index.html#/workunits/${metricsWuid}`);
-        await page.waitForLoadState("networkidle");
 
         // Navigate to Metrics tab
         await clickTab(page, "Metrics");
-        await page.waitForLoadState("networkidle");
         // Use exact match to avoid ambiguity with "Metrics (2)" and "Metrics (SQL)" tabs
         await expect(page.getByRole("tab", { name: "Metrics", exact: true }).first()).toHaveAttribute("aria-selected", "true");
 
@@ -364,7 +352,6 @@ test.describe("V9 Workunit Details", () => {
             return;
         }
         await heatMapTab.click();
-        await page.waitForLoadState("networkidle");
 
         // The heatmap workunit produces numeric activity metrics; the metric selector dropdown must appear
         const dropdown = page.locator(".fui-Dropdown").first();
@@ -390,6 +377,9 @@ test.describe("V9 Workunit Details", () => {
 
         // Verify the page URL still refers to the workunit
         expect(page.url()).toContain("#/workunits");
+
+        // Move away from heatmap cell to dismiss any tooltip portal before clicking dropdown
+        await page.mouse.move(0, 0);
 
         // Changing the selected metric rerenders the heatmap
         await dropdown.click();
