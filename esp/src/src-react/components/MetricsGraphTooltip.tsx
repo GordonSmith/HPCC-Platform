@@ -157,7 +157,7 @@ function renderMetricLinks(activities): React.ReactNode {
     });
 }
 
-function buildTooltipRows(item, metricGraph: MetricGraph): TooltipPropertyRow[] {
+function buildTooltipRows(item, metricGraph?: MetricGraph): TooltipPropertyRow[] {
     if (!item) {
         return [];
     }
@@ -176,32 +176,34 @@ function buildTooltipRows(item, metricGraph: MetricGraph): TooltipPropertyRow[] 
 
     appendExceptionRows(rows, item);
 
-    if (item.type === "edge") {
-        const sourceActivity = metricGraph.activityByID(item.IdSource);
-        const targetActivity = metricGraph.activityByID(item.IdTarget);
-        if (sourceActivity) {
-            rows.push({ key: "source(s)", value: renderMetricLinks([sourceActivity]) });
-        }
-        if (targetActivity) {
-            rows.push({ key: "target(s)", value: renderMetricLinks([targetActivity]) });
-        }
-    } else if (metricGraph.subgraphExists(item.name)) {
-        const inActivities = metricGraph.inSubgraphActivities(item);
-        const outActivities = metricGraph.outSubgraphActivities(item);
-        if (inActivities.length) {
-            rows.push({ key: "source(s)", value: renderMetricLinks(inActivities) });
-        }
-        if (outActivities.length) {
-            rows.push({ key: "target(s)", value: renderMetricLinks(outActivities) });
-        }
-    } else {
-        const inActivities = metricGraph.inActivities(item);
-        const outActivities = metricGraph.outActivities(item);
-        if (inActivities.length) {
-            rows.push({ key: "source(s)", value: renderMetricLinks(inActivities) });
-        }
-        if (outActivities.length) {
-            rows.push({ key: "target(s)", value: renderMetricLinks(outActivities) });
+    if (metricGraph) {
+        if (item.type === "edge") {
+            const sourceActivity = metricGraph.activityByID(item.IdSource);
+            const targetActivity = metricGraph.activityByID(item.IdTarget);
+            if (sourceActivity) {
+                rows.push({ key: "source(s)", value: renderMetricLinks([sourceActivity]) });
+            }
+            if (targetActivity) {
+                rows.push({ key: "target(s)", value: renderMetricLinks([targetActivity]) });
+            }
+        } else if (metricGraph.subgraphExists(item.name)) {
+            const inActivities = metricGraph.inSubgraphActivities(item);
+            const outActivities = metricGraph.outSubgraphActivities(item);
+            if (inActivities.length) {
+                rows.push({ key: "source(s)", value: renderMetricLinks(inActivities) });
+            }
+            if (outActivities.length) {
+                rows.push({ key: "target(s)", value: renderMetricLinks(outActivities) });
+            }
+        } else {
+            const inActivities = metricGraph.inActivities(item);
+            const outActivities = metricGraph.outActivities(item);
+            if (inActivities.length) {
+                rows.push({ key: "source(s)", value: renderMetricLinks(inActivities) });
+            }
+            if (outActivities.length) {
+                rows.push({ key: "target(s)", value: renderMetricLinks(outActivities) });
+            }
         }
     }
 
@@ -280,6 +282,9 @@ const useStyles = makeStyles({
     }
 });
 
+
+export { buildTooltipRows, renderTooltipValue };
+export type { TooltipPropertyRow };
 
 export interface MetricsGraphTooltipProps {
     metricGraph?: MetricGraph;

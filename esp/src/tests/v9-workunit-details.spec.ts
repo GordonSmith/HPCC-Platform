@@ -337,4 +337,87 @@ test.describe("V9 Workunit Details", () => {
         }
     });
 
+    test("should render and interact with Metrics heatmap", async ({ page, browserName }) => {
+        // Use the dedicated PROJECT/SORT workunit, which provides numeric activity metrics
+        let metricsWuid: string;
+        try {
+            metricsWuid = getWuid(browserName, 2);
+        } catch {
+            test.skip(true, "No heatmap workunit available - run setup to create test workunits");
+            return;
+        }
+
+        await page.goto(`index.html#/workunits/${metricsWuid}`);
+        await page.waitForLoadState("networkidle");
+
+        // Navigate to Metrics tab
+        await clickTab(page, "Metrics");
+        await page.waitForLoadState("networkidle");
+        // Use exact match to avoid ambiguity with "Metrics (2)" and "Metrics (SQL)" tabs
+        await expect(page.getByRole("tab", { name: "Metrics", exact: true }).first()).toHaveAttribute("aria-selected", "true");
+
+        // Navigate to Heat Map sub-tab within the Metrics DockPanel
+        const heatMapTab = page.getByRole("tab", { name: "Heat Map" });
+        const heatMapVisible = await heatMapTab.isVisible({ timeout: 3000 }).catch(() => false);
+        if (!heatMapVisible) {
+            test.skip(true, "Heat Map DockPanelItem not present in this ECLWatch build");
+            return;
+        }
+        await heatMapTab.click();
+        await page.waitForLoadState("networkidle");
+
+        // The heatmap workunit produces numeric activity metrics; the metric selector dropdown must appear
+        const dropdown = page.locator(".fui-Dropdown").first();
+        await expect(dropdown).toBeVisible({ timeout: 15000 });
+
+        // Heatmap cells are rendered as SVG rects with role="button" - the underlying
+        // metrics fetch (unbounded nested depth) can take a while to populate activities
+        const heatmapCells = page.locator("rect[role='button']");
+        await expect(heatmapCells.first()).toBeVisible({ timeout: 15000 });
+
+        // Each cell must expose an accessible label in "metric: value" format
+        const firstCell = heatmapCells.first();
+        await expect(firstCell).toHaveAttribute("role", "button");
+        const ariaLabel = await firstCell.getAttribute("aria-label");
+        expect(ariaLabel).toBeTruthy();
+        expect(ariaLabel).toMatch(/:/);
+
+        // Clicking a cell selects it; selected cells render with stroke-width="2"
+        const firstCellByName = page.getByRole("button", { name: ariaLabel, exact: true });
+        await firstCellByName.click();
+        await expect(firstCellByName).toHaveAttribute("stroke-width", "2");
+        expect(await firstCellByName.getAttribute("stroke")).toBeTruthy();
+
+        // Verify the page URL still refers to the workunit
+        expect(page.url()).toContain("#/workunits");
+
+        // Changing the selected metric rerenders the heatmap
+        await dropdown.click();
+        await page.waitForTimeout(300);
+        const options = page.locator(".fui-Option");
+        if (await options.count() > 1) {
+            await options.nth(1).click();
+            await page.waitForTimeout(500);
+            await expect(heatmapCells.first()).toBeVisible();
+        }
+
+        // Enter key selects a cell
+        const secondCell = heatmapCells.nth(1);
+        const secondCellName = await secondCell.getAttribute("aria-label");
+        expect(secondCellName).toBeTruthy();
+        const secondCellByName = page.getByRole("button", { name: secondCellName, exact: true });
+        await secondCellByName.focus();
+        await secondCellByName.press("Enter");
+        await expect(secondCellByName).toHaveAttribute("stroke-width", "2");
+
+        // Space key also selects a cell
+        const thirdCell = heatmapCells.nth(2);
+        const thirdCellName = await thirdCell.getAttribute("aria-label");
+        expect(thirdCellName).toBeTruthy();
+        const thirdCellByName = page.getByRole("button", { name: thirdCellName, exact: true });
+        await thirdCellByName.focus();
+        await thirdCellByName.press("Space");
+        await expect(thirdCellByName).toHaveAttribute("stroke-width", "2");
+    });
+
 });

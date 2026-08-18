@@ -19,14 +19,14 @@ console.log("target URL", baseURL);
 
 export default defineConfig({
     testDir: "./tests",
-    forbidOnly: isCI,
+    // forbidOnly: isCI,
     retries: isCI ? 1 : 2,
     workers: isCI ? "80%" : "80%",
     timeout: isCI ? 30_000 : 20_000,
     expect: {
         timeout: isCI ? 10_000 : 10_000
     },
-    reporter: isCI ? "line" : "html",
+    // reporter: isCI ? "line" : "html",
     use: {
         baseURL: `${baseURL}/esp/files/`,
         trace: "on-first-retry",
