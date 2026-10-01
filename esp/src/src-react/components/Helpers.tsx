@@ -94,7 +94,6 @@ export const Helpers: React.FunctionComponent<HelpersProps> = ({
 }) => {
     selectedTreeValue = selectedTreeValue?.split("::").join("/");
 
-    const [fullscreen, setFullscreen] = React.useState<boolean>(false);
     const [dockpanel, setDockpanel] = React.useState<ResetableDockPanel>();
     const [helpers, refreshData] = useWorkunitHelpersTree(wuid);
     const [checkedRows, setCheckedRows] = React.useState([]);
@@ -238,13 +237,6 @@ export const Helpers: React.FunctionComponent<HelpersProps> = ({
         }
     ], [checkedItems.length, checkedRows, downloadHelpers, refreshData, treeItemLeafNodes, wuid]);
 
-    const rightButtons = React.useMemo((): ICommandBarItemProps[] => [
-        {
-            key: "fullscreen", title: nlsHPCC.MaximizeRestore, iconProps: { iconName: fullscreen ? "ChromeRestore" : "FullScreen" },
-            onClick: () => setFullscreen(!fullscreen)
-        }
-    ], [fullscreen]);
-
     React.useEffect(() => {
         if (dockpanel) {
             //  Should only happen once on startup  ---
@@ -257,7 +249,7 @@ export const Helpers: React.FunctionComponent<HelpersProps> = ({
     }, [dockpanel]);
 
     return <HolyGrail
-        header={<CommandBar items={buttons} farItems={rightButtons} />}
+        header={<CommandBar items={buttons} />}
         main={
             <DockPanel hideSingleTabs onCreate={setDockpanel}>
                 <DockPanelItem key="helpersTable" title="Helpers">

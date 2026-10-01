@@ -11,7 +11,7 @@ import { useLogAccessInfo, useLogicalClusters } from "../hooks/platform";
 import { useWorkunit, useWorkunitVariables } from "../hooks/workunit";
 import { DojoAdapter } from "../layouts/DojoAdapter";
 import { FullscreenFrame, FullscreenStack } from "../layouts/Fullscreen";
-import { parseQuery, pushUrl, updateFullscreen } from "../util/history";
+import { parseQuery, pushUrl } from "../util/history";
 import { WorkunitPersona } from "./controls/StateIcon";
 import { Helpers } from "./Helpers";
 import { IFrame } from "./IFrame";
@@ -43,7 +43,6 @@ interface WorkunitDetailsProps {
     urlWuid?: string;
     parentUrl?: string;
     tab?: string;
-    fullscreen?: boolean;
     state?: { outputs?: string, metrics?: { view?: string, lineageSelection?: string, selection?: string[] }, resources?: string, helpers?: string, eclsummary?: any, logicalgraph?: { lineageSelection?: string, selection?: string[] } };
     queryParams?: { summary?: StringStringMap, outputs?: StringStringMap, inputs?: StringStringMap, metrics?: StringStringMap, resources?: StringStringMap, helpers?: StringStringMap, logs?: StringStringMap, logicalgraph?: StringStringMap };
 }
@@ -53,7 +52,6 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
     urlWuid,
     parentUrl = "/workunits",
     tab = "summary",
-    fullscreen = false,
     state,
     queryParams = {}
 }) => {
@@ -149,8 +147,7 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
 
     const onTabSelect = React.useCallback((tab: TabInfo) => {
         pushUrl(tab.__state ?? `${parentUrl}/${routeWuid}/${tab.id}`);
-        updateFullscreen(fullscreen);
-    }, [fullscreen, parentUrl, routeWuid]);
+    }, [parentUrl, routeWuid]);
 
     const tabs = React.useMemo((): TabInfo[] => {
         return [{
@@ -225,10 +222,10 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
         }];
     }, [logCount, logsEnabled, logsStatusMessage, workunit?.Archived, workunit?.ApplicationValueCount, workunit?.DebugValueCount, workunit?.DebugValues?.DebugValue, workunit?.GraphCount, workunit?.HelpersCount, workunit?.ResourceURLCount, workunit?.ResultCount, workunit?.SourceFileCount, workunit?.VariableCount, workunit?.WorkflowCount, workunit?.FileSummaries?.ECLWUFileSummary?.length, workunit?.ECLWUProcessList?.ECLWUProcess?.length, wuid]);
 
-    return <FullscreenFrame fullscreen={fullscreen}>
+    return <FullscreenFrame>
         <SizeMe>{({ size }) =>
             <div style={{ height: "100%" }}>
-                <FullscreenStack fullscreen={fullscreen}>
+                <FullscreenStack>
                     <OverflowTabList tabs={tabs} selected={tab} onTabSelect={onTabSelect} size="medium" />
                 </FullscreenStack>
                 <DelayLoadedPanel visible={tab === "summary"} size={size}>
@@ -239,8 +236,8 @@ export const WorkunitDetails: React.FunctionComponent<WorkunitDetailsProps> = ({
                 </DelayLoadedPanel>
                 <DelayLoadedPanel visible={tab === "outputs"} size={size}>
                     {state?.outputs ?
-                        "__legacy" in queryParams.outputs ? <IFrame src={`/WsWorkunits/WUResult?Wuid=${wuid}&ResultName=${state?.outputs}`} height="99%" /> :
-                            "__visualize" in queryParams.outputs ? <DojoAdapter widgetClassID="VizWidget" params={{ Wuid: wuid, Sequence: state?.outputs }} /> :
+                        "__legacy" in (queryParams.outputs ?? {}) ? <IFrame src={`/WsWorkunits/WUResult?Wuid=${wuid}&ResultName=${state?.outputs}`} height="99%" /> :
+                            "__visualize" in (queryParams.outputs ?? {}) ? <DojoAdapter widgetClassID="VizWidget" params={{ Wuid: wuid, Sequence: state?.outputs }} /> :
                                 <Result wuid={wuid} resultName={state?.outputs} filter={queryParams.outputs} /> :
                         <Results wuid={wuid} parentUrl={`${parentUrl}/${routeWuid}/outputs`} />
                     }

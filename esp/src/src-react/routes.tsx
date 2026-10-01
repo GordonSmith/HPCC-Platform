@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Route, RouterContext } from "universal-router";
-import { initialize, parsePage, parseSearch, parseSort, parseFullscreen, pushUrl, replaceUrl } from "./util/history";
+import { initialize, parsePage, parseSearch, parseSort, pushUrl, replaceUrl } from "./util/history";
 import nlsHPCC from "src/nlsHPCC";
 
 declare const dojoConfig;
@@ -40,15 +40,15 @@ function parseWorkunitTabState(tab: string, state: string) {
     }
 }
 
-function renderWorkunit(wuid: string, parentUrl: string, fullscreen: boolean, queryParams: object, tab?: string, state?: object) {
+function renderWorkunit(wuid: string, parentUrl: string, queryParams: object, tab?: string, state?: object) {
     return import("./components/WorkunitDetails").then(_ => {
-        return <_.WorkunitDetails wuid={wuid} parentUrl={parentUrl} fullscreen={fullscreen} tab={tab} state={state} queryParams={queryParams} />;
+        return <_.WorkunitDetails wuid={wuid} parentUrl={parentUrl} tab={tab} state={state} queryParams={queryParams} />;
     });
 }
 
-function renderWorkunitCompare(wuid: string, parentUrl: string, fullscreen: boolean, queryParams: object, tab?: string, state?: object) {
+function renderWorkunitCompare(wuid: string, parentUrl: string, queryParams: object, tab?: string, state?: object) {
     return import("./components/WorkunitCompare").then(_ => {
-        return <_.WorkunitCompare wuids={splitCompareWuids(wuid)} parentUrl={parentUrl} fullscreen={fullscreen} tab={tab} state={state} queryParams={queryParams} />;
+        return <_.WorkunitCompare wuids={splitCompareWuids(wuid)} parentUrl={parentUrl} tab={tab} state={state} queryParams={queryParams} />;
     });
 }
 
@@ -90,7 +90,7 @@ const workunitsChildren: Route[] = [
             if (isCompareWuid(wuid)) {
                 return redirectToCompare(params, ctx.search);
             }
-            return renderWorkunit(wuid, params.parentUrl as string, parseFullscreen(ctx.search), { summary: parseSearch(ctx.search) as any });
+            return renderWorkunit(wuid, params.parentUrl as string, { summary: parseSearch(ctx.search) as any }, "summary");
         }
     },
     {
@@ -99,7 +99,7 @@ const workunitsChildren: Route[] = [
             if (isCompareWuid(wuid)) {
                 return redirectToCompare(params, ctx.search);
             }
-            return renderWorkunit(wuid, params.parentUrl as string, parseFullscreen(ctx.search), { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string);
+            return renderWorkunit(wuid, params.parentUrl as string, { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string);
         }
     },
     {
@@ -109,7 +109,7 @@ const workunitsChildren: Route[] = [
                 return redirectToCompare(params, ctx.search);
             }
             const state = parseWorkunitTabState(params.Tab as string, params.State as string);
-            return renderWorkunit(wuid, params.parentUrl as string, parseFullscreen(ctx.search), { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
+            return renderWorkunit(wuid, params.parentUrl as string, { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
         }
     },
     {
@@ -119,7 +119,7 @@ const workunitsChildren: Route[] = [
                 return redirectToCompare(params, ctx.search);
             }
             const state = { [params.Tab as string]: { lineageSelection: params.State, selection: (params.State2 as string).split(",") } };
-            return renderWorkunit(wuid, params.parentUrl as string, parseFullscreen(ctx.search), { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
+            return renderWorkunit(wuid, params.parentUrl as string, { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
         }
     },
     {
@@ -129,7 +129,7 @@ const workunitsChildren: Route[] = [
                 return redirectToCompare(params, ctx.search);
             }
             const state = { [params.Tab as string]: { view: params.State, lineageSelection: params.State2, selection: (params.State3 as string).split(",") } };
-            return renderWorkunit(wuid, params.parentUrl as string, parseFullscreen(ctx.search), { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
+            return renderWorkunit(wuid, params.parentUrl as string, { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
         }
     },
 ];
@@ -145,7 +145,7 @@ const compareWorkunitsChildren: Route[] = [
             if (!isCompareWuid(params.Wuid as string)) {
                 return redirectToWorkunits(params, ctx.search);
             }
-            return renderWorkunitCompare(params.Wuid as string, "/compare", parseFullscreen(ctx.search), { summary: parseSearch(ctx.search) as any });
+            return renderWorkunitCompare(params.Wuid as string, "/compare", { summary: parseSearch(ctx.search) as any });
         }
     },
     {
@@ -153,7 +153,7 @@ const compareWorkunitsChildren: Route[] = [
             if (!isCompareWuid(params.Wuid as string)) {
                 return redirectToWorkunits(params, ctx.search);
             }
-            return renderWorkunitCompare(params.Wuid as string, "/compare", parseFullscreen(ctx.search), { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string);
+            return renderWorkunitCompare(params.Wuid as string, "/compare", { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string);
         }
     },
     {
@@ -162,7 +162,7 @@ const compareWorkunitsChildren: Route[] = [
                 return redirectToWorkunits(params, ctx.search);
             }
             const state = parseWorkunitTabState(params.Tab as string, params.State as string);
-            return renderWorkunitCompare(params.Wuid as string, "/compare", parseFullscreen(ctx.search), { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
+            return renderWorkunitCompare(params.Wuid as string, "/compare", { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
         }
     },
     {
@@ -171,7 +171,7 @@ const compareWorkunitsChildren: Route[] = [
                 return redirectToWorkunits(params, ctx.search);
             }
             const state = { [params.Tab as string]: { lineageSelection: params.State, selection: (params.State2 as string).split(",") } };
-            return renderWorkunitCompare(params.Wuid as string, "/compare", parseFullscreen(ctx.search), { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
+            return renderWorkunitCompare(params.Wuid as string, "/compare", { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
         }
     },
     {
@@ -180,7 +180,7 @@ const compareWorkunitsChildren: Route[] = [
                 return redirectToWorkunits(params, ctx.search);
             }
             const state = { [params.Tab as string]: { view: params.State, lineageSelection: params.State2, selection: (params.State3 as string).split(",") } };
-            return renderWorkunitCompare(params.Wuid as string, "/compare", parseFullscreen(ctx.search), { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
+            return renderWorkunitCompare(params.Wuid as string, "/compare", { [params.Tab as string]: parseSearch(ctx.search) as any }, params.Tab as string, state);
         }
     },
 ];
@@ -298,17 +298,17 @@ export const routes: RoutesEx = [
             },
             {
                 path: "/:Name", action: (ctx, params) => import("./components/FileDetails").then(_ => {
-                    return <_.FileDetails cluster={undefined} logicalFile={params.Name as string} fullscreen={parseFullscreen(ctx.search)} />;
+                    return <_.FileDetails cluster={undefined} logicalFile={params.Name as string} />;
                 })
             },
             {
                 path: "/:NodeGroup/:Name", action: (ctx, params) => import("./components/FileDetails").then(_ => {
-                    return <_.FileDetails cluster={params.NodeGroup as string} logicalFile={params.Name as string} fullscreen={parseFullscreen(ctx.search)} />;
+                    return <_.FileDetails cluster={params.NodeGroup as string} logicalFile={params.Name as string} />;
                 })
             },
             {
                 path: "/:NodeGroup/:Name/:Tab", action: (ctx, params) => import("./components/FileDetails").then(_ => {
-                    return <_.FileDetails cluster={params.NodeGroup as string} logicalFile={params.Name as string} tab={params.Tab as string} sort={{ [params.Tab as string]: parseSort(ctx.search) }} queryParams={{ [params.Tab as string]: parseSearch(ctx.search) as any }} fullscreen={parseFullscreen(ctx.search)} />;
+                    return <_.FileDetails cluster={params.NodeGroup as string} logicalFile={params.Name as string} tab={params.Tab as string} sort={{ [params.Tab as string]: parseSort(ctx.search) }} queryParams={{ [params.Tab as string]: parseSearch(ctx.search) as any }} />;
                 })
             },
         ]
@@ -395,32 +395,32 @@ export const routes: RoutesEx = [
             },
             {
                 path: "/:QuerySetId/:Id", action: (ctx, params) => import("./components/QueryDetails").then(_ => {
-                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} fullscreen={parseFullscreen(ctx.search)} />;
+                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} />;
                 })
             },
             {
                 path: "/:QuerySetId/:Id/:Tab", action: (ctx, params) => import("./components/QueryDetails").then(_ => {
-                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab={params.Tab as string} fullscreen={parseFullscreen(ctx.search)} />;
+                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab={params.Tab as string} />;
                 })
             },
             {
                 path: "/:QuerySetId/:Id/metrics/:MetricsTab", action: (ctx, params) => import("./components/QueryDetails").then(_ => {
-                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab="metrics" state={{ metricsTab: params.MetricsTab as string }} fullscreen={parseFullscreen(ctx.search)} />;
+                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab="metrics" state={{ metricsTab: params.MetricsTab as string }} />;
                 })
             },
             {
                 path: "/:QuerySetId/:Id/metrics/:MetricsTab/:View", action: (ctx, params) => import("./components/QueryDetails").then(_ => {
-                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab="metrics" state={{ metricsTab: params.MetricsTab as string }} queryParams={{ view: params.View as string }} fullscreen={parseFullscreen(ctx.search)} />;
+                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab="metrics" state={{ metricsTab: params.MetricsTab as string }} queryParams={{ view: params.View as string }} />;
                 })
             },
             {
                 path: "/:QuerySetId/:Id/metrics/:MetricsTab/:View/:Selection", action: (ctx, params) => import("./components/QueryDetails").then(_ => {
-                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab="metrics" state={{ metricsTab: params.MetricsTab as string }} queryParams={{ view: params.View as string, metricsSelection: params.Selection as string }} fullscreen={parseFullscreen(ctx.search)} />;
+                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab="metrics" state={{ metricsTab: params.MetricsTab as string }} queryParams={{ view: params.View as string, metricsSelection: params.Selection as string }} />;
                 })
             },
             {
                 path: "/:QuerySetId/:Id/metrics/:MetricsTab/:View/:Lineage/:Selection", action: (ctx, params) => import("./components/QueryDetails").then(_ => {
-                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab="metrics" state={{ metricsTab: params.MetricsTab as string }} queryParams={{ view: params.View as string, lineageSelection: params.Lineage as string, metricsSelection: params.Selection as string }} fullscreen={parseFullscreen(ctx.search)} />;
+                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab="metrics" state={{ metricsTab: params.MetricsTab as string }} queryParams={{ view: params.View as string, lineageSelection: params.Lineage as string, metricsSelection: params.Selection as string }} />;
                 })
             },
             {
@@ -430,7 +430,7 @@ export const routes: RoutesEx = [
             },
             {
                 path: "/:QuerySetId/:Id/testPages/:Tab", action: (ctx, params) => import("./components/QueryDetails").then(_ => {
-                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab="testPages" state={{ testTab: params.Tab as string }} queryParams={{ [params.Tab as string]: parseSearch(ctx.search) as any }} fullscreen={parseFullscreen(ctx.search)} />;
+                    return <_.QueryDetails querySet={params.QuerySetId as string} queryId={params.Id as string} tab="testPages" state={{ testTab: params.Tab as string }} queryParams={{ [params.Tab as string]: parseSearch(ctx.search) as any }} />;
                 })
             },
         ]

@@ -23,7 +23,6 @@ interface WorkunitCompareProps {
     wuids: string[];
     parentUrl?: string;
     tab?: string;
-    fullscreen?: boolean;
     state?: React.ComponentProps<typeof WorkunitDetails>["state"];
     queryParams?: React.ComponentProps<typeof WorkunitDetails>["queryParams"];
 }
@@ -32,7 +31,6 @@ export const WorkunitCompare: React.FunctionComponent<WorkunitCompareProps> = ({
     wuids,
     parentUrl = "/workunits",
     tab,
-    fullscreen,
     state,
     queryParams
 }) => {
@@ -106,7 +104,6 @@ export const WorkunitCompare: React.FunctionComponent<WorkunitCompareProps> = ({
                             urlWuid={urlWuid}
                             parentUrl={parentUrl}
                             tab={tab}
-                            fullscreen={fullscreen}
                             state={state}
                             queryParams={queryParams}
                         />

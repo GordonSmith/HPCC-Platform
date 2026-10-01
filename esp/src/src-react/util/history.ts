@@ -45,7 +45,7 @@ export function parseQuery<T = ParsedQuery<string | boolean | number>>(_: string
 
 export function parseSearch<T = ParsedQuery<string | boolean | number>>(_: string): T {
     const parsed = parseQuery(_);
-    const excludeKeys = ["sortBy", "pageNum"];
+    const excludeKeys = ["fullscreen", "sortBy", "pageNum"];
     Object.keys(parsed).forEach(key => {
         if (excludeKeys.includes(key)) {
             delete parsed[key];
@@ -80,9 +80,13 @@ export function updatePage(pageNum: string) {
     updateParam("pageNum", pageNum);
 }
 
-export function parseFullscreen(_: string): boolean {
+function parseFullscreen(_: string): boolean {
     const searchParams = new SearchParams(_);
     return searchParams.fullscreen();
+}
+
+export function isFullscreen(): boolean {
+    return parseFullscreen(hashHistory.location.search);
 }
 
 export function updateFullscreen(fullscreen: boolean) {
@@ -159,9 +163,23 @@ class History<S extends object = object> {
         return hashUrl;
     }
 
+    //  Fullscreen is a "sticky" param - it survives navigation until explicitly cleared.
+    protected preserveFullscreen(search?: string): string {
+        if (!parseFullscreen(this.location.search)) {
+            return search || "";
+        }
+        const searchParams = new SearchParams(search || "");
+        if (searchParams.fullscreen()) {
+            return search || "";
+        }
+        searchParams.fullscreen(true);
+        const serialized = searchParams.serialize();
+        return serialized ? `?${serialized}` : "";
+    }
+
     push(to: { pathname?: string, search?: string }) {
         to.pathname = to.pathname ?? this.location.pathname;
-        to.search = to.search ?? this.location.search;
+        to.search = this.preserveFullscreen(to.search ?? this.location.search);
         const newHash = this.fixHash(`${this.trimRightSlash(to.pathname || this.location.pathname)}${to.search || ""}`);
         if (window.location.hash !== newHash) {
             globalHistory.pushState(undefined, "", newHash);
@@ -170,7 +188,10 @@ class History<S extends object = object> {
         }
     }
 
-    replace(to: { pathname?: string, search?: string }) {
+    replace(to: { pathname?: string, search?: string }, keepFullscreen: boolean = true) {
+        if (keepFullscreen) {
+            to.search = this.preserveFullscreen(to.search ?? "");
+        }
         const newHash = this.fixHash(`${this.trimRightSlash(to.pathname || this.location.pathname)}${to.search || ""}`);
         if (window.location.hash !== newHash) {
             globalHistory.replaceState(globalHistory.state, "", newHash);
@@ -223,11 +244,12 @@ export function pushSearch(_: object) {
     });
 }
 
+//  searchParams is derived from the current search, so it already carries the desired fullscreen state.
 export function updateSearch(searchParams: SearchParams) {
     const search = searchParams.serialize();
     hashHistory.replace({
         search: search ? "?" + search : ""
-    });
+    }, false);
 }
 
 export function pushUrl(_: string) {

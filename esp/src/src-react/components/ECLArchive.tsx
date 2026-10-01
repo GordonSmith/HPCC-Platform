@@ -42,7 +42,6 @@ export const ECLArchive: React.FunctionComponent<ECLArchiveProps> = ({
     selection,
     lineNum
 }) => {
-    const [fullscreen, setFullscreen] = React.useState<boolean>(false);
     const [findOpenRequestKey, setFindOpenRequestKey] = React.useState(0);
     const [dockpanel, setDockpanel] = React.useState<ResetableDockPanel>();
     const [_archiveXmlStr, _workunit2, _state2, archive, refreshArchive] = useWorkunitArchive(wuid);
@@ -119,13 +118,10 @@ export const ECLArchive: React.FunctionComponent<ECLArchiveProps> = ({
             onClick: () => {
                 navigator?.clipboard?.writeText(selectionText);
             }
-        }, {
-            key: "fullscreen", title: nlsHPCC.MaximizeRestore, iconProps: { iconName: fullscreen ? "ChromeRestore" : "FullScreen" },
-            onClick: () => setFullscreen(!fullscreen)
         }
-    ], [fullscreen, selectionText]);
+    ], [selectionText]);
 
-    return <HolyGrail fullscreen={fullscreen}
+    return <HolyGrail
         header={<CommandBar items={buttons} farItems={rightButtons} />}
         main={
             <DockPanel hideSingleTabs onCreate={setDockpanel}>

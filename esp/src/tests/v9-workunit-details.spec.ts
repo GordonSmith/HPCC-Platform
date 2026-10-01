@@ -117,6 +117,27 @@ test.describe("V9 Workunit Details", () => {
         await expect(page.getByRole("tab", { name: wuid })).toHaveAttribute("aria-selected", "true");
     });
 
+    test("Should preserve and clear fullscreen alongside tab query parameters", async ({ page }) => {
+        const nameFilter = "fullscreen-regression-filter";
+        await page.goto(`index.html#/workunits/${wuid}/inputs?Name=${nameFilter}`);
+
+        await page.getByRole("button", { name: "Filter" }).click();
+        const filterInput = page.getByRole("textbox", { name: "Name" });
+        await expect(filterInput).toHaveValue(nameFilter);
+        await page.getByRole("button", { name: "Apply" }).click();
+
+        const fullscreenButton = page.getByRole("button", { name: "Maximize/Restore" });
+        await fullscreenButton.click();
+        await expect(page).toHaveURL(new RegExp(`Name=${nameFilter}.*fullscreen`));
+
+        await page.getByRole("tab", { name: "Variables" }).click();
+        await expect(page).toHaveURL(/\/variables\?fullscreen/);
+
+        await page.getByRole("tab", { name: "Inputs" }).click();
+        await fullscreenButton.click();
+        await expect(page).not.toHaveURL(/fullscreen/);
+    });
+
     test("Should display variables tab content when clicked", async ({ page }) => {
         await page.getByRole("tab", { name: "Variables" }).click();
 

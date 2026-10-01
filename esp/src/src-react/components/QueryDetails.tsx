@@ -2,7 +2,7 @@ import * as React from "react";
 import { SizeMe } from "../layouts/SizeMe";
 import nlsHPCC from "src/nlsHPCC";
 import { useQuery } from "../hooks/query";
-import { pushUrl, updateFullscreen } from "../util/history";
+import { pushUrl } from "../util/history";
 import { FullscreenFrame, FullscreenStack } from "../layouts/Fullscreen";
 import { QueryErrors } from "./QueryErrors";
 import { QueryLibrariesUsed } from "./QueryLibrariesUsed";
@@ -19,7 +19,6 @@ interface QueryDetailsProps {
     querySet: string;
     queryId: string;
     tab?: string;
-    fullscreen?: boolean;
     state?: { metricsTab?: string, metricsState?: string, testTab?: string };
     queryParams?: { view?: string, lineageSelection?: string, metricsSelection?: string };
 }
@@ -28,7 +27,6 @@ export const QueryDetails: React.FunctionComponent<QueryDetailsProps> = ({
     querySet,
     queryId,
     tab = "summary",
-    fullscreen = false,
     state = {},
     queryParams = {}
 }) => {
@@ -61,8 +59,7 @@ export const QueryDetails: React.FunctionComponent<QueryDetailsProps> = ({
                 pushUrl(tab.__state ?? `/queries/${querySet}/${queryId}/${tab.id}`);
                 break;
         }
-        updateFullscreen(fullscreen);
-    }, [fullscreen, queryId, querySet, effectiveState.testTab]);
+    }, [queryId, querySet, effectiveState.testTab]);
 
     const tabs = React.useMemo((): TabInfo[] => {
         return [{
@@ -99,10 +96,10 @@ export const QueryDetails: React.FunctionComponent<QueryDetailsProps> = ({
         }];
     }, [libsUsedCount, logicalFileCount, superFileCount, wuid]);
 
-    return <FullscreenFrame fullscreen={fullscreen}>
+    return <FullscreenFrame>
         <SizeMe>{({ size }) =>
             <div style={{ height: "100%" }}>
-                <FullscreenStack fullscreen={fullscreen}>
+                <FullscreenStack>
                     <OverflowTabList tabs={tabs} selected={tab} onTabSelect={onTabSelect} size="medium" />
                 </FullscreenStack>
                 <DelayLoadedPanel visible={tab === "summary"} size={size}>

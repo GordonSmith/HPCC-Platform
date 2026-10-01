@@ -5,7 +5,7 @@ import { SizeMe } from "../layouts/SizeMe";
 import nlsHPCC from "src/nlsHPCC";
 import { QuerySortItem } from "src/store/Store";
 import { useFile, useDefFile } from "../hooks/file";
-import { pushUrl, replaceUrl, updateFullscreen } from "../util/history";
+import { pushUrl, replaceUrl } from "../util/history";
 import { FullscreenFrame, FullscreenStack } from "../layouts/Fullscreen";
 import { FileParts } from "./FileParts";
 import { FileBlooms } from "./FileBlooms";
@@ -32,7 +32,6 @@ interface FileDetailsProps {
     cluster?: string;
     logicalFile: string;
     tab?: string;
-    fullscreen?: boolean;
     sort?: { subfiles?: QuerySortItem, superfiles?: QuerySortItem, parts?: QuerySortItem, graphs?: QuerySortItem, history?: QuerySortItem, blooms?: QuerySortItem, protectby?: QuerySortItem };
     queryParams?: { contents?: StringStringMap };
 }
@@ -41,7 +40,6 @@ export const FileDetails: React.FunctionComponent<FileDetailsProps> = ({
     cluster,
     logicalFile,
     tab = "summary",
-    fullscreen = false,
     sort = {},
     queryParams = {}
 }) => {
@@ -55,8 +53,7 @@ export const FileDetails: React.FunctionComponent<FileDetailsProps> = ({
 
     const onTabSelect = React.useCallback((tab: TabInfo) => {
         pushUrl(tab.__state ?? `/files/${cluster}/${logicalFile}/${tab.id}`);
-        updateFullscreen(fullscreen);
-    }, [fullscreen, cluster, logicalFile]);
+    }, [cluster, logicalFile]);
 
     const tabs = React.useMemo((): TabInfo[] => {
         return [{
@@ -107,10 +104,10 @@ export const FileDetails: React.FunctionComponent<FileDetailsProps> = ({
 
     const classes = useStyles();
 
-    return <FullscreenFrame fullscreen={fullscreen}>
+    return <FullscreenFrame>
         <SizeMe>{({ size }) =>
             <div className={classes.root}>
-                <FullscreenStack fullscreen={fullscreen}>
+                <FullscreenStack>
                     <OverflowTabList tabs={tabs} selected={tab} onTabSelect={onTabSelect} size="medium" />
                 </FullscreenStack>
                 <DelayLoadedPanel visible={tab === "summary"} size={size}>
