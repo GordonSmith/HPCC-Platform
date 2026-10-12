@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified"
+        xmlns:hpcc="someuri">
+    <xs:include schemaLocation="types.xsd"/>
+    <hpcc:insert hpcc:schemaPath="/Environment/Software">
+        <xs:element name="EspService" hpcc:displayName="WsSQL2 Service" hpcc:itemType="ws_sql2" minOccurs="0"
+                    maxOccurs="unbounded" hpcc:class="component">
+            <xs:complexType>
+                <xs:attributeGroup ref="buildInfo"/>
+                <xs:attribute name="name" type="xs:string" use="required" hpcc:displayName="Name"
+                              hpcc:autoGenerateType="prefix" hpcc:autoGenerateValue="ws_sql2_service"
+                              hpcc:uniqueKey="espservice_name" hpcc:tooltip="Name for this WsSQL2 service"/>
+                <xs:attribute name="description" type="xs:string" hpcc:displayName="Description"
+                              hpcc:tooltip="Web Service providing a DuckDB SQL interface into HPCC"/>
+            </xs:complexType>
+        </xs:element>
+    </hpcc:insert>
+</xs:schema>

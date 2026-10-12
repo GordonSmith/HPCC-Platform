@@ -1,0 +1,47 @@
+ESPrequest ExecuteSQLRequest
+{
+    [rows(28), cols(80)] string SqlText;
+};
+
+ESPresponse [exceptions_inline] ExecuteSQLResponse
+{
+    string Result;
+};
+
+ESPrequest ListFilesRequest
+{
+    string Scope;
+};
+
+ESPresponse [exceptions_inline] ListFilesResponse
+{
+    string Result;
+};
+
+ESPrequest DescribeFileRequest
+{
+    string LogicalName;
+};
+
+ESPresponse [exceptions_inline] DescribeFileResponse
+{
+    string Result;
+};
+
+ESPrequest ExplainScanRequest
+{
+    [rows(28), cols(80)] string SqlText;
+};
+
+ESPresponse [exceptions_inline] ExplainScanResponse
+{
+    string Result;
+};
+
+ESPservice [version("1.0"), default_client_version("1.0"), auth_feature("WsSql2Access"), exceptions_inline("./smc_xslt/exceptions.xslt")] wssql2
+{
+    ESPmethod [] ExecuteSQL(ExecuteSQLRequest, ExecuteSQLResponse);
+    ESPmethod [] ListFiles(ListFilesRequest, ListFilesResponse);
+    ESPmethod [] DescribeFile(DescribeFileRequest, DescribeFileResponse);
+    ESPmethod [] ExplainScan(ExplainScanRequest, ExplainScanResponse);
+};
