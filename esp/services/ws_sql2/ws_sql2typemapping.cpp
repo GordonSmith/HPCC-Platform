@@ -78,9 +78,11 @@ CWsSql2FieldDescriptor CWsSql2TypeMapper::mapField(const char* fieldPath, const 
         descriptor.duckdbType = "BIGINT";
     else if (normalizedType == "REAL" || normalizedType == "REAL8" || normalizedType == "DOUBLE")
         descriptor.duckdbType = "DOUBLE";
-    else if (normalizedType == "STRING" || normalizedType == "VARSTRING" || normalizedType == "UNICODE" || normalizedType == "UTF8")
+    else if (normalizedType.rfind("STRING", 0) == 0 || normalizedType.rfind("VARSTRING", 0) == 0
+        || normalizedType.rfind("UNICODE", 0) == 0 || normalizedType.rfind("VARUNICODE", 0) == 0
+        || normalizedType.rfind("UTF8", 0) == 0)
         descriptor.duckdbType = "VARCHAR";
-    else if (normalizedType == "DATA" || normalizedType == "BLOB")
+    else if (normalizedType.rfind("DATA", 0) == 0 || normalizedType.rfind("BLOB", 0) == 0)
         descriptor.duckdbType = "BLOB";
     else if (normalizedType == "DATE")
         descriptor.duckdbType = "DATE";
@@ -109,6 +111,10 @@ CWsSql2FieldDescriptor CWsSql2TypeMapper::mapField(const char* fieldPath, ITypeI
 
     switch (sourceType->getTypeCode())
     {
+    case type_record:
+        descriptor.duckdbType = "STRUCT";
+        descriptor.sourceType = sourceType->queryTypeName();
+        break;
     case type_set:
     case type_table:
     case type_groupedtable:
@@ -144,12 +150,14 @@ void CWsSql2TypeMapper::mapRecord(const IDefRecordElement* record, const char* p
         const char* fieldName = child->queryName() ? str(child->queryName()) : nullptr;
         const std::string fieldPath = appendFieldPath(prefix, fieldName);
         ITypeInfo* childType = child->queryType();
-        if (childType && (childType->getTypeCode() == type_set || childType->getTypeCode() == type_table
+        if (childType && (childType->getTypeCode() == type_record || childType->getTypeCode() == type_set || childType->getTypeCode() == type_table
             || childType->getTypeCode() == type_groupedtable || childType->getTypeCode() == type_row
             || childType->getTypeCode() == type_dictionary))
         {
             const std::string uniqueFieldPath = makeUniqueFieldPath(fieldPath, fields);
-            fields.push_back(mapField(uniqueFieldPath.c_str(), childType, warnings));
+            CWsSql2FieldDescriptor descriptor = mapField(uniqueFieldPath.c_str(), childType, warnings);
+            mapRecord(child, uniqueFieldPath.c_str(), descriptor.children, warnings);
+            fields.push_back(std::move(descriptor));
             continue;
         }
         if (child->numChildren() > 0)

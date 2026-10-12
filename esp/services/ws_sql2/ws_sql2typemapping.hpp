@@ -19,6 +19,7 @@ struct CWsSql2FieldDescriptor
     std::string sourceType;
     std::string duckdbType;
     bool fallback = false;
+    std::vector<CWsSql2FieldDescriptor> children;
 };
 
 class CWsSql2TypeMapper

@@ -148,6 +148,23 @@ bool CWsSql2QueryEngine::rejectsInvalidHpccScan()
     return result && result->HasError();
 }
 
+bool CWsSql2QueryEngine::executeQuery(const char* sql, std::string& errorMessage)
+{
+    auto result = connection.Query(sql ? sql : "");
+    if (!result)
+    {
+        errorMessage = "DuckDB returned no query result";
+        return false;
+    }
+    if (result->HasError())
+    {
+        errorMessage = result->GetError();
+        return false;
+    }
+    errorMessage.clear();
+    return true;
+}
+
 IFieldFilter* CWsSql2QueryEngine::deserializeFilter(unsigned fieldId, const RtlTypeInfo& type, const char* expression) const
 {
     if (isEmptyString(expression))

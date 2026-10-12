@@ -173,7 +173,16 @@ bool Cwssql2Ex::onDescribeFile(IEspContext& context, IEspDescribeFileRequest& re
 
 bool Cwssql2Ex::onExecuteSQL(IEspContext& context, IEspExecuteSQLRequest& req, IEspExecuteSQLResponse& resp)
 {
-    return false;
+    Owned<IUserDescriptor> user = createRequestUser(context);
+    CWsSql2QueryEngine engine(user);
+    if (!engine.isInitialized())
+        throw makeStringException(-1, "Unable to initialize hpcc_scan engine");
+
+    std::string errorMessage;
+    if (!engine.executeQuery(req.getSqlText(), errorMessage))
+        throw makeStringException(-1, errorMessage.c_str());
+    resp.setResult("Query completed");
+    return true;
 }
 
 bool Cwssql2Ex::onExplainScan(IEspContext& context, IEspExplainScanRequest& req, IEspExplainScanResponse& resp)

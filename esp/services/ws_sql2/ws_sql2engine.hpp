@@ -79,6 +79,7 @@ public:
 
     bool isInitialized();
     bool rejectsInvalidHpccScan();
+    bool executeQuery(const char* sql, std::string& errorMessage);
     IFieldFilter* deserializeFilter(unsigned fieldId, const RtlTypeInfo& type, const char* expression) const;
 };
 

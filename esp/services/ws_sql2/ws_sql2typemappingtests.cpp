@@ -64,5 +64,7 @@ void runWsSql2TypeMappingTests()
     assert(mapper.mapField("birthDate", "DATE", recordWarnings).duckdbType == "DATE");
     assert(mapper.mapField("startTime", "TIME", recordWarnings).duckdbType == "TIME");
     assert(mapper.mapField("created", "DATETIME", recordWarnings).duckdbType == "TIMESTAMP");
+    assert(mapper.mapField("firstName", "STRING10", recordWarnings).duckdbType == "VARCHAR");
+    assert(mapper.mapField("payload", "DATA64", recordWarnings).duckdbType == "BLOB");
     return;
 }
