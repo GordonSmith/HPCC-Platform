@@ -1,4 +1,5 @@
 #include "ws_sql2service.hpp"
+#include "ws_sql2engine.hpp"
 #include "ws_sql2metadata.hpp"
 #include "ws_sql2typemapping.hpp"
 
@@ -177,6 +178,11 @@ bool Cwssql2Ex::onExecuteSQL(IEspContext& context, IEspExecuteSQLRequest& req, I
 
 bool Cwssql2Ex::onExplainScan(IEspContext& context, IEspExplainScanRequest& req, IEspExplainScanResponse& resp)
 {
+    Owned<IUserDescriptor> user = createRequestUser(context);
+    CWsSql2QueryEngine engine(user);
+    if (!engine.isInitialized())
+        throw makeStringException(-1, "Unable to initialize hpcc_scan engine");
+
     resp.setDataRead(false);
     resp.setSqlText(req.getSqlText());
     StringArray residualFilters;
