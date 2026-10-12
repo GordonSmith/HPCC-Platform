@@ -15,7 +15,8 @@ ESPrequest ListFilesRequest
 
 ESPresponse [exceptions_inline] ListFilesResponse
 {
-    string Result;
+    string Scope;
+    ESParray<string, File> Files;
 };
 
 ESPrequest DescribeFileRequest
@@ -23,9 +24,40 @@ ESPrequest DescribeFileRequest
     string LogicalName;
 };
 
+ESPStruct MetadataField
+{
+    string Path;
+    string SourceType;
+    string DuckDBType;
+    boolean Fallback;
+};
+
+ESPStruct MetadataWarning
+{
+    string Code;
+    string FieldPath;
+    string Message;
+};
+
 ESPresponse [exceptions_inline] DescribeFileResponse
 {
-    string Result;
+    boolean Resolved;
+    string LogicalName;
+    string Kind;
+    string Format;
+    integer NumParts;
+    boolean Compressed;
+    boolean BlockedCompression;
+    boolean IsSuperfile;
+    integer NumSubFiles;
+    boolean IsKeyed;
+    boolean MetadataSchemaUnbounded;
+    integer RecordSize;
+    string Owner;
+    string Modified;
+    string EclRecordDefinition;
+    ESParray<ESPstruct MetadataField, Field> Fields;
+    ESParray<ESPstruct MetadataWarning, Warning> Warnings;
 };
 
 ESPrequest ExplainScanRequest
@@ -35,7 +67,9 @@ ESPrequest ExplainScanRequest
 
 ESPresponse [exceptions_inline] ExplainScanResponse
 {
-    string Result;
+    boolean DataRead;
+    string SqlText;
+    ESParray<string, ResidualFilter> ResidualFilters;
 };
 
 ESPservice [version("1.0"), default_client_version("1.0"), auth_feature("WsSql2Access"), exceptions_inline("./smc_xslt/exceptions.xslt")] wssql2

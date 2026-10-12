@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+void runWsSql2TypeMappingTests();
+
 int main()
 {
     CWsSql2QueryEngine engine;
@@ -16,5 +18,6 @@ int main()
     state.cancel();
     assert(!state.canExecute());
     assert(!state.beginExecution());
+    runWsSql2TypeMappingTests();
     return 0;
 }

@@ -9,6 +9,8 @@ if(WSSQL2_SERVICE)
         ws_sql2plugin.cpp
         ws_sql2service.cpp
         ws_sql2engine.cpp
+        ws_sql2metadata.cpp
+        ws_sql2typemapping.cpp
     )
 
     include_directories(
@@ -22,6 +24,13 @@ if(WSSQL2_SERVICE)
         ${HPCC_SOURCE_DIR}/system/security/securesocket
         ${HPCC_SOURCE_DIR}/system/xmllib
         ${HPCC_SOURCE_DIR}/common/thorhelper
+        ${HPCC_SOURCE_DIR}/common/fileview2
+        ${HPCC_SOURCE_DIR}/common/deftype
+        ${HPCC_SOURCE_DIR}/common/workunit
+        ${HPCC_SOURCE_DIR}/esp/services/common
+        ${HPCC_SOURCE_DIR}/dali/base
+        ${HPCC_SOURCE_DIR}/system/mp
+        ${HPCC_SOURCE_DIR}/system/security/shared
         ${ESPSCM_GENERATED_DIR}
         ${DuckDB_INCLUDE_DIRS}
     )
@@ -29,7 +38,7 @@ if(WSSQL2_SERVICE)
     add_definitions(-D_USRDLL -DWsSql2_API_LOCAL -DESP_SERVICE_ws_sql2)
     HPCC_ADD_LIBRARY(ws_sql2 SHARED ${SRCS})
     add_dependencies(ws_sql2 espscm)
-    target_link_libraries(ws_sql2 PRIVATE jlib xmllib esphttp ${DuckDB_LIBRARIES} ${COMMON_ESP_SERVICE_LIBS})
+    target_link_libraries(ws_sql2 PRIVATE jlib xmllib esphttp dalibase deftype ${DuckDB_LIBRARIES} ${COMMON_ESP_SERVICE_LIBS})
 
     install(TARGETS ws_sql2
         RUNTIME DESTINATION ${EXEC_DIR}
@@ -46,8 +55,17 @@ if(WSSQL2_SERVICE)
     endif()
 
     if (BUILD_TESTING)
-        HPCC_ADD_EXECUTABLE(ws_sql2foundationtests ws_sql2foundationtests.cpp ws_sql2engine.cpp)
-        target_include_directories(ws_sql2foundationtests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${DuckDB_INCLUDE_DIRS})
-        target_link_libraries(ws_sql2foundationtests PRIVATE ${DuckDB_LIBRARIES})
+        HPCC_ADD_EXECUTABLE(ws_sql2foundationtests ws_sql2foundationtests.cpp ws_sql2engine.cpp ws_sql2metadata.cpp ws_sql2typemapping.cpp ws_sql2typemappingtests.cpp)
+        target_include_directories(ws_sql2foundationtests PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${DuckDB_INCLUDE_DIRS}
+            ${HPCC_SOURCE_DIR}/common/fileview2
+            ${HPCC_SOURCE_DIR}/common/deftype
+            ${HPCC_SOURCE_DIR}/common/workunit
+            ${HPCC_SOURCE_DIR}/dali/base
+            ${HPCC_SOURCE_DIR}/system/mp
+            ${HPCC_SOURCE_DIR}/system/security/shared
+        )
+        target_link_libraries(ws_sql2foundationtests PRIVATE jlib dalibase deftype ${DuckDB_LIBRARIES})
     endif()
 endif()
