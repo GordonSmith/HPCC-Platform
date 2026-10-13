@@ -177,7 +177,14 @@ void CWsSql2TypeMapper::mapEclRecordDefinition(const char* definition, std::vect
         return;
 
     std::string text(definition);
-    const size_t recordStart = findKeywordInsensitive(text, "RECORD", 0);
+    size_t recordStart = findKeywordInsensitive(text, "RECORD", 0);
+    for (;;)
+    {
+        const size_t nextRecord = findKeywordInsensitive(text, "RECORD", recordStart == std::string::npos ? 0 : recordStart + 6);
+        if (nextRecord == std::string::npos)
+            break;
+        recordStart = nextRecord;
+    }
     const size_t recordEnd = findKeywordInsensitive(text, "END", recordStart == std::string::npos ? 0 : recordStart + 6);
     if (recordStart == std::string::npos || recordEnd == std::string::npos || recordEnd <= recordStart)
         return;
@@ -205,6 +212,9 @@ void CWsSql2TypeMapper::mapEclRecordDefinition(const char* definition, std::vect
         }
         else
             tokens >> fieldName;
+        const size_t attributeStart = fieldName.find('{');
+        if (attributeStart != std::string::npos)
+            fieldName.resize(attributeStart);
         if (!sourceType.empty() && !fieldName.empty())
         {
             const std::string uniqueFieldPath = makeUniqueFieldPath(fieldName, fields);

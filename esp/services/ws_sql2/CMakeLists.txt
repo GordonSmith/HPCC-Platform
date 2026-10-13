@@ -21,6 +21,7 @@ if(WSSQL2_SERVICE)
         ${HPCC_SOURCE_DIR}/esp/smc/SMCLib
         ${HPCC_SOURCE_DIR}/system/include
         ${HPCC_SOURCE_DIR}/system/jlib
+        ${HPCC_SOURCE_DIR}/system/jhtree
         ${HPCC_SOURCE_DIR}/system/security/shared
         ${HPCC_SOURCE_DIR}/system/security/securesocket
         ${HPCC_SOURCE_DIR}/system/xmllib
@@ -42,7 +43,7 @@ if(WSSQL2_SERVICE)
     add_definitions(-D_USRDLL -DWsSql2_API_LOCAL -DESP_SERVICE_ws_sql2)
     HPCC_ADD_LIBRARY(ws_sql2 SHARED ${SRCS})
     add_dependencies(ws_sql2 espscm)
-    target_link_libraries(ws_sql2 PRIVATE jlib xmllib esphttp dalibase deftype eclrtl nbcd thorhelper ${DuckDB_LIBRARIES} ${COMMON_ESP_SERVICE_LIBS})
+    target_link_libraries(ws_sql2 PRIVATE jlib jhtree xmllib esphttp dalibase deftype eclrtl nbcd thorhelper ${DuckDB_LIBRARIES} ${COMMON_ESP_SERVICE_LIBS})
 
     install(TARGETS ws_sql2
         RUNTIME DESTINATION ${EXEC_DIR}
@@ -67,11 +68,12 @@ if(WSSQL2_SERVICE)
             ${HPCC_SOURCE_DIR}/common/deftype
             ${HPCC_SOURCE_DIR}/common/workunit
             ${HPCC_SOURCE_DIR}/dali/base
+            ${HPCC_SOURCE_DIR}/system/jhtree
             ${HPCC_SOURCE_DIR}/system/mp
             ${HPCC_SOURCE_DIR}/system/security/shared
             ${HPCC_SOURCE_DIR}/rtl/include
             ${HPCC_SOURCE_DIR}/rtl/eclrtl
         )
-        target_link_libraries(ws_sql2foundationtests PRIVATE jlib dalibase deftype eclrtl nbcd thorhelper ${DuckDB_LIBRARIES})
+        target_link_libraries(ws_sql2foundationtests PRIVATE jlib jhtree dalibase deftype eclrtl nbcd thorhelper ${DuckDB_LIBRARIES})
     endif()
 endif()

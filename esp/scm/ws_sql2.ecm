@@ -81,7 +81,10 @@ ESPresponse [exceptions_inline] ExplainScanResponse
 {
     boolean DataRead;
     string SqlText;
+    ESParray<string, ProjectedColumn> ProjectedColumns;
     ESParray<string, ResidualFilter> ResidualFilters;
+    string OptimizedPlan;
+    string OptimizedPlanJson;
 };
 
 ESPservice [version("1.0"), default_client_version("1.0"), auth_feature("WsSql2Access"), exceptions_inline("./smc_xslt/exceptions.xslt")] wssql2

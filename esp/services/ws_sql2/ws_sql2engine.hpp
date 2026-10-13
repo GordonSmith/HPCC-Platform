@@ -46,6 +46,8 @@ public:
     void addKeyedFilter(IFieldFilter* filter, const char* fieldPath, const char* description);
     void addPostFilter(const char* fieldPath, const char* description);
     void addPostFilter(IFieldFilter* filter, const char* fieldPath, const char* description);
+    void addTranslatedFilter(IFieldFilter* filter, unsigned leadingKeyFields, const char* fieldPath, const char* description);
+    void addTranslatedFilter(IFieldFilter* filter, const UnsignedArray& keyOrder, const char* fieldPath, const char* description);
     void addResidualFilter(const char* fieldPath, const char* description);
     unsigned numKeyedFilters() const;
     unsigned numPostFilters() const;
@@ -80,6 +82,8 @@ public:
     bool isInitialized();
     bool rejectsInvalidHpccScan();
     bool executeQuery(const char* sql, unsigned rowLimit, unsigned byteLimit, std::string& resultText, std::string& errorMessage);
+    bool explainQuery(const char* sql, std::string& planText, std::string& planJson,
+        StringArray& projectedColumns, StringArray& residualFilters, std::string& errorMessage);
     IFieldFilter* deserializeFilter(unsigned fieldId, const RtlTypeInfo& type, const char* expression) const;
 };
 

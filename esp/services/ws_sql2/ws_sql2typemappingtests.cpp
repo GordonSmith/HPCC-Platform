@@ -61,6 +61,22 @@ void runWsSql2TypeMappingTests()
     assert(recordFields[0].fieldPath == "name");
     assert(recordFields[1].fieldPath == "name_2");
 
+    recordFields.clear();
+    recordWarnings.clear();
+    mapper.mapEclRecordDefinition("RECORD string100 blobfield{blob}; END;", recordFields, recordWarnings);
+    assert(recordFields.size() == 1);
+    assert(recordFields[0].fieldPath == "blobfield");
+    assert(recordFields[0].duckdbType == "VARCHAR");
+
+    recordFields.clear();
+    recordWarnings.clear();
+    mapper.mapEclRecordDefinition(
+        "child := RECORD unsigned4 childId; END; RECORD unsigned4 id; DATASET(child) children; END;",
+        recordFields, recordWarnings);
+    assert(recordFields.size() == 2);
+    assert(recordFields[0].fieldPath == "id");
+    assert(recordFields[1].fieldPath == "children");
+
     assert(mapper.mapField("birthDate", "DATE", recordWarnings).duckdbType == "DATE");
     assert(mapper.mapField("startTime", "TIME", recordWarnings).duckdbType == "TIME");
     assert(mapper.mapField("created", "DATETIME", recordWarnings).duckdbType == "TIMESTAMP");

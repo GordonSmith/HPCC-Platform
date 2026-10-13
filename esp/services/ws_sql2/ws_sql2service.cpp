@@ -201,16 +201,17 @@ bool Cwssql2Ex::onExplainScan(IEspContext& context, IEspExplainScanRequest& req,
 
     resp.setDataRead(false);
     resp.setSqlText(req.getSqlText());
+    StringArray projectedColumns;
     StringArray residualFilters;
-    std::string normalizedSql = req.getSqlText() ? req.getSqlText() : "";
-    std::transform(normalizedSql.begin(), normalizedSql.end(), normalizedSql.begin(), [](unsigned char character)
-    {
-        return static_cast<char>(std::toupper(character));
-    });
-    const size_t wherePosition = normalizedSql.find("WHERE");
-    if (wherePosition != std::string::npos)
-        residualFilters.append((req.getSqlText() ? req.getSqlText() : "") + wherePosition);
+    std::string planText;
+    std::string planJson;
+    std::string errorMessage;
+    if (!engine.explainQuery(req.getSqlText(), planText, planJson, projectedColumns, residualFilters, errorMessage))
+        throw makeStringException(-1, errorMessage.c_str());
+    resp.setProjectedColumns(projectedColumns);
     resp.setResidualFilters(residualFilters);
+    resp.setOptimizedPlan(planText.c_str());
+    resp.setOptimizedPlanJson(planJson.c_str());
     return true;
 }
 
