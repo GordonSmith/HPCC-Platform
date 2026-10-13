@@ -1,7 +1,94 @@
 #include "ws_sql2engine.hpp"
 #include "ws_sql2extension.hpp"
 
+#include "duckdb/main/materialized_query_result.hpp"
+
 static constexpr const char* accessContextKey = "ws_sql2.access_context";
+
+static void appendJsonString(std::string& output, const std::string& value)
+{
+    output.push_back('"');
+    for (char character : value)
+    {
+        switch (character)
+        {
+        case '"': output.append("\\\""); break;
+        case '\\': output.append("\\\\"); break;
+        case '\n': output.append("\\n"); break;
+        case '\r': output.append("\\r"); break;
+        case '\t': output.append("\\t"); break;
+        default: output.push_back(character); break;
+        }
+    }
+    output.push_back('"');
+}
+
+static std::string materializedResultAsJson(duckdb::MaterializedQueryResult& result, unsigned rowLimit, unsigned byteLimit)
+{
+    const duckdb::idx_t totalRowCount = result.Collection().Count();
+    auto chunk = result.Fetch();
+    const duckdb::idx_t columnCount = result.names.empty() && chunk ? chunk->ColumnCount() : result.names.size();
+    duckdb::idx_t rowCount = 0;
+    bool truncated = false;
+    std::string output = "{\"columns\":[";
+    for (duckdb::idx_t column = 0; column < columnCount; ++column)
+    {
+        if (column)
+            output.push_back(',');
+        appendJsonString(output, result.names.empty() ? ("column" + std::to_string(column)) : result.names[column]);
+    }
+    output.append("],\"rows\":[");
+    bool firstRow = true;
+    while (chunk)
+    {
+        for (duckdb::idx_t row = 0; row < chunk->size(); ++row)
+        {
+            if (rowLimit && rowCount >= rowLimit)
+            {
+                truncated = true;
+                break;
+            }
+            std::string rowText = "[";
+            for (duckdb::idx_t column = 0; column < columnCount; ++column)
+            {
+                if (column)
+                    rowText.push_back(',');
+                duckdb::Value value = chunk->GetValue(column, row);
+                if (value.IsNull())
+                {
+                    rowText.append("null");
+                    continue;
+                }
+                const auto type = value.type().id();
+                const std::string text = value.ToString();
+                if (type == duckdb::LogicalTypeId::VARCHAR || type == duckdb::LogicalTypeId::BLOB
+                    || type == duckdb::LogicalTypeId::DATE || type == duckdb::LogicalTypeId::TIME
+                    || type == duckdb::LogicalTypeId::TIMESTAMP)
+                    appendJsonString(rowText, text);
+                else
+                    rowText.append(text);
+            }
+            rowText.push_back(']');
+            if (byteLimit && output.size() + (firstRow ? 0 : 1) + rowText.size() + 32 > byteLimit)
+            {
+                truncated = true;
+                break;
+            }
+            if (!firstRow)
+                output.push_back(',');
+            firstRow = false;
+            output.append(rowText);
+            ++rowCount;
+        }
+        if (truncated)
+            break;
+        chunk = result.Fetch();
+    }
+    output.append("],\"rowCount\":").append(std::to_string(totalRowCount));
+    output.append(",\"returnedRowCount\":").append(std::to_string(rowCount));
+    output.append(",\"truncated\":").append(truncated ? "true}" : "false}");
+    return output;
+}
 
 static void registerAccessContext(duckdb::Connection& connection, IUserDescriptor* requestUser)
 {
@@ -148,8 +235,21 @@ bool CWsSql2QueryEngine::rejectsInvalidHpccScan()
     return result && result->HasError();
 }
 
-bool CWsSql2QueryEngine::executeQuery(const char* sql, std::string& errorMessage)
+bool CWsSql2QueryEngine::executeQuery(const char* sql, unsigned rowLimit, unsigned byteLimit, std::string& resultText, std::string& errorMessage)
 {
+    std::string statement = sql ? sql : "";
+    const size_t firstToken = statement.find_first_not_of(" \t\r\n");
+    std::string keyword = firstToken == std::string::npos ? "" : statement.substr(firstToken, 6);
+    std::transform(keyword.begin(), keyword.end(), keyword.begin(), [](unsigned char character)
+    {
+        return static_cast<char>(std::toupper(character));
+    });
+    if (keyword != "SELECT")
+    {
+        errorMessage = "Only SELECT statements are supported";
+        return false;
+    }
+
     auto result = connection.Query(sql ? sql : "");
     if (!result)
     {
@@ -161,6 +261,12 @@ bool CWsSql2QueryEngine::executeQuery(const char* sql, std::string& errorMessage
         errorMessage = result->GetError();
         return false;
     }
+    if (result->type == duckdb::QueryResultType::MATERIALIZED_RESULT)
+        resultText = materializedResultAsJson(result->Cast<duckdb::MaterializedQueryResult>(), rowLimit, byteLimit);
+    else
+        resultText = result->ToString();
+    if (resultText.size() > 65536)
+        resultText.resize(65536);
     errorMessage.clear();
     return true;
 }

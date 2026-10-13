@@ -16,6 +16,11 @@ int main()
     CWsSql2QueryEngine contextualEngine(requestUser);
     assert(contextualEngine.isInitialized());
 
+    std::string queryResult;
+    std::string queryError;
+    assert(!contextualEngine.executeQuery("CREATE TABLE blocked(value INTEGER)", 0, 0, queryResult, queryError));
+    assert(queryError == "Only SELECT statements are supported");
+
     CWsSql2RequestState state;
     assert(!state.canExecute());
     assert(state.validate());

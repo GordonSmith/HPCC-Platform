@@ -301,6 +301,51 @@ static std::vector<CWsSql2FieldDescriptor> appendScanColumns(IDistributedFile& f
     return descriptors;
 }
 
+    static void materializeScalarRow(const RtlRecord& record, const byte* row, const std::vector<CWsSql2FieldDescriptor>& fields,
+        duckdb::DataChunk& output)
+    {
+        if (record.getNumFields() < fields.size())
+            throw duckdb::InternalException("hpcc_scan record layout has fewer fields than its mapped schema");
+
+        for (unsigned fieldIndex = 0; fieldIndex < fields.size(); ++fieldIndex)
+        {
+            const RtlTypeInfo* type = record.queryType(fieldIndex);
+            const void* value = row + record.calculateOffset(row, fieldIndex);
+            switch (type->getType())
+            {
+            case type_boolean:
+                output.SetValue(fieldIndex, 0, duckdb::Value::BOOLEAN(type->getInt(value) != 0));
+                break;
+            case type_int:
+            case type_swapint:
+            case type_packedint:
+            case type_filepos:
+            case type_keyedint:
+                output.SetValue(fieldIndex, 0, duckdb::Value::BIGINT(type->getInt(value)));
+                break;
+            case type_real:
+                output.SetValue(fieldIndex, 0, duckdb::Value::DOUBLE(type->getReal(value)));
+                break;
+            case type_string:
+            case type_varstring:
+            case type_qstring:
+            case type_unicode:
+            case type_varunicode:
+            case type_utf8:
+            {
+                size32_t length = 0;
+                char* text = nullptr;
+                type->getString(length, text, value);
+                output.SetValue(fieldIndex, 0, duckdb::Value(std::string(text, length)));
+                rtlFree(text);
+                break;
+            }
+            default:
+                throw duckdb::NotImplementedException("hpcc_scan direct conversion does not support nested or decimal fields");
+            }
+        }
+    }
+
 duckdb::unique_ptr<duckdb::FunctionData> bindHpccScan(duckdb::ClientContext& context, duckdb::TableFunctionBindInput& input,
     duckdb::vector<duckdb::LogicalType>& returnTypes, duckdb::vector<std::string>& names)
 {
@@ -344,8 +389,7 @@ void executeHpccScan(duckdb::ClientContext&, duckdb::TableFunctionInput& input, 
         throw duckdb::NotImplementedException("hpcc_scan encountered a grouped row boundary");
 
     const auto& bindData = input.bind_data->Cast<CHpccScanBindData>();
-    CHpccScanFieldProcessor processor(output, bindData.fields);
-    state.actualMetadata->process(row, processor, 0, (unsigned)-1);
+        materializeScalarRow(state.actualMetadata->queryRecordAccessor(true), row, bindData.fields, output);
     output.SetCardinality(1);
 }
 
@@ -361,7 +405,9 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
     if (state->accessOptions.formatOptions && state->accessOptions.formatOptions->getPropBool("@grouped", false))
         throw duckdb::NotImplementedException("hpcc_scan currently does not support grouped files");
 
-    state->actualMetadata.setown(getDaliLayoutInfo(bindData.file->queryAttributes()));
+    state->actualMetadata.setown(state->accessOptions.actualDiskMeta.getLink());
+    if (!state->actualMetadata)
+        state->actualMetadata.setown(getDaliLayoutInfo(bindData.file->queryAttributes()));
     if (!state->actualMetadata || !state->accessOptions.formatCrc)
         throw duckdb::BinderException("hpcc_scan could not initialize the published record layout");
 

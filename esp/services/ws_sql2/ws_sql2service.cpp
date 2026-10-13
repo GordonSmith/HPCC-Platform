@@ -2,6 +2,9 @@
 #include "ws_sql2engine.hpp"
 #include "ws_sql2metadata.hpp"
 #include "ws_sql2typemapping.hpp"
+#include "thorcommon.hpp"
+#include "thorread.hpp"
+#include "thorxmlwrite.hpp"
 
 #include "seclib.hpp"
 
@@ -173,15 +176,19 @@ bool Cwssql2Ex::onDescribeFile(IEspContext& context, IEspDescribeFileRequest& re
 
 bool Cwssql2Ex::onExecuteSQL(IEspContext& context, IEspExecuteSQLRequest& req, IEspExecuteSQLResponse& resp)
 {
+    if (isEmptyString(req.getSqlText()))
+        throw makeStringException(-1, "SqlText is required");
+
     Owned<IUserDescriptor> user = createRequestUser(context);
     CWsSql2QueryEngine engine(user);
     if (!engine.isInitialized())
         throw makeStringException(-1, "Unable to initialize hpcc_scan engine");
 
+    std::string resultText;
     std::string errorMessage;
-    if (!engine.executeQuery(req.getSqlText(), errorMessage))
+    if (!engine.executeQuery(req.getSqlText(), req.getRowLimit(), req.getByteLimit(), resultText, errorMessage))
         throw makeStringException(-1, errorMessage.c_str());
-    resp.setResult("Query completed");
+    resp.setResult(resultText.c_str());
     return true;
 }
 
@@ -195,7 +202,85 @@ bool Cwssql2Ex::onExplainScan(IEspContext& context, IEspExplainScanRequest& req,
     resp.setDataRead(false);
     resp.setSqlText(req.getSqlText());
     StringArray residualFilters;
+    std::string normalizedSql = req.getSqlText() ? req.getSqlText() : "";
+    std::transform(normalizedSql.begin(), normalizedSql.end(), normalizedSql.begin(), [](unsigned char character)
+    {
+        return static_cast<char>(std::toupper(character));
+    });
+    const size_t wherePosition = normalizedSql.find("WHERE");
+    if (wherePosition != std::string::npos)
+        residualFilters.append((req.getSqlText() ? req.getSqlText() : "") + wherePosition);
     resp.setResidualFilters(residualFilters);
+    return true;
+}
+
+bool Cwssql2Ex::onDebugDev(IEspContext& context, IEspDebugDevRequest& req, IEspDebugDevResponse& resp)
+{
+    Owned<IUserDescriptor> user = createRequestUser(context);
+    Owned<IDistributedFile> file = CWsSql2MetadataResolver::resolveLogicalFile(req.getLogicalName(), user);
+    const IPropertyTree& attributes = file->queryAttributes();
+    StringBuffer result;
+    result.append("{\"logicalName\":").append('"').append(file->queryLogicalName()).append('"');
+    result.append(",\"kind\":").append('"').append(attributes.queryProp("@kind", "")).append('"');
+    result.append(",\"format\":").append('"').append(attributes.queryProp("@format", "")).append('"');
+    result.append(",\"recordSize\":").append(attributes.getPropInt("@recordSize", 0));
+    result.append(",\"formatCrc\":").append(attributes.getPropInt("@formatCrc", 0));
+    result.append(",\"parts\":").append(file->numParts());
+    Owned<IOutputMetaData> actualMetadata = getDaliLayoutInfo(attributes);
+    result.append(",\"actualFields\":[");
+    if (actualMetadata)
+    {
+        const RtlRecord& record = actualMetadata->queryRecordAccessor(true);
+        for (unsigned fieldIndex = 0; fieldIndex < record.getNumFields(); ++fieldIndex)
+        {
+            if (fieldIndex)
+                result.append(',');
+            result.append('"').append(record.queryName(fieldIndex)).append('"');
+        }
+    }
+    result.append("]");
+    FileAccessOptions accessOptions;
+    accessOptions.updateFromFile(file);
+    Owned<IOutputMetaData> rawMetadata = accessOptions.actualDiskMeta.getLink();
+    if (!rawMetadata)
+        rawMetadata.setown(getDaliLayoutInfo(attributes));
+    if (rawMetadata && accessOptions.formatCrc)
+    {
+        Owned<IRowReadFormatMapping> mapping = createRowReadFormatMapping(
+            accessOptions.recordTranslationMode, accessOptions.format, accessOptions.formatCrc, *rawMetadata,
+            accessOptions.formatCrc, *rawMetadata, accessOptions.formatCrc, *rawMetadata,
+            accessOptions.formatOptions);
+        Owned<IDiskRowReader> reader = createDiskReader(accessOptions.format, false, mapping, accessOptions.providerOptions, nullptr);
+        Owned<IDistributedFilePart> part = file->getPart(0);
+        RemoteFilename filename;
+        part->getFilename(filename, 0);
+        FieldFilterArray noFilters;
+        if (reader->setInputFile(filename, file->queryLogicalName(), 0, 0, noFilters))
+        {
+            Owned<ILogicalRowStream> stream = reader->queryAllocatedRowStream();
+            size32_t rowSize = 0;
+            const void* row = stream->prefetchRow(rowSize);
+            if (row && !isSpecialRow(row))
+            {
+                size32_t jsonLength = 0;
+                char* json = nullptr;
+                convertRowToJSON(jsonLength, json, *rawMetadata, row);
+                result.append(",\"rawRow\":").append(jsonLength, json);
+                rtlFree(json);
+            }
+        }
+    }
+    result.append('}');
+    result.insert(result.length() - 1, ",\"copies\":[");
+    for (unsigned partIndex = 0; partIndex < file->numParts(); ++partIndex)
+    {
+        if (partIndex)
+            result.append(',');
+        Owned<IDistributedFilePart> part = file->getPart(partIndex);
+        result.append(part ? part->numCopies() : 0);
+    }
+    result.append("]}");
+    resp.setResult(result.str());
     return true;
 }
 

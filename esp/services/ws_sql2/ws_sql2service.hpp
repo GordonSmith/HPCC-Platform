@@ -12,6 +12,7 @@ public:
     bool onDescribeFile(IEspContext& context, IEspDescribeFileRequest& req, IEspDescribeFileResponse& resp);
     bool onExecuteSQL(IEspContext& context, IEspExecuteSQLRequest& req, IEspExecuteSQLResponse& resp);
     bool onExplainScan(IEspContext& context, IEspExplainScanRequest& req, IEspExplainScanResponse& resp);
+    bool onDebugDev(IEspContext& context, IEspDebugDevRequest& req, IEspDebugDevResponse& resp);
     bool onListFiles(IEspContext& context, IEspListFilesRequest& req, IEspListFilesResponse& resp);
 };
 
