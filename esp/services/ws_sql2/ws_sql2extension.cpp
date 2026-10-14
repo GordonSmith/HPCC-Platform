@@ -592,8 +592,31 @@ static void pushdownHpccScanFilters(duckdb::ClientContext&, duckdb::LogicalGet& 
 static void initHpccScanAccessOptions(FileAccessOptions& accessOptions, IDistributedFile* file)
 {
     // Grouping is a property of the on-disk encoding, so mirror DFS to make the reader consume the eog byte.
-    accessOptions.formatOptions->setPropBool("@grouped", file->queryAttributes().getPropBool("@grouped", false));
+    const IPropertyTree& attributes = file->queryAttributes();
+    accessOptions.formatOptions->setPropBool("@grouped", attributes.getPropBool("@grouped", false));
     accessOptions.updateFromFile(file);
+
+    // updateFromFile only adopts the published layout for FLAT; the CSV/XML readers translate from that same layout.
+    const bool isCsv = strieq(accessOptions.format.str(), "csv");
+    const bool isXml = strieq(accessOptions.format.str(), "xml");
+    if (!isCsv && !isXml)
+        return;
+    Owned<IOutputMetaData> publishedMeta = getDaliLayoutInfo(attributes);
+    unsigned publishedCrc = attributes.getPropInt("@formatCrc", 0);
+    if (publishedMeta && !publishedCrc)
+    {
+        // Some writers omit @formatCrc; the mapping only needs a stable non-zero identity for this layout.
+        MemoryBuffer layout;
+        if (dumpTypeInfo(layout, publishedMeta->queryTypeInfo()))
+            publishedCrc = hashc(layout.bytes(), layout.length(), 0) | 1;
+    }
+    if (publishedMeta && publishedCrc)
+    {
+        accessOptions.actualDiskMeta.setown(publishedMeta.getClear());
+        accessOptions.formatCrc = publishedCrc;
+    }
+    if (isXml && attributes.hasProp("@rowTag") && !accessOptions.formatOptions->hasProp("ActivityOptions/rowTag"))
+        ensurePTree(accessOptions.formatOptions, "ActivityOptions")->setProp("rowTag", attributes.queryProp("@rowTag"));
 }
 
 class CHpccScanGlobalState : public duckdb::GlobalTableFunctionState
@@ -1191,6 +1214,12 @@ static std::vector<CWsSql2FieldDescriptor> appendScanColumns(IDistributedFile& f
         CWsSql2TypeMapper mapper;
         mapper.mapEclRecordDefinition(eclDefinition, descriptors, warnings);
     }
+    if (descriptors.empty() && layoutMetadata)
+    {
+        const RtlRecord& record = layoutMetadata->queryRecordAccessor(true);
+        for (unsigned index = 0; index < record.getNumFields(); ++index)
+            descriptors.push_back(mapRtlField(*record.queryOriginalField(index), nullptr));
+    }
     if (descriptors.empty())
         throw duckdb::BinderException("hpcc_scan could not determine a record layout");
 
@@ -1339,6 +1368,18 @@ duckdb::unique_ptr<duckdb::FunctionData> bindHpccScan(duckdb::ClientContext& con
     {
         Owned<IDistributedFile> file = CWsSql2MetadataResolver::resolveLogicalFile(logicalName.c_str(), accessContext->queryUser());
         Owned<IOutputMetaData> expectedMetadata = getDaliLayoutInfo(file->queryAttributes());
+        if (!expectedMetadata)
+        {
+            const unsigned recordSize = file->queryAttributes().getPropInt("@recordSize", 0);
+            if (recordSize)
+            {
+                Owned<IPropertyTree> fallbackAttributes = createPTreeFromIPT(&file->queryAttributes());
+                StringBuffer fallbackEcl;
+                fallbackEcl.appendf("RECORD string%u contents; END;", recordSize);
+                fallbackAttributes->setProp("ECL", fallbackEcl);
+                expectedMetadata.setown(getDaliLayoutInfo(*fallbackAttributes));
+            }
+        }
         FileAccessOptions accessOptions;
         initHpccScanAccessOptions(accessOptions, file);
         Owned<IOutputMetaData> actualMetadata = accessOptions.actualDiskMeta.getLink();
@@ -1419,6 +1460,8 @@ void executeHpccScan(duckdb::ClientContext&, duckdb::TableFunctionInput& input, 
             const byte* row = static_cast<const byte*>(local.stream->prefetchRow(rowSize));
             if (isEndOfFile(row))
             {
+                // XML readers only reset their parser on stop(), so a reused reader would otherwise miss later parts.
+                local.stream->stop();
                 local.stream.clear();
                 continue;
             }
@@ -1512,8 +1555,13 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
     state->actualMetadata.setown(state->accessOptions.actualDiskMeta.getLink());
     if (!state->actualMetadata)
         state->actualMetadata.setown(getDaliLayoutInfo(bindData.file->queryAttributes()));
-    if (!state->actualMetadata || (!isKey && !state->accessOptions.formatCrc))
-        throw duckdb::BinderException("hpcc_scan could not initialize the published record layout");
+    if (!state->actualMetadata)
+        throw duckdb::BinderException("hpcc_scan could not initialize the published record layout: "
+            "%s has no runtime type information (for example an IFBLOCK condition that cannot be evaluated dynamically)",
+            bindData.logicalName);
+    if (!isKey && !state->accessOptions.formatCrc)
+        throw duckdb::BinderException("hpcc_scan could not initialize the published record layout: "
+            "format '%s' of %s is not supported", state->accessOptions.format.str(), bindData.logicalName);
 
     if (input.filters)
     {
