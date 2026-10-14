@@ -2,6 +2,7 @@
 
 import argparse
 import collections
+import concurrent.futures
 import html
 import json
 import time
@@ -44,12 +45,54 @@ def classify(error):
     return "other"
 
 
+def run_file(endpoint, logical_name, limit, timeout):
+    sql_name = logical_name.replace("'", "''")
+    sql = f"SELECT * FROM hpcc_scan('{sql_name}') LIMIT {limit}"
+    item = {"file": logical_name}
+    query_started = time.monotonic()
+    try:
+        root = post(
+            endpoint,
+            "ExecuteSQL",
+            "ExecuteSQLRequest",
+            f"<SqlText>{html.escape(sql, quote=False)}</SqlText><ByteLimit>1048576</ByteLimit>",
+            timeout,
+        )
+        item["seconds"] = round(time.monotonic() - query_started, 4)
+        error = next(
+            (" ".join("".join(node.itertext()).split()) for node in root.iter()
+             if local_name(node.tag) == "Exception"),
+            None,
+        )
+        result = next(
+            ("".join(node.itertext()).strip() for node in root.iter() if local_name(node.tag) == "Result"),
+            None,
+        )
+        if error:
+            item.update(status="error", category=classify(error), error=error)
+        elif result:
+            parsed = json.loads(result)
+            item.update(
+                status="ok",
+                rows=parsed.get("returnedRowCount"),
+                columns=len(parsed.get("columns", [])),
+                truncated=parsed.get("truncated"),
+            )
+        else:
+            item.update(status="invalid_response", category="invalid_response")
+    except Exception as exception:
+        item["seconds"] = round(time.monotonic() - query_started, 4)
+        item.update(status="transport_error", category="transport_error", error=repr(exception))
+    return item
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run bounded hpcc_scan queries across a logical-file scope")
     parser.add_argument("--endpoint", default="http://127.0.0.1:8510/WsSQL2/")
     parser.add_argument("--scope", default="regress::*")
     parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--timeout", type=int, default=10)
+    parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--report", default="ws_sql2_catalog_report.json")
     args = parser.parse_args()
 
@@ -61,51 +104,18 @@ def main():
         args.timeout,
     )
     files = ["".join(node.itertext()).strip() for node in root.iter() if local_name(node.tag) == "File"]
-    results = []
     started = time.monotonic()
-    for logical_name in files:
-        sql_name = logical_name.replace("'", "''")
-        sql = f"SELECT * FROM hpcc_scan('{sql_name}') LIMIT {args.limit}"
-        item = {"file": logical_name}
-        query_started = time.monotonic()
-        try:
-            root = post(
-                args.endpoint,
-                "ExecuteSQL",
-                "ExecuteSQLRequest",
-                f"<SqlText>{html.escape(sql, quote=False)}</SqlText><ByteLimit>1048576</ByteLimit>",
-                args.timeout,
-            )
-            item["seconds"] = round(time.monotonic() - query_started, 4)
-            error = next(
-                (" ".join("".join(node.itertext()).split()) for node in root.iter()
-                 if local_name(node.tag) == "Exception"),
-                None,
-            )
-            result = next(
-                ("".join(node.itertext()).strip() for node in root.iter() if local_name(node.tag) == "Result"),
-                None,
-            )
-            if error:
-                item.update(status="error", category=classify(error), error=error)
-            elif result:
-                parsed = json.loads(result)
-                item.update(
-                    status="ok",
-                    rows=parsed.get("returnedRowCount"),
-                    columns=len(parsed.get("columns", [])),
-                    truncated=parsed.get("truncated"),
-                )
-            else:
-                item.update(status="invalid_response", category="invalid_response")
-        except Exception as exception:
-            item["seconds"] = round(time.monotonic() - query_started, 4)
-            item.update(status="transport_error", category="transport_error", error=repr(exception))
-        results.append(item)
+    worker_count = max(1, args.workers)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
+        results = list(executor.map(
+            lambda logical_name: run_file(args.endpoint, logical_name, args.limit, args.timeout),
+            files,
+        ))
 
     report = {
         "scope": args.scope,
         "limit": args.limit,
+        "workers": worker_count,
         "elapsed": round(time.monotonic() - started, 3),
         "statusCounts": dict(collections.Counter(item["status"] for item in results)),
         "categoryCounts": dict(collections.Counter(
@@ -114,7 +124,7 @@ def main():
     }
     with open(args.report, "w", encoding="utf-8") as output:
         json.dump(report, output, indent=2)
-    print(json.dumps({key: report[key] for key in ("scope", "limit", "elapsed", "statusCounts", "categoryCounts")}))
+    print(json.dumps({key: report[key] for key in ("scope", "limit", "workers", "elapsed", "statusCounts", "categoryCounts")}))
     return 1 if any(item["status"] != "ok" for item in results) else 0
 
 

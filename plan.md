@@ -162,6 +162,7 @@ The extension will adapt existing HPCC metadata and row-reader implementations r
 7. Implement ESP handlers and JSON/parameter contracts (depends on 2, 4, 5, and 6).
 8. Add deployment/package configuration and documentation (depends on 2 and 7).
 9. Add and run unit/integration/performance validation (starts with 3 and 4; final validation depends on 5 through 8).
+10. Add streaming result delivery to ESP so large query results do not require full in-memory JSON materialization (depends on 7 and 9).
 
 ## Important considerations
 

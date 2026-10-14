@@ -568,11 +568,14 @@ public:
     FieldFilterArray filters;
     RowFilter postFilters;
     std::vector<unsigned> projectedColumns;
+    std::vector<CWsSql2FieldDescriptor> projectedDescriptors;
     int64_t limit = -1;
     int64_t offset = 0;
     int64_t rowsReturned = 0;
     int64_t rowsSkipped = 0;
 };
+
+static duckdb::Value materializeScalarValue(const RtlTypeInfo& type, const void* value, IBlobProvider* blobProvider);
 
 class CHpccScanFieldProcessor : implements IFieldProcessor, public CInterface
 {
@@ -586,9 +589,12 @@ class CHpccScanFieldProcessor : implements IFieldProcessor, public CInterface
 
     duckdb::DataChunk& output;
     const std::vector<CWsSql2FieldDescriptor>& fields;
+    IBlobProvider* blobProvider = nullptr;
     unsigned column = 0;
     // HPCC emits nested callbacks in depth-first order; each frame collects one STRUCT or LIST value.
     std::vector<NestedFrame> nested;
+
+    static duckdb::LogicalType mapNestedType(const CWsSql2FieldDescriptor& descriptor);
 
     void setValue(duckdb::Value value)
     {
@@ -621,7 +627,10 @@ class CHpccScanFieldProcessor : implements IFieldProcessor, public CInterface
         nested.pop_back();
         if (collection)
         {
-            setValue(frame.values.empty() ? duckdb::Value::LIST(duckdb::LogicalType::VARCHAR, {})
+            duckdb::LogicalType collectionType = mapNestedType(*frame.descriptor);
+            const duckdb::LogicalType elementType = collectionType.id() == duckdb::LogicalTypeId::LIST
+                ? duckdb::ListType::GetChildType(collectionType) : collectionType;
+            setValue(frame.values.empty() ? duckdb::Value::LIST(elementType, {})
                                           : duckdb::Value::LIST(std::move(frame.values)));
             return;
         }
@@ -663,8 +672,9 @@ class CHpccScanFieldProcessor : implements IFieldProcessor, public CInterface
 public:
     IMPLEMENT_IINTERFACE;
 
-    CHpccScanFieldProcessor(duckdb::DataChunk& _output, const std::vector<CWsSql2FieldDescriptor>& _fields)
-        : output(_output), fields(_fields)
+    CHpccScanFieldProcessor(duckdb::DataChunk& _output, const std::vector<CWsSql2FieldDescriptor>& _fields,
+        IBlobProvider* _blobProvider = nullptr)
+        : output(_output), fields(_fields), blobProvider(_blobProvider)
     {
     }
 
@@ -677,7 +687,36 @@ public:
     {
         setValue(duckdb::Value::BLOB(static_cast<const unsigned char*>(value), len));
     }
-    void processInt(__int64 value, const RtlFieldInfo*) override { setValue(duckdb::Value::BIGINT(value)); }
+    void processInt(__int64 value, const RtlFieldInfo* field) override
+    {
+        if (blobProvider && field && field->type && field->type->getType() == type_blob)
+        {
+            const byte* blob = nullptr;
+            try
+            {
+                blob = blobProvider->lookupBlob(static_cast<unsigned __int64>(value));
+            }
+            catch (IException* exception)
+            {
+                StringBuffer message;
+                exception->errorMessage(message);
+                exception->Release();
+                throw duckdb::IOException("hpcc_scan could not load nested KEY blob: %s", message.str());
+            }
+            if (!blob)
+                setValue(duckdb::Value());
+            else if (field->type->queryChildType())
+            {
+                const CWsSql2FieldDescriptor& descriptor = fields.at(column);
+                if (descriptor.children.empty())
+                    setValue(materializeScalarValue(*field->type->queryChildType(), blob, blobProvider));
+                else
+                    field->type->queryChildType()->process(blob, blob, field, *this);
+            }
+            return;
+        }
+        setValue(duckdb::Value::BIGINT(value));
+    }
     void processUInt(unsigned __int64 value, const RtlFieldInfo*) override
     {
         if (value > static_cast<unsigned __int64>(INT64_MAX))
@@ -685,19 +724,18 @@ public:
         setValue(duckdb::Value::BIGINT(static_cast<__int64>(value)));
     }
     void processReal(double value, const RtlFieldInfo*) override { setValue(duckdb::Value::DOUBLE(value)); }
-    // The callback exposes packed byte length, not the original decimal digit width; reject until metadata is carried here.
-    void processDecimal(const void* value, unsigned length, unsigned precision, const RtlFieldInfo*) override
+    void processDecimal(const void* value, unsigned length, unsigned precision, const RtlFieldInfo* field) override
     {
-        unsigned width = decimalWidth();
+        unsigned width = field && field->type ? field->type->getDecimalDigits() : decimalWidth();
         if (!width || width > 18 || precision > width)
             unsupported("decimal");
         Decimal decimal;
         decimal.setDecimal(static_cast<byte>(length), static_cast<byte>(precision), value);
         setValue(duckdb::Value::DECIMAL(static_cast<int64_t>(decimal.getInt64()), static_cast<uint8_t>(width), static_cast<uint8_t>(precision)));
     }
-    void processUDecimal(const void* value, unsigned length, unsigned precision, const RtlFieldInfo*) override
+    void processUDecimal(const void* value, unsigned length, unsigned precision, const RtlFieldInfo* field) override
     {
-        unsigned width = decimalWidth();
+        unsigned width = field && field->type ? field->type->getDecimalDigits() : decimalWidth();
         if (!width || width > 18 || precision > width)
             unsupported("unsigned decimal");
         Decimal decimal;
@@ -746,6 +784,57 @@ public:
     void processEndRow(const RtlFieldInfo*) override { finishNested(false); }
 };
 
+duckdb::LogicalType CHpccScanFieldProcessor::mapNestedType(const CWsSql2FieldDescriptor& descriptor)
+{
+    if (descriptor.duckdbType == "STRUCT")
+    {
+        duckdb::child_list_t<duckdb::LogicalType> children;
+        for (const auto& child : descriptor.children)
+        {
+            const size_t separator = child.fieldPath.rfind('.');
+            const std::string name = separator == std::string::npos ? child.fieldPath : child.fieldPath.substr(separator + 1);
+            children.emplace_back(name, mapNestedType(child));
+        }
+        return duckdb::LogicalType::STRUCT(std::move(children));
+    }
+    if (descriptor.duckdbType == "LIST" || descriptor.duckdbType == "MAP")
+    {
+        if (descriptor.children.size() == 1)
+            return duckdb::LogicalType::LIST(mapNestedType(descriptor.children.front()));
+        duckdb::child_list_t<duckdb::LogicalType> children;
+        for (const auto& child : descriptor.children)
+        {
+            const size_t separator = child.fieldPath.rfind('.');
+            const std::string name = separator == std::string::npos ? child.fieldPath : child.fieldPath.substr(separator + 1);
+            children.emplace_back(name, mapNestedType(child));
+        }
+        return duckdb::LogicalType::LIST(children.empty() ? duckdb::LogicalType::VARCHAR : duckdb::LogicalType::STRUCT(std::move(children)));
+    }
+    if (descriptor.duckdbType == "BIGINT")
+        return duckdb::LogicalType::BIGINT;
+    if (descriptor.duckdbType == "DOUBLE")
+        return duckdb::LogicalType::DOUBLE;
+    if (descriptor.duckdbType == "BOOLEAN")
+        return duckdb::LogicalType::BOOLEAN;
+    if (descriptor.duckdbType == "BLOB")
+        return duckdb::LogicalType::BLOB;
+    if (descriptor.duckdbType == "DECIMAL")
+    {
+        const size_t start = descriptor.sourceType.find_first_of("0123456789");
+        if (start != std::string::npos)
+        {
+            const unsigned width = static_cast<unsigned>(std::strtoul(descriptor.sourceType.c_str() + start, nullptr, 10));
+            const size_t separator = descriptor.sourceType.find('_', start);
+            const unsigned precision = separator == std::string::npos
+                ? 0 : static_cast<unsigned>(std::strtoul(descriptor.sourceType.c_str() + separator + 1, nullptr, 10));
+            if (width && width <= 18 && precision <= width)
+                return duckdb::LogicalType::DECIMAL(width, precision);
+        }
+        return duckdb::LogicalType::DECIMAL(18, 3);
+    }
+    return duckdb::LogicalType::VARCHAR;
+}
+
 static duckdb::LogicalType mapDuckDBType(const CWsSql2FieldDescriptor& descriptor)
 {
     const std::string& type = descriptor.duckdbType;
@@ -792,7 +881,16 @@ static duckdb::LogicalType mapDuckDBType(const CWsSql2FieldDescriptor& descripto
         return duckdb::LogicalType::LIST(duckdb::LogicalType::VARCHAR);
     }
     if (type == "MAP")
-        return duckdb::LogicalType::MAP(duckdb::LogicalType::VARCHAR, duckdb::LogicalType::VARCHAR);
+    {
+        duckdb::child_list_t<duckdb::LogicalType> children;
+        for (const auto& child : descriptor.children)
+        {
+            const size_t separator = child.fieldPath.rfind('.');
+            const std::string name = separator == std::string::npos ? child.fieldPath : child.fieldPath.substr(separator + 1);
+            children.emplace_back(name, mapDuckDBType(child));
+        }
+        return duckdb::LogicalType::LIST(children.empty() ? duckdb::LogicalType::VARCHAR : duckdb::LogicalType::STRUCT(std::move(children)));
+    }
     if (type == "DECIMAL")
     {
         size_t start = descriptor.sourceType.find_first_of("0123456789");
@@ -809,8 +907,73 @@ static duckdb::LogicalType mapDuckDBType(const CWsSql2FieldDescriptor& descripto
     return duckdb::LogicalType::VARCHAR;
 }
 
+static CWsSql2FieldDescriptor mapRtlField(const RtlFieldInfo& field, const char* prefix)
+{
+    CWsSql2FieldDescriptor descriptor;
+    descriptor.fieldPath = prefix ? std::string(prefix) + "." + (field.name ? field.name : "field")
+                                  : (field.name ? field.name : "field");
+    const RtlTypeInfo& type = *field.type;
+    switch (type.getType())
+    {
+    case type_record:
+    case type_row:
+        descriptor.duckdbType = "STRUCT";
+        break;
+    case type_set:
+    case type_table:
+    case type_groupedtable:
+        descriptor.duckdbType = "LIST";
+        break;
+    case type_boolean:
+        descriptor.duckdbType = "BOOLEAN";
+        break;
+    case type_int:
+    case type_swapint:
+    case type_packedint:
+    case type_filepos:
+    case type_keyedint:
+        descriptor.duckdbType = "BIGINT";
+        break;
+    case type_real:
+        descriptor.duckdbType = "DOUBLE";
+        break;
+    case type_data:
+    case type_blob:
+        descriptor.duckdbType = "BLOB";
+        break;
+    case type_date:
+        descriptor.duckdbType = "DATE";
+        break;
+    case type_string:
+    case type_varstring:
+    case type_qstring:
+    case type_unicode:
+    case type_varunicode:
+    case type_utf8:
+        descriptor.duckdbType = "VARCHAR";
+        break;
+    case type_decimal:
+        descriptor.duckdbType = "DECIMAL";
+        descriptor.sourceType = "DECIMAL" + std::to_string(type.getDecimalDigits()) + "_" + std::to_string(type.getDecimalPrecision());
+        break;
+    default:
+        descriptor.duckdbType = "VARCHAR";
+        descriptor.fallback = true;
+        break;
+    }
+    const RtlTypeInfo* childType = type.queryChildType();
+    const RtlFieldInfo* const* childFields = childType ? childType->queryFields() : nullptr;
+    if (childFields)
+    {
+        for (unsigned index = 0; childFields[index]; ++index)
+            descriptor.children.push_back(mapRtlField(*childFields[index], descriptor.fieldPath.c_str()));
+    }
+    return descriptor;
+}
+
 static std::vector<CWsSql2FieldDescriptor> appendScanColumns(IDistributedFile& file,
-    duckdb::vector<duckdb::LogicalType>& returnTypes, duckdb::vector<std::string>& names)
+    IOutputMetaData* layoutMetadata, duckdb::vector<duckdb::LogicalType>& returnTypes,
+    duckdb::vector<std::string>& names)
 {
     std::vector<CWsSql2FieldDescriptor> descriptors;
     std::vector<CWsSql2Warning> warnings;
@@ -832,6 +995,28 @@ static std::vector<CWsSql2FieldDescriptor> appendScanColumns(IDistributedFile& f
     }
     if (descriptors.empty())
         throw duckdb::BinderException("hpcc_scan could not determine a record layout");
+
+    if (layoutMetadata)
+    {
+        const RtlRecord& record = layoutMetadata->queryRecordAccessor(true);
+        bool hasNestedPhysicalField = false;
+        for (unsigned index = 0; index < record.getNumFields(); ++index)
+        {
+            const RtlTypeInfo* type = record.queryType(index);
+            if (type && (type->getType() == type_record || type->getType() == type_row || type->getType() == type_set
+                || type->getType() == type_table || type->getType() == type_groupedtable))
+            {
+                hasNestedPhysicalField = true;
+                break;
+            }
+        }
+        if (hasNestedPhysicalField)
+        {
+            descriptors.clear();
+            for (unsigned index = 0; index < record.getNumFields(); ++index)
+                descriptors.push_back(mapRtlField(*record.queryOriginalField(index), nullptr));
+        }
+    }
 
     for (const auto& descriptor : descriptors)
     {
@@ -961,7 +1146,8 @@ duckdb::unique_ptr<duckdb::FunctionData> bindHpccScan(duckdb::ClientContext& con
         Owned<IOutputMetaData> actualMetadata = accessOptions.actualDiskMeta.getLink();
         if (!actualMetadata && expectedMetadata)
             actualMetadata.set(expectedMetadata);
-        auto fields = appendScanColumns(*file, returnTypes, names);
+        auto fields = appendScanColumns(*file, actualMetadata ? actualMetadata.get() : expectedMetadata.get(),
+            returnTypes, names);
         return duckdb::make_uniq<CHpccScanBindData>(logicalName, file.getClear(), expectedMetadata.getClear(),
             actualMetadata.getClear(), std::move(fields));
     }
@@ -1045,13 +1231,47 @@ void executeHpccScan(duckdb::ClientContext&, duckdb::TableFunctionInput& input, 
     const RtlRecord& outputRecord = state.projectedMetadata
         ? state.projectedMetadata->queryRecordAccessor(true)
         : state.actualMetadata->queryRecordAccessor(true);
-    if (state.keyManager)
+    bool hasNestedProjection = false;
+    for (const auto& descriptor : state.projectedDescriptors)
     {
-        KLBlobProviderAdapter blobProvider(state.keyManager, nullptr);
-        materializeScalarRow(outputRecord, row, state.projectedColumns, output, &blobProvider);
+        if (!descriptor.children.empty())
+        {
+            hasNestedProjection = true;
+            break;
+        }
+    }
+    if (!hasNestedProjection)
+    {
+        if (state.keyManager)
+        {
+            KLBlobProviderAdapter blobProvider(state.keyManager, nullptr);
+            materializeScalarRow(outputRecord, row, state.projectedColumns, output, &blobProvider);
+        }
+        else
+            materializeScalarRow(outputRecord, row, state.projectedColumns, output);
     }
     else
-        materializeScalarRow(outputRecord, row, state.projectedColumns, output);
+    {
+        auto processNestedProjection = [&](IBlobProvider* blobProvider)
+        {
+            CHpccScanFieldProcessor processor(output, state.projectedDescriptors, blobProvider);
+            for (unsigned index = 0; index < state.projectedColumns.size(); ++index)
+            {
+                const RtlFieldInfo* field = outputRecord.queryOriginalField(state.projectedColumns[index]);
+                if (!field)
+                    throw duckdb::InternalException("hpcc_scan could not resolve a projected field");
+                const byte* fieldValue = row + outputRecord.calculateOffset(row, state.projectedColumns[index]);
+                field->process(fieldValue, row, processor);
+            }
+        };
+        if (state.keyManager)
+        {
+            KLBlobProviderAdapter blobProvider(state.keyManager, nullptr);
+            processNestedProjection(&blobProvider);
+        }
+        else
+            processNestedProjection(nullptr);
+    }
     ++state.rowsReturned;
     output.SetCardinality(1);
 }
@@ -1113,6 +1333,8 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
         for (auto column : input.column_ids)
             state->projectedColumns.push_back(static_cast<unsigned>(column));
     }
+    for (unsigned projectedColumn : state->projectedColumns)
+        state->projectedDescriptors.push_back(bindData.fields.at(projectedColumn));
     ForEachItemIn(pushedIndex, bindData.pushedFilters)
         state->filters.append(OLINK(bindData.pushedFilters.item(pushedIndex)));
 

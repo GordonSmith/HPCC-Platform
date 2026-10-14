@@ -76,6 +76,8 @@ void runWsSql2TypeMappingTests()
     assert(recordFields.size() == 2);
     assert(recordFields[0].fieldPath == "id");
     assert(recordFields[1].fieldPath == "children");
+    assert(recordFields[1].children.size() == 1);
+    assert(recordFields[1].children[0].fieldPath == "children.childId");
 
     assert(mapper.mapField("birthDate", "DATE", recordWarnings).duckdbType == "DATE");
     assert(mapper.mapField("startTime", "TIME", recordWarnings).duckdbType == "TIME");

@@ -1,0 +1,1068 @@
+{
+  "scope": "regress::*",
+  "limit": 100000000,
+  "workers": 16,
+  "elapsed": 20.632,
+  "statusCounts": {
+    "ok": 74,
+    "error": 36,
+    "transport_error": 29
+  },
+  "categoryCounts": {
+    "ok": 74,
+    "missing_layout": 23,
+    "grouped": 4,
+    "unsupported_format": 6,
+    "transport_error": 29,
+    "other": 3
+  },
+  "results": [
+    {
+      "file": "regress::local::dg_fetchindex1",
+      "seconds": 0.0809,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::dg_fetchtransindex",
+      "seconds": 0.0876,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::dg_index",
+      "seconds": 0.0915,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::dg_index_evens",
+      "seconds": 0.0593,
+      "status": "ok",
+      "rows": 32,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::dg_intindex",
+      "seconds": 0.0911,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::dg_keydiffindex1",
+      "seconds": 0.0706,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::dg_keydiffindex2",
+      "seconds": 0.0501,
+      "status": "ok",
+      "rows": 19,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::dg_trans_index",
+      "seconds": 0.085,
+      "status": "ok",
+      "rows": 64,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::dg_trans_index_evens",
+      "seconds": 0.0832,
+      "status": "ok",
+      "rows": 32,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::dg_trans_varindex",
+      "seconds": 0.0831,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::dg_varindex",
+      "seconds": 0.0645,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::local::dg_varindex') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::local::wordindex_local",
+      "seconds": 0.102,
+      "status": "ok",
+      "rows": 1000,
+      "columns": 8,
+      "truncated": false
+    },
+    {
+      "file": "regress::local::wordindex_local_trans",
+      "seconds": 0.0931,
+      "status": "ok",
+      "rows": 1000,
+      "columns": 9,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::book",
+      "seconds": 0.0839,
+      "status": "ok",
+      "rows": 30,
+      "columns": 6,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::bookauthorgrouped",
+      "seconds": 0.0725,
+      "status": "error",
+      "category": "grouped",
+      "error": "-1userCSoapResponseBindingBinder Error: DFS and code generated group info. differs: DFS(true) ECL(false) LINE 1: SELECT * FROM hpcc_scan('regress::multi::bookauthorgrouped') LIMIT 100000... ^"
+    },
+    {
+      "file": "regress::multi::bookindex",
+      "seconds": 0.0554,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::bookindex') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::multi::bookindexid",
+      "seconds": 0.0763,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::bookindexid') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::multi::c.dg_fetchfile",
+      "seconds": 0.0739,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::c.dg_fetchfilepreload",
+      "seconds": 0.0681,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::c.dg_fetchfilepreloadindexed",
+      "seconds": 0.0648,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_accountxml",
+      "seconds": 0.1103,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::dg_accountxml') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::multi::dg_child.d00",
+      "seconds": 0.0796,
+      "status": "ok",
+      "rows": 192,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_csv",
+      "seconds": 0.0666,
+      "status": "error",
+      "category": "unsupported_format",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not initialize the published record layout"
+    },
+    {
+      "file": "regress::multi::dg_fetchindex1",
+      "seconds": 0.0951,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_fetchtransindex",
+      "seconds": 0.0712,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_flat",
+      "seconds": 0.0889,
+      "status": "ok",
+      "rows": 64,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_flat_evens",
+      "seconds": 0.0908,
+      "status": "ok",
+      "rows": 32,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_grandchild.d00",
+      "seconds": 0.0774,
+      "status": "ok",
+      "rows": 576,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_grouped",
+      "seconds": 0.0848,
+      "status": "error",
+      "category": "grouped",
+      "error": "-1userCSoapResponseBindingBinder Error: DFS and code generated group info. differs: DFS(true) ECL(false) LINE 1: SELECT * FROM hpcc_scan('regress::multi::dg_grouped') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::multi::dg_index",
+      "seconds": 0.0805,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_index_evens",
+      "seconds": 0.0803,
+      "status": "ok",
+      "rows": 32,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_intindex",
+      "seconds": 0.0614,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_keydiffindex1",
+      "seconds": 0.049,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_keydiffindex2",
+      "seconds": 0.0504,
+      "status": "ok",
+      "rows": 19,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_keyed_index",
+      "seconds": 0.0627,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_keyed_index_delta",
+      "seconds": 0.0577,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_keyed_index_dup",
+      "seconds": 0.073,
+      "status": "ok",
+      "rows": 128,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_parent.d00",
+      "seconds": 0.0607,
+      "status": "ok",
+      "rows": 64,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_qfetchindex1",
+      "seconds": 0.0801,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::dg_qfetchindex1') LIMIT 10000000... ^"
+    },
+    {
+      "file": "regress::multi::dg_trans_index",
+      "seconds": 0.0896,
+      "status": "ok",
+      "rows": 64,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_trans_index_evens",
+      "seconds": 0.0557,
+      "status": "ok",
+      "rows": 32,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_trans_varindex",
+      "seconds": 0.0772,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::dg_var",
+      "seconds": 0.0877,
+      "status": "error",
+      "category": "unsupported_format",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not initialize the published record layout"
+    },
+    {
+      "file": "regress::multi::dg_varindex",
+      "seconds": 0.0836,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::dg_varindex') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::multi::dg_xml",
+      "seconds": 0.0769,
+      "status": "error",
+      "category": "unsupported_format",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not initialize the published record layout"
+    },
+    {
+      "file": "regress::multi::house",
+      "seconds": 0.0714,
+      "status": "ok",
+      "rows": 5,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::houseindex",
+      "seconds": 0.0807,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::houseindex') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::multi::houseindexid",
+      "seconds": 0.0814,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::houseindexid') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::multi::housepersonbook",
+      "seconds": 0.0601,
+      "status": "ok",
+      "rows": 5,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::person",
+      "seconds": 0.0702,
+      "status": "ok",
+      "rows": 10,
+      "columns": 7,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::personbook",
+      "seconds": 0.1085,
+      "status": "ok",
+      "rows": 10,
+      "columns": 8,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::personindex",
+      "seconds": 0.0971,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::personindex') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::multi::personindexid",
+      "seconds": 0.0917,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::personindexid') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::multi::searchindex_default",
+      "seconds": 10.0084,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::multi::searchindex_inplace",
+      "seconds": 10.0078,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::multi::searchindex_inplace_lz4hc",
+      "seconds": 10.0114,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::multi::searchindex_inplace_lzw",
+      "seconds": 10.0117,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::multi::searchindex_inplace_row",
+      "seconds": 10.0115,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::multi::searchindex_inplace_zstd",
+      "seconds": 10.0075,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::multi::sequence",
+      "seconds": 0.065,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::sequence') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::multi::serialbookkey",
+      "seconds": 0.0687,
+      "status": "error",
+      "category": "other",
+      "error": "-1userCSoapResponseBindingNot implemented Error: hpcc_scan nested KEY blob projections are not yet supported"
+    },
+    {
+      "file": "regress::multi::seriallibrarydict",
+      "seconds": 0.0641,
+      "status": "ok",
+      "rows": 2,
+      "columns": 2,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::seriallibraryds",
+      "seconds": 0.0681,
+      "status": "ok",
+      "rows": 2,
+      "columns": 2,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::simplepersonbook",
+      "seconds": 0.0688,
+      "status": "ok",
+      "rows": 10,
+      "columns": 6,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::simplepersonbookindex",
+      "seconds": 0.0631,
+      "status": "error",
+      "category": "other",
+      "error": "-1userCSoapResponseBindingNot implemented Error: hpcc_scan nested KEY blob projections are not yet supported"
+    },
+    {
+      "file": "regress::multi::wordindex",
+      "seconds": 0.0954,
+      "status": "ok",
+      "rows": 1000,
+      "columns": 8,
+      "truncated": false
+    },
+    {
+      "file": "regress::multi::wordindex_trans",
+      "seconds": 0.0994,
+      "status": "ok",
+      "rows": 1000,
+      "columns": 9,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::book",
+      "seconds": 0.0665,
+      "status": "ok",
+      "rows": 30,
+      "columns": 6,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::bookauthorgrouped",
+      "seconds": 0.1055,
+      "status": "error",
+      "category": "grouped",
+      "error": "-1userCSoapResponseBindingBinder Error: DFS and code generated group info. differs: DFS(true) ECL(false) LINE 1: SELECT * FROM hpcc_scan('regress::single::bookauthorgrouped') LIMIT 10000... ^"
+    },
+    {
+      "file": "regress::single::bookindex",
+      "seconds": 0.0633,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::bookindex') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::single::bookindexid",
+      "seconds": 0.0548,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::bookindexid') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::single::c.dg_fetchfile",
+      "seconds": 0.063,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::c.dg_fetchfilepreload",
+      "seconds": 0.0684,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::c.dg_fetchfilepreloadindexed",
+      "seconds": 0.0615,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_accountxml",
+      "seconds": 0.0694,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::dg_accountxml') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::single::dg_child.d00",
+      "seconds": 0.0638,
+      "status": "ok",
+      "rows": 192,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_csv",
+      "seconds": 0.0546,
+      "status": "error",
+      "category": "unsupported_format",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not initialize the published record layout"
+    },
+    {
+      "file": "regress::single::dg_fetchindex1",
+      "seconds": 0.0466,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_fetchtransindex",
+      "seconds": 0.0537,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_flat",
+      "seconds": 0.0499,
+      "status": "ok",
+      "rows": 64,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_flat_evens",
+      "seconds": 0.0633,
+      "status": "ok",
+      "rows": 32,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_grandchild.d00",
+      "seconds": 0.0611,
+      "status": "ok",
+      "rows": 576,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_grouped",
+      "seconds": 0.0497,
+      "status": "error",
+      "category": "grouped",
+      "error": "-1userCSoapResponseBindingBinder Error: DFS and code generated group info. differs: DFS(true) ECL(false) LINE 1: SELECT * FROM hpcc_scan('regress::single::dg_grouped') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::single::dg_index",
+      "seconds": 0.0592,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_index_evens",
+      "seconds": 0.0612,
+      "status": "ok",
+      "rows": 32,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_intindex",
+      "seconds": 0.0498,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_keydiffindex1",
+      "seconds": 0.0745,
+      "status": "ok",
+      "rows": 22,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_keydiffindex2",
+      "seconds": 0.076,
+      "status": "ok",
+      "rows": 19,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_keyed_index",
+      "seconds": 0.0689,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_keyed_index_delta",
+      "seconds": 0.062,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_keyed_index_dup",
+      "seconds": 0.072,
+      "status": "ok",
+      "rows": 128,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_parent.d00",
+      "seconds": 0.0667,
+      "status": "ok",
+      "rows": 64,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_qfetchindex1",
+      "seconds": 0.0631,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::dg_qfetchindex1') LIMIT 1000000... ^"
+    },
+    {
+      "file": "regress::single::dg_trans_index",
+      "seconds": 0.0629,
+      "status": "ok",
+      "rows": 64,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_trans_index_evens",
+      "seconds": 0.0473,
+      "status": "ok",
+      "rows": 32,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_trans_varindex",
+      "seconds": 0.0559,
+      "status": "ok",
+      "rows": 64,
+      "columns": 3,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::dg_var",
+      "seconds": 0.0679,
+      "status": "error",
+      "category": "unsupported_format",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not initialize the published record layout"
+    },
+    {
+      "file": "regress::single::dg_varindex",
+      "seconds": 0.0692,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::dg_varindex') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::single::dg_xml",
+      "seconds": 0.0809,
+      "status": "error",
+      "category": "unsupported_format",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not initialize the published record layout"
+    },
+    {
+      "file": "regress::single::house",
+      "seconds": 0.0533,
+      "status": "ok",
+      "rows": 5,
+      "columns": 4,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::houseindex",
+      "seconds": 0.0592,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::houseindex') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::single::houseindexid",
+      "seconds": 0.0678,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::houseindexid') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::single::housepersonbook",
+      "seconds": 0.0713,
+      "status": "ok",
+      "rows": 5,
+      "columns": 5,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::persistnorefresh",
+      "seconds": 0.068,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::persistnorefresh') LIMIT 100000... ^"
+    },
+    {
+      "file": "regress::single::persistrefresh",
+      "seconds": 0.0665,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::persistrefresh') LIMIT 10000000... ^"
+    },
+    {
+      "file": "regress::single::person",
+      "seconds": 0.0567,
+      "status": "ok",
+      "rows": 10,
+      "columns": 7,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::personbook",
+      "seconds": 0.0693,
+      "status": "ok",
+      "rows": 10,
+      "columns": 8,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::personindex",
+      "seconds": 0.0612,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::personindex') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::single::personindexid",
+      "seconds": 0.0606,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::personindexid') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::single::searchindex",
+      "seconds": 10.0142,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_default",
+      "seconds": 10.0094,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_hybrid",
+      "seconds": 10.0075,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_hybrid_var",
+      "seconds": 10.0124,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_hybridpacked",
+      "seconds": 10.0125,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_hybridz",
+      "seconds": 10.0131,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_hybridz_var",
+      "seconds": 10.0107,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_inplace",
+      "seconds": 10.0151,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_inplace_lz4hc",
+      "seconds": 10.0104,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_inplace_lzw",
+      "seconds": 10.0143,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_inplace_row",
+      "seconds": 10.009,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_inplace_var",
+      "seconds": 10.0099,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_inplace_zstd",
+      "seconds": 10.0079,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchindex_nowip",
+      "seconds": 10.0084,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchsource",
+      "seconds": 10.0101,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchsource_flz",
+      "seconds": 10.0082,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchsource_lz4",
+      "seconds": 10.0078,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchsource_lz4hc",
+      "seconds": 10.0077,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchsource_lzw",
+      "seconds": 10.0118,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchsource_zstd",
+      "seconds": 10.0135,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchsource_zstd3",
+      "seconds": 10.0146,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchsource_zstd6",
+      "seconds": 10.0084,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::searchsource_zstd9",
+      "seconds": 10.0132,
+      "status": "transport_error",
+      "category": "transport_error",
+      "error": "TimeoutError('timed out')"
+    },
+    {
+      "file": "regress::single::sequence",
+      "seconds": 0.1362,
+      "status": "error",
+      "category": "missing_layout",
+      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::sequence') LIMIT 100000000 ^"
+    },
+    {
+      "file": "regress::single::simplepersonbook",
+      "seconds": 0.1392,
+      "status": "ok",
+      "rows": 10,
+      "columns": 6,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::simplepersonbookindex",
+      "seconds": 0.0984,
+      "status": "error",
+      "category": "other",
+      "error": "-1userCSoapResponseBindingNot implemented Error: hpcc_scan nested KEY blob projections are not yet supported"
+    },
+    {
+      "file": "regress::single::wordindex",
+      "seconds": 0.1463,
+      "status": "ok",
+      "rows": 1000,
+      "columns": 8,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::wordindex_local",
+      "seconds": 0.1164,
+      "status": "ok",
+      "rows": 1000,
+      "columns": 8,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::wordindex_local_trans",
+      "seconds": 0.1309,
+      "status": "ok",
+      "rows": 1000,
+      "columns": 9,
+      "truncated": false
+    },
+    {
+      "file": "regress::single::wordindex_trans",
+      "seconds": 0.0797,
+      "status": "ok",
+      "rows": 1000,
+      "columns": 9,
+      "truncated": false
+    }
+  ]
+}

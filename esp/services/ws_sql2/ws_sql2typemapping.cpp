@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <functional>
 #include <sstream>
+#include <unordered_set>
 
 static std::string appendFieldPath(const char* prefix, const char* name)
 {
@@ -189,39 +191,70 @@ void CWsSql2TypeMapper::mapEclRecordDefinition(const char* definition, std::vect
     if (recordStart == std::string::npos || recordEnd == std::string::npos || recordEnd <= recordStart)
         return;
 
-    std::string body = text.substr(recordStart + 6, recordEnd - (recordStart + 6));
-    size_t start = 0;
-    while (start < body.size())
+    std::function<void(const std::string&, const char*, std::vector<CWsSql2FieldDescriptor>&, std::unordered_set<std::string>&)> parseBody;
+    parseBody = [&](const std::string& body, const char* prefix, std::vector<CWsSql2FieldDescriptor>& target,
+        std::unordered_set<std::string>& activeAliases)
     {
-        const size_t end = body.find(';', start);
-        const std::string declaration = body.substr(start, end == std::string::npos ? std::string::npos : end - start);
-        std::istringstream tokens(declaration);
-        std::string sourceType;
-        std::string fieldName;
-        tokens >> sourceType;
-        const std::string normalizedSourceType = normalizeType(sourceType.c_str());
-        if (normalizedSourceType == "SET" || normalizedSourceType == "LIST"
-            || normalizedSourceType == "DICTIONARY" || normalizedSourceType == "MAP"
-            || normalizedSourceType == "ROW" || normalizedSourceType == "STRUCT")
+        size_t start = 0;
+        while (start < body.size())
         {
-            std::string of;
-            std::string itemType;
-            tokens >> of >> itemType >> fieldName;
-            if (normalizeType(of.c_str()) == "OF")
-                sourceType.append(" of ").append(itemType);
+            const size_t end = body.find(';', start);
+            const std::string declaration = body.substr(start, end == std::string::npos ? std::string::npos : end - start);
+            std::istringstream tokens(declaration);
+            std::string sourceType;
+            std::string fieldName;
+            tokens >> sourceType;
+            const std::string normalizedSourceType = normalizeType(sourceType.c_str());
+            std::string alias;
+            if (normalizedSourceType.rfind("DATASET(", 0) == 0)
+            {
+                const size_t close = sourceType.find(')');
+                alias = close == std::string::npos ? "" : sourceType.substr(8, close - 8);
+                sourceType = "LIST OF " + alias;
+                tokens >> fieldName;
+            }
+            else if (normalizedSourceType == "SET" || normalizedSourceType == "LIST"
+                || normalizedSourceType == "DICTIONARY" || normalizedSourceType == "MAP"
+                || normalizedSourceType == "ROW" || normalizedSourceType == "STRUCT")
+            {
+                std::string of;
+                std::string itemType;
+                tokens >> of >> itemType >> fieldName;
+                if (normalizeType(of.c_str()) == "OF")
+                {
+                    sourceType.append(" of ").append(itemType);
+                    alias = itemType;
+                }
+            }
+            else
+                tokens >> fieldName;
+            const size_t attributeStart = fieldName.find('{');
+            if (attributeStart != std::string::npos)
+                fieldName.resize(attributeStart);
+            if (!sourceType.empty() && !fieldName.empty())
+            {
+                const std::string path = appendFieldPath(prefix, fieldName.c_str());
+                const std::string uniquePath = makeUniqueFieldPath(path, target);
+                CWsSql2FieldDescriptor descriptor = mapField(uniquePath.c_str(), sourceType.c_str(), warnings);
+                if (!alias.empty() && activeAliases.insert(normalizeType(alias.c_str())).second)
+                {
+                    const size_t aliasPosition = findKeywordInsensitive(text, alias.c_str(), 0);
+                    const size_t aliasRecord = aliasPosition == std::string::npos ? std::string::npos
+                        : findKeywordInsensitive(text, "RECORD", aliasPosition + alias.size());
+                    const size_t aliasEnd = aliasRecord == std::string::npos ? std::string::npos
+                        : findKeywordInsensitive(text, "END", aliasRecord + 6);
+                    if (aliasRecord != std::string::npos && aliasEnd != std::string::npos)
+                        parseBody(text.substr(aliasRecord + 6, aliasEnd - aliasRecord - 6), descriptor.fieldPath.c_str(),
+                            descriptor.children, activeAliases);
+                    activeAliases.erase(normalizeType(alias.c_str()));
+                }
+                target.push_back(std::move(descriptor));
+            }
+            if (end == std::string::npos)
+                break;
+            start = end + 1;
         }
-        else
-            tokens >> fieldName;
-        const size_t attributeStart = fieldName.find('{');
-        if (attributeStart != std::string::npos)
-            fieldName.resize(attributeStart);
-        if (!sourceType.empty() && !fieldName.empty())
-        {
-            const std::string uniqueFieldPath = makeUniqueFieldPath(fieldName, fields);
-            fields.push_back(mapField(uniqueFieldPath.c_str(), sourceType.c_str(), warnings));
-        }
-        if (end == std::string::npos)
-            break;
-        start = end + 1;
-    }
+    };
+    std::unordered_set<std::string> activeAliases;
+    parseBody(text.substr(recordStart + 6, recordEnd - (recordStart + 6)), nullptr, fields, activeAliases);
 }
