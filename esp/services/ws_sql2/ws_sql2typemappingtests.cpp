@@ -79,6 +79,15 @@ void runWsSql2TypeMappingTests()
     assert(recordFields[1].children.size() == 1);
     assert(recordFields[1].children[0].fieldPath == "children.childId");
 
+    recordFields.clear();
+    recordWarnings.clear();
+    mapper.mapEclRecordDefinition(
+        "nestedblob := RECORD udecimal8 booklimit; END; bookidrec := RECORD unsigned4 id; string name; string author; unsigned1 rating100; udecimal8_2 price; END; RECORD string20 surname; string10 forename; unsigned1 aage => udecimal8 dob; nestedblob limit{blob}; DATASET(bookidrec) books{blob}; unsigned8 filepos; END;",
+        recordFields, recordWarnings);
+    assert(recordFields.size() == 6);
+    assert(recordFields[4].fieldPath == "books");
+    assert(recordFields[4].children.size() == 5);
+
     assert(mapper.mapField("birthDate", "DATE", recordWarnings).duckdbType == "DATE");
     assert(mapper.mapField("startTime", "TIME", recordWarnings).duckdbType == "TIME");
     assert(mapper.mapField("created", "DATETIME", recordWarnings).duckdbType == "TIMESTAMP");

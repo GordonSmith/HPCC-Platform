@@ -9,6 +9,7 @@
 #include "nbcd.hpp"
 #include "jhtree.hpp"
 #include "rtldynfield.hpp"
+#include "eclhelper_dyn.hpp"
 
 #include "duckdb/main/extension/extension_loader.hpp"
 #include "duckdb/main/config.hpp"
@@ -596,6 +597,12 @@ class CHpccScanFieldProcessor : implements IFieldProcessor, public CInterface
 
     static duckdb::LogicalType mapNestedType(const CWsSql2FieldDescriptor& descriptor);
 
+    static bool isCompoundType(const RtlTypeInfo& type)
+    {
+        return type.getType() == type_record || type.getType() == type_row || type.getType() == type_set
+            || type.getType() == type_table || type.getType() == type_groupedtable;
+    }
+
     void setValue(duckdb::Value value)
     {
         if (nested.empty())
@@ -707,11 +714,22 @@ public:
                 setValue(duckdb::Value());
             else if (field->type->queryChildType())
             {
-                const CWsSql2FieldDescriptor& descriptor = fields.at(column);
-                if (descriptor.children.empty())
-                    setValue(materializeScalarValue(*field->type->queryChildType(), blob, blobProvider));
+                if (isCompoundType(*field->type->queryChildType()))
+                {
+                    const CWsSql2FieldDescriptor& descriptor = fields.at(column);
+                    if (descriptor.duckdbType == "LIST" && field->type->queryChildType()->getType() != type_set
+                        && field->type->queryChildType()->getType() != type_table
+                        && field->type->queryChildType()->getType() != type_groupedtable)
+                    {
+                        nested.push_back({true, &descriptor});
+                        field->type->queryChildType()->process(blob, blob, field, *this);
+                        finishNested(true);
+                    }
+                    else
+                        field->type->queryChildType()->process(blob, blob, field, *this);
+                }
                 else
-                    field->type->queryChildType()->process(blob, blob, field, *this);
+                    setValue(materializeScalarValue(*field->type->queryChildType(), blob, blobProvider));
             }
             return;
         }
@@ -760,6 +778,45 @@ public:
     void processUtf8(unsigned len, const char* value, const RtlFieldInfo*) override
     {
         setValue(duckdb::Value(std::string(value, len)));
+    }
+
+    void processBlobField(const RtlFieldInfo* field, const void* value)
+    {
+        if (!blobProvider || !field || !field->type || !field->type->queryChildType())
+            throw duckdb::NotImplementedException("hpcc_scan cannot resolve a nested KEY blob");
+        const byte* blob = nullptr;
+        try
+        {
+            blob = blobProvider->lookupBlob(static_cast<unsigned __int64>(field->type->getInt(value)));
+        }
+        catch (IException* exception)
+        {
+            StringBuffer message;
+            exception->errorMessage(message);
+            exception->Release();
+            throw duckdb::IOException("hpcc_scan could not load nested KEY blob: %s", message.str());
+        }
+        if (!blob)
+        {
+            setValue(duckdb::Value());
+            return;
+        }
+        if (isCompoundType(*field->type->queryChildType()))
+        {
+            const CWsSql2FieldDescriptor& descriptor = fields.at(column);
+            if (descriptor.duckdbType == "LIST" && field->type->queryChildType()->getType() != type_set
+                && field->type->queryChildType()->getType() != type_table
+                && field->type->queryChildType()->getType() != type_groupedtable)
+            {
+                nested.push_back({true, &descriptor});
+                field->type->queryChildType()->process(blob, blob, field, *this);
+                finishNested(true);
+            }
+            else
+                field->type->queryChildType()->process(blob, blob, field, *this);
+        }
+        else
+            setValue(materializeScalarValue(*field->type->queryChildType(), blob, blobProvider));
     }
 
     bool processBeginSet(const RtlFieldInfo*, unsigned, bool isAll, const byte*) override
@@ -988,10 +1045,30 @@ static std::vector<CWsSql2FieldDescriptor> appendScanColumns(IDistributedFile& f
             mapper.mapRecord(recordMeta->queryRecord(), nullptr, descriptors, warnings);
         }
     }
+    bool hasNestedDescriptor = std::any_of(descriptors.begin(), descriptors.end(), [](const CWsSql2FieldDescriptor& descriptor)
+    {
+        return !descriptor.children.empty();
+    });
+    const char* eclDefinition = attributes.queryProp("ECL", "");
+    const std::string normalizedEcl = [&]()
+    {
+        std::string value = eclDefinition;
+        std::transform(value.begin(), value.end(), value.begin(), [](unsigned char character)
+        {
+            return static_cast<char>(std::toupper(character));
+        });
+        return value;
+    }();
+    if (!hasNestedDescriptor && normalizedEcl.find("DATASET(") != std::string::npos)
+    {
+        descriptors.clear();
+        CWsSql2TypeMapper mapper;
+        mapper.mapEclRecordDefinition(eclDefinition, descriptors, warnings);
+    }
     if (descriptors.empty())
     {
         CWsSql2TypeMapper mapper;
-        mapper.mapEclRecordDefinition(attributes.queryProp("ECL", ""), descriptors, warnings);
+        mapper.mapEclRecordDefinition(eclDefinition, descriptors, warnings);
     }
     if (descriptors.empty())
         throw duckdb::BinderException("hpcc_scan could not determine a record layout");
@@ -1140,8 +1217,20 @@ duckdb::unique_ptr<duckdb::FunctionData> bindHpccScan(duckdb::ClientContext& con
     try
     {
         Owned<IDistributedFile> file = CWsSql2MetadataResolver::resolveLogicalFile(logicalName.c_str(), accessContext->queryUser());
-        Owned<IOutputMetaData> expectedMetadata = getDaliLayoutInfo(file->queryAttributes());
         FileAccessOptions accessOptions;
+        Owned<IOutputMetaData> expectedMetadata;
+        if (file->queryAttributes().getPropBool("@grouped", false))
+        {
+            MemoryBuffer layoutBin;
+            if (getDaliLayoutInfo(layoutBin, file->queryAttributes()) && layoutBin.length())
+                expectedMetadata.setown(createTypeInfoOutputMetaData(layoutBin, true));
+        }
+        if (!expectedMetadata)
+            expectedMetadata.setown(getDaliLayoutInfo(file->queryAttributes()));
+        if (!expectedMetadata)
+            throw makeStringExceptionV(-1, "Unable to determine grouped record layout for %s", logicalName.c_str());
+        if (file->queryAttributes().getPropBool("@grouped", false) && accessOptions.formatOptions)
+            accessOptions.formatOptions->setPropBool("@grouped", true);
         accessOptions.updateFromFile(file);
         Owned<IOutputMetaData> actualMetadata = accessOptions.actualDiskMeta.getLink();
         if (!actualMetadata && expectedMetadata)
@@ -1261,7 +1350,10 @@ void executeHpccScan(duckdb::ClientContext&, duckdb::TableFunctionInput& input, 
                 if (!field)
                     throw duckdb::InternalException("hpcc_scan could not resolve a projected field");
                 const byte* fieldValue = row + outputRecord.calculateOffset(row, state.projectedColumns[index]);
-                field->process(fieldValue, row, processor);
+                if (field->type && field->type->getType() == type_blob)
+                    processor.processBlobField(field, fieldValue);
+                else
+                    field->process(fieldValue, row, processor);
             }
         };
         if (state.keyManager)

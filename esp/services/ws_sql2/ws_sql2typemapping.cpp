@@ -238,13 +238,12 @@ void CWsSql2TypeMapper::mapEclRecordDefinition(const char* definition, std::vect
                 CWsSql2FieldDescriptor descriptor = mapField(uniquePath.c_str(), sourceType.c_str(), warnings);
                 if (!alias.empty() && activeAliases.insert(normalizeType(alias.c_str())).second)
                 {
-                    const size_t aliasPosition = findKeywordInsensitive(text, alias.c_str(), 0);
-                    const size_t aliasRecord = aliasPosition == std::string::npos ? std::string::npos
-                        : findKeywordInsensitive(text, "RECORD", aliasPosition + alias.size());
+                    const std::string aliasDeclaration = alias + " := RECORD";
+                    const size_t aliasRecord = findKeywordInsensitive(text, aliasDeclaration.c_str(), 0);
                     const size_t aliasEnd = aliasRecord == std::string::npos ? std::string::npos
-                        : findKeywordInsensitive(text, "END", aliasRecord + 6);
+                        : findKeywordInsensitive(text, "END", aliasRecord + aliasDeclaration.size());
                     if (aliasRecord != std::string::npos && aliasEnd != std::string::npos)
-                        parseBody(text.substr(aliasRecord + 6, aliasEnd - aliasRecord - 6), descriptor.fieldPath.c_str(),
+                        parseBody(text.substr(aliasRecord + aliasDeclaration.size(), aliasEnd - aliasRecord - aliasDeclaration.size()), descriptor.fieldPath.c_str(),
                             descriptor.children, activeAliases);
                     activeAliases.erase(normalizeType(alias.c_str()));
                 }

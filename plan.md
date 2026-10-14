@@ -151,6 +151,48 @@ The extension will adapt existing HPCC metadata and row-reader implementations r
 - Add performance/regression checks for vectorized scans, projection pruning, selective KEY predicates, compressed reads, memory ceilings, and result truncation.
 - Configure/build the smallest affected targets (`espscm`, the extension/unit-test target, and `ws_sql2`), run the focused unit/integration suites, then build/package the platform target on the supported primary triplet.
 
+### 10. Serialize top-level file metadata for Dali-independent reads
+
+Goal: capture everything `hpcc_scan` currently obtains from Dali in a self-contained, versioned descriptor so a logical file can be scanned without a Dali connection (offline tooling, air-gapped copies, tests, and future non-ESP hosts).
+
+- **Descriptor contents** (one document per logical file or superfile):
+  - identity: logical name, kind (FLAT/KEY), format (flat/csv/xml), grouped flag, descriptor version, source cluster/plane, and capture timestamp;
+  - physical layout: ordered parts with copies/paths, part sizes, record counts, CRCs, compression and blocked-compression flags, and the KEY TLK part marker;
+  - KEY specifics: keyed-field count, payload boundary, blob usage, and node size;
+  - superfiles: ordered subfile descriptors plus the layout-compatibility result already computed at bind time;
+  - record layout in three forms, each with a CRC so readers can detect drift:
+    1. **SQL schema** (primary, human-facing): `CREATE TABLE`-style DDL generated from the shared type mapper, with `STRUCT`/`LIST`/`DECIMAL(p,s)` nested types and column comments carrying the original HPCC type (`-- udecimal8_2`, `-- string20`, `{blob}`, keyed/payload);
+    2. **Runtime layout JSON** from `dumpTypeInfo`, the authoritative machine form that `IRtlFieldTypeDeserializer::deserialize` turns back into `RtlTypeInfo`/`IOutputMetaData` for the existing readers;
+    3. the original ECL record text, kept for diagnostics only.
+- **Why both SQL and runtime JSON:** DuckDB DDL cannot express HPCC physical encodings (fixed vs variable strings, EBCDIC, packed decimals, swapped/biased ints, bitfields, IFBLOCKs, KEY blobs). The SQL schema is the readable contract; the runtime JSON is what the reader trusts. Reconstructing physical types from SQL alone is out of scope.
+- **Reuse, do not invent:**
+  - layout: `getDaliLayoutInfo`, `dumpTypeInfo`, `createRtlFieldTypeDeserializer` (the same JSON layout dafilesrv's stream-read protocol already accepts without Dali);
+  - parts/copies: `IFileDescriptor::getFileTree()` / `deserializeFileDescriptorTree`;
+  - read options: `FileAccessOptions` populated from the descriptor instead of `updateFromFile`.
+- **Seam in `hpcc_scan`:** introduce one internal metadata-source interface with two implementations: Dali-backed (current behavior, request-user authorization) and descriptor-backed. Bind, filter translation, KEY translation, and readers consume only that interface, so no reader code knows where metadata came from.
+- **SQL surface: two `hpcc_scan` overloads, selected by arity.**
+  - With Dali: `hpcc_scan('my::logical::file')`. Unchanged; resolves and authorizes through Dali.
+  - Without Dali: `hpcc_scan(layout, parts, options)`, where each argument is one top-level item of the serialized descriptor:
+    - `layout`: the `dumpTypeInfo` runtime-layout JSON (authoritative record structure);
+    - `parts`: the ordered part/copy list (paths, sizes, CRCs, TLK marker; superfiles flattened in subfile order);
+    - `options`: kind, format, grouped, compression, KEY keyed-field count/node size, format CRC, source modified time, and descriptor version.
+  - Both overloads produce the same bind data, so projection/filter pushdown, LIMIT/OFFSET, nested values, and KEY blobs behave identically; no `logicalName` is required in the offline form.
+  - The SQL DDL is not an argument: the output schema is derived from `layout`, and the DDL is informational.
+  - Example the user runs offline:
+    ```sql
+    SELECT * FROM hpcc_scan('<layout json>', '<parts json>', '<options json>') LIMIT 100;
+    ```
+- **ESP surface: `GetScanDescriptor(LogicalName)`** (Dali-authorized, same access check as `hpcc_scan`) returns:
+  - `Layout`, `Parts`, `Options`: the three strings to pass to the offline overload;
+  - `SqlSchema`: the generated `CREATE TABLE`-style DDL with original HPCC types in comments;
+  - `EclRecordDefinition`: diagnostics only;
+  - `ScanSql`: a ready-to-run `SELECT * FROM hpcc_scan(...)` with the three items already quoted, so users can copy it directly.
+  - Physical paths in `Parts` are redacted unless the caller holds the administrative permission; a redacted descriptor is readable as documentation but rejected by the offline overload.
+- `DescribeFile` also gains the generated `SqlSchema`.
+- **Security:** Dali remains the authorization authority. The 3-argument overload bypasses it, so it is registered only when explicitly enabled by configuration (off in the ESP service by default), restricts parts to allowlisted planes/paths, and must never be reachable from untrusted SQL. Redact physical paths in exported descriptors unless the caller holds an administrative permission.
+- **Staleness:** record the file's modified time and part CRCs; refuse (or warn, by configuration) when physical parts no longer match the descriptor.
+- **Tests:** round-trip every `regress::*` file (`GetScanDescriptor`, then `hpcc_scan(layout, parts, options)`) and assert rows identical to `hpcc_scan('<logical name>')`, including nested, KEY blob, compressed, and superfile cases; unit-test SQL DDL generation and `dumpTypeInfo` round-trips; negative tests for tampered CRCs, missing parts, and disabled configuration.
+
 ## Todo dependency structure
 
 1. Wire DuckDB and `WSSQL2_SERVICE` into vcpkg/CMake.
@@ -163,6 +205,7 @@ The extension will adapt existing HPCC metadata and row-reader implementations r
 8. Add deployment/package configuration and documentation (depends on 2 and 7).
 9. Add and run unit/integration/performance validation (starts with 3 and 4; final validation depends on 5 through 8).
 10. Add streaming result delivery to ESP so large query results do not require full in-memory JSON materialization (depends on 7 and 9).
+11. Serialize top-level file metadata behind a metadata-source seam: add the `GetScanDescriptor` ESP method and the Dali-free `hpcc_scan(layout, parts, options)` overload (depends on 3, 5, and 6; the offline overload is gated by configuration and security review).
 
 ## Important considerations
 
