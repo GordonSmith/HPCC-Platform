@@ -9,6 +9,7 @@
 #include "nbcd.hpp"
 #include "jhtree.hpp"
 #include "rtldynfield.hpp"
+#include "fileview.hpp"
 
 #include <atomic>
 #include <algorithm>
@@ -34,13 +35,15 @@
 
 namespace
 {
+constexpr unsigned hpccScanCompileTimeoutMs = 60000;
+
 class CHpccScanBindData : public duckdb::TableFunctionData
 {
 public:
-    CHpccScanBindData(std::string _logicalName, IDistributedFile* _file, IOutputMetaData* _expectedMetadata,
-        IOutputMetaData* _actualMetadata, std::vector<CWsSql2FieldDescriptor> _fields)
-                : logicalName(std::move(_logicalName)), file(_file), actualMetadata(_actualMetadata),
-                    expectedMetadata(_expectedMetadata), fields(std::move(_fields))
+    CHpccScanBindData(std::string _logicalName, IDistributedFile* _file, IFvCompiledDiskLayout* _compiledLayout,
+        IOutputMetaData* _expectedMetadata, IOutputMetaData* _actualMetadata, std::vector<CWsSql2FieldDescriptor> _fields)
+                : compiledLayout(_compiledLayout), logicalName(std::move(_logicalName)), file(_file),
+                    actualMetadata(_actualMetadata), expectedMetadata(_expectedMetadata), fields(std::move(_fields))
     {
         if (actualMetadata)
         {
@@ -65,6 +68,8 @@ public:
         }
     }
 
+    // Declared first so compiled metadata, field info and filters built from it are released before the dll.
+    Owned<IFvCompiledDiskLayout> compiledLayout;
     std::string logicalName;
     Owned<IDistributedFile> file;
     Owned<IOutputMetaData> actualMetadata;
@@ -311,6 +316,13 @@ static void pushdownHpccScanLimit(duckdb::unique_ptr<duckdb::LogicalOperator>& o
     // Parallel part readers cannot share a scan-level row budget, so DuckDB keeps LIMIT/OFFSET.
     if (bindData.scanParts > 1)
         return;
+    // DuckDB re-plans unsupported table filters as a FILTER above the scan, which must see rows before the LIMIT.
+    const auto& columnIds = get.GetColumnIds();
+    for (const auto& entry : get.table_filters.filters)
+    {
+        if (entry.first >= columnIds.size() || !supportsHpccScanPushdownType(bindData, columnIds[entry.first].GetPrimaryIndex()))
+            return;
+    }
     bindData.limit = limitOperation.limit_val.Type() == duckdb::LimitNodeType::CONSTANT_VALUE
         ? static_cast<int64_t>(limitOperation.limit_val.GetConstantValue()) : -1;
     bindData.offset = limitOperation.offset_val.Type() == duckdb::LimitNodeType::CONSTANT_VALUE
@@ -589,12 +601,21 @@ static void pushdownHpccScanFilters(duckdb::ClientContext&, duckdb::LogicalGet& 
     }
 }
 
-static void initHpccScanAccessOptions(FileAccessOptions& accessOptions, IDistributedFile* file)
+static void initHpccScanAccessOptions(FileAccessOptions& accessOptions, IDistributedFile* file,
+    IFvCompiledDiskLayout* compiledLayout)
 {
     // Grouping is a property of the on-disk encoding, so mirror DFS to make the reader consume the eog byte.
     const IPropertyTree& attributes = file->queryAttributes();
     accessOptions.formatOptions->setPropBool("@grouped", attributes.getPropBool("@grouped", false));
     accessOptions.updateFromFile(file);
+    if (compiledLayout && !accessOptions.actualDiskMeta && strieq(accessOptions.format.str(), "flat"))
+    {
+        accessOptions.actualDiskMeta.set(compiledLayout->queryDiskMeta());
+        accessOptions.formatCrc = attributes.getPropInt("@formatCrc", 0);
+        if (!accessOptions.formatCrc)
+            accessOptions.formatCrc = compiledLayout->queryFormatCrc();
+        return;
+    }
 
     // updateFromFile only adopts the published layout for FLAT; the CSV/XML readers translate from that same layout.
     const bool isCsv = strieq(accessOptions.format.str(), "csv");
@@ -622,6 +643,8 @@ static void initHpccScanAccessOptions(FileAccessOptions& accessOptions, IDistrib
 class CHpccScanGlobalState : public duckdb::GlobalTableFunctionState
 {
 public:
+    // Keeps compiled metadata (and the dll implementing it) alive independently of the bind data's lifetime.
+    Linked<IFvCompiledDiskLayout> compiledLayout;
     FileAccessOptions accessOptions;
     Owned<IOutputMetaData> actualMetadata;
     std::vector<const RtlFieldInfo*> projectedFields;
@@ -922,6 +945,11 @@ public:
     void processUtf8(unsigned len, const char* value, const RtlFieldInfo*) override
     {
         setValue(duckdb::Value(std::string(value, len)));
+    }
+
+    void processNull()
+    {
+        setValue(duckdb::Value());
     }
 
     void processBlobField(const RtlFieldInfo* field, const void* value)
@@ -1237,8 +1265,9 @@ static std::vector<CWsSql2FieldDescriptor> appendScanColumns(IDistributedFile& f
                 break;
             }
         }
-        if (hasNestedPhysicalField)
+        if (hasNestedPhysicalField || record.getNumIfBlocks())
         {
+            // IFBLOCK fields are flattened in the physical record, so columns must follow its field numbering.
             descriptors.clear();
             for (unsigned index = 0; index < record.getNumFields(); ++index)
                 descriptors.push_back(mapRtlField(*record.queryOriginalField(index), nullptr));
@@ -1339,12 +1368,28 @@ static std::vector<CWsSql2FieldDescriptor> appendScanColumns(IDistributedFile& f
         }
     }
 
+    static bool isExcludedIfBlockField(const RtlRecord& record, const byte* row, unsigned fieldIndex)
+    {
+        if (!record.getNumIfBlocks())
+            return false;
+        const RtlFieldInfo* field = record.queryField(fieldIndex);
+        if (!(field->flags & RFTMinifblock))
+            return false;
+        std::vector<byte> conditions(record.getNumIfBlocks(), 2); // 2 = condition not yet evaluated
+        return record.excluded(field, row, conditions.data());
+    }
+
     static void materializeScalarRow(const RtlRecord& record, const byte* row,
         const std::vector<unsigned>& projectedColumns, duckdb::DataChunk& output, IBlobProvider* blobProvider = nullptr)
     {
         for (unsigned outputIndex = 0; outputIndex < projectedColumns.size(); ++outputIndex)
         {
             const unsigned fieldIndex = projectedColumns[outputIndex];
+            if (isExcludedIfBlockField(record, row, fieldIndex))
+            {
+                output.SetValue(outputIndex, 0, duckdb::Value());
+                continue;
+            }
             const RtlTypeInfo* type = record.queryType(fieldIndex);
             const void* value = row + record.calculateOffset(row, fieldIndex);
             output.SetValue(outputIndex, 0, materializeScalarValue(*type, value, blobProvider));
@@ -1366,6 +1411,8 @@ duckdb::unique_ptr<duckdb::FunctionData> bindHpccScan(duckdb::ClientContext& con
 
     try
     {
+        // Declared before any metadata so compiled metadata links are released before the owning dll.
+        Owned<IFvCompiledDiskLayout> compiledLayout;
         Owned<IDistributedFile> file = CWsSql2MetadataResolver::resolveLogicalFile(logicalName.c_str(), accessContext->queryUser());
         Owned<IOutputMetaData> expectedMetadata = getDaliLayoutInfo(file->queryAttributes());
         if (!expectedMetadata)
@@ -1381,15 +1428,35 @@ duckdb::unique_ptr<duckdb::FunctionData> bindHpccScan(duckdb::ClientContext& con
             }
         }
         FileAccessOptions accessOptions;
-        initHpccScanAccessOptions(accessOptions, file);
+        initHpccScanAccessOptions(accessOptions, file, nullptr);
+        const char* recordEcl = file->queryAttributes().queryProp("ECL");
+        if (!expectedMetadata && !accessOptions.actualDiskMeta && !isHpccKeyFile(*file)
+            && strieq(accessOptions.format.str(), "flat") && !isEmptyString(recordEcl))
+        {
+            // No runtime type info (e.g. complex IFBLOCK conditions), so let eclcc generate the layout.
+            StringBuffer userName;
+            StringBuffer password;
+            if (accessContext->queryUser())
+            {
+                accessContext->queryUser()->getUserName(userName);
+                accessContext->queryUser()->getPassword(password);
+            }
+            compiledLayout.setown(createCompiledDiskLayout(file->queryLogicalName(), recordEcl, nullptr,
+                userName.str(), password.str(), hpccScanCompileTimeoutMs));
+            if (!compiledLayout->queryDiskMeta() || !compiledLayout->queryFormatCrc())
+                throw duckdb::BinderException("hpcc_scan compiled layout for %s has no usable disk metadata or format CRC",
+                    file->queryLogicalName());
+            initHpccScanAccessOptions(accessOptions, file, compiledLayout);
+            expectedMetadata.set(compiledLayout->queryDiskMeta());
+        }
         Owned<IOutputMetaData> actualMetadata = accessOptions.actualDiskMeta.getLink();
         if (!actualMetadata && expectedMetadata)
             actualMetadata.set(expectedMetadata);
         auto fields = appendScanColumns(*file, actualMetadata ? actualMetadata.get() : expectedMetadata.get(),
             returnTypes, names);
         const unsigned scanParts = countHpccScanParts(*file);
-        auto bindData = duckdb::make_uniq<CHpccScanBindData>(logicalName, file.getClear(), expectedMetadata.getClear(),
-            actualMetadata.getClear(), std::move(fields));
+        auto bindData = duckdb::make_uniq<CHpccScanBindData>(logicalName, file.getClear(), compiledLayout.getClear(),
+            expectedMetadata.getClear(), actualMetadata.getClear(), std::move(fields));
         bindData->scanParts = scanParts;
         return bindData;
     }
@@ -1521,6 +1588,11 @@ void executeHpccScan(duckdb::ClientContext&, duckdb::TableFunctionInput& input, 
                 const RtlFieldInfo* field = outputRecord.queryOriginalField(state.projectedColumns[index]);
                 if (!field)
                     throw duckdb::InternalException("hpcc_scan could not resolve a projected field");
+                if (isExcludedIfBlockField(outputRecord, row, state.projectedColumns[index]))
+                {
+                    processor.processNull();
+                    continue;
+                }
                 const byte* fieldValue = row + outputRecord.calculateOffset(row, state.projectedColumns[index]);
                 if (field->type && field->type->getType() == type_blob)
                     processor.processBlobField(field, fieldValue);
@@ -1550,7 +1622,8 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
     state->isKey = isKey;
     state->limit = bindData.limit;
     state->offset = bindData.offset;
-    initHpccScanAccessOptions(state->accessOptions, bindData.file);
+    state->compiledLayout.set(bindData.compiledLayout);
+    initHpccScanAccessOptions(state->accessOptions, bindData.file, bindData.compiledLayout);
 
     state->actualMetadata.setown(state->accessOptions.actualDiskMeta.getLink());
     if (!state->actualMetadata)
@@ -1608,15 +1681,24 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
     {
         IOutputMetaData* expectedMetadata = bindData.expectedMetadata ? bindData.expectedMetadata.get() : state->actualMetadata.get();
         const RtlRecord& expectedRecord = expectedMetadata->queryRecordAccessor(true);
+        // Projecting a field out of its IFBLOCK drops the condition and the translator treats that as unchanged,
+        // so read whole rows and test the condition when materializing instead.
+        const bool readWholeRows = !bindData.expectedRecord && expectedRecord.getNumIfBlocks() != 0;
         for (unsigned projectedColumn : state->projectedColumns)
         {
             if (projectedColumn >= expectedRecord.getNumFields())
                 throw duckdb::BinderException("hpcc_scan projection references an unknown field");
-            state->projectedFields.push_back(expectedRecord.queryOriginalField(projectedColumn));
+            if (!readWholeRows)
+                state->projectedFields.push_back(expectedRecord.queryOriginalField(projectedColumn));
         }
-        state->projectedFields.push_back(nullptr);
-        state->projectedType = std::make_unique<RtlRecordTypeInfo>(type_record, 0, state->projectedFields.data());
-        state->projectedMetadata.setown(new CDynamicOutputMetaData(*state->projectedType));
+        if (readWholeRows)
+            state->projectedMetadata.set(expectedMetadata);
+        else
+        {
+            state->projectedFields.push_back(nullptr);
+            state->projectedType = std::make_unique<RtlRecordTypeInfo>(type_record, 0, state->projectedFields.data());
+            state->projectedMetadata.setown(new CDynamicOutputMetaData(*state->projectedType));
+        }
         const unsigned expectedCrc = state->accessOptions.formatCrc;
         try
         {
@@ -1635,9 +1717,12 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
             exception->Release();
             throw duckdb::IOException("hpcc_scan could not create projected row mapping: %s", message.str());
         }
-        state->projectedColumns.clear();
-        for (unsigned index = 0; index + 1 < state->projectedFields.size(); ++index)
-            state->projectedColumns.push_back(index);
+        if (!readWholeRows)
+        {
+            state->projectedColumns.clear();
+            for (unsigned index = 0; index + 1 < state->projectedFields.size(); ++index)
+                state->projectedColumns.push_back(index);
+        }
         for (unsigned partIndex = 0; partIndex < bindData.file->numParts(); ++partIndex)
         {
             Owned<IDistributedFilePart> part = bindData.file->getPart(partIndex);

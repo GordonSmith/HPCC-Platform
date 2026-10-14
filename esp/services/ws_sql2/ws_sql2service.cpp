@@ -2,6 +2,7 @@
 #include "ws_sql2engine.hpp"
 #include "ws_sql2metadata.hpp"
 #include "ws_sql2typemapping.hpp"
+#include "fileview.hpp"
 #include "thorcommon.hpp"
 #include "thorread.hpp"
 #include "thorxmlwrite.hpp"
@@ -98,6 +99,20 @@ static Owned<IUserDescriptor> createRequestUser(IEspContext& context)
         user->set(userId, context.queryPassword(), context.querySignature());
     }
     return user;
+}
+
+Cwssql2Ex::~Cwssql2Ex()
+{
+    // Services are unloaded before ESP closes its Dali connection, so helper workunits can still be deleted.
+    try
+    {
+        clearCompiledDiskLayoutCache();
+    }
+    catch (IException* exception)
+    {
+        EXCLOG(exception, "ws_sql2: failed to clear compiled layout cache");
+        exception->Release();
+    }
 }
 
 void Cwssql2Ex::init(IPropertyTree* cfg, const char* process, const char* service)

@@ -8,6 +8,7 @@ class Cwssql2Ex : public Cwssql2
 public:
     IMPLEMENT_IINTERFACE;
 
+    ~Cwssql2Ex();
     void init(IPropertyTree* cfg, const char* process, const char* service) override;
     bool onDescribeFile(IEspContext& context, IEspDescribeFileRequest& req, IEspDescribeFileResponse& resp);
     bool onExecuteSQL(IEspContext& context, IEspExecuteSQLRequest& req, IEspExecuteSQLResponse& resp);

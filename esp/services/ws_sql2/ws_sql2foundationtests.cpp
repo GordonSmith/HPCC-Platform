@@ -1,8 +1,14 @@
 #include "ws_sql2engine.hpp"
 #include "rtlfield.hpp"
 #include "daclient.hpp"
+#include "fileview.hpp"
+#include "fverror.hpp"
 
 #include <cassert>
+#include <atomic>
+#include <string>
+#include <thread>
+#include <vector>
 
 void runWsSql2TypeMappingTests();
 
@@ -112,6 +118,63 @@ int main()
     assert(plan.queryKeyedFilters().ordinality() == 1);
     assert(plan.queryKeyedFilters().item(0).queryFieldIndex() == 3);
     assert(plan.numKeyedFilters() == 2);
+
+    // Malformed compile requests must be rejected before parsing ECL, touching Dali or creating a helper workunit.
+    auto compiledLayoutError = [](const char* logicalName, const char* recordEcl, const char* cluster, unsigned timeoutMs)
+    {
+        try
+        {
+            Owned<IFvCompiledDiskLayout> layout = createCompiledDiskLayout(logicalName, recordEcl,
+                cluster, "user", "secret", timeoutMs);
+        }
+        catch (IException* exception)
+        {
+            const int code = exception->errorCode();
+            StringBuffer message;
+            exception->errorMessage(message);
+            exception->Release();
+            assert(!strstr(message.str(), "secret"));
+            return code;
+        }
+        return 0;
+    };
+    const char* validName = "regress::single::dg_var";
+    const char* tinyEcl = "RECORD unsigned4 id; END;";
+    std::string oversizedEcl(0x100001, ' ');
+    assert(compiledLayoutError(nullptr, tinyEcl, "hthor", 1000) == FVERR_CouldNotResolveX);
+    assert(compiledLayoutError("", tinyEcl, "hthor", 1000) == FVERR_CouldNotResolveX);
+    assert(compiledLayoutError("regress::::dg_var", tinyEcl, "hthor", 1000) == FVERR_CouldNotResolveX);
+    assert(compiledLayoutError("file::127.0.0.1::tmp::dg_var", tinyEcl, "hthor", 1000) == FVERR_CouldNotResolveX);
+    assert(compiledLayoutError(validName, "", "hthor", 1000) == FVERR_NoRecordDescription);
+    assert(compiledLayoutError(validName, nullptr, "hthor", 1000) == FVERR_NoRecordDescription);
+    assert(compiledLayoutError(validName, oversizedEcl.c_str(), "hthor", 1000) == FVERR_BadRecordDesc);
+    assert(compiledLayoutError(validName, tinyEcl, "hthor", 0) == FVERR_CompileLayoutFailed);
+    assert(compiledLayoutError(validName, tinyEcl, "hthor", 10 * 60 * 1000 + 1) == FVERR_CompileLayoutFailed);
+    assert(compiledLayoutError(validName, tinyEcl, "hthor'] | //*[@name='x", 1000) == FVERR_CompileLayoutFailed);
+    assert(compiledLayoutError(validName, tinyEcl, "thor 1", 1000) == FVERR_CompileLayoutFailed);
+
+    // Concurrent rejected requests must stay thread safe and never populate the shared layout cache.
+    std::atomic<unsigned> unexpectedRejections{0};
+    std::vector<std::thread> rejectionThreads;
+    for (unsigned thread = 0; thread < 8; thread++)
+    {
+        rejectionThreads.emplace_back([&, thread]()
+        {
+            for (unsigned i = 0; i < 200; i++)
+            {
+                const bool badTimeout = ((i + thread) % 2) == 0;
+                const int expected = badTimeout ? FVERR_CompileLayoutFailed : FVERR_NoRecordDescription;
+                if (compiledLayoutError(validName, badTimeout ? tinyEcl : "", "hthor", badTimeout ? 0 : 1000) != expected)
+                    unexpectedRejections++;
+                if ((i % 50) == 0)
+                    clearCompiledDiskLayoutCache();
+            }
+        });
+    }
+    for (auto& rejectionThread : rejectionThreads)
+        rejectionThread.join();
+    assert(unexpectedRejections == 0);
+    assert(clearCompiledDiskLayoutCache() == 0);
 
     runWsSql2TypeMappingTests();
     return 0;

@@ -4,6 +4,7 @@ import json
 import os
 import urllib.request
 import xml.etree.ElementTree as ElementTree
+from concurrent.futures import ThreadPoolExecutor
 
 
 ENDPOINT = os.environ.get("WS_SQL2_ENDPOINT", "http://127.0.0.1:8510/WsSQL2/")
@@ -16,6 +17,7 @@ BOOK = "hpcc_scan('regress::single::book')"
 PERSON = "hpcc_scan('regress::single::person')"
 SINGLE_GROUPED = "hpcc_scan('regress::single::dg_grouped')"
 MULTI_GROUPED = "hpcc_scan('regress::multi::dg_grouped')"
+COMPILED_LAYOUT = "hpcc_scan('regress::single::dg_var')"
 
 
 def xml_escape(value):
@@ -298,6 +300,13 @@ def main():
         raise AssertionError(f"ExplainScan did not report a parallel multi-part KEY scan: {multi_key_info!r}")
     if find_plan_node(limit_plan_json, "HPCC_SCAN").get("extra_info", {}).get("Max Threads") != "1":
         raise AssertionError("single-part KEY scan did not remain single-threaded")
+    # dg_var needs the compiled-layout fallback; concurrent repeats exercise the shared layout cache.
+    compiled_sql = f"SELECT COUNT(*) FROM {COMPILED_LAYOUT}"
+    compiled_first = execute(compiled_sql)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        compiled_repeats = list(pool.map(lambda _: execute(compiled_sql), range(8)))
+    for repeat in compiled_repeats:
+        assert_same(compiled_first, repeat, "concurrent compiled-layout scans")
     print(json.dumps({"rows": pushed["rows"], "rowCount": pushed["rowCount"], "truncated": pushed["truncated"]}))
 
 

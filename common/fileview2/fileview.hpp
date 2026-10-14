@@ -57,6 +57,15 @@ enum ResultSetType
 
 
 interface IXmlWriter;
+interface IOutputMetaData;
+
+// Owns the helper workunit and loaded query dll that implement queryDiskMeta(); release all links to
+// the metadata (and anything built from its type info) before releasing this object.
+interface IFvCompiledDiskLayout : extends IInterface
+{
+    virtual IOutputMetaData * queryDiskMeta() const = 0;
+    virtual unsigned queryFormatCrc() const = 0;
+};
 
 interface IResultSetMetaData : extends IInterface
 {
@@ -152,6 +161,12 @@ extern FILEVIEW_API INewResultSet* createNewResultSet(IResultSetFactory & factor
 extern FILEVIEW_API INewResultSet* createNewFileResultSet(IResultSetFactory & factory, IStringVal & error, const char * logicalFile, const char * queue, const char * cluster);
 extern FILEVIEW_API INewResultSet* createNewResultSetSeqName(IResultSetFactory & factory, IStringVal & error, const char * wuid, unsigned sequence, const char * name);
 
+
+// Compiles recordEcl as the on-disk layout of logicalName using a helper workunit; an empty cluster selects a default target.
+// Results are cached per file/layout/target/user; timeoutMs must be non-zero and at most 10 minutes.
+extern FILEVIEW_API IFvCompiledDiskLayout * createCompiledDiskLayout(const char * logicalName, const char * recordEcl, const char * cluster, const char * username, const char * password, unsigned timeoutMs);
+// Drops cached compiled layouts (deleting helper workunits once unreferenced); call while Dali is still connected.
+extern FILEVIEW_API unsigned clearCompiledDiskLayoutCache();
 
 extern FILEVIEW_API IResultSetFactory * getResultSetFactory(const char * username, const char * password);
 extern FILEVIEW_API IResultSetFactory * getSecResultSetFactory(ISecManager *secmgr, ISecUser *secuser, const char * username, const char * password);

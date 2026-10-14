@@ -57,6 +57,7 @@
 #define FVERR_RowTooLarge                       6729
 #define FVERR_CouldNotProcessSchema             6730
 #define FVERR_MaxLengthExceeded                 6731
+#define FVERR_CompileLayoutFailed               6732
 
 #define FVERR_CouldNotResolveX_Text             "Could not resolve file '%s' in DFS"
 #define FVERR_NoRecordDescription_Text          "DFS did not contain a record description for '%s'"
@@ -87,5 +88,6 @@
 #define FVERR_BadStringTermination_Text          "String not terminated correctly %.*s"
 #define FVERR_CannotBrowseFile_Text              "Cannot browse file '%s'"
 #define FVERR_RowTooLarge_Text                   "Row too large"
+#define FVERR_CompileLayoutFailed_Text           "Could not compile record layout for '%s': %s"
 
 #endif

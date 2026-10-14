@@ -1,21 +1,18 @@
 {
   "scope": "regress::*",
   "limit": 3,
-  "workers": 8,
-  "elapsed": 0.677,
+  "workers": 256,
+  "elapsed": 0.577,
   "statusCounts": {
-    "ok": 132,
-    "error": 25
+    "ok": 157
   },
   "categoryCounts": {
-    "ok": 132,
-    "missing_layout": 23,
-    "unsupported_format": 2
+    "ok": 157
   },
   "results": [
     {
       "file": "regress::local::dg_fetchindex1",
-      "seconds": 0.0335,
+      "seconds": 0.0422,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -23,7 +20,7 @@
     },
     {
       "file": "regress::local::dg_fetchtransindex",
-      "seconds": 0.0318,
+      "seconds": 0.0463,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -31,7 +28,7 @@
     },
     {
       "file": "regress::local::dg_index",
-      "seconds": 0.0344,
+      "seconds": 0.0427,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -39,7 +36,7 @@
     },
     {
       "file": "regress::local::dg_index_evens",
-      "seconds": 0.036,
+      "seconds": 0.0494,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -47,7 +44,7 @@
     },
     {
       "file": "regress::local::dg_intindex",
-      "seconds": 0.0366,
+      "seconds": 0.0578,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -55,7 +52,7 @@
     },
     {
       "file": "regress::local::dg_keydiffindex1",
-      "seconds": 0.037,
+      "seconds": 0.0507,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -63,7 +60,7 @@
     },
     {
       "file": "regress::local::dg_keydiffindex2",
-      "seconds": 0.0375,
+      "seconds": 0.064,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -71,7 +68,7 @@
     },
     {
       "file": "regress::local::dg_trans_index",
-      "seconds": 0.0375,
+      "seconds": 0.0527,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -79,7 +76,7 @@
     },
     {
       "file": "regress::local::dg_trans_index_evens",
-      "seconds": 0.0331,
+      "seconds": 0.0936,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -87,7 +84,7 @@
     },
     {
       "file": "regress::local::dg_trans_varindex",
-      "seconds": 0.0315,
+      "seconds": 0.0525,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -95,14 +92,15 @@
     },
     {
       "file": "regress::local::dg_varindex",
-      "seconds": 0.0264,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::local::dg_varindex') LIMIT 3 ^"
+      "seconds": 0.1099,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::local::wordindex_local",
-      "seconds": 0.0332,
+      "seconds": 0.0896,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -110,7 +108,7 @@
     },
     {
       "file": "regress::local::wordindex_local_trans",
-      "seconds": 0.0307,
+      "seconds": 0.0853,
       "status": "ok",
       "rows": 3,
       "columns": 9,
@@ -118,7 +116,7 @@
     },
     {
       "file": "regress::multi::book",
-      "seconds": 0.0361,
+      "seconds": 0.0699,
       "status": "ok",
       "rows": 3,
       "columns": 6,
@@ -126,7 +124,7 @@
     },
     {
       "file": "regress::multi::bookauthorgrouped",
-      "seconds": 0.0308,
+      "seconds": 0.0851,
       "status": "ok",
       "rows": 3,
       "columns": 6,
@@ -134,21 +132,23 @@
     },
     {
       "file": "regress::multi::bookindex",
-      "seconds": 0.0337,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::bookindex') LIMIT 3 ^"
+      "seconds": 0.1178,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::multi::bookindexid",
-      "seconds": 0.0274,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::bookindexid') LIMIT 3 ^"
+      "seconds": 0.1276,
+      "status": "ok",
+      "rows": 3,
+      "columns": 2,
+      "truncated": false
     },
     {
       "file": "regress::multi::c.dg_fetchfile",
-      "seconds": 0.0289,
+      "seconds": 0.0862,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -156,7 +156,7 @@
     },
     {
       "file": "regress::multi::c.dg_fetchfilepreload",
-      "seconds": 0.0301,
+      "seconds": 0.121,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -164,7 +164,7 @@
     },
     {
       "file": "regress::multi::c.dg_fetchfilepreloadindexed",
-      "seconds": 0.0273,
+      "seconds": 0.1077,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -172,14 +172,15 @@
     },
     {
       "file": "regress::multi::dg_accountxml",
-      "seconds": 0.0269,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::dg_accountxml') LIMIT 3 ^"
+      "seconds": 0.1355,
+      "status": "ok",
+      "rows": 3,
+      "columns": 1,
+      "truncated": false
     },
     {
       "file": "regress::multi::dg_child.d00",
-      "seconds": 0.0277,
+      "seconds": 0.1129,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -187,7 +188,7 @@
     },
     {
       "file": "regress::multi::dg_csv",
-      "seconds": 0.0273,
+      "seconds": 0.102,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -195,7 +196,7 @@
     },
     {
       "file": "regress::multi::dg_fetchindex1",
-      "seconds": 0.0282,
+      "seconds": 0.1336,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -203,7 +204,7 @@
     },
     {
       "file": "regress::multi::dg_fetchtransindex",
-      "seconds": 0.0305,
+      "seconds": 0.182,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -211,7 +212,7 @@
     },
     {
       "file": "regress::multi::dg_flat",
-      "seconds": 0.0273,
+      "seconds": 0.1009,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -219,7 +220,7 @@
     },
     {
       "file": "regress::multi::dg_flat_evens",
-      "seconds": 0.0339,
+      "seconds": 0.116,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -227,7 +228,7 @@
     },
     {
       "file": "regress::multi::dg_grandchild.d00",
-      "seconds": 0.0347,
+      "seconds": 0.1326,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -235,7 +236,7 @@
     },
     {
       "file": "regress::multi::dg_grouped",
-      "seconds": 0.0311,
+      "seconds": 0.1103,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -243,7 +244,7 @@
     },
     {
       "file": "regress::multi::dg_index",
-      "seconds": 0.0314,
+      "seconds": 0.161,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -251,7 +252,7 @@
     },
     {
       "file": "regress::multi::dg_index_evens",
-      "seconds": 0.0311,
+      "seconds": 0.1693,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -259,7 +260,7 @@
     },
     {
       "file": "regress::multi::dg_intindex",
-      "seconds": 0.029,
+      "seconds": 0.1506,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -267,7 +268,7 @@
     },
     {
       "file": "regress::multi::dg_keydiffindex1",
-      "seconds": 0.0307,
+      "seconds": 0.1541,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -275,7 +276,7 @@
     },
     {
       "file": "regress::multi::dg_keydiffindex2",
-      "seconds": 0.03,
+      "seconds": 0.214,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -283,7 +284,7 @@
     },
     {
       "file": "regress::multi::dg_keyed_index",
-      "seconds": 0.0355,
+      "seconds": 0.1466,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -291,7 +292,7 @@
     },
     {
       "file": "regress::multi::dg_keyed_index_delta",
-      "seconds": 0.0374,
+      "seconds": 0.15,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -299,7 +300,7 @@
     },
     {
       "file": "regress::multi::dg_keyed_index_dup",
-      "seconds": 0.0444,
+      "seconds": 0.1621,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -307,7 +308,7 @@
     },
     {
       "file": "regress::multi::dg_parent.d00",
-      "seconds": 0.0351,
+      "seconds": 0.1679,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -315,14 +316,15 @@
     },
     {
       "file": "regress::multi::dg_qfetchindex1",
-      "seconds": 0.0307,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::dg_qfetchindex1') LIMIT 3 ^"
+      "seconds": 0.1307,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::multi::dg_trans_index",
-      "seconds": 0.0348,
+      "seconds": 0.1914,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -330,7 +332,7 @@
     },
     {
       "file": "regress::multi::dg_trans_index_evens",
-      "seconds": 0.0319,
+      "seconds": 0.1819,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -338,7 +340,7 @@
     },
     {
       "file": "regress::multi::dg_trans_varindex",
-      "seconds": 0.0296,
+      "seconds": 0.1492,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -346,21 +348,23 @@
     },
     {
       "file": "regress::multi::dg_var",
-      "seconds": 0.0374,
-      "status": "error",
-      "category": "unsupported_format",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not initialize the published record layout: regress::multi::dg_var has no runtime type information (for example an IFBLOCK condition that cannot be evaluated dynamically)"
+      "seconds": 0.1563,
+      "status": "ok",
+      "rows": 3,
+      "columns": 6,
+      "truncated": false
     },
     {
       "file": "regress::multi::dg_varindex",
-      "seconds": 0.0359,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::dg_varindex') LIMIT 3 ^"
+      "seconds": 0.1489,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::multi::dg_xml",
-      "seconds": 0.0358,
+      "seconds": 0.1529,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -368,7 +372,7 @@
     },
     {
       "file": "regress::multi::house",
-      "seconds": 0.0314,
+      "seconds": 0.1887,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -376,21 +380,23 @@
     },
     {
       "file": "regress::multi::houseindex",
-      "seconds": 0.0312,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::houseindex') LIMIT 3 ^"
+      "seconds": 0.1849,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::multi::houseindexid",
-      "seconds": 0.0273,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::houseindexid') LIMIT 3 ^"
+      "seconds": 0.189,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::multi::housepersonbook",
-      "seconds": 0.03,
+      "seconds": 0.2036,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -398,7 +404,7 @@
     },
     {
       "file": "regress::multi::person",
-      "seconds": 0.0268,
+      "seconds": 0.1827,
       "status": "ok",
       "rows": 3,
       "columns": 7,
@@ -406,7 +412,7 @@
     },
     {
       "file": "regress::multi::personbook",
-      "seconds": 0.0353,
+      "seconds": 0.1895,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -414,21 +420,23 @@
     },
     {
       "file": "regress::multi::personindex",
-      "seconds": 0.0353,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::personindex') LIMIT 3 ^"
+      "seconds": 0.1666,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::multi::personindexid",
-      "seconds": 0.0314,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::personindexid') LIMIT 3 ^"
+      "seconds": 0.1996,
+      "status": "ok",
+      "rows": 3,
+      "columns": 2,
+      "truncated": false
     },
     {
       "file": "regress::multi::searchindex",
-      "seconds": 0.0421,
+      "seconds": 0.1549,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -436,7 +444,7 @@
     },
     {
       "file": "regress::multi::searchindex",
-      "seconds": 0.0365,
+      "seconds": 0.2005,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -444,7 +452,7 @@
     },
     {
       "file": "regress::multi::searchindex_default",
-      "seconds": 0.0402,
+      "seconds": 0.2173,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -452,7 +460,7 @@
     },
     {
       "file": "regress::multi::searchindex_hybrid",
-      "seconds": 0.0319,
+      "seconds": 0.1719,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -460,7 +468,7 @@
     },
     {
       "file": "regress::multi::searchindex_hybrid_var",
-      "seconds": 0.0308,
+      "seconds": 0.1975,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -468,7 +476,7 @@
     },
     {
       "file": "regress::multi::searchindex_hybridpacked",
-      "seconds": 0.0325,
+      "seconds": 0.1795,
       "status": "ok",
       "rows": 3,
       "columns": 9,
@@ -476,7 +484,7 @@
     },
     {
       "file": "regress::multi::searchindex_hybridz",
-      "seconds": 0.0336,
+      "seconds": 0.2615,
       "status": "ok",
       "rows": 3,
       "columns": 9,
@@ -484,7 +492,7 @@
     },
     {
       "file": "regress::multi::searchindex_hybridz_var",
-      "seconds": 0.0322,
+      "seconds": 0.2367,
       "status": "ok",
       "rows": 3,
       "columns": 9,
@@ -492,7 +500,7 @@
     },
     {
       "file": "regress::multi::searchindex_inplace",
-      "seconds": 0.0278,
+      "seconds": 0.2351,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -500,7 +508,7 @@
     },
     {
       "file": "regress::multi::searchindex_inplace_lz4hc",
-      "seconds": 0.0331,
+      "seconds": 0.1814,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -508,7 +516,7 @@
     },
     {
       "file": "regress::multi::searchindex_inplace_lzw",
-      "seconds": 0.0281,
+      "seconds": 0.1943,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -516,7 +524,7 @@
     },
     {
       "file": "regress::multi::searchindex_inplace_row",
-      "seconds": 0.0314,
+      "seconds": 0.2308,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -524,7 +532,7 @@
     },
     {
       "file": "regress::multi::searchindex_inplace_var",
-      "seconds": 0.0302,
+      "seconds": 0.1782,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -532,7 +540,7 @@
     },
     {
       "file": "regress::multi::searchindex_inplace_zstd",
-      "seconds": 0.0334,
+      "seconds": 0.2463,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -540,7 +548,7 @@
     },
     {
       "file": "regress::multi::searchindex_nowip",
-      "seconds": 0.0345,
+      "seconds": 0.1946,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -548,7 +556,7 @@
     },
     {
       "file": "regress::multi::searchsource",
-      "seconds": 0.0321,
+      "seconds": 0.2118,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -556,7 +564,7 @@
     },
     {
       "file": "regress::multi::searchsource_flz",
-      "seconds": 0.0439,
+      "seconds": 0.2592,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -564,7 +572,7 @@
     },
     {
       "file": "regress::multi::searchsource_lz4",
-      "seconds": 0.0329,
+      "seconds": 0.271,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -572,7 +580,7 @@
     },
     {
       "file": "regress::multi::searchsource_lz4hc",
-      "seconds": 0.0324,
+      "seconds": 0.2565,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -580,7 +588,7 @@
     },
     {
       "file": "regress::multi::searchsource_lzw",
-      "seconds": 0.0454,
+      "seconds": 0.2624,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -588,7 +596,7 @@
     },
     {
       "file": "regress::multi::searchsource_zstd",
-      "seconds": 0.0363,
+      "seconds": 0.2956,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -596,7 +604,7 @@
     },
     {
       "file": "regress::multi::searchsource_zstd3",
-      "seconds": 0.0413,
+      "seconds": 0.23,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -604,7 +612,7 @@
     },
     {
       "file": "regress::multi::searchsource_zstd6",
-      "seconds": 0.0362,
+      "seconds": 0.2872,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -612,7 +620,7 @@
     },
     {
       "file": "regress::multi::searchsource_zstd9",
-      "seconds": 0.0391,
+      "seconds": 0.2623,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -620,14 +628,15 @@
     },
     {
       "file": "regress::multi::sequence",
-      "seconds": 0.0308,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::multi::sequence') LIMIT 3 ^"
+      "seconds": 0.294,
+      "status": "ok",
+      "rows": 3,
+      "columns": 1,
+      "truncated": false
     },
     {
       "file": "regress::multi::serialbookkey",
-      "seconds": 0.0352,
+      "seconds": 0.2365,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -635,7 +644,7 @@
     },
     {
       "file": "regress::multi::seriallibrarydict",
-      "seconds": 0.0336,
+      "seconds": 0.2743,
       "status": "ok",
       "rows": 2,
       "columns": 2,
@@ -643,7 +652,7 @@
     },
     {
       "file": "regress::multi::seriallibraryds",
-      "seconds": 0.0335,
+      "seconds": 0.2632,
       "status": "ok",
       "rows": 2,
       "columns": 2,
@@ -651,7 +660,7 @@
     },
     {
       "file": "regress::multi::simplepersonbook",
-      "seconds": 0.0322,
+      "seconds": 0.2855,
       "status": "ok",
       "rows": 3,
       "columns": 6,
@@ -659,7 +668,7 @@
     },
     {
       "file": "regress::multi::simplepersonbookindex",
-      "seconds": 0.0314,
+      "seconds": 0.2748,
       "status": "ok",
       "rows": 3,
       "columns": 6,
@@ -667,7 +676,7 @@
     },
     {
       "file": "regress::multi::wordindex",
-      "seconds": 0.0289,
+      "seconds": 0.3181,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -675,7 +684,7 @@
     },
     {
       "file": "regress::multi::wordindex_trans",
-      "seconds": 0.0275,
+      "seconds": 0.3129,
       "status": "ok",
       "rows": 3,
       "columns": 9,
@@ -683,7 +692,7 @@
     },
     {
       "file": "regress::single::book",
-      "seconds": 0.0326,
+      "seconds": 0.2877,
       "status": "ok",
       "rows": 3,
       "columns": 6,
@@ -691,7 +700,7 @@
     },
     {
       "file": "regress::single::bookauthorgrouped",
-      "seconds": 0.0306,
+      "seconds": 0.2767,
       "status": "ok",
       "rows": 3,
       "columns": 6,
@@ -699,21 +708,23 @@
     },
     {
       "file": "regress::single::bookindex",
-      "seconds": 0.0324,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::bookindex') LIMIT 3 ^"
+      "seconds": 0.2783,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::single::bookindexid",
-      "seconds": 0.0275,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::bookindexid') LIMIT 3 ^"
+      "seconds": 0.2866,
+      "status": "ok",
+      "rows": 3,
+      "columns": 2,
+      "truncated": false
     },
     {
       "file": "regress::single::c.dg_fetchfile",
-      "seconds": 0.0291,
+      "seconds": 0.3112,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -721,7 +732,7 @@
     },
     {
       "file": "regress::single::c.dg_fetchfilepreload",
-      "seconds": 0.03,
+      "seconds": 0.2623,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -729,7 +740,7 @@
     },
     {
       "file": "regress::single::c.dg_fetchfilepreloadindexed",
-      "seconds": 0.0277,
+      "seconds": 0.2731,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -737,14 +748,15 @@
     },
     {
       "file": "regress::single::dg_accountxml",
-      "seconds": 0.0268,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::dg_accountxml') LIMIT 3 ^"
+      "seconds": 0.2714,
+      "status": "ok",
+      "rows": 3,
+      "columns": 1,
+      "truncated": false
     },
     {
       "file": "regress::single::dg_child.d00",
-      "seconds": 0.0339,
+      "seconds": 0.308,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -752,7 +764,7 @@
     },
     {
       "file": "regress::single::dg_csv",
-      "seconds": 0.0305,
+      "seconds": 0.2922,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -760,7 +772,7 @@
     },
     {
       "file": "regress::single::dg_fetchindex1",
-      "seconds": 0.0246,
+      "seconds": 0.3655,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -768,7 +780,7 @@
     },
     {
       "file": "regress::single::dg_fetchtransindex",
-      "seconds": 0.0322,
+      "seconds": 0.3023,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -776,7 +788,7 @@
     },
     {
       "file": "regress::single::dg_flat",
-      "seconds": 0.0289,
+      "seconds": 0.3402,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -784,7 +796,7 @@
     },
     {
       "file": "regress::single::dg_flat_evens",
-      "seconds": 0.0336,
+      "seconds": 0.3284,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -792,7 +804,7 @@
     },
     {
       "file": "regress::single::dg_grandchild.d00",
-      "seconds": 0.0335,
+      "seconds": 0.3041,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -800,7 +812,7 @@
     },
     {
       "file": "regress::single::dg_grouped",
-      "seconds": 0.0309,
+      "seconds": 0.3551,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -808,7 +820,7 @@
     },
     {
       "file": "regress::single::dg_index",
-      "seconds": 0.031,
+      "seconds": 0.3409,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -816,7 +828,7 @@
     },
     {
       "file": "regress::single::dg_index_evens",
-      "seconds": 0.0312,
+      "seconds": 0.3313,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -824,7 +836,7 @@
     },
     {
       "file": "regress::single::dg_intindex",
-      "seconds": 0.0349,
+      "seconds": 0.3245,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -832,7 +844,7 @@
     },
     {
       "file": "regress::single::dg_keydiffindex1",
-      "seconds": 0.0375,
+      "seconds": 0.3571,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -840,7 +852,7 @@
     },
     {
       "file": "regress::single::dg_keydiffindex2",
-      "seconds": 0.0361,
+      "seconds": 0.3629,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -848,7 +860,7 @@
     },
     {
       "file": "regress::single::dg_keyed_index",
-      "seconds": 0.0317,
+      "seconds": 0.3099,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -856,7 +868,7 @@
     },
     {
       "file": "regress::single::dg_keyed_index_delta",
-      "seconds": 0.0377,
+      "seconds": 0.3662,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -864,7 +876,7 @@
     },
     {
       "file": "regress::single::dg_keyed_index_dup",
-      "seconds": 0.0443,
+      "seconds": 0.3555,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -872,7 +884,7 @@
     },
     {
       "file": "regress::single::dg_parent.d00",
-      "seconds": 0.0352,
+      "seconds": 0.3572,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -880,14 +892,15 @@
     },
     {
       "file": "regress::single::dg_qfetchindex1",
-      "seconds": 0.0366,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::dg_qfetchindex1') LIMIT 3 ^"
+      "seconds": 0.3477,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::single::dg_trans_index",
-      "seconds": 0.04,
+      "seconds": 0.3536,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -895,7 +908,7 @@
     },
     {
       "file": "regress::single::dg_trans_index_evens",
-      "seconds": 0.0355,
+      "seconds": 0.3599,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -903,7 +916,7 @@
     },
     {
       "file": "regress::single::dg_trans_varindex",
-      "seconds": 0.0367,
+      "seconds": 0.3469,
       "status": "ok",
       "rows": 3,
       "columns": 3,
@@ -911,21 +924,23 @@
     },
     {
       "file": "regress::single::dg_var",
-      "seconds": 0.0394,
-      "status": "error",
-      "category": "unsupported_format",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not initialize the published record layout: regress::single::dg_var has no runtime type information (for example an IFBLOCK condition that cannot be evaluated dynamically)"
+      "seconds": 0.3568,
+      "status": "ok",
+      "rows": 3,
+      "columns": 6,
+      "truncated": false
     },
     {
       "file": "regress::single::dg_varindex",
-      "seconds": 0.0372,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::dg_varindex') LIMIT 3 ^"
+      "seconds": 0.3847,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::single::dg_xml",
-      "seconds": 0.037,
+      "seconds": 0.3523,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -933,7 +948,7 @@
     },
     {
       "file": "regress::single::house",
-      "seconds": 0.0361,
+      "seconds": 0.355,
       "status": "ok",
       "rows": 3,
       "columns": 4,
@@ -941,21 +956,23 @@
     },
     {
       "file": "regress::single::houseindex",
-      "seconds": 0.0378,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::houseindex') LIMIT 3 ^"
+      "seconds": 0.3481,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::single::houseindexid",
-      "seconds": 0.0338,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::houseindexid') LIMIT 3 ^"
+      "seconds": 0.3527,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::single::housepersonbook",
-      "seconds": 0.0391,
+      "seconds": 0.3888,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -963,21 +980,23 @@
     },
     {
       "file": "regress::single::persistnorefresh",
-      "seconds": 0.0317,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::persistnorefresh') LIMIT 3 ^"
+      "seconds": 0.363,
+      "status": "ok",
+      "rows": 3,
+      "columns": 2,
+      "truncated": false
     },
     {
       "file": "regress::single::persistrefresh",
-      "seconds": 0.0358,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::persistrefresh') LIMIT 3 ^"
+      "seconds": 0.3667,
+      "status": "ok",
+      "rows": 3,
+      "columns": 2,
+      "truncated": false
     },
     {
       "file": "regress::single::person",
-      "seconds": 0.0354,
+      "seconds": 0.4078,
       "status": "ok",
       "rows": 3,
       "columns": 7,
@@ -985,7 +1004,7 @@
     },
     {
       "file": "regress::single::personbook",
-      "seconds": 0.0366,
+      "seconds": 0.3714,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -993,21 +1012,23 @@
     },
     {
       "file": "regress::single::personindex",
-      "seconds": 0.0341,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::personindex') LIMIT 3 ^"
+      "seconds": 0.3659,
+      "status": "ok",
+      "rows": 3,
+      "columns": 3,
+      "truncated": false
     },
     {
       "file": "regress::single::personindexid",
-      "seconds": 0.0332,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::personindexid') LIMIT 3 ^"
+      "seconds": 0.4185,
+      "status": "ok",
+      "rows": 3,
+      "columns": 2,
+      "truncated": false
     },
     {
       "file": "regress::single::searchindex",
-      "seconds": 0.0387,
+      "seconds": 0.3725,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1015,7 +1036,7 @@
     },
     {
       "file": "regress::single::searchindex_default",
-      "seconds": 0.0335,
+      "seconds": 0.4001,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1023,7 +1044,7 @@
     },
     {
       "file": "regress::single::searchindex_hybrid",
-      "seconds": 0.0343,
+      "seconds": 0.4262,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1031,7 +1052,7 @@
     },
     {
       "file": "regress::single::searchindex_hybrid_var",
-      "seconds": 0.0345,
+      "seconds": 0.4314,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1039,7 +1060,7 @@
     },
     {
       "file": "regress::single::searchindex_hybridpacked",
-      "seconds": 0.0362,
+      "seconds": 0.4421,
       "status": "ok",
       "rows": 3,
       "columns": 9,
@@ -1047,7 +1068,7 @@
     },
     {
       "file": "regress::single::searchindex_hybridz",
-      "seconds": 0.0353,
+      "seconds": 0.4337,
       "status": "ok",
       "rows": 3,
       "columns": 9,
@@ -1055,7 +1076,7 @@
     },
     {
       "file": "regress::single::searchindex_hybridz_var",
-      "seconds": 0.0343,
+      "seconds": 0.3682,
       "status": "ok",
       "rows": 3,
       "columns": 9,
@@ -1063,7 +1084,7 @@
     },
     {
       "file": "regress::single::searchindex_inplace",
-      "seconds": 0.0316,
+      "seconds": 0.3991,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1071,7 +1092,7 @@
     },
     {
       "file": "regress::single::searchindex_inplace_lz4hc",
-      "seconds": 0.032,
+      "seconds": 0.4135,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1079,7 +1100,7 @@
     },
     {
       "file": "regress::single::searchindex_inplace_lzw",
-      "seconds": 0.0295,
+      "seconds": 0.4401,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1087,7 +1108,7 @@
     },
     {
       "file": "regress::single::searchindex_inplace_row",
-      "seconds": 0.0301,
+      "seconds": 0.424,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1095,7 +1116,7 @@
     },
     {
       "file": "regress::single::searchindex_inplace_var",
-      "seconds": 0.03,
+      "seconds": 0.4167,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1103,7 +1124,7 @@
     },
     {
       "file": "regress::single::searchindex_inplace_zstd",
-      "seconds": 0.0362,
+      "seconds": 0.4156,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1111,7 +1132,7 @@
     },
     {
       "file": "regress::single::searchindex_nowip",
-      "seconds": 0.0331,
+      "seconds": 0.3644,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1119,7 +1140,7 @@
     },
     {
       "file": "regress::single::searchsource",
-      "seconds": 0.0374,
+      "seconds": 0.417,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -1127,7 +1148,7 @@
     },
     {
       "file": "regress::single::searchsource_flz",
-      "seconds": 0.0356,
+      "seconds": 0.4215,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -1135,7 +1156,7 @@
     },
     {
       "file": "regress::single::searchsource_lz4",
-      "seconds": 0.0365,
+      "seconds": 0.415,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -1143,7 +1164,7 @@
     },
     {
       "file": "regress::single::searchsource_lz4hc",
-      "seconds": 0.0319,
+      "seconds": 0.4305,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -1151,7 +1172,7 @@
     },
     {
       "file": "regress::single::searchsource_lzw",
-      "seconds": 0.0379,
+      "seconds": 0.428,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -1159,7 +1180,7 @@
     },
     {
       "file": "regress::single::searchsource_zstd",
-      "seconds": 0.044,
+      "seconds": 0.3999,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -1167,7 +1188,7 @@
     },
     {
       "file": "regress::single::searchsource_zstd3",
-      "seconds": 0.0433,
+      "seconds": 0.4206,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -1175,7 +1196,7 @@
     },
     {
       "file": "regress::single::searchsource_zstd6",
-      "seconds": 0.0339,
+      "seconds": 0.4236,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -1183,7 +1204,7 @@
     },
     {
       "file": "regress::single::searchsource_zstd9",
-      "seconds": 0.0386,
+      "seconds": 0.4205,
       "status": "ok",
       "rows": 3,
       "columns": 5,
@@ -1191,14 +1212,15 @@
     },
     {
       "file": "regress::single::sequence",
-      "seconds": 0.0316,
-      "status": "error",
-      "category": "missing_layout",
-      "error": "-1userCSoapResponseBindingBinder Error: hpcc_scan could not determine a record layout LINE 1: SELECT * FROM hpcc_scan('regress::single::sequence') LIMIT 3 ^"
+      "seconds": 0.4187,
+      "status": "ok",
+      "rows": 3,
+      "columns": 1,
+      "truncated": false
     },
     {
       "file": "regress::single::simplepersonbook",
-      "seconds": 0.0334,
+      "seconds": 0.4191,
       "status": "ok",
       "rows": 3,
       "columns": 6,
@@ -1206,7 +1228,7 @@
     },
     {
       "file": "regress::single::simplepersonbookindex",
-      "seconds": 0.0298,
+      "seconds": 0.418,
       "status": "ok",
       "rows": 3,
       "columns": 6,
@@ -1214,7 +1236,7 @@
     },
     {
       "file": "regress::single::wordindex",
-      "seconds": 0.0351,
+      "seconds": 0.4146,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1222,7 +1244,7 @@
     },
     {
       "file": "regress::single::wordindex_local",
-      "seconds": 0.0285,
+      "seconds": 0.4206,
       "status": "ok",
       "rows": 3,
       "columns": 8,
@@ -1230,7 +1252,7 @@
     },
     {
       "file": "regress::single::wordindex_local_trans",
-      "seconds": 0.031,
+      "seconds": 0.4184,
       "status": "ok",
       "rows": 3,
       "columns": 9,
@@ -1238,7 +1260,7 @@
     },
     {
       "file": "regress::single::wordindex_trans",
-      "seconds": 0.03,
+      "seconds": 0.4144,
       "status": "ok",
       "rows": 3,
       "columns": 9,
