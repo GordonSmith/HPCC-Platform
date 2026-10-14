@@ -9,10 +9,13 @@ import xml.etree.ElementTree as ElementTree
 ENDPOINT = os.environ.get("WS_SQL2_ENDPOINT", "http://127.0.0.1:8510/WsSQL2/")
 TABLE = "hpcc_scan('regress::multi::dg_flat')"
 SEARCH_INDEX = "hpcc_scan('regress::single::searchindex')"
+MULTI_SEARCH_INDEX = "hpcc_scan('regress::multi::searchindex_default')"
 FETCH_INDEX = "hpcc_scan('regress::multi::dg_fetchindex1')"
 FETCH_TRANS_INDEX = "hpcc_scan('regress::single::dg_fetchtransindex')"
 BOOK = "hpcc_scan('regress::single::book')"
 PERSON = "hpcc_scan('regress::single::person')"
+SINGLE_GROUPED = "hpcc_scan('regress::single::dg_grouped')"
+MULTI_GROUPED = "hpcc_scan('regress::multi::dg_grouped')"
 
 
 def xml_escape(value):
@@ -268,6 +271,33 @@ def main():
     people = execute(f"SELECT id, dob, booklimit FROM {PERSON} LIMIT 3")
     if people["rows"] != [[1, 19700101, 1000], [2, 20000101, 40], [3, 19700909, 0]]:
         raise AssertionError(f"scale-zero DECIMAL conversion failed: {people['rows']!r}")
+    flat_count = execute(f"SELECT COUNT(*) FROM {TABLE}")["rows"]
+    for grouped in (SINGLE_GROUPED, MULTI_GROUPED):
+        if execute(f"SELECT COUNT(*) FROM {grouped}")["rows"] != flat_count:
+            raise AssertionError(f"{grouped} row count differs from the ungrouped source")
+    grouped_prefix = execute(f"SELECT dg_parentid FROM {SINGLE_GROUPED} LIMIT 8")["rows"]
+    grouped_page = execute(f"SELECT dg_parentid FROM {SINGLE_GROUPED} OFFSET 5 ROWS FETCH NEXT 3 ROWS ONLY")["rows"]
+    if grouped_prefix[5:] != grouped_page:
+        raise AssertionError("grouped OFFSET did not skip group boundaries")
+    _, grouped_plan = explain(f"SELECT * FROM {MULTI_GROUPED} LIMIT 100")
+    grouped_info = find_plan_node(grouped_plan, "HPCC_SCAN").get("extra_info", {})
+    if not grouped_info.get("Grouped", "").startswith("true") or "Pushed Limit" in grouped_info:
+        raise AssertionError("ExplainScan did not report multi-part grouped scan accurately")
+    for predicate in ("", " WHERE kind = 1", " WHERE dpos > 70000"):
+        single_key = execute(f"SELECT COUNT(*), SUM(dpos) FROM {SEARCH_INDEX}{predicate}")["rows"]
+        multi_key = execute(f"SELECT COUNT(*), SUM(dpos) FROM {MULTI_SEARCH_INDEX}{predicate}")["rows"]
+        if single_key != multi_key:
+            raise AssertionError(f"parallel multi-part KEY aggregate differs{predicate}: {multi_key!r} != {single_key!r}")
+    key_window = execute(f"SELECT dpos FROM {MULTI_SEARCH_INDEX} OFFSET 1000 ROWS FETCH NEXT 25 ROWS ONLY")
+    if key_window["returnedRowCount"] != 25:
+        raise AssertionError("parallel multi-part KEY OFFSET/LIMIT returned the wrong row count")
+    _, multi_key_plan = explain(f"SELECT * FROM {MULTI_SEARCH_INDEX} LIMIT 20")
+    multi_key_info = find_plan_node(multi_key_plan, "HPCC_SCAN").get("extra_info", {})
+    if int(multi_key_info.get("Max Threads", "1")) <= 1 or multi_key_info.get("Partitioned Scan") != "true" \
+        or "Pushed Limit" in multi_key_info:
+        raise AssertionError(f"ExplainScan did not report a parallel multi-part KEY scan: {multi_key_info!r}")
+    if find_plan_node(limit_plan_json, "HPCC_SCAN").get("extra_info", {}).get("Max Threads") != "1":
+        raise AssertionError("single-part KEY scan did not remain single-threaded")
     print(json.dumps({"rows": pushed["rows"], "rowCount": pushed["rowCount"], "truncated": pushed["truncated"]}))
 
 

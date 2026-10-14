@@ -79,9 +79,29 @@ public:
     std::vector<std::string> residualFilterDescriptions;
     std::vector<std::string> readerProjectionDescriptions;
     bool filterLayoutTranslated = false;
+    unsigned scanParts = 1;
     int64_t limit = -1;
     int64_t offset = 0;
 };
+
+static bool isHpccKeyFile(IDistributedFile& file)
+{
+    return strieq(file.queryAttributes().queryProp("@kind", ""), "key");
+}
+
+static unsigned countHpccScanParts(IDistributedFile& file)
+{
+    if (!isHpccKeyFile(file))
+        return file.numParts();
+    unsigned dataParts = 0;
+    for (unsigned partIndex = 0; partIndex < file.numParts(); ++partIndex)
+    {
+        Owned<IDistributedFilePart> part = file.getPart(partIndex);
+        if (!isPartTLK(part->queryAttributes()))
+            ++dataParts;
+    }
+    return dataParts;
+}
 
 static bool supportsHpccScanPushdownType(const duckdb::FunctionData& functionData, duckdb::idx_t fieldIndex);
 
@@ -288,8 +308,8 @@ static void pushdownHpccScanLimit(duckdb::unique_ptr<duckdb::LogicalOperator>& o
         return;
 
     auto& bindData = get.bind_data->Cast<CHpccScanBindData>();
-    if (!strieq(bindData.file->queryAttributes().queryProp("@kind", ""), "key")
-        && bindData.file->numParts() > 1)
+    // Parallel part readers cannot share a scan-level row budget, so DuckDB keeps LIMIT/OFFSET.
+    if (bindData.scanParts > 1)
         return;
     bindData.limit = limitOperation.limit_val.Type() == duckdb::LimitNodeType::CONSTANT_VALUE
         ? static_cast<int64_t>(limitOperation.limit_val.GetConstantValue()) : -1;
@@ -308,11 +328,14 @@ static duckdb::InsertionOrderPreservingMap<std::string> describeHpccScan(duckdb:
 {
     duckdb::InsertionOrderPreservingMap<std::string> description;
     const auto& bindData = input.bind_data->Cast<CHpccScanBindData>();
-    const bool isKey = bindData.file && strieq(bindData.file->queryAttributes().queryProp("@kind", ""), "key");
     const unsigned physicalParts = bindData.file ? bindData.file->numParts() : 1;
     description["Physical Parts"] = std::to_string(physicalParts);
-    description["Max Threads"] = std::to_string(isKey ? 1 : std::max(physicalParts, 1U));
-    description["Partitioned Scan"] = (!isKey && physicalParts > 1) ? "true" : "false";
+    if (bindData.file && isHpccKeyFile(*bindData.file))
+        description["Key Data Parts"] = std::to_string(bindData.scanParts);
+    description["Max Threads"] = std::to_string(std::max(bindData.scanParts, 1U));
+    description["Partitioned Scan"] = bindData.scanParts > 1 ? "true" : "false";
+    if (bindData.file && bindData.file->queryAttributes().getPropBool("@grouped", false))
+        description["Grouped"] = "true (group boundaries flattened)";
     description["Limit Pushdown"] = bindData.limit >= 0 ? "true" : "false";
     if (bindData.limit >= 0)
         description["Pushed Limit"] = std::to_string(bindData.limit);
@@ -566,6 +589,13 @@ static void pushdownHpccScanFilters(duckdb::ClientContext&, duckdb::LogicalGet& 
     }
 }
 
+static void initHpccScanAccessOptions(FileAccessOptions& accessOptions, IDistributedFile* file)
+{
+    // Grouping is a property of the on-disk encoding, so mirror DFS to make the reader consume the eog byte.
+    accessOptions.formatOptions->setPropBool("@grouped", file->queryAttributes().getPropBool("@grouped", false));
+    accessOptions.updateFromFile(file);
+}
+
 class CHpccScanGlobalState : public duckdb::GlobalTableFunctionState
 {
 public:
@@ -577,8 +607,9 @@ public:
     Owned<IRowReadFormatMapping> mapping;
     std::deque<RemoteFilename> partFilenames;
     std::atomic<duckdb::idx_t> nextPart{0};
-    Owned<IKeyManager> keyManager;
-    Owned<IIndexLookup> keyLookup;
+    bool isKey = false;
+    IArrayOf<IKeyIndex> keyParts;
+    RowFilter keyedFilters;
     FieldFilterArray filters;
     RowFilter postFilters;
     std::vector<unsigned> projectedColumns;
@@ -590,7 +621,7 @@ public:
 
     idx_t MaxThreads() const override
     {
-        return keyLookup ? 1 : std::max<idx_t>(partFilenames.size(), 1);
+        return std::max<idx_t>(isKey ? keyParts.ordinality() : partFilenames.size(), 1);
     }
 
 };
@@ -600,10 +631,41 @@ class CHpccScanLocalState : public duckdb::LocalTableFunctionState
 public:
     Owned<IDiskRowReader> reader;
     Linked<ILogicalRowStream> stream;
+    Owned<IKeyManager> keyManager;
+    Owned<IIndexLookup> keyLookup;
     duckdb::idx_t partIndex = 0;
     int64_t rowsReturned = 0;
     int64_t rowsSkipped = 0;
 };
+
+static bool openNextHpccScanKeyPart(CHpccScanGlobalState& global, CHpccScanLocalState& local, const char* logicalName)
+{
+    local.keyLookup.clear();
+    local.keyManager.clear();
+    const duckdb::idx_t partIndex = global.nextPart.fetch_add(1);
+    if (partIndex >= global.keyParts.ordinality())
+        return false;
+    try
+    {
+        local.keyManager.setown(createLocalKeyManager(global.actualMetadata->queryRecordAccessor(true),
+            &global.keyParts.item(static_cast<unsigned>(partIndex)), nullptr, true, false));
+        global.keyedFilters.createSegmentMonitors(local.keyManager);
+        local.keyManager->finishSegmentMonitors();
+        local.keyManager->reset();
+        local.keyLookup.setown(createIndexLookup(local.keyManager));
+        local.keyLookup->ensureAvailable();
+    }
+    catch (IException* exception)
+    {
+        StringBuffer message;
+        exception->errorMessage(message);
+        exception->Release();
+        throw duckdb::IOException("hpcc_scan could not open KEY part %llu of %s: %s",
+            static_cast<unsigned long long>(partIndex + 1), logicalName, message.str());
+    }
+    local.partIndex = partIndex;
+    return true;
+}
 
 static bool openNextHpccScanPart(CHpccScanGlobalState& global, CHpccScanLocalState& local, const char* logicalName)
 {
@@ -1278,14 +1340,17 @@ duckdb::unique_ptr<duckdb::FunctionData> bindHpccScan(duckdb::ClientContext& con
         Owned<IDistributedFile> file = CWsSql2MetadataResolver::resolveLogicalFile(logicalName.c_str(), accessContext->queryUser());
         Owned<IOutputMetaData> expectedMetadata = getDaliLayoutInfo(file->queryAttributes());
         FileAccessOptions accessOptions;
-        accessOptions.updateFromFile(file);
+        initHpccScanAccessOptions(accessOptions, file);
         Owned<IOutputMetaData> actualMetadata = accessOptions.actualDiskMeta.getLink();
         if (!actualMetadata && expectedMetadata)
             actualMetadata.set(expectedMetadata);
         auto fields = appendScanColumns(*file, actualMetadata ? actualMetadata.get() : expectedMetadata.get(),
             returnTypes, names);
-        return duckdb::make_uniq<CHpccScanBindData>(logicalName, file.getClear(), expectedMetadata.getClear(),
+        const unsigned scanParts = countHpccScanParts(*file);
+        auto bindData = duckdb::make_uniq<CHpccScanBindData>(logicalName, file.getClear(), expectedMetadata.getClear(),
             actualMetadata.getClear(), std::move(fields));
+        bindData->scanParts = scanParts;
+        return bindData;
     }
     catch (IException* exception)
     {
@@ -1310,14 +1375,16 @@ void executeHpccScan(duckdb::ClientContext&, duckdb::TableFunctionInput& input, 
 
     auto nextRow = [&state, &local, &bindData]() -> const byte*
     {
-        if (state.keyLookup)
+        if (state.isKey)
         {
             for (;;)
             {
+                if (!local.keyLookup && !openNextHpccScanKeyPart(state, local, bindData.logicalName.c_str()))
+                    return nullptr;
                 const byte* row = nullptr;
                 try
                 {
-                    row = static_cast<const byte*>(state.keyLookup->nextKey());
+                    row = static_cast<const byte*>(local.keyLookup->nextKey());
                 }
                 catch (IException* exception)
                 {
@@ -1326,7 +1393,12 @@ void executeHpccScan(duckdb::ClientContext&, duckdb::TableFunctionInput& input, 
                     exception->Release();
                     throw duckdb::IOException("hpcc_scan KEY lookup failed: %s", message.str());
                 }
-                if (!row || !state.postFilters.numFilterFields())
+                if (!row)
+                {
+                    local.keyLookup.clear();
+                    continue;
+                }
+                if (!state.postFilters.numFilterFields())
                     return row;
 
                 const RtlRecord& record = state.actualMetadata->queryRecordAccessor(true);
@@ -1350,8 +1422,9 @@ void executeHpccScan(duckdb::ClientContext&, duckdb::TableFunctionInput& input, 
                 local.stream.clear();
                 continue;
             }
+            // SQL rows are ungrouped, so end-of-group markers are dropped.
             if (isSpecialRow(row))
-                throw duckdb::NotImplementedException("hpcc_scan encountered a grouped row boundary");
+                continue;
             return row;
         }
     };
@@ -1387,9 +1460,9 @@ void executeHpccScan(duckdb::ClientContext&, duckdb::TableFunctionInput& input, 
     }
     if (!hasNestedProjection)
     {
-        if (state.keyManager)
+        if (local.keyManager)
         {
-            KLBlobProviderAdapter blobProvider(state.keyManager, nullptr);
+            KLBlobProviderAdapter blobProvider(local.keyManager, nullptr);
             materializeScalarRow(outputRecord, row, state.projectedColumns, output, &blobProvider);
         }
         else
@@ -1412,9 +1485,9 @@ void executeHpccScan(duckdb::ClientContext&, duckdb::TableFunctionInput& input, 
                     field->process(fieldValue, row, processor);
             }
         };
-        if (state.keyManager)
+        if (local.keyManager)
         {
-            KLBlobProviderAdapter blobProvider(state.keyManager, nullptr);
+            KLBlobProviderAdapter blobProvider(local.keyManager, nullptr);
             processNestedProjection(&blobProvider);
         }
         else
@@ -1431,13 +1504,10 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
     const bool isKey = strieq(bindData.file->queryAttributes().queryProp("@kind", ""), "key");
 
     auto state = duckdb::make_uniq<CHpccScanGlobalState>();
+    state->isKey = isKey;
     state->limit = bindData.limit;
     state->offset = bindData.offset;
-    state->accessOptions.updateFromFile(bindData.file);
-    if (state->accessOptions.formatOptions && state->accessOptions.formatOptions->getPropBool("@grouped", false))
-        throw duckdb::NotImplementedException("hpcc_scan currently does not support grouped files");
-    if (state->accessOptions.formatOptions && state->accessOptions.formatOptions->getPropBool("@grouped", false))
-        throw duckdb::NotImplementedException("hpcc_scan currently does not support grouped files");
+    initHpccScanAccessOptions(state->accessOptions, bindData.file);
 
     state->actualMetadata.setown(state->accessOptions.actualDiskMeta.getLink());
     if (!state->actualMetadata)
@@ -1588,7 +1658,7 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
             }
         }
 
-        Owned<IKeyIndexSet> keyIndexes = createKeyIndexSet();
+        // Each worker reads one data part, mirroring Thor's per-part local key managers.
         for (unsigned partIndex = 0; partIndex < bindData.file->numParts(); ++partIndex)
         {
             Owned<IDistributedFilePart> part = bindData.file->getPart(partIndex);
@@ -1596,18 +1666,12 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
                 continue;
             Owned<IKeyIndex> keyIndex = openKeyFile(*part);
             if (!keyIndex->isTopLevelKey())
-                keyIndexes->addIndex(keyIndex.getClear());
+                state->keyParts.append(*keyIndex.getClear());
         }
-        if (!keyIndexes->numParts())
+        if (!state->keyParts.ordinality())
             throw duckdb::IOException("hpcc_scan found no data parts in KEY file %s", bindData.logicalName);
-        if (keyIndexes->numParts() == 1)
-            state->keyManager.setown(createLocalKeyManager(
-                state->actualMetadata->queryRecordAccessor(true), keyIndexes->queryPart(0), nullptr, true, false));
-        else
-            state->keyManager.setown(createKeyMerger(
-                state->actualMetadata->queryRecordAccessor(true), keyIndexes, 0, nullptr, true, false));
         const unsigned keyedFields = actualRecord.getNumKeyedFields();
-        RowFilter keyedFilters;
+        RowFilter& keyedFilters = state->keyedFilters;
         std::vector<bool> constrained(keyedFields, false);
         ForEachItemIn(filterIndex, state->filters)
         {
@@ -1637,9 +1701,6 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
         try
         {
             keyedFilters.sortByFieldOrder();
-            keyedFilters.createSegmentMonitors(state->keyManager);
-            state->keyManager->finishSegmentMonitors();
-            state->keyManager->reset();
         }
         catch (IException* exception)
         {
@@ -1649,8 +1710,6 @@ duckdb::unique_ptr<duckdb::GlobalTableFunctionState> initializeHpccScan(duckdb::
             throw duckdb::IOException("hpcc_scan could not initialize KEY filters [%s]: %s",
                 keyedFieldIndexes.str(), message.str());
         }
-        state->keyLookup.setown(createIndexLookup(state->keyManager));
-        state->keyLookup->ensureAvailable();
         return state;
     }
 
