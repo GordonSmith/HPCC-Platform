@@ -38,6 +38,7 @@ interface FilterCounts {
 interface InfoGridProps {
     wuid?: string;
     syntaxErrors?: any[];
+    sqlPlayground?: boolean;
     minimized?: boolean;
     onMinimize?: (commandBarHeight: number) => void;
     onRestore?: () => void;
@@ -46,6 +47,7 @@ interface InfoGridProps {
 export const InfoGrid: React.FunctionComponent<InfoGridProps> = ({
     wuid = null,
     syntaxErrors = [],
+    sqlPlayground = false,
     minimized = false,
     onMinimize,
     onRestore
@@ -87,7 +89,9 @@ export const InfoGrid: React.FunctionComponent<InfoGridProps> = ({
     //  Grid ---
     const columns = React.useMemo((): FluentColumns => {
         return {
-            TimeStamp: { label: nlsHPCC.TimeStamp, width: 155 },
+            ...(sqlPlayground ? {} : {
+                TimeStamp: { label: nlsHPCC.TimeStamp, width: 155 },
+            }),
             Severity: {
                 label: nlsHPCC.Severity, width: 72, sortable: false,
                 className: (value, row) => {
@@ -104,24 +108,26 @@ export const InfoGrid: React.FunctionComponent<InfoGridProps> = ({
                     return "";
                 }
             },
-            Cost: {
-                label: `${nlsHPCC.Source} / ${nlsHPCC.Cost}`, width: 144,
-                formatter: (Source, row) => {
-                    if (Source === "Cost Optimizer") {
-                        return formatCost(+row.Cost);
+            ...(sqlPlayground ? {} : {
+                Cost: {
+                    label: `${nlsHPCC.Source} / ${nlsHPCC.Cost}`, width: 144,
+                    formatter: (Source, row) => {
+                        if (Source === "Cost Optimizer") {
+                            return formatCost(+row.Cost);
+                        }
+                        return Source;
                     }
-                    return Source;
-                }
-            },
-            Priority: {
-                label: `${nlsHPCC.Priority} / ${nlsHPCC.TimePenalty}`, width: 144, sortable: false,
-                formatter: (Priority, row) => {
-                    if (row.Source === "Cost Optimizer") {
-                        return `${formatTwoDigits(+row.Priority / 1000)} (${nlsHPCC.Seconds})`;
+                },
+                Priority: {
+                    label: `${nlsHPCC.Priority} / ${nlsHPCC.TimePenalty}`, width: 144, sortable: false,
+                    formatter: (Priority, row) => {
+                        if (row.Source === "Cost Optimizer") {
+                            return `${formatTwoDigits(+row.Priority / 1000)} (${nlsHPCC.Seconds})`;
+                        }
+                        return Priority;
                     }
-                    return Priority;
-                }
-            },
+                },
+            }),
             Code: { label: nlsHPCC.Code, width: 45 },
             Message: {
                 label: nlsHPCC.Message,
@@ -141,18 +147,20 @@ export const InfoGrid: React.FunctionComponent<InfoGridProps> = ({
             },
             Column: { label: nlsHPCC.Col, width: 36 },
             LineNo: { label: nlsHPCC.Line, width: 36 },
-            Activity: {
-                label: nlsHPCC.Activity, width: 56,
-                formatter: (activityId, row) => {
-                    return activityId ? <Link href={`#/workunits/${wuid}/metrics/a${activityId}`}>a{activityId}</Link> : "";
+            ...(sqlPlayground ? {} : {
+                Activity: {
+                    label: nlsHPCC.Activity, width: 56,
+                    formatter: (activityId, row) => {
+                        return activityId ? <Link href={`#/workunits/${wuid}/metrics/a${activityId}`}>a{activityId}</Link> : "";
+                    }
+                },
+                FileName: {
+                    label: nlsHPCC.FileName,
+                    minWidth: 320
                 }
-            },
-            FileName: {
-                label: nlsHPCC.FileName,
-                minWidth: 320
-            }
+            })
         };
-    }, [wuid]);
+    }, [sqlPlayground, wuid]);
 
     const copyButtons = useCopyButtons(columns, selection, "errorwarnings");
 

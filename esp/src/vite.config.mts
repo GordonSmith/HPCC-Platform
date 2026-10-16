@@ -210,6 +210,7 @@ export default defineConfig(async (env: ConfigEnv): Promise<UserConfig> => {
     const dojo = await loadDojoFactory();
     // WsECL is served from a separate port (8002) per lws.config.js convention.
     const wsEclTarget = devTarget.replace(/:\d+$/, ":8002");
+    const wsSql2Target = devTarget.replace(/:\d+$/, ":8510");
     const hpccBaseUrl = fs.existsSync("./node_modules/@hpcc-js") ? "./node_modules/@hpcc-js" : "./../../../hpcc-js/packages";
 
     console.log(`Building: ${mode} (serve=${isServe})`);
@@ -245,6 +246,7 @@ export default defineConfig(async (env: ConfigEnv): Promise<UserConfig> => {
                 "/esp/reset_session_timeout": { target: devTarget, changeOrigin: true },
                 "/esp/unlock.json": { target: devTarget, changeOrigin: true },
                 "/WsECL/": { target: wsEclTarget, changeOrigin: true },
+                "/WsSQL2/": { target: wsSql2Target, changeOrigin: true },
                 "/main": { target: devTarget, changeOrigin: true },
                 "^/(FileSpray|WsCloud|WsDali|WsSasha|WsDfu|WsDfuXRef|WsESDLConfig|WsFileIO|WsPackageProcess|WsSMC|WsStore|WsTopology|WsWorkunits|WsResources|ws_access|ws_account|ws_codesign|ws_elk|ws_esdlconfig|ws_logaccess|ws_machine|ws_store|wsstore)/":
                 { target: devTarget, changeOrigin: true },

@@ -279,6 +279,13 @@ export const routes: RoutesEx = [
     },
     {
         mainNav: ["workunits"],
+        path: "/sqlplay",
+        action: (ctx) => import("./components/SQLPlayground").then(_ => {
+            return <_.SQLPlayground sql={parseSearch(ctx.search)?.sql as string} />;
+        })
+    },
+    {
+        mainNav: ["workunits"],
         path: "/compare",
         children: compareWorkunitsChildren
     },

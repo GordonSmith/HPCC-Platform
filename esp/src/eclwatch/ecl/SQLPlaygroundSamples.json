@@ -1,0 +1,176 @@
+{
+    "items": [
+        {
+            "filename": "default.ecl",
+            "sql": "WITH people(PersonID, FirstName, LastName) AS (VALUES (1, 'Fred', 'Smith'), (2, 'Joe', 'Blow'), (3, 'Jane', 'Smith'))\nSELECT * FROM people WHERE LastName = 'Smith';"
+        },
+        {
+            "filename": "hello.ecl",
+            "sql": "SELECT 'Hello and Welcome!' AS greeting;"
+        },
+        {
+            "filename": "simplesort.ecl",
+            "sql": "WITH people(PersonID, FirstName, LastName) AS (VALUES (1, 'Fred', 'Smith'), (2, 'Joe', 'Blow'), (3, 'Jane', 'Smith'))\nSELECT * FROM people ORDER BY LastName, FirstName;"
+        },
+        {
+            "filename": "AggregateSET_Example.ecl",
+            "sql": "WITH numbers(value) AS (VALUES (1), (2), (3), (4), (5))\nSELECT COUNT(value) AS count, SUM(value) AS sum, MIN(value) AS minimum, MAX(value) AS maximum, AVG(value) AS average FROM numbers;"
+        },
+        {
+            "filename": "APPLY_Example.ecl",
+            "sql": "WITH RECURSIVE fib(step, fib1, fib2) AS (VALUES (0, 1, 1) UNION ALL SELECT step + 1, fib2, fib1 + fib2 FROM fib WHERE step < 8)\nSELECT fib1, fib2, step + 100 AS mycounter, 'xx' AS extra FROM fib ORDER BY step;"
+        },
+        {
+            "filename": "Crosstab_Example.ecl",
+            "sql": "WITH scores(category, subject, score) AS (VALUES ('A', 'X', 3), ('A', 'Y', 5), ('B', 'X', 4), ('B', 'Y', 2))\nSELECT category, SUM(CASE WHEN subject = 'X' THEN score ELSE 0 END) AS X, SUM(CASE WHEN subject = 'Y' THEN score ELSE 0 END) AS Y FROM scores GROUP BY category ORDER BY category;"
+        },
+        {
+            "filename": "DEDUP_ALL_Example.ecl",
+            "sql": "WITH records(value1, value2) AS (VALUES ('C', 'G'), ('C', 'C'), ('A', 'X'), ('A', 'X'), ('B', 'G'))\nSELECT DISTINCT value1, value2 FROM records ORDER BY value1, value2;"
+        },
+        {
+            "filename": "DEDUP_Example.ecl",
+            "sql": "WITH records(value1, value2) AS (VALUES ('C', 'G'), ('C', 'C'), ('A', 'X'), ('B', 'G'), ('A', 'B'))\nSELECT value1, value2 FROM records QUALIFY ROW_NUMBER() OVER (PARTITION BY value1 ORDER BY value2) = 1 ORDER BY value1;"
+        },
+        {
+            "filename": "DENORMALIZE_Example.ecl",
+            "sql": "WITH records(category, value) AS (VALUES ('A', 'one'), ('A', 'two'), ('B', 'three'))\nSELECT category, STRING_AGG(value, ', ' ORDER BY value) AS combined_values FROM records GROUP BY category ORDER BY category;"
+        },
+        {
+            "filename": "DICTIONARY_Example.ecl",
+            "sql": "WITH colors(color, code) AS (VALUES ('Black', 0), ('Brown', 1), ('Red', 2), ('Orange', 3), ('Yellow', 4), ('Green', 5), ('Blue', 6), ('Violet', 7), ('Grey', 8), ('White', 9))\nSELECT colors.color, colors.code FROM colors ORDER BY colors.code;"
+        },
+        {
+            "filename": "DISTRIBUTE_Example.ecl",
+            "sql": "WITH visits(url) AS (VALUES ('www.yahoo.com'), ('www.amazon.com'), ('www.amazon.com'), ('www.cnn.com'), ('www.yahoo.com'), ('www.amazon.com')), categories(url, category) AS (VALUES ('www.yahoo.com', 'all'), ('www.cnn.com', 'news'), ('www.amazon.com', 'commerce')), counts AS (SELECT url, COUNT(*) AS visit_count FROM visits GROUP BY url)\nSELECT categories.category, counts.url, counts.visit_count FROM counts JOIN categories USING (url) ORDER BY categories.category, counts.visit_count DESC;"
+        },
+        {
+            "filename": "ENTH_Example.ecl",
+            "sql": "WITH letters(letter) AS (VALUES ('A'), ('B'), ('C'), ('D'), ('E'), ('F'), ('G'), ('H'), ('I'), ('J'), ('K'), ('L'), ('M'), ('N'), ('O'), ('P'), ('Q'), ('R'), ('S'), ('T'), ('U'), ('V'), ('W'), ('X'), ('Y'))\nSELECT letter FROM letters QUALIFY ROW_NUMBER() OVER (ORDER BY letter) % 5 = 0 ORDER BY letter;"
+        },
+        {
+            "filename": "EVALUATE_Example.ecl",
+            "sql": "WITH records(value1, value2, value3) AS (VALUES ('C', 'G', 1), ('C', 'C', 2), ('A', 'X', 3), ('B', 'G', 4), ('A', 'B', 5))\nSELECT value1, value2, value3, value3 + 10 AS evaluated FROM records ORDER BY value1, value2;"
+        },
+        {
+            "filename": "FUNCTIONMACRO_Example.ecl",
+            "sql": "WITH values_to_transform(value) AS (VALUES (1), (2), (3))\nSELECT value, value * value AS squared, value * value * value AS cubed FROM values_to_transform ORDER BY value;"
+        },
+        {
+            "filename": "FunctionParmPassing_Example.ecl",
+            "sql": "WITH people(first_name, last_name) AS (VALUES ('Gavin', 'Halliday'), ('Liz', 'Halliday'), ('Elizabeth', 'Windsor'))\nSELECT first_name, last_name, CONCAT(UPPER(first_name), ' ', UPPER(last_name)) AS display_name FROM people;"
+        },
+        {
+            "filename": "FUNCTION_Example.ecl",
+            "sql": "SELECT UPPER('hpcc systems') AS uppercase, LOWER('SQL PLAYGROUND') AS lowercase, LENGTH('SQL') AS character_count;"
+        },
+        {
+            "filename": "GRAPH_Example.ecl",
+            "sql": "WITH RECURSIVE hierarchy(node, parent, depth) AS (VALUES ('Root', CAST(NULL AS VARCHAR), 0) UNION ALL SELECT CONCAT('Node ', depth + 1), node, depth + 1 FROM hierarchy WHERE depth < 4)\nSELECT node, parent, depth FROM hierarchy ORDER BY depth;"
+        },
+        {
+            "filename": "GROUP_Example.ecl",
+            "sql": "WITH records(value1, value2) AS (VALUES ('C', 'G'), ('C', 'C'), ('A', 'X'), ('B', 'G'), ('A', 'B'))\nSELECT value1, COUNT(*) AS group_count, STRING_AGG(value2, ', ' ORDER BY value2) AS values FROM records GROUP BY value1 ORDER BY value1;"
+        },
+        {
+            "filename": "ITERATE_Example.ecl",
+            "sql": "WITH records(value1) AS (VALUES (10), (20), (30), (40), (50))\nSELECT value1, SUM(value1) OVER (ORDER BY value1 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total FROM records ORDER BY value1;"
+        },
+        {
+            "filename": "SimpleJava.ecl",
+            "sql": "SELECT 10 + 32 AS calculated_value, CONCAT('Hello, ', 'SQL') AS greeting;"
+        },
+        {
+            "filename": "EmbedJava.ecl",
+            "sql": "WITH source(value) AS (VALUES ('hpcc systems'))\nSELECT UPPER(value) AS transformed_text, REVERSE(value) AS reversed_text, LENGTH(value) AS character_count FROM source;"
+        },
+        {
+            "filename": "JOIN_ATMOST_LIMIT_Example.ecl",
+            "sql": "WITH left_rows(id, letter) AS (VALUES (1, 'A'), (2, 'B'), (3, 'C'), (4, 'D'), (5, 'E')), right_rows(id, letter) AS (VALUES (1, 'A'), (2, 'B'), (2, 'C'), (2, 'Y'), (3, 'C'), (3, 'Z'), (4, 'D'), (5, 'E')), matches AS (SELECT left_rows.id, left_rows.letter AS left_letter, right_rows.letter AS right_letter, ROW_NUMBER() OVER (PARTITION BY left_rows.id ORDER BY right_rows.letter) AS match_number FROM left_rows JOIN right_rows USING (id))\nSELECT id, left_letter, right_letter FROM matches WHERE match_number <= 2 ORDER BY id, right_letter;"
+        },
+        {
+            "filename": "JOIN_dupes_example.ecl",
+            "sql": "WITH left_rows(value) AS (VALUES (1), (2), (3), (4), (5)), right_rows(value) AS (VALUES (10), (20), (30), (40), (50))\nSELECT left_rows.value AS left_value, right_rows.value AS right_value FROM left_rows JOIN right_rows ON right_rows.value % 2 = 0 ORDER BY left_value, right_value;"
+        },
+        {
+            "filename": "JOIN_Example.ecl",
+            "sql": "WITH left_rows(value1, value2) AS (VALUES ('C', 'A'), ('X', 'B'), ('A', 'C')), right_rows(value1, value2) AS (VALUES ('C', 'X'), ('B', 'Y'), ('A', 'Z'))\nSELECT COALESCE(left_rows.value1, right_rows.value1) AS value1, left_rows.value2 AS left_value2, right_rows.value2 AS right_value2 FROM left_rows FULL OUTER JOIN right_rows USING (value1) ORDER BY value1;"
+        },
+        {
+            "filename": "KEYED_JOIN_Example.ecl",
+            "sql": "WITH people(id, name) AS (VALUES (1, 'Fred'), (2, 'Joe'), (3, 'Jane')), orders(id, item) AS (VALUES (1, 'Book'), (3, 'Map'), (3, 'Pen'))\nSELECT people.id, people.name, orders.item FROM people JOIN orders ON people.id = orders.id ORDER BY people.id, orders.item;"
+        },
+        {
+            "filename": "MACRO_Example.ecl",
+            "sql": "WITH source(value) AS (VALUES (3), (7), (11)), doubled AS (SELECT value, value * 2 AS result FROM source)\nSELECT value, result FROM doubled ORDER BY value;"
+        },
+        {
+            "filename": "MERGEJOIN_Example.ecl",
+            "sql": "WITH left_rows(id, value) AS (VALUES (1, 'A'), (3, 'C'), (5, 'E')), right_rows(id, value) AS (VALUES (2, 'B'), (3, 'X'), (4, 'D'))\nSELECT COALESCE(left_rows.id, right_rows.id) AS id, left_rows.value AS left_value, right_rows.value AS right_value FROM left_rows FULL OUTER JOIN right_rows USING (id) ORDER BY id;"
+        },
+        {
+            "filename": "MERGE_Example.ecl",
+            "sql": "WITH first_set(id, letter) AS (VALUES (1, 'A'), (1, 'B'), (1, 'C')), second_set(id, letter) AS (VALUES (2, 'A'), (2, 'B'), (2, 'C'))\nSELECT id, letter FROM first_set UNION ALL SELECT id, letter FROM second_set ORDER BY letter, id;"
+        },
+        {
+            "filename": "NORMALIZE_Example.ecl",
+            "sql": "WITH parents(id, value, child1, child2) AS (VALUES (1, 'C', 'X', 'W'), (2, 'B', 'S', 'Y'), (3, 'A', 'Z', 'T'))\nSELECT id, value, child.value AS child_value FROM parents CROSS JOIN UNNEST([child1, child2]) AS child(value) ORDER BY id, child_value;"
+        },
+        {
+            "filename": "NormDeNormWithROW_Example.ecl",
+            "sql": "WITH children(parent_id, child_value) AS (VALUES (1, 'X'), (1, 'W'), (2, 'S'), (2, 'Y'), (3, 'Z'), (3, 'T'))\nSELECT parent_id, LIST(child_value ORDER BY child_value) AS child_rows FROM children GROUP BY parent_id ORDER BY parent_id;"
+        },
+        {
+            "filename": "NORM_DENORM_ChildDatasets_Example.ecl",
+            "sql": "WITH parents(NameID, Name) AS (VALUES (1, 'Gavin'), (2, 'Liz'), (3, 'Mr Nobody'), (4, 'Anywhere')), children(NameID, Addr, ChildOrder) AS (VALUES (1, '10 Malt Lane', 1), (2, '10 Malt Lane', 2), (2, '3 The cottages', 3), (4, 'Here', 4), (4, 'There', 5), (4, 'Near', 6), (4, 'Far', 7))\nSELECT NameID, Name, 0 AS NumRows, CAST([] AS STRUCT(NameID INTEGER, Addr VARCHAR)[]) AS Children FROM parents ORDER BY NameID;\nWITH parents(NameID, Name) AS (VALUES (1, 'Gavin'), (2, 'Liz'), (3, 'Mr Nobody'), (4, 'Anywhere')), children(NameID, Addr, ChildOrder) AS (VALUES (1, '10 Malt Lane', 1), (2, '10 Malt Lane', 2), (2, '3 The cottages', 3), (4, 'Here', 4), (4, 'There', 5), (4, 'Near', 6), (4, 'Far', 7))\nSELECT p.NameID, p.Name, CAST(COUNT(c.ChildOrder) AS TINYINT) AS NumRows, COALESCE(LIST(STRUCT_PACK(NameID := c.NameID, Addr := c.Addr) ORDER BY c.ChildOrder) FILTER (WHERE c.ChildOrder IS NOT NULL), CAST([] AS STRUCT(NameID INTEGER, Addr VARCHAR)[])) AS Children FROM parents p LEFT JOIN children c USING (NameID) GROUP BY p.NameID, p.Name ORDER BY p.NameID;\nWITH parents(NameID, Name) AS (VALUES (1, 'Gavin'), (2, 'Liz'), (3, 'Mr Nobody'), (4, 'Anywhere'))\nSELECT NameID, Name FROM parents ORDER BY NameID;\nWITH children(NameID, Addr, ChildOrder) AS (VALUES (1, '10 Malt Lane', 1), (2, '10 Malt Lane', 2), (2, '3 The cottages', 3), (4, 'Here', 4), (4, 'There', 5), (4, 'Near', 6), (4, 'Far', 7))\nSELECT NameID, Addr FROM children ORDER BY ChildOrder;"
+        },
+        {
+            "filename": "PARSE_Example.ecl",
+            "sql": "WITH source(line) AS (VALUES ('the fox and the hen'))\nSELECT word FROM source CROSS JOIN UNNEST(REGEXP_EXTRACT_ALL(line, '[A-Za-z]+')) AS words(word);"
+        },
+        {
+            "filename": "PROCESS_Example.ecl",
+            "sql": "WITH records(step, letter) AS (VALUES (1, 'AA'), (2, 'BB'), (3, 'CC'), (4, 'DD'), (5, 'EE'))\nSELECT step, letter, LAG(letter, 1, 'ZZ') OVER (ORDER BY step) AS previous_value, CONCAT(letter, LAG(SUBSTRING(letter, 1, 1), 1, 'Z') OVER (ORDER BY step)) AS processed_value FROM records ORDER BY step;"
+        },
+        {
+            "filename": "PROJECT_Example.ecl",
+            "sql": "WITH records(value1, value2) AS (VALUES ('C', 'G'), ('C', 'C'), ('A', 'X'), ('B', 'G'), ('A', 'B'))\nSELECT value1, value2, CONCAT(value1, value2, '-', ROW_NUMBER() OVER ()) AS projected_value FROM records;"
+        },
+        {
+            "filename": "RANGE_Example.ecl",
+            "sql": "WITH letters(letter) AS (VALUES ('A'), ('B'), ('C'), ('D'), ('E'))\nSELECT letter FROM letters ORDER BY letter;\nWITH letters(letter) AS (VALUES ('K'), ('L'), ('M'), ('N'), ('O'))\nSELECT letter FROM letters ORDER BY letter;"
+        },
+        {
+            "filename": "ROLLUP_Example.ecl",
+            "sql": "WITH sales(region, department, amount) AS (VALUES ('North', 'Books', 10), ('North', 'Games', 20), ('South', 'Books', 15), ('South', 'Games', 25))\nSELECT region, department, SUM(amount) AS total FROM sales GROUP BY ROLLUP (region, department) ORDER BY region, department;"
+        },
+        {
+            "filename": "ROWDIFF_Example.ecl",
+            "sql": "WITH left_rows(id, name, age) AS (VALUES (1, 'Gavin Halliday', 33), (2, 'Liz Halliday', 33), (3, 'Elizabeth Windsor', 99)), right_rows(id, name, age) AS (VALUES (1, 'Gavin Halliday', 33), (2, 'Liz', 33), (3, 'Elizabeth Windsor', 99))\nSELECT left_rows.id, left_rows.name IS DISTINCT FROM right_rows.name AS name_differs, left_rows.age IS DISTINCT FROM right_rows.age AS age_differs FROM left_rows JOIN right_rows USING (id) ORDER BY left_rows.id;"
+        },
+        {
+            "filename": "SAMPLE_Example.ecl",
+            "sql": "WITH letters(letter) AS (VALUES ('A'), ('B'), ('C'), ('D'), ('E'), ('F'), ('G'), ('H'), ('I'), ('J'), ('K'), ('L'), ('M'), ('N'), ('O'), ('P'), ('Q'), ('R'), ('S'), ('T'), ('U'), ('V'), ('W'), ('X'), ('Y'))\nSELECT letter FROM letters QUALIFY (ROW_NUMBER() OVER (ORDER BY letter) - 1) % 5 = 0 ORDER BY letter;"
+        },
+        {
+            "filename": "ScopeResolutionOperator.ecl",
+            "sql": "WITH dataset(value) AS (VALUES (1)), module_parameter(value) AS (VALUES (42)), function_parameter(value) AS (VALUES (84)), local_attribute(value) AS (VALUES (10))\nSELECT dataset.value AS dataset_field, function_parameter.value AS function_parameter, module_parameter.value AS module_parameter, local_attribute.value AS local_attribute FROM dataset CROSS JOIN function_parameter CROSS JOIN module_parameter CROSS JOIN local_attribute;"
+        },
+        {
+            "filename": "SORT_Example.ecl",
+            "sql": "WITH records(value1, value2, value3) AS (VALUES ('C', 'G', 1), ('C', 'C', 2), ('A', 'X', 3), ('B', 'G', 4), ('A', 'B', 5))\nSELECT value1, value2, value3 FROM records ORDER BY value1, value2;"
+        },
+        {
+            "filename": "VARIANCE_Example.ecl",
+            "sql": "WITH points(x, y) AS (VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6))\nSELECT VAR_POP(x) AS variance_x, VAR_POP(y) AS variance_y, COVAR_POP(x, y) AS covariance_xy, CORR(x, y) AS correlation_xy FROM points;"
+        },
+        {
+            "filename": "Viz_BarChart_Example.ecl",
+            "sql": "WITH results(subject, score) AS (VALUES ('English', 92), ('French', 86), ('Irish', 80), ('Math', 98), ('Geography', 55), ('Computers', 25))\nSELECT subject AS Label, score AS Value FROM results ORDER BY score DESC;"
+        },
+        {
+            "filename": "Viz_Choropleth_Example.ecl",
+            "sql": "WITH counties(fip_code, heat) AS (VALUES ('10001', 10), ('11001', 20), ('12001', 30), ('13001', 40), ('14001', 50), ('15001', 60), ('16001', 70), ('17001', 80), ('18001', 90), ('19001', 100), ('21001', 110), ('22001', 120), ('23001', 130), ('24001', 140), ('25001', 150))\nSELECT fip_code AS County, heat AS Value FROM counties ORDER BY fip_code;"
+        }
+    ]
+}
