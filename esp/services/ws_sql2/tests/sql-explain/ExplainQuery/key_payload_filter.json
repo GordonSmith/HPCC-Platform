@@ -1,0 +1,9 @@
+{
+  "node": "HPCC_SCAN",
+  "extraInfoContains": {
+    "Post Filters": "dpos"
+  },
+  "extraInfoEquals": {
+    "Filter Layout Translation": "expected-to-actual"
+  }
+}

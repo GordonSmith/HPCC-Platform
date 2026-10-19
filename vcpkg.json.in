@@ -200,6 +200,12 @@
         "pcre2",
         "picojson",
         {
+            "name": "duckdb",
+            "default-features": false,
+            "features": [],
+            "platform": "@VCPKG_DUCKDB@"
+        },
+        {
             "name": "protrace",
             "platform": "@VCPKG_PROTRACE@"
         },

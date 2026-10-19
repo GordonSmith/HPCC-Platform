@@ -1,0 +1,131 @@
+ESPrequest ExplainQueryRequest
+{
+    [rows(28), cols(80)] string SqlText;
+};
+
+ESPStruct ResultSetColumn
+{
+    string ColumnLabel;
+    string ColumnTypeName;
+    unsigned Precision;
+    unsigned Scale;
+};
+
+ESPresponse [exceptions_inline, nil_remove] ExplainQueryResponse
+{
+    string ExecutionGraph;
+    string ExecutionGraphJson;
+    ESParray<ESPstruct ResultSetColumn, Column> ResultSetMetadata;
+};
+
+ESPrequest ExecuteQueryRequest
+{
+    [rows(28), cols(80)] string SqlText;
+    unsigned FetchSize(0);
+    boolean IncludeMetrics(false);
+    boolean IncludeResultSetMetadata(false);
+    boolean IncludeDebug(false);
+};
+
+ESPStruct [nil_remove] MemoryUsage
+{
+    int64 DuckDBUsedBytes;
+    int64 DuckDBTempBytes;
+    int64 HeapInUseBytes;
+    int64 ResidentBytes;
+    int64 PeakResidentBytes;
+};
+
+ESPStruct [nil_remove] ScanObjectCounts
+{
+    int64 BindData;
+    int64 GlobalStates;
+    int64 LocalStates;
+};
+
+ESPStruct [nil_remove] DebugInfo
+{
+    ESPstruct MemoryUsage Start;
+    ESPstruct MemoryUsage Current;
+    ESPstruct MemoryUsage Released;
+    ESPstruct MemoryUsage Retained;
+    ESPstruct ScanObjectCounts ScanObjectsCreated;
+    ESPstruct ScanObjectCounts ScanObjectsLive;
+    string LeakCheck;
+    string LeakCheckDetail;
+};
+
+ESPresponse [exceptions_inline, nil_remove] ExecuteQueryResponse
+{
+    string Rows;
+    string CursorId;
+    double InitMs;
+    double PrepareMs;
+    double ExecuteMs;
+    string ExecutionGraph;
+    string ExecutionGraphJson;
+    ESParray<ESPstruct ResultSetColumn, Column> ResultSetMetadata;
+    ESPstruct DebugInfo DebugInfo;
+};
+
+ESPrequest FetchResultSetRequest
+{
+    string CursorId;
+    unsigned FetchSize(0);
+};
+
+ESPresponse [exceptions_inline, nil_remove] FetchResultSetResponse
+{
+    string Rows;
+    string CursorId;
+    string ExecutionGraph;
+    string ExecutionGraphJson;
+    ESPstruct DebugInfo DebugInfo;
+};
+
+ESPrequest CloseResultSetRequest
+{
+    string CursorId;
+};
+
+ESPresponse [exceptions_inline] CloseResultSetResponse
+{
+    boolean Closed;
+};
+
+ESPrequest LogicalFileMetaRequest
+{
+    string LogicalName;
+};
+
+ESPStruct LogicalFileMeta
+{
+    unsigned Version;
+    string LogicalName;
+    string Kind;
+    string Format;
+    boolean Grouped;
+    unsigned FormatCrc;
+    unsigned RecordTranslationMode;
+    int64 Modified;
+    [nil_remove] uint64 RecordCount;
+    string FormatOptions;
+    string ProviderOptions;
+    string EclRecord;
+    string FileParts;
+    string SampleSQL;
+};
+
+ESPresponse [exceptions_inline, nil_remove] LogicalFileMetaResponse
+{
+    ESPstruct LogicalFileMeta LogicalFileMeta;
+};
+
+ESPservice [auth_feature("WsSql2Access"), exceptions_inline("./smc_xslt/exceptions.xslt")] WsSQL2
+{
+    ESPmethod [] ExplainQuery(ExplainQueryRequest, ExplainQueryResponse);
+    ESPmethod [] ExecuteQuery(ExecuteQueryRequest, ExecuteQueryResponse);
+    ESPmethod [] FetchResultSet(FetchResultSetRequest, FetchResultSetResponse);
+    ESPmethod [] CloseResultSet(CloseResultSetRequest, CloseResultSetResponse);
+    ESPmethod [] LogicalFileMeta(LogicalFileMetaRequest, LogicalFileMetaResponse);
+};
