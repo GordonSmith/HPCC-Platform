@@ -9,8 +9,8 @@ SELECT
         AND (SELECT list(dob ORDER BY id) FROM people) = [19700101, 20000101, 19700909]
         AND (SELECT list(booklimit ORDER BY id) FROM people) = [1000, 40, 0]
         AS scale_zero_decimal_values_match,
-    (SELECT COUNT(*) FROM hpcc_scan('regress::multi::dg_grouped'))
-        = (SELECT COUNT(*) FROM hpcc_scan('regress::multi::dg_flat'))
+    (SELECT COUNT(*) FROM hpcc_scan('regress::single::dg_grouped'))
+        = (SELECT COUNT(*) FROM hpcc_scan('regress::single::dg_flat'))
         AS single_grouped_row_count_matches,
     (SELECT COUNT(*) FROM hpcc_scan('regress::multi::dg_grouped'))
         = (SELECT COUNT(*) FROM hpcc_scan('regress::multi::dg_flat'))

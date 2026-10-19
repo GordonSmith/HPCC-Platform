@@ -689,7 +689,7 @@ def run_query(client, query_path, sql_dir, results_dir, ignore_result, update_re
     if mode == "sql-ecl":
         if ignore_result:
             client.execute(sql)
-            return
+            return None
         if ecl_config is None:
             raise ValueError("SQL/ECL tests require ECL connection settings")
         ecl_path = os.path.splitext(query_path)[0] + ".ecl"
@@ -703,23 +703,23 @@ def run_query(client, query_path, sql_dir, results_dir, ignore_result, update_re
         except RuntimeError as error:
             if error_contains not in str(error):
                 raise AssertionError(f"Unexpected error for {query_path}: {error}") from error
-            return
+            return None
         raise AssertionError(f"Expected query to fail with {error_contains!r}")
     if mode == "sql-cursor":
         if expected is None:
             client.execute(sql)
-            return
+            return None
         run_cursor_case(client, sql, expected)
-        return
+        return None
     if mode == "sql-explain":
         plan = client.explain_query(sql)
         if expected is not None:
             check_explain_expectations(plan, expected, sql, client)
-        return
+        return None
     if mode == "sql-equivalence":
         result = client.execute(sql)
         if expected is None:
-            return
+            return None
         equivalent_sql = expected.get("equivalentTo")
         if equivalent_sql:
             equivalent_result = client.execute(equivalent_sql)
@@ -735,7 +735,7 @@ def run_query(client, query_path, sql_dir, results_dir, ignore_result, update_re
             )
         if not equivalent_sql and "rowCount" not in expected:
             raise ValueError(f"Equivalence case {query_path} needs equivalentTo or rowCount")
-        return
+        return None
     if mode == "sql-metrics":
         result, profile = client.execute(sql, include_metrics=True)
         metric_expectations = expected.get("metrics", {}) if expected is not None else {}
@@ -765,17 +765,17 @@ def run_query(client, query_path, sql_dir, results_dir, ignore_result, update_re
             with open(expected_path, "w", encoding="utf-8") as expected_file:
                 json.dump({"result": result, "metrics": metric_expectations}, expected_file, indent=2, ensure_ascii=False)
                 expected_file.write("\n")
-        return
+        return None
     result = client.execute(sql)
     if ignore_result:
-        return
+        return None
 
     if update_results:
         os.makedirs(os.path.dirname(expected_path), exist_ok=True)
         with open(expected_path, "w", encoding="utf-8") as expected_file:
             json.dump(result, expected_file, indent=2, ensure_ascii=False)
             expected_file.write("\n")
-        return
+        return None
 
     if result != expected:
         raise AssertionError(
@@ -783,6 +783,7 @@ def run_query(client, query_path, sql_dir, results_dir, ignore_result, update_re
             f"Expected: {json.dumps(expected, ensure_ascii=False)}\n"
             f"Actual:   {json.dumps(result, ensure_ascii=False)}"
         )
+    return None
 
 
 def load_config(config_path):

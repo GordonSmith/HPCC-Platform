@@ -10,6 +10,7 @@
 #include "thorread.hpp"
 
 #include "duckdb-hpcc/typemapping.hpp"
+#include "duckdb-hpcc/materialization.hpp"
 
 #ifdef _USE_CPPUNIT
 #include "unittests.hpp"
@@ -18,9 +19,6 @@
 using namespace duckdb::hpcc;
 
 #include <algorithm>
-#include <cctype>
-#include <map>
-#include <regex>
 
 IOutputMetaData* createWsSql2OutputMetaDataFromEcl(const char* ecl, const char* kind, bool grouped)
 {
@@ -40,60 +38,6 @@ static void appendSqlSchemaField(StringBuffer& schema, const FieldDescriptor& fi
         schema.append(", ");
     first = false;
     schema.append('"').append(field.fieldPath.c_str()).append("\" ").append(field.duckdbType.c_str());
-}
-
-static FieldDescriptor mapRuntimeField(const RtlFieldInfo& field, const char* prefix)
-{
-    FieldDescriptor descriptor;
-    descriptor.fieldPath = prefix ? std::string(prefix) + "." + (field.name ? field.name : "field") : (field.name ? field.name : "field");
-    const RtlTypeInfo& type = *field.type;
-    switch (type.getType())
-    {
-    case type_record:
-    case type_row:
-        descriptor.duckdbType = "STRUCT";
-        break;
-    case type_set:
-    case type_table:
-    case type_groupedtable:
-        descriptor.duckdbType = "LIST";
-        break;
-    case type_boolean:
-        descriptor.duckdbType = "BOOLEAN";
-        break;
-    case type_int:
-    case type_swapint:
-    case type_packedint:
-    case type_filepos:
-    case type_keyedint:
-    {
-        const RtlTypeInfo* valueType = (type.getType() == type_keyedint && type.queryChildType()) ? type.queryChildType() : &type;
-        // Unsigned 64-bit values above INT64_MAX do not fit in BIGINT.
-        descriptor.duckdbType = (valueType->isUnsigned() && valueType->length == sizeof(unsigned __int64)) ? "UBIGINT" : "BIGINT";
-        break;
-    }
-    case type_real:
-        descriptor.duckdbType = "DOUBLE";
-        break;
-    case type_data:
-    case type_blob:
-        descriptor.duckdbType = "BLOB";
-        break;
-    case type_decimal:
-        descriptor.duckdbType = "DECIMAL";
-        descriptor.sourceType = "DECIMAL" + std::to_string(type.getDecimalDigits()) + "_" + std::to_string(type.getDecimalPrecision());
-        break;
-    default:
-        descriptor.duckdbType = "VARCHAR";
-        descriptor.fallback = true;
-        break;
-    }
-    const RtlTypeInfo* childType = type.queryChildType();
-    const RtlFieldInfo* const* childFields = childType ? childType->queryFields() : nullptr;
-    if (childFields)
-        for (unsigned index = 0; childFields[index]; ++index)
-            descriptor.children.push_back(mapRuntimeField(*childFields[index], descriptor.fieldPath.c_str()));
-    return descriptor;
 }
 
 static void appendSqlLiteral(StringBuffer& output, const std::string& value)
@@ -153,44 +97,6 @@ static std::string serializeParts(IDistributedFile& file, bool includePhysicalPa
     StringBuffer json;
     toJSON(root, json, 0, 0);
     return json.str();
-}
-
-static void expandNestedBlobAliases(const char* ecl, TypeMapper& mapper, std::vector<FieldDescriptor>& fields, std::vector<Warning>& warnings)
-{
-    if (isEmptyString(ecl))
-        return;
-    const std::string text(ecl);
-    std::map<std::string, std::vector<std::pair<std::string, std::string>>> definitions;
-    const std::regex definitionPattern(R"((\w+)\s*:=\s*RECORD([\s\S]*?)END\s*;)");
-    const std::regex fieldPattern(R"((\w[\w_]*)\s+(\w[\w_]*)\s*;)");
-    for (std::sregex_iterator definition(text.begin(), text.end(), definitionPattern), end; definition != end; ++definition)
-    {
-        std::vector<std::pair<std::string, std::string>> definitionFields;
-        const std::string body = (*definition)[2].str();
-        for (std::sregex_iterator field(body.begin(), body.end(), fieldPattern), fieldEnd; field != fieldEnd; ++field)
-            definitionFields.emplace_back((*field)[1].str(), (*field)[2].str());
-        definitions.emplace((*definition)[1].str(), std::move(definitionFields));
-    }
-
-    std::vector<FieldDescriptor> expanded;
-    const std::regex blobFieldPattern(R"((\w[\w_]*)\s+(\w[\w_]*)\s*\{\s*blob\s*\})");
-    std::map<std::string, std::string> blobAliases;
-    for (std::sregex_iterator blob(text.begin(), text.end(), blobFieldPattern), end; blob != end; ++blob)
-        blobAliases[(*blob)[2].str()] = (*blob)[1].str();
-
-    for (const auto& field : fields)
-    {
-        auto alias = blobAliases.find(field.sourceType);
-        auto definition = alias == blobAliases.end() ? definitions.end() : definitions.find(alias->second);
-        if (field.duckdbType == "JSON" && definition != definitions.end() && definition->second.size() == 1)
-        {
-            const auto& child = definition->second.front();
-            expanded.push_back(mapper.mapField(child.second.c_str(), child.first.c_str(), warnings));
-        }
-        else
-            expanded.push_back(field);
-    }
-    fields.swap(expanded);
 }
 
 static std::string serializeOptions(IDistributedFile& file, const FileAccessOptions& accessOptions)
@@ -294,16 +200,20 @@ void CMetadataResolver::buildScanDescriptor(IDistributedFile& file, CScanDescrip
         if (recordMeta)
             mapper.mapRecord(recordMeta->queryRecord(), nullptr, fields, warnings);
     }
-    if (fields.empty())
-        mapper.mapEclRecordDefinition(recordDefinition, fields, warnings);
-    std::string normalizedEcl = recordDefinition;
-    std::transform(normalizedEcl.begin(), normalizedEcl.end(), normalizedEcl.begin(), [](unsigned char character) { return static_cast<char>(std::toupper(character)); });
+    const RtlRecord& expectedRecord = expectedMetadata->queryRecordAccessor(true);
     const bool hasNestedDescriptor = std::any_of(fields.begin(), fields.end(), [](const FieldDescriptor& field) { return !field.children.empty(); });
-    if (!hasNestedDescriptor && normalizedEcl.find("DATASET(") != std::string::npos)
+    bool hasNestedExpectedField = false;
+    for (unsigned index = 0; index < expectedRecord.getNumFields(); ++index)
     {
-        fields.clear();
-        mapper.mapEclRecordDefinition(recordDefinition, fields, warnings);
+        const RtlTypeInfo* type = expectedRecord.queryType(index);
+        if (type && (type->getType() == type_record || type->getType() == type_row || type->getType() == type_set || type->getType() == type_table || type->getType() == type_groupedtable))
+        {
+            hasNestedExpectedField = true;
+            break;
+        }
     }
+    if (fields.empty() || (hasNestedExpectedField && !hasNestedDescriptor))
+        fields = mapRtlRecord(expectedRecord);
     const RtlRecord& actualRecord = actualMetadata->queryRecordAccessor(true);
     bool hasNestedPhysicalField = false;
     for (unsigned index = 0; index < actualRecord.getNumFields(); ++index)
@@ -316,12 +226,7 @@ void CMetadataResolver::buildScanDescriptor(IDistributedFile& file, CScanDescrip
         }
     }
     if (hasNestedPhysicalField)
-    {
-        fields.clear();
-        for (unsigned index = 0; index < actualRecord.getNumFields(); ++index)
-            fields.push_back(mapRuntimeField(*actualRecord.queryOriginalField(index), nullptr));
-    }
-    expandNestedBlobAliases(recordDefinition, mapper, fields, warnings);
+        fields = mapRtlRecord(actualRecord);
     StringBuffer sqlSchema;
     sqlSchema.append("CREATE TABLE \\\"scan\\\" (");
     bool first = true;
@@ -355,6 +260,7 @@ class WsSql2MetadataTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testLogicalNameValidation);
     CPPUNIT_TEST(testPartCrcSerialization);
     CPPUNIT_TEST(testKnownRecordCount);
+    CPPUNIT_TEST(testRuntimeRecordMapping);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -393,6 +299,23 @@ public:
         CPPUNIT_ASSERT_EQUAL(uint64_t(123456789), queryKnownRecordCount(*attributes).value());
         attributes->setPropInt64("@recordCount", -2);
         CPPUNIT_ASSERT(!queryKnownRecordCount(*attributes));
+    }
+
+    void testRuntimeRecordMapping()
+    {
+        Owned<IOutputMetaData> metadata = createWsSql2OutputMetaDataFromEcl(
+            "child := RECORD unsigned4 childId; END; RECORD unsigned8 id; DATASET(child) children; END;",
+            "flat", false);
+        CPPUNIT_ASSERT(metadata);
+
+        const std::vector<FieldDescriptor> fields = mapRtlRecord(metadata->queryRecordAccessor(true));
+        CPPUNIT_ASSERT_EQUAL(size_t{ 2 }, fields.size());
+        CPPUNIT_ASSERT_EQUAL(std::string("id"), fields[0].fieldPath);
+        CPPUNIT_ASSERT_EQUAL(std::string("UBIGINT"), fields[0].duckdbType);
+        CPPUNIT_ASSERT_EQUAL(std::string("children"), fields[1].fieldPath);
+        CPPUNIT_ASSERT_EQUAL(std::string("LIST"), fields[1].duckdbType);
+        CPPUNIT_ASSERT_EQUAL(size_t{ 1 }, fields[1].children.size());
+        CPPUNIT_ASSERT_EQUAL(std::string("children.childid"), fields[1].children[0].fieldPath);
     }
 };
 

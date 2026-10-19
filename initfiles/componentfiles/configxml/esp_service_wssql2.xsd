@@ -53,28 +53,28 @@
             <xs:attribute name="memoryLimit" type="xs:string" use="optional">
                 <xs:annotation>
                     <xs:appinfo>
-                        <tooltip>DuckDB memory limit per request, e.g. 1GB (default: 80% of system memory)</tooltip>
+                        <tooltip>DuckDB memory limit for this WsSQL2 service, e.g. 1GB (default: 80% of system memory)</tooltip>
                     </xs:appinfo>
                 </xs:annotation>
             </xs:attribute>
             <xs:attribute name="threads" type="xs:nonNegativeInteger" use="optional" default="0">
                 <xs:annotation>
                     <xs:appinfo>
-                        <tooltip>DuckDB threads per request (0 = all cores)</tooltip>
+                        <tooltip>DuckDB threads shared by this WsSQL2 service (0 = all cores)</tooltip>
                     </xs:appinfo>
                 </xs:annotation>
             </xs:attribute>
             <xs:attribute name="tempDirectory" type="xs:string" use="optional">
                 <xs:annotation>
                     <xs:appinfo>
-                        <tooltip>Parent of each request's private spill directory (default: .tmp)</tooltip>
+                        <tooltip>Parent directory for this service's shared DuckDB spill directory (default: .tmp)</tooltip>
                     </xs:appinfo>
                 </xs:annotation>
             </xs:attribute>
             <xs:attribute name="maxTempDirectorySize" type="xs:string" use="optional">
                 <xs:annotation>
                     <xs:appinfo>
-                        <tooltip>Maximum spill size per request, e.g. 10GB (default: unlimited)</tooltip>
+                        <tooltip>Maximum spill size for this WsSQL2 service, e.g. 10GB (default: unlimited)</tooltip>
                     </xs:appinfo>
                 </xs:annotation>
             </xs:attribute>

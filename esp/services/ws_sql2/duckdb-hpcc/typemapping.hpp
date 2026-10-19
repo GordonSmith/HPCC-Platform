@@ -33,7 +33,6 @@ public:
     FieldDescriptor mapField(const char* fieldPath, const char* sourceType, std::vector<Warning>& warnings) const;
     FieldDescriptor mapField(const char* fieldPath, ITypeInfo* sourceType, std::vector<Warning>& warnings) const;
     void mapRecord(const IDefRecordElement* record, const char* prefix, std::vector<FieldDescriptor>& fields, std::vector<Warning>& warnings) const;
-    void mapEclRecordDefinition(const char* definition, std::vector<FieldDescriptor>& fields, std::vector<Warning>& warnings) const;
 };
 
 } // namespace hpcc

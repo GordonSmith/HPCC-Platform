@@ -101,26 +101,8 @@ static void parseOfflineScanData(const char* recordDefinition, const char* parts
         throw duckdb::BinderException("hpcc_scan encountered an unsupported record layout that requires a compiled record helper");
     data.accessOptions.actualDiskMeta.set(data.metadata);
     data.expectedMetadata.set(data.metadata);
-    TypeMapper mapper;
-    std::vector<Warning> warnings;
-    mapper.mapEclRecordDefinition(recordDefinition, data.fields, warnings);
     const RtlRecord& record = data.metadata->queryRecordAccessor(true);
-    bool hasNestedPhysicalField = false;
-    for (unsigned index = 0; index < record.getNumFields(); ++index)
-    {
-        const RtlTypeInfo* type = record.queryType(index);
-        if (type && (type->getType() == type_record || type->getType() == type_row || type->getType() == type_set || type->getType() == type_table || type->getType() == type_groupedtable))
-        {
-            hasNestedPhysicalField = true;
-            break;
-        }
-    }
-    if (data.fields.empty() || hasNestedPhysicalField)
-    {
-        data.fields.clear();
-        for (unsigned index = 0; index < record.getNumFields(); ++index)
-            data.fields.push_back(mapRtlField(*record.queryOriginalField(index), nullptr));
-    }
+    data.fields = mapRtlRecord(record);
 
     Owned<IPropertyTree> parts = createPTreeFromJSONString(partsJson);
     if (!parts)

@@ -14,13 +14,13 @@
                 <xs:attribute name="description" type="xs:string" hpcc:displayName="Description"
                               hpcc:tooltip="Web Service providing a DuckDB SQL interface into HPCC"/>
                 <xs:attribute name="memoryLimit" type="xs:string" hpcc:displayName="Memory Limit"
-                              hpcc:tooltip="DuckDB memory limit per request, e.g. 1GB (default: 80% of system memory)"/>
+                              hpcc:tooltip="DuckDB memory limit for this WsSQL2 service, e.g. 1GB (default: 80% of system memory)"/>
                 <xs:attribute name="threads" type="xs:nonNegativeInteger" hpcc:presetValue="0" hpcc:displayName="Threads"
-                              hpcc:tooltip="DuckDB threads per request (0 = all cores)"/>
+                              hpcc:tooltip="DuckDB threads shared by this WsSQL2 service (0 = all cores)"/>
                 <xs:attribute name="tempDirectory" type="xs:string" hpcc:displayName="Temp Directory"
-                              hpcc:tooltip="Parent of each request's private spill directory (default: .tmp)"/>
+                              hpcc:tooltip="Parent directory for this service's shared DuckDB spill directory (default: .tmp)"/>
                 <xs:attribute name="maxTempDirectorySize" type="xs:string" hpcc:displayName="Max Temp Directory Size"
-                              hpcc:tooltip="Maximum spill size per request, e.g. 10GB (default: unlimited)"/>
+                              hpcc:tooltip="Maximum spill size for this WsSQL2 service, e.g. 10GB (default: unlimited)"/>
                 <xs:attribute name="maxByteLimit" type="xs:nonNegativeInteger" hpcc:presetValue="67108864"
                               hpcc:displayName="Max Byte Limit" hpcc:tooltip="Maximum result batch size in bytes (0 = unlimited)"/>
                 <xs:attribute name="defaultFetchSize" type="xs:positiveInteger" hpcc:presetValue="1000"

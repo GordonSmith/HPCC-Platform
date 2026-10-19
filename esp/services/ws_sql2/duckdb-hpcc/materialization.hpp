@@ -8,6 +8,7 @@ namespace duckdb::hpcc
 {
 
 FieldDescriptor mapRtlField(const RtlFieldInfo& field, const char* prefix);
+std::vector<FieldDescriptor> mapRtlRecord(const RtlRecord& record);
 std::vector<FieldDescriptor> appendOfflineScanColumns(IOutputMetaData& layoutMetadata, const std::vector<FieldDescriptor>& descriptorFields, duckdb::vector<duckdb::LogicalType>& returnTypes, duckdb::vector<std::string>& names);
 
 class CHpccScanMaterializer

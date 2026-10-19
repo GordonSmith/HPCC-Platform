@@ -7,7 +7,7 @@ applyTo: 'esp/services/ws_sql2/**'
 ## Overview
 
 - WsSQL2 is an ESP service that executes SQL against HPCC logical files.
-- The DuckDB `hpcc_scan` table function and type mapping live in `duckdb-hpcc/`; its public surface is `duckdb-hpcc/extension.hpp`. `extension.cpp` owns scan binding and execution orchestration, `optimizer.cpp` owns filter/limit pushdown and explain descriptions, and `materialization.cpp` converts HPCC rows to DuckDB vectors. Their declarations are separated into `optimizer.hpp` and `materialization.hpp`; `hpcc_scan.hpp` holds scan state shared by the modules. `typemapping.*` owns ECL type parsing and field descriptors.
+- The DuckDB `hpcc_scan` table function and type mapping live in `duckdb-hpcc/`; its public surface is `duckdb-hpcc/extension.hpp`. `extension.cpp` owns scan binding and execution orchestration, `optimizer.cpp` owns filter/limit pushdown and explain descriptions, and `materialization.cpp` converts HPCC rows to DuckDB vectors and maps runtime record metadata to field descriptors. Their declarations are separated into `optimizer.hpp` and `materialization.hpp`; `hpcc_scan.hpp` holds scan state shared by the modules. `typemapping.*` maps serialized HPCC record metadata and individual ECL type descriptors; it does not parse ECL record-definition strings.
 - The WsSQL2 service owns the short-form `hpcc_scan(logicalName)` metadata expansion (`metadata.*`) and the query engine (`engine.*`). The extension resolves the logical file with the request user's Dali credentials through the `ScanMetadataProvider` interface.
 - The ESP service layer (`service.*`, `plugin.cpp`) owns request handling, configuration, cursor lifecycle and request limits; `engine.*` owns DuckDB query execution and row-batch serialization.
 

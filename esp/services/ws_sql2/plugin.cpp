@@ -8,9 +8,9 @@ extern "C"
     {
         if (strieq(type, "ws_sql2"))
         {
-            auto* service = new CWsSQL2Ex;
+            Owned<CWsSQL2Ex> service = new CWsSQL2Ex;
             service->init(cfg, process, name);
-            return service;
+            return service.getClear();
         }
         return nullptr;
     }

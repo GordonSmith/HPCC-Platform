@@ -823,6 +823,15 @@ FieldDescriptor mapRtlField(const RtlFieldInfo& field, const char* prefix)
     return mapRtlFieldInternal(field, prefix);
 }
 
+std::vector<FieldDescriptor> mapRtlRecord(const RtlRecord& record)
+{
+    std::vector<FieldDescriptor> descriptors;
+    descriptors.reserve(record.getNumFields());
+    for (unsigned index = 0; index < record.getNumFields(); ++index)
+        descriptors.push_back(mapRtlFieldInternal(*record.queryOriginalField(index), nullptr));
+    return descriptors;
+}
+
 std::vector<FieldDescriptor> appendOfflineScanColumns(IOutputMetaData& layoutMetadata, const std::vector<FieldDescriptor>& descriptorFields, duckdb::vector<duckdb::LogicalType>& returnTypes, duckdb::vector<std::string>& names)
 {
     return appendOfflineScanColumnsInternal(layoutMetadata, descriptorFields, returnTypes, names);
