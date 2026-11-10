@@ -119,3 +119,37 @@ jobs:
             --policy "$GITHUB_WORKSPACE/branch-policy.json" \
             --mode "${{ steps.settings.outputs.mode }}" \
             --repository "$INPUT_REPOSITORY"
+
+  notify-failure:
+    name: Notify Teams of failure
+    needs: synchronize
+    if: ${{ always() && needs.synchronize.result == 'failure' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Post failure notification
+        shell: bash
+        env:
+          CICD_WEBHOOK_URL: ${{ secrets.CICD_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          : "${CICD_WEBHOOK_URL:?CICD_WEBHOOK_URL secret is missing}"
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          message="$GITHUB_WORKFLOW failed in $GITHUB_REPOSITORY (run $GITHUB_RUN_NUMBER, attempt $GITHUB_RUN_ATTEMPT)."
+          jq -n --arg message "$message" --arg url "$run_url" '{
+            type: "message",
+            attachments: [{
+              contentType: "application/vnd.microsoft.card.adaptive",
+              contentUrl: null,
+              content: {
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                type: "AdaptiveCard",
+                version: "1.2",
+                body: [{type: "TextBlock", text: $message, wrap: true}],
+                actions: [{type: "Action.OpenUrl", title: "View failed run", url: $url}]
+              }
+            }]
+          }' | curl --fail --silent --show-error \
+            --connect-timeout 10 --max-time 30 \
+            --header 'Content-Type: application/json' \
+            --data-binary @- "$CICD_WEBHOOK_URL"
