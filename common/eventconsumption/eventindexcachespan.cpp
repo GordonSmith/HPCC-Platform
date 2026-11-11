@@ -18,6 +18,7 @@
 #include "eventindexcachespan.h"
 #include "eventindex.hpp"
 #include "eventutility.hpp"
+#include "jlog.hpp"
 #include <algorithm>
 #include <array>
 #include <memory>
@@ -30,7 +31,7 @@ namespace
 enum class CacheSpanState : unsigned
 {
     Open,
-    Loaded = 0x01,
+    Missed = 0x01,
     Hit = 0x02,
     Evicted = 0x04,
 };
@@ -39,8 +40,12 @@ BITMASK_ENUM(CacheSpanState);
 // by checking if all bits in 'r' are set in 'l'.
 inline bool hasMasks(CacheSpanState l, CacheSpanState r) { return (l & r) == r; }
 
-constexpr CacheSpanState spanComplete = CacheSpanState::Loaded | CacheSpanState::Evicted;
+constexpr CacheSpanState spanComplete = CacheSpanState::Missed | CacheSpanState::Evicted;
 constexpr unsigned spanStateCount = unsigned(spanComplete | CacheSpanState::Hit) + 1;
+
+// Event timestamps are nanoseconds. Evictions within 10 us of a miss are treated as
+// delayed reports for the previous span, before the new load could have completed.
+constexpr __uint64 delayedEvictionWindowNs = 10000;
 
 using AccessGapRange = std::pair<__uint64, __uint64>;
 
@@ -94,6 +99,8 @@ struct CacheSpanRecord
     EventFileProperties properties;
     __uint64 liveElapsed{0};
     __uint64 deadElapsed{0};
+    bool hasDeadElapsed{false};
+    std::optional<__uint64> unresolvedElapsed;
     __uint64 accesses{0};
     AccessGapRange accessGaps;
 };
@@ -104,10 +111,12 @@ public:
     __uint64 spans{0};
     SpanMetric liveElapsed;
     SpanMetric deadElapsed;
+    SpanMetric unresolvedElapsed;
     SpanMetric completeElapsed;
     SpanMetric accessCount;
     AccessGapRange accessGaps;
     __uint64 accessGapCount{0};
+    __uint64 accessGapSum{0};
     AverageMetric accessGapSpanAverage;
 
     void accumulate(const CacheSpanRecord& span)
@@ -118,14 +127,17 @@ public:
         accessCount.accumulate(span.accesses);
         if (span.accesses)
             liveElapsed.accumulate(span.liveElapsed);
-        if (span.accesses && hasMasks(span.state, CacheSpanState::Evicted))
+        if (hasMasks(span.state, CacheSpanState::Evicted) && span.hasDeadElapsed)
             deadElapsed.accumulate(span.deadElapsed);
+        if (span.unresolvedElapsed)
+            unresolvedElapsed.accumulate(*span.unresolvedElapsed);
         if (hasMasks(span.state, spanComplete))
             completeElapsed.accumulate(span.liveElapsed + span.deadElapsed);
         if (spanGapCount)
         {
             accessGapCount += spanGapCount;
-            accessGapSpanAverage.accumulate((double)span.liveElapsed / (span.accesses - 1));
+            accessGapSum += span.liveElapsed;
+            accessGapSpanAverage.accumulate((double)span.liveElapsed / spanGapCount);
             if (!hasAccessGaps)
                 accessGaps = span.accessGaps;
             else
@@ -203,8 +215,7 @@ public:
     {
         if (isRoot && hierarchy.empty())
         {
-            formatter.outputClassified({}, subTotal, includeComplete, includeIncomplete);
-            formatter.outputAll({}, subTotal);
+            formatter.outputSummary(parentValues, subTotal, includeComplete, includeIncomplete);
             return;
         }
 
@@ -230,18 +241,10 @@ public:
             child->render(formatter, allValues, hierarchy, currentLevel + 1, false, includeComplete, includeIncomplete);
 
         if (leafSummary)
-        {
-            formatter.outputClassified(allValues, *leafSummary, includeComplete, includeIncomplete);
-            formatter.outputAll(allValues, *leafSummary);
-        }
+            formatter.outputSummary(allValues, *leafSummary, includeComplete, includeIncomplete);
 
         if (!children.empty() || isRoot)
-        {
-            const std::vector<std::string> emptyValues;
-            const std::vector<std::string>& subtotalValues = isRoot ? emptyValues : allValues;
-            formatter.outputClassified(subtotalValues, subTotal, includeComplete, includeIncomplete);
-            formatter.outputAll(subtotalValues, subTotal);
-        }
+            formatter.outputSummary(isRoot ? parentValues : allValues, subTotal, includeComplete, includeIncomplete);
     }
 };
 
@@ -261,7 +264,7 @@ public:
             for (const auto& column : group)
                 appendHeaderColumn(line, column.c_str());
         }
-        appendHeaderColumn(line, "Loaded");
+        appendHeaderColumn(line, "Missed");
         appendHeaderColumn(line, "Hit");
         appendHeaderColumn(line, "Evicted");
         appendHeaderColumn(line, "Spans");
@@ -282,11 +285,14 @@ public:
         appendHeaderColumn(line, "AccessGapMax");
         appendHeaderColumn(line, "AccessGapWeightedAvg");
         appendHeaderColumn(line, "AccessGapSpanAvg");
+        appendHeaderColumn(line, "UnresolvedElapsedMin");
+        appendHeaderColumn(line, "UnresolvedElapsedMax");
+        appendHeaderColumn(line, "UnresolvedElapsedAvg");
         line.append('\n');
         out.put(line.length(), line.str());
     }
 
-    void outputClassified(const std::vector<std::string>& groupValues, const CacheSpanAccumulator& accumulator, bool includeComplete, bool includeIncomplete)
+    void outputSummary(const std::vector<std::string>& groupValues, const CacheSpanAccumulator& accumulator, bool includeComplete, bool includeIncomplete)
     {
         for (unsigned stateValue = 0; stateValue < spanStateCount; stateValue++)
         {
@@ -297,25 +303,15 @@ public:
             bool complete = hasMasks(state, spanComplete);
             if ((complete && !includeComplete) || (!complete && !includeIncomplete))
                 continue;
-            StringBuffer line;
-            size_t expected = groupColumnCount();
-            for (size_t idx = 0; idx < expected; ++idx)
-            {
-                if (idx != 0)
-                    line.append(',');
-                if (idx < groupValues.size() && !groupValues[idx].empty())
-                    encodeCSVColumn(line, groupValues[idx].c_str());
-            }
-            appendMetricColumns(line, stats, state, expected != 0, true, hasMasks(state, spanComplete));
-            line.append('\n');
-            out.put(line.length(), line.str());
+            outputRow(groupValues, stats, state);
         }
+        if (accumulator.allSpans.spans)
+            outputRow(groupValues, accumulator.allSpans, std::nullopt);
     }
 
-    void outputAll(const std::vector<std::string>& groupValues, const CacheSpanAccumulator& accumulator)
+private:
+    void outputRow(const std::vector<std::string>& groupValues, const CacheSpanStats& stats, std::optional<CacheSpanState> state)
     {
-        if (0 == accumulator.allSpans.spans)
-            return;
         StringBuffer line;
         size_t expected = groupColumnCount();
         for (size_t idx = 0; idx < expected; ++idx)
@@ -325,12 +321,11 @@ public:
             if (idx < groupValues.size() && !groupValues[idx].empty())
                 encodeCSVColumn(line, groupValues[idx].c_str());
         }
-        appendMetricColumns(line, accumulator.allSpans, CacheSpanState::Open, expected != 0, false, 0 != accumulator.allSpans.completeElapsed.count);
+        appendMetricColumns(line, stats, state, expected != 0);
         line.append('\n');
         out.put(line.length(), line.str());
     }
 
-private:
     size_t groupColumnCount() const
     {
         size_t count = 0;
@@ -381,18 +376,20 @@ private:
         encodeCSVColumn(line, value ? "true" : "false");
     }
 
-    static void appendStat(StringBuffer& line, const SpanMetric& stat, bool available)
+    static void appendStat(StringBuffer& line, const SpanMetric& stat)
     {
-        if (!available)
+        if (stat.count == 0)
         {
             appendCSVColumn(line, "");
             appendCSVColumn(line, "");
             appendCSVColumn(line, "");
-            return;
         }
-        appendCSVColumn(line, stat.min);
-        appendCSVColumn(line, stat.max);
-        appendCSVColumn(line, stat.average());
+        else
+        {
+            appendCSVColumn(line, stat.min);
+            appendCSVColumn(line, stat.max);
+            appendCSVColumn(line, stat.average());
+        }
     }
 
     static void appendAccessGaps(StringBuffer& line, const CacheSpanStats& stats)
@@ -403,32 +400,31 @@ private:
             appendCSVColumn(line, "");
             appendCSVColumn(line, "");
             appendCSVColumn(line, "");
-            return;
         }
-        __uint64 gaps = stats.accessGapCount;
-        appendCSVColumn(line, stats.accessGaps.first);
-        appendCSVColumn(line, stats.accessGaps.second);
-        appendCSVColumn(line, (double)stats.liveElapsed.sum / gaps);
-        appendCSVColumn(line, stats.accessGapSpanAverage.average());
+        else
+        {
+            appendCSVColumn(line, stats.accessGaps.first);
+            appendCSVColumn(line, stats.accessGaps.second);
+            appendCSVColumn(line, (double)stats.accessGapSum / stats.accessGapCount);
+            appendCSVColumn(line, stats.accessGapSpanAverage.average());
+        }
     }
 
     static void appendLiveDeadRatio(StringBuffer& line, const CacheSpanStats& stats)
     {
         if (0 == stats.deadElapsed.count || 0 == stats.deadElapsed.sum)
-        {
             appendCSVColumn(line, "");
-            return;
-        }
-        appendCSVColumn(line, (double)stats.liveElapsed.sum / stats.deadElapsed.sum);
+        else
+            appendCSVColumn(line, (double)stats.liveElapsed.sum / stats.deadElapsed.sum);
     }
 
-    static void appendMetricColumns(StringBuffer& line, const CacheSpanStats& stats, CacheSpanState state, bool groupColumnsPrecedeStats, bool includeStateFlags, bool includeCompleteElapsed)
+    static void appendMetricColumns(StringBuffer& line, const CacheSpanStats& stats, std::optional<CacheSpanState> state, bool groupColumnsPrecedeStats)
     {
-        if (includeStateFlags)
+        if (state)
         {
-            appendCSVColumn(line, hasMask(state, CacheSpanState::Loaded), groupColumnsPrecedeStats);
-            appendCSVColumn(line, hasMask(state, CacheSpanState::Hit), false);
-            appendCSVColumn(line, hasMask(state, CacheSpanState::Evicted), false);
+            appendCSVColumn(line, hasMask(*state, CacheSpanState::Missed), groupColumnsPrecedeStats);
+            appendCSVColumn(line, hasMask(*state, CacheSpanState::Hit), false);
+            appendCSVColumn(line, hasMask(*state, CacheSpanState::Evicted), false);
         }
         else
         {
@@ -438,12 +434,13 @@ private:
                 line.append(",,,");
         }
         appendCSVColumn(line, stats.spans);
-        appendStat(line, stats.liveElapsed, 0 != stats.liveElapsed.count);
-        appendStat(line, stats.deadElapsed, 0 != stats.deadElapsed.count);
+        appendStat(line, stats.liveElapsed);
+        appendStat(line, stats.deadElapsed);
         appendLiveDeadRatio(line, stats);
-        appendStat(line, stats.completeElapsed, includeCompleteElapsed);
-        appendStat(line, stats.accessCount, true);
+        appendStat(line, stats.completeElapsed);
+        appendStat(line, stats.accessCount);
         appendAccessGaps(line, stats);
+        appendStat(line, stats.unresolvedElapsed);
     }
 
 private:
@@ -481,14 +478,18 @@ private:
     CCacheSpanGroupNode root;
 };
 
+// The input stream must be chronological; access gaps and eviction delays rely on this ordering.
 class CIndexCacheSpanVisitor : public CInterfaceOf<IEventVisitor>
 {
     struct LiveNode
     {
-        bool startedByLoad{false};
+        CacheSpanState state{CacheSpanState::Open};
         CEvent firstEvent;
-        __uint64 loadTimestamp{0};
+        EventFileProperties properties;
+        __uint64 firstAccessTimestamp{0};
         __uint64 lastAccessTimestamp{0};
+        __uint64 lastMissTimestamp{0};
+        std::optional<__uint64> pendingLastHitTimestamp;
         __uint64 gaps{0};
         AccessGapRange accessGaps;
     };
@@ -498,8 +499,10 @@ public:
     {
     }
 
-    virtual bool visitFile([[maybe_unused]] const EventFileProperties& properties) override
+    virtual bool visitFile(const EventFileProperties& properties) override
     {
+        fileStartTimestamp = properties.startTimestamp;
+        hasFileStartTimestamp = properties.startTimestamp != 0;
         return true;
     }
 
@@ -507,11 +510,11 @@ public:
     {
         switch (event.queryType())
         {
-        case EventIndexLoad:
-            onLoad(event, properties);
+        case EventIndexCacheMiss:
+            onAccess(event, properties, CacheSpanState::Missed);
             break;
         case EventIndexCacheHit:
-            onHit(event, properties);
+            onAccess(event, properties, CacheSpanState::Hit);
             break;
         case EventIndexEviction:
             onEviction(event, properties);
@@ -524,9 +527,14 @@ public:
 
     virtual void departFile(const EventFileProperties& properties) override
     {
-        for (const auto& item : liveNodes)
-            emitOpenSpan(item.second, properties);
+        for (auto& item : liveNodes)
+        {
+            reportPendingTransition(item.second, std::nullopt);
+            emitSpan(item.second, CacheSpanState::Open, properties.endTimestamp, properties.endTimestamp != 0);
+        }
         liveNodes.clear();
+        fileStartTimestamp = 0;
+        hasFileStartTimestamp = false;
     }
 
 private:
@@ -547,46 +555,65 @@ private:
         span.id = nextSpanId++;
         span.state = state;
         span.representative = representative;
-        span.properties.path = properties.path;
+        span.properties = properties;
         return span;
     }
 
-    void onLoad(const CEvent& event, const EventFileProperties& properties)
+    void reportPendingTransition(LiveNode& node, std::optional<__uint64> evictionTimestamp)
     {
-        if (!canUseEvent(event))
+        if (!node.pendingLastHitTimestamp)
             return;
-        FileIdFileOffsetKey key = queryKey(event);
-        auto existing = liveNodes.find(key);
-        if (existing != liveNodes.end())
-        {
-            emitOpenSpan(existing->second, properties);
-            liveNodes.erase(existing);
-        }
-
-        LiveNode& node = liveNodes[key];
-        node.startedByLoad = true;
-        node.firstEvent = event;
-        node.loadTimestamp = event.queryNumericValue(EvAttrEventTimestamp);
-        node.lastAccessTimestamp = node.loadTimestamp;
+        StringBuffer lastHitText;
+        StringBuffer missText;
+        StringBuffer evictionText;
+        DBGLOG("Index cache span hit followed by miss: FileId=%llu FileOffset=%llu LastHit=%s Miss=%s Eviction=%s",
+            node.firstEvent.queryNumericValue(EvAttrFileId), node.firstEvent.queryNumericValue(EvAttrFileOffset),
+            formatTimestampNsText(lastHitText, *node.pendingLastHitTimestamp),
+            formatTimestampNsText(missText, node.lastMissTimestamp),
+            evictionTimestamp ? formatTimestampNsText(evictionText, *evictionTimestamp) : "no eviction");
+        node.pendingLastHitTimestamp.reset();
     }
 
-    void onHit(const CEvent& event, [[maybe_unused]] const EventFileProperties& properties)
+    void onAccess(const CEvent& event, const EventFileProperties& properties, CacheSpanState accessState)
     {
         if (!canUseEvent(event))
             return;
-        FileIdFileOffsetKey key = queryKey(event);
+        // EventTimestamp is in nanoseconds, as are all stored timestamps and elapsed times.
         __uint64 timestamp = event.queryNumericValue(EvAttrEventTimestamp);
-        LiveNode& node = liveNodes[key];
-        if (!node.startedByLoad && !node.lastAccessTimestamp)
+        auto [it, startsNewSpan] = liveNodes.try_emplace(queryKey(event));
+        LiveNode& node = it->second;
+        std::optional<__uint64> lastHitTimestamp;
+        if (!startsNewSpan)
         {
-            node.startedByLoad = false;
-            node.firstEvent = event;
-            node.lastAccessTimestamp = timestamp;
-            return;
+            reportPendingTransition(node, std::nullopt);
+            if (accessState == CacheSpanState::Missed && hasMask(node.state, CacheSpanState::Hit))
+            {
+                lastHitTimestamp = node.lastAccessTimestamp;
+                emitSpan(node, CacheSpanState::Evicted, timestamp, true);
+                startsNewSpan = true;
+            }
         }
 
-        if (timestamp >= node.lastAccessTimestamp)
+        if (startsNewSpan)
         {
+            bool hasPriorAccessEstimate = accessState == CacheSpanState::Hit && hasFileStartTimestamp
+                && timestamp >= fileStartTimestamp;
+            node.state = accessState;
+            node.firstEvent = event;
+            node.properties = properties;
+            node.pendingLastHitTimestamp = lastHitTimestamp;
+            node.firstAccessTimestamp = hasPriorAccessEstimate ? fileStartTimestamp : timestamp;
+            node.lastAccessTimestamp = timestamp;
+            node.lastMissTimestamp = accessState == CacheSpanState::Missed ? timestamp : 0;
+            node.gaps = hasPriorAccessEstimate ? 1 : 0;
+            __uint64 initialGap = hasPriorAccessEstimate ? timestamp - fileStartTimestamp : 0;
+            node.accessGaps = { initialGap, initialGap };
+        }
+        else
+        {
+            node.state |= accessState;
+            if (accessState == CacheSpanState::Missed)
+                node.lastMissTimestamp = timestamp;
             __uint64 elapsed = timestamp - node.lastAccessTimestamp;
             if (0 == node.gaps)
                 node.accessGaps = { elapsed, elapsed };
@@ -605,58 +632,46 @@ private:
         if (!canUseEvent(event))
             return;
         FileIdFileOffsetKey key = queryKey(event);
+        __uint64 timestamp = event.queryNumericValue(EvAttrEventTimestamp);
         auto existing = liveNodes.find(key);
         if (existing == liveNodes.end())
         {
             CacheSpanRecord span = createSpan(CacheSpanState::Evicted, event, properties);
+            if (hasFileStartTimestamp && timestamp >= fileStartTimestamp)
+            {
+                span.deadElapsed = timestamp - fileStartTimestamp;
+                span.hasDeadElapsed = true;
+            }
             sink.emit(span);
             return;
         }
 
-        const LiveNode& node = existing->second;
-        if (!node.startedByLoad)
-        {
-            CacheSpanRecord span = createSpan(CacheSpanState::Evicted, node.firstEvent, properties);
-            span.liveElapsed = node.lastAccessTimestamp - node.firstEvent.queryNumericValue(EvAttrEventTimestamp);
-            span.accesses = node.gaps + 1;
-            span.deadElapsed = event.queryNumericValue(EvAttrEventTimestamp) >= node.lastAccessTimestamp
-                ? event.queryNumericValue(EvAttrEventTimestamp) - node.lastAccessTimestamp : 0;
-            span.accessGaps = node.accessGaps;
-            if (!node.startedByLoad || node.gaps)
-                span.state |= CacheSpanState::Hit;
-            sink.emit(span);
-        }
-        else
-        {
-            __uint64 evictionTimestamp = event.queryNumericValue(EvAttrEventTimestamp);
-            CacheSpanRecord span = createSpan(spanComplete, node.firstEvent, properties);
-            span.liveElapsed = node.lastAccessTimestamp - node.loadTimestamp;
-            span.deadElapsed = evictionTimestamp >= node.lastAccessTimestamp ? evictionTimestamp - node.lastAccessTimestamp : 0;
-            span.accesses = node.gaps + 1;
-            span.accessGaps = node.accessGaps;
-            if (!node.startedByLoad || node.gaps)
-                span.state |= CacheSpanState::Hit;
-            sink.emit(span);
-        }
+        LiveNode& node = existing->second;
+        reportPendingTransition(node, timestamp);
+        // A new load cannot complete this quickly; the eviction belongs to the previous span.
+        if (hasMask(node.state, CacheSpanState::Missed) && timestamp - node.lastMissTimestamp <= delayedEvictionWindowNs)
+            return;
+        emitSpan(node, CacheSpanState::Evicted, timestamp, true);
         liveNodes.erase(existing);
     }
 
-    void emitOpenSpan(const LiveNode& node, const EventFileProperties& properties)
+    void emitSpan(const LiveNode& node, CacheSpanState endState, __uint64 endTimestamp, bool hasEndTimestamp)
     {
-        CacheSpanRecord span = createSpan(node.startedByLoad ? CacheSpanState::Loaded : CacheSpanState::Open, node.firstEvent, properties);
+        CacheSpanRecord span = createSpan(node.state | endState, node.firstEvent, node.properties);
         span.accesses = node.gaps + 1;
-        if (node.startedByLoad)
+        span.liveElapsed = node.lastAccessTimestamp >= node.firstAccessTimestamp
+            ? node.lastAccessTimestamp - node.firstAccessTimestamp : 0;
+        span.accessGaps = node.accessGaps;
+        if (hasEndTimestamp && endTimestamp >= node.lastAccessTimestamp)
         {
-            span.liveElapsed = node.lastAccessTimestamp - node.loadTimestamp;
-            span.accessGaps = node.accessGaps;
+            if (endState == CacheSpanState::Evicted)
+            {
+                span.deadElapsed = endTimestamp - node.lastAccessTimestamp;
+                span.hasDeadElapsed = true;
+            }
+            else
+                span.unresolvedElapsed = endTimestamp - node.lastAccessTimestamp;
         }
-        else
-        {
-            span.liveElapsed = node.lastAccessTimestamp - node.firstEvent.queryNumericValue(EvAttrEventTimestamp);
-            span.accessGaps = node.accessGaps;
-        }
-        if (!node.startedByLoad || node.gaps)
-            span.state |= CacheSpanState::Hit;
         sink.emit(span);
     }
 
@@ -664,6 +679,8 @@ private:
     ICacheSpanRowSink& sink;
     std::unordered_map<FileIdFileOffsetKey, LiveNode, FileIdFileOffsetKeyHash> liveNodes;
     __uint64 nextSpanId{1};
+    __uint64 fileStartTimestamp{0};
+    bool hasFileStartTimestamp{false};
 };
 
 } // namespace
@@ -732,9 +749,24 @@ public:
         spans.push_back(span);
     }
 
-public:
+    CacheSpanAccumulator summarize() const
+    {
+        CacheSpanAccumulator totals;
+        for (const auto& span : spans)
+            totals.accumulate(span);
+        return totals;
+    }
+
     std::vector<CacheSpanRecord> spans;
 };
+
+void renderGroupedCacheSpans(StringBuffer& output, const CCacheSpanGroupingSink& grouping, const std::vector<std::vector<std::string>>& groupNames)
+{
+    Owned<IBufferedSerialOutputStream> stream = createBufferedSerialOutputStream(output);
+    CCacheSpanCsvFormatter formatter(*stream, groupNames);
+    formatter.begin();
+    grouping.render(formatter);
+}
 
 CEvent makeIndexCacheEvent(EventType type, __uint64 timestamp, __uint64 fileId, offset_t offset, NodeKind nodeKind)
 {
@@ -745,7 +777,8 @@ CEvent makeIndexCacheEvent(EventType type, __uint64 timestamp, __uint64 fileId, 
     event.setValue(EvAttrFileOffset, offset);
     event.setValue(EvAttrNodeKind, __uint64(nodeKind));
     event.setValue(EvAttrSearchFlags, __uint64(0));
-    event.setValue(EvAttrInMemorySize, __uint64(8192));
+    if (type != EventIndexCacheMiss)
+        event.setValue(EvAttrInMemorySize, __uint64(8192));
     if (EventIndexLoad == type)
     {
         event.setValue(EvAttrExpandTime, __uint64(0));
@@ -756,16 +789,16 @@ CEvent makeIndexCacheEvent(EventType type, __uint64 timestamp, __uint64 fileId, 
     return event;
 }
 
-void visitIndexCacheEvent(IEventVisitor& visitor, EventType type, __uint64 timestamp, __uint64 fileId, offset_t offset, NodeKind nodeKind)
-{
-    CEvent event = makeIndexCacheEvent(type, timestamp, fileId, offset, nodeKind);
-    visitor.visitEvent(event, queryTestEventFileProperties());
-}
-
-void visitIndexCacheEvent(IEventVisitor& visitor, EventType type, __uint64 timestamp, __uint64 fileId, offset_t offset, NodeKind nodeKind, const EventFileProperties& properties)
+void visitIndexCacheEvent(IEventVisitor& visitor, const EventFileProperties& properties, EventType type, __uint64 timestamp, __uint64 fileId, offset_t offset, NodeKind nodeKind)
 {
     CEvent event = makeIndexCacheEvent(type, timestamp, fileId, offset, nodeKind);
     visitor.visitEvent(event, properties);
+}
+
+void visitIndexCacheEvent(IEventVisitor& visitor, EventType type, __uint64 timestampUs, __uint64 fileId, offset_t offset, NodeKind nodeKind)
+{
+    // Test shorthand accepts microseconds; the event stream uses nanoseconds.
+    visitIndexCacheEvent(visitor, queryTestEventFileProperties(), type, timestampUs * 1000, fileId, offset, nodeKind);
 }
 
 } // namespace
@@ -774,18 +807,29 @@ class EventIndexCacheSpanTest : public CppUnit::TestFixture
 {
     CPPUNIT_TEST_SUITE(EventIndexCacheSpanTest);
     CPPUNIT_TEST(testCompleteSpan);
-    CPPUNIT_TEST(testLoadCanBeLastAccess);
+    CPPUNIT_TEST(testMissCanBeLastAccess);
     CPPUNIT_TEST(testFirstHitIsAmbiguous);
     CPPUNIT_TEST(testFirstEvictionIsAmbiguous);
-    CPPUNIT_TEST(testNoLoadIncludesFirstEviction);
-    CPPUNIT_TEST(testOpenLoadedNodeIsIncomplete);
+    CPPUNIT_TEST(testNoMissIncludesFirstEviction);
+    CPPUNIT_TEST(testOpenMissedNodeIsIncomplete);
     CPPUNIT_TEST(testGroupingDoesNotSkewCompleteStats);
-    CPPUNIT_TEST(testGroupingByInputFileName);
     CPPUNIT_TEST(testCsvOutputUsesGroupColumnsThenStats);
     CPPUNIT_TEST(testAccessGapAveragesUseDifferentWeights);
     CPPUNIT_TEST(testAccessGapsIncludeEvictionOnlySpans);
     CPPUNIT_TEST(testSpecialCasesCanBeIncluded);
     CPPUNIT_TEST(testNoGroupKeyEmitsRootSubtotalOnly);
+    CPPUNIT_TEST(testGroupsUseDeterministicOrder);
+    CPPUNIT_TEST(testMissAfterHitUsesEvictionProxy);
+    CPPUNIT_TEST(testDeferredTransitionDiagnostics);
+    CPPUNIT_TEST(testDelayedEvictionWindow);
+    CPPUNIT_TEST(testConsecutiveMissesAreContention);
+    CPPUNIT_TEST(testLoadsAreIgnored);
+    CPPUNIT_TEST(testRecordingBoundaries);
+    CPPUNIT_TEST(testZeroTimestampAccesses);
+    CPPUNIT_TEST(testInputFileNameGrouping);
+    CPPUNIT_TEST(testRepeatedSpanResets);
+    CPPUNIT_TEST(testNestedCsvOutput);
+    CPPUNIT_TEST(testCsvWithoutGapsOrDeadTime);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -795,7 +839,7 @@ public:
         CCollectingCacheSpanSink sink;
         CIndexCacheSpanVisitor visitor(sink);
 
-        visitIndexCacheEvent(visitor, EventIndexLoad, 100, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 130, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 180, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 250, 1, 4096, LeafNode);
@@ -803,28 +847,28 @@ public:
         CPPUNIT_ASSERT_EQUAL(size_t(1), sink.spans.size());
         const CacheSpanRecord& span = sink.spans[0];
         CPPUNIT_ASSERT((spanComplete | CacheSpanState::Hit) == span.state);
-        CPPUNIT_ASSERT_EQUAL(__uint64(80), span.liveElapsed);
-        CPPUNIT_ASSERT_EQUAL(__uint64(70), span.deadElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(80000), span.liveElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(70000), span.deadElapsed);
         CPPUNIT_ASSERT_EQUAL(__uint64(3), span.accesses);
-        CPPUNIT_ASSERT_EQUAL(__uint64(30), span.accessGaps.first);
-        CPPUNIT_ASSERT_EQUAL(__uint64(50), span.accessGaps.second);
+        CPPUNIT_ASSERT_EQUAL(__uint64(30000), span.accessGaps.first);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), span.accessGaps.second);
         END_TEST
     }
 
-    void testLoadCanBeLastAccess()
+    void testMissCanBeLastAccess()
     {
         START_TEST
         CCollectingCacheSpanSink sink;
         CIndexCacheSpanVisitor visitor(sink);
 
-        visitIndexCacheEvent(visitor, EventIndexLoad, 100, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 250, 1, 4096, LeafNode);
 
         CPPUNIT_ASSERT_EQUAL(size_t(1), sink.spans.size());
         const CacheSpanRecord& span = sink.spans[0];
         CPPUNIT_ASSERT(spanComplete == span.state);
         CPPUNIT_ASSERT_EQUAL(__uint64(0), span.liveElapsed);
-        CPPUNIT_ASSERT_EQUAL(__uint64(150), span.deadElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(150000), span.deadElapsed);
         CPPUNIT_ASSERT_EQUAL(__uint64(1), span.accesses);
         END_TEST
     }
@@ -854,10 +898,12 @@ public:
         CPPUNIT_ASSERT_EQUAL(size_t(1), sink.spans.size());
         CPPUNIT_ASSERT(CacheSpanState::Evicted == sink.spans[0].state);
         CPPUNIT_ASSERT_EQUAL(__uint64(0), sink.spans[0].accesses);
+        CacheSpanAccumulator totals = sink.summarize();
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), totals.allSpans.deadElapsed.count);
         END_TEST
     }
 
-    void testNoLoadIncludesFirstEviction()
+    void testNoMissIncludesFirstEviction()
     {
         START_TEST
         CMetaInfoState metaState;
@@ -865,27 +911,31 @@ public:
         CCacheSpanGroupingSink grouping(metaState, groupAttrs, true, false);
         CIndexCacheSpanVisitor visitor(grouping);
 
-        visitIndexCacheEvent(visitor, EventIndexEviction, 250, 1, 4096, LeafNode);
+        EventFileProperties properties;
+        properties.startTimestamp = 250000;
+        visitor.visitFile(properties);
+        visitIndexCacheEvent(visitor, properties, EventIndexEviction, 250000, 1, 4096, LeafNode);
 
         const CacheSpanStats& stats = grouping.queryRoot().subTotal.states[unsigned(CacheSpanState::Evicted)];
         CPPUNIT_ASSERT_EQUAL(__uint64(1), stats.spans);
         CPPUNIT_ASSERT_EQUAL(__uint64(0), stats.accessCount.sum);
         CPPUNIT_ASSERT_EQUAL(__uint64(0), stats.liveElapsed.count);
-        CPPUNIT_ASSERT_EQUAL(__uint64(0), stats.deadElapsed.count);
+        CPPUNIT_ASSERT_EQUAL(__uint64(1), stats.deadElapsed.count);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), stats.deadElapsed.sum);
         END_TEST
     }
 
-    void testOpenLoadedNodeIsIncomplete()
+    void testOpenMissedNodeIsIncomplete()
     {
         START_TEST
         CCollectingCacheSpanSink sink;
         CIndexCacheSpanVisitor visitor(sink);
 
-        visitIndexCacheEvent(visitor, EventIndexLoad, 100, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
         visitor.departFile(queryTestEventFileProperties());
 
         CPPUNIT_ASSERT_EQUAL(size_t(1), sink.spans.size());
-        CPPUNIT_ASSERT(CacheSpanState::Loaded == sink.spans[0].state);
+        CPPUNIT_ASSERT(CacheSpanState::Missed == sink.spans[0].state);
         END_TEST
     }
 
@@ -897,7 +947,7 @@ public:
         CCacheSpanGroupingSink grouping(metaState, groupAttrs, true, false);
         CIndexCacheSpanVisitor visitor(grouping);
 
-        visitIndexCacheEvent(visitor, EventIndexLoad, 100, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 150, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 180, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 200, 2, 4096, LeafNode);
@@ -906,41 +956,10 @@ public:
         const CacheSpanAccumulator& totals = grouping.queryRoot().subTotal;
         CPPUNIT_ASSERT_EQUAL(__uint64(1), totals.states[7].spans);
         CPPUNIT_ASSERT_EQUAL(__uint64(0), totals.states[5].spans);
-        CPPUNIT_ASSERT_EQUAL(__uint64(50), totals.states[7].liveElapsed.sum);
-        CPPUNIT_ASSERT_EQUAL(__uint64(30), totals.states[7].deadElapsed.sum);
-        CPPUNIT_ASSERT_EQUAL(__uint64(80), totals.states[7].completeElapsed.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), totals.states[7].liveElapsed.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(30000), totals.states[7].deadElapsed.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(80000), totals.states[7].completeElapsed.sum);
         CPPUNIT_ASSERT_EQUAL(__uint64(2), totals.states[7].accessCount.sum);
-        END_TEST
-    }
-
-    void testGroupingByInputFileName()
-    {
-        START_TEST
-        CMetaInfoState metaState;
-        std::vector<std::vector<GroupAttribute>> groupAttrs{{GroupAttributeExtractor::parseAttribute("InputFileName")}};
-        CCacheSpanGroupingSink grouping(metaState, groupAttrs, true, false);
-        CIndexCacheSpanVisitor visitor(grouping);
-        EventFileProperties firstProperties;
-        firstProperties.path.set("/tmp/first.evt");
-        EventFileProperties secondProperties;
-        secondProperties.path.set("C:\\dir\\second.evt");
-
-        visitIndexCacheEvent(visitor, EventIndexLoad, 100, 1, 4096, LeafNode, firstProperties);
-        visitIndexCacheEvent(visitor, EventIndexEviction, 150, 1, 4096, LeafNode, firstProperties);
-        visitIndexCacheEvent(visitor, EventIndexLoad, 200, 2, 4096, LeafNode, secondProperties);
-        visitIndexCacheEvent(visitor, EventIndexEviction, 250, 2, 4096, LeafNode, secondProperties);
-
-        CPPUNIT_ASSERT_EQUAL(size_t(2), grouping.queryRoot().children.size());
-        bool foundFirst = false;
-        bool foundSecond = false;
-        for (const auto& child : grouping.queryRoot().children)
-        {
-            CPPUNIT_ASSERT_EQUAL(size_t(1), child.second->groupValues.size());
-            foundFirst = foundFirst || child.second->groupValues[0] == "first.evt";
-            foundSecond = foundSecond || child.second->groupValues[0] == "second.evt";
-        }
-        CPPUNIT_ASSERT(foundFirst);
-        CPPUNIT_ASSERT(foundSecond);
         END_TEST
     }
 
@@ -953,22 +972,18 @@ public:
         CCacheSpanGroupingSink grouping(metaState, groupAttrs, true, false);
         CIndexCacheSpanVisitor visitor(grouping);
 
-        visitIndexCacheEvent(visitor, EventIndexLoad, 100, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 150, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 180, 1, 4096, LeafNode);
 
         StringBuffer output;
-        Owned<IBufferedSerialOutputStream> stream = createBufferedSerialOutputStream(output);
-        CCacheSpanCsvFormatter formatter(*stream, groupNames);
-        formatter.begin();
-        grouping.render(formatter);
-        stream.clear();
+        renderGroupedCacheSpans(output, grouping, groupNames);
 
-        const char* expectedHeader = "NodeKind,Loaded,Hit,Evicted,Spans,LiveElapsedMin,LiveElapsedMax,LiveElapsedAvg,DeadElapsedMin,DeadElapsedMax,DeadElapsedAvg,LiveDeadRatio,CompleteElapsedMin,CompleteElapsedMax,CompleteElapsedAvg,AccessesMin,AccessesMax,AccessesAvg,AccessGapMin,AccessGapMax,AccessGapWeightedAvg,AccessGapSpanAvg\n";
+        const char* expectedHeader = "NodeKind,Missed,Hit,Evicted,Spans,LiveElapsedMin,LiveElapsedMax,LiveElapsedAvg,DeadElapsedMin,DeadElapsedMax,DeadElapsedAvg,LiveDeadRatio,CompleteElapsedMin,CompleteElapsedMax,CompleteElapsedAvg,AccessesMin,AccessesMax,AccessesAvg,AccessGapMin,AccessGapMax,AccessGapWeightedAvg,AccessGapSpanAvg,UnresolvedElapsedMin,UnresolvedElapsedMax,UnresolvedElapsedAvg\n";
         CPPUNIT_ASSERT_EQUAL(std::string(expectedHeader), std::string(output.str(), strlen(expectedHeader)));
         CPPUNIT_ASSERT(nullptr == strstr(output.str(), "RowType"));
-        CPPUNIT_ASSERT(nullptr != strstr(output.str(), "\"leaf\",\"true\",\"true\",\"true\",1,50,50,50.000,30,30,30.000,1.667,80,80,80.000,2,2,2.000,50,50,50.000,50.000\n"));
-        CPPUNIT_ASSERT(nullptr != strstr(output.str(), "\n,\"true\",\"true\",\"true\",1,50,50,50.000,30,30,30.000,1.667,80,80,80.000,2,2,2.000,50,50,50.000,50.000\n"));
+        CPPUNIT_ASSERT(nullptr != strstr(output.str(), "\"leaf\",\"true\",\"true\",\"true\",1,50000,50000,50000.000,30000,30000,30000.000,1.667,80000,80000,80000.000,2,2,2.000,50000,50000,50000.000,50000.000,,,\n"));
+        CPPUNIT_ASSERT(nullptr != strstr(output.str(), "\n,\"true\",\"true\",\"true\",1,50000,50000,50000.000,30000,30000,30000.000,1.667,80000,80000,80000.000,2,2,2.000,50000,50000,50000.000,50000.000,,,\n"));
         END_TEST
     }
 
@@ -980,17 +995,17 @@ public:
         CCacheSpanGroupingSink grouping(metaState, groupAttrs, true, false);
         CIndexCacheSpanVisitor visitor(grouping);
 
-        visitIndexCacheEvent(visitor, EventIndexLoad, 100, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 200, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 250, 1, 4096, LeafNode);
-        visitIndexCacheEvent(visitor, EventIndexLoad, 300, 2, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 300, 2, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 301, 2, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 302, 2, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 350, 2, 4096, LeafNode);
 
         const CacheSpanStats& stats = grouping.queryRoot().subTotal.states[unsigned(spanComplete | CacheSpanState::Hit)];
-        CPPUNIT_ASSERT_DOUBLES_EQUAL(34.0, (double)stats.liveElapsed.sum / (stats.accessCount.sum - stats.accessCount.count), 0.001);
-        CPPUNIT_ASSERT_DOUBLES_EQUAL(50.5, stats.accessGapSpanAverage.average(), 0.001);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(34000.0, (double)stats.accessGapSum / stats.accessGapCount, 0.001);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(50500.0, stats.accessGapSpanAverage.average(), 0.001);
         END_TEST
     }
 
@@ -1003,25 +1018,21 @@ public:
         CCacheSpanGroupingSink grouping(metaState, groupAttrs, true, true);
         CIndexCacheSpanVisitor visitor(grouping);
 
-        visitIndexCacheEvent(visitor, EventIndexLoad, 100, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 110, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 130, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 150, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 200, 2, 4096, LeafNode);
-        visitIndexCacheEvent(visitor, EventIndexLoad, 300, 3, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 300, 3, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 330, 3, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 360, 3, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 400, 3, 4096, LeafNode);
 
         StringBuffer output;
-        Owned<IBufferedSerialOutputStream> stream = createBufferedSerialOutputStream(output);
-        CCacheSpanCsvFormatter formatter(*stream, groupNames);
-        formatter.begin();
-        grouping.render(formatter);
-        stream.clear();
+        renderGroupedCacheSpans(output, grouping, groupNames);
 
         CPPUNIT_ASSERT(nullptr != strstr(output.str(), "AccessGapMin,AccessGapMax,AccessGapWeightedAvg,AccessGapSpanAvg"));
-        CPPUNIT_ASSERT(nullptr != strstr(output.str(), ",10,30,22.500,22.500\n"));
+        CPPUNIT_ASSERT(nullptr != strstr(output.str(), ",10000,30000,22500.000,22500.000,,,\n"));
         END_TEST
     }
 
@@ -1036,7 +1047,7 @@ public:
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 100, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 150, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 180, 1, 4096, LeafNode);
-        visitIndexCacheEvent(visitor, EventIndexLoad, 200, 2, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 200, 2, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexCacheHit, 250, 3, 4096, LeafNode);
         visitor.departFile(queryTestEventFileProperties());
 
@@ -1047,10 +1058,10 @@ public:
         CPPUNIT_ASSERT_EQUAL(__uint64(2), totals.states[6].accessCount.sum);
         CPPUNIT_ASSERT_EQUAL(__uint64(1), totals.states[2].accessCount.sum);
         CPPUNIT_ASSERT_EQUAL(__uint64(1), totals.states[1].accessCount.sum);
-        CPPUNIT_ASSERT_EQUAL(__uint64(30), totals.states[6].deadElapsed.sum);
-        CPPUNIT_ASSERT_EQUAL(__uint64(50), totals.states[6].liveElapsed.sum);
-        CPPUNIT_ASSERT_EQUAL(__uint64(50), totals.states[6].accessGaps.first);
-        CPPUNIT_ASSERT_EQUAL(__uint64(50), totals.states[6].accessGaps.second);
+        CPPUNIT_ASSERT_EQUAL(__uint64(30000), totals.states[6].deadElapsed.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), totals.states[6].liveElapsed.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), totals.states[6].accessGaps.first);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), totals.states[6].accessGaps.second);
         CPPUNIT_ASSERT_EQUAL(__uint64(0), totals.states[2].liveElapsed.sum);
         END_TEST
     }
@@ -1063,18 +1074,14 @@ public:
         CCacheSpanGroupingSink grouping(metaState, groupAttrs, true, false);
         CIndexCacheSpanVisitor visitor(grouping);
 
-        visitIndexCacheEvent(visitor, EventIndexLoad, 100, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
         visitIndexCacheEvent(visitor, EventIndexEviction, 180, 1, 4096, LeafNode);
-        visitIndexCacheEvent(visitor, EventIndexLoad, 200, 2, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 200, 2, 4096, LeafNode);
         visitor.departFile(queryTestEventFileProperties());
 
         StringBuffer output;
-        Owned<IBufferedSerialOutputStream> stream = createBufferedSerialOutputStream(output);
         std::vector<std::vector<std::string>> groupNames;
-        CCacheSpanCsvFormatter formatter(*stream, groupNames);
-        formatter.begin();
-        grouping.render(formatter);
-        stream.clear();
+        renderGroupedCacheSpans(output, grouping, groupNames);
 
         const char* firstNewline = strchr(output.str(), '\n');
         CPPUNIT_ASSERT(firstNewline);
@@ -1083,11 +1090,423 @@ public:
         const char* thirdNewline = strchr(secondNewline + 1, '\n');
         CPPUNIT_ASSERT(thirdNewline);
         CPPUNIT_ASSERT(nullptr == strchr(thirdNewline + 1, '\n'));
-        CPPUNIT_ASSERT(nullptr != strstr(output.str(), "\"true\",\"false\",\"true\",1,0,0,0.000,80,80,80.000"));
+        CPPUNIT_ASSERT(nullptr != strstr(output.str(), "\"true\",\"false\",\"true\",1,0,0,0.000,80000,80000,80000.000"));
         CPPUNIT_ASSERT(nullptr != strstr(output.str(), "\n,,,2,"));
-        CPPUNIT_ASSERT(nullptr != strstr(output.str(), ",1,1,1.000,,,,\n"));
+        CPPUNIT_ASSERT(nullptr != strstr(output.str(), ",1,1,1.000,,,,,,,\n"));
         END_TEST
     }
+
+    void testMissAfterHitUsesEvictionProxy()
+    {
+        START_TEST
+        for (bool startsWithMiss : {false, true})
+        {
+            CCollectingCacheSpanSink sink;
+            CIndexCacheSpanVisitor visitor(sink);
+            if (startsWithMiss)
+                visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
+            visitIndexCacheEvent(visitor, EventIndexCacheHit, 150, 1, 4096, LeafNode);
+            visitIndexCacheEvent(visitor, EventIndexCacheMiss, 200, 1, 4096, LeafNode);
+
+            CPPUNIT_ASSERT_EQUAL(size_t(1), sink.spans.size());
+            CPPUNIT_ASSERT((CacheSpanState::Hit | CacheSpanState::Evicted
+                | (startsWithMiss ? CacheSpanState::Missed : CacheSpanState::Open)) == sink.spans[0].state);
+            CPPUNIT_ASSERT_EQUAL(__uint64(50000), sink.spans[0].deadElapsed);
+            CPPUNIT_ASSERT_EQUAL(__uint64(startsWithMiss ? 50000 : 0), sink.spans[0].liveElapsed);
+            CPPUNIT_ASSERT(!sink.spans[0].unresolvedElapsed);
+
+            visitIndexCacheEvent(visitor, EventIndexEviction, 210, 1, 4096, LeafNode);
+            CPPUNIT_ASSERT_EQUAL(size_t(1), sink.spans.size());
+            visitIndexCacheEvent(visitor, EventIndexCacheHit, 230, 1, 4096, LeafNode);
+            visitIndexCacheEvent(visitor, EventIndexEviction, 250, 1, 4096, LeafNode);
+            CPPUNIT_ASSERT_EQUAL(size_t(2), sink.spans.size());
+            CPPUNIT_ASSERT((spanComplete | CacheSpanState::Hit) == sink.spans[1].state);
+            CPPUNIT_ASSERT_EQUAL(__uint64(30000), sink.spans[1].liveElapsed);
+            CPPUNIT_ASSERT_EQUAL(__uint64(20000), sink.spans[1].deadElapsed);
+            CPPUNIT_ASSERT_EQUAL(__uint64(2), sink.spans[1].accesses);
+            CPPUNIT_ASSERT_EQUAL(EventIndexCacheMiss, sink.spans[1].representative.queryType());
+
+            CacheSpanAccumulator totals = sink.summarize();
+            CPPUNIT_ASSERT_EQUAL(__uint64(startsWithMiss ? 2 : 1), totals.allSpans.completeElapsed.count);
+            CPPUNIT_ASSERT_EQUAL(__uint64(startsWithMiss ? 150000 : 50000), totals.allSpans.completeElapsed.sum);
+        }
+        END_TEST
+    }
+
+    void testDeferredTransitionDiagnostics()
+    {
+        START_TEST
+        CCollectingCacheSpanSink sink;
+        CIndexCacheSpanVisitor visitor(sink);
+        for (__uint64 fileId : {901, 902, 903, 904, 905})
+        {
+            visitIndexCacheEvent(visitor, EventIndexCacheHit, 100, fileId, 4096, LeafNode);
+            visitIndexCacheEvent(visitor, EventIndexCacheMiss, 200, fileId, 4096, LeafNode);
+        }
+        CPPUNIT_ASSERT_EQUAL(size_t(5), sink.spans.size());
+
+        visitIndexCacheEvent(visitor, EventIndexLoad, 201, 901, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexEviction, 205, 999, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexEviction, 210, 901, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexEviction, 220, 902, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheHit, 230, 903, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 240, 904, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexEviction, 250, 903, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexEviction, 260, 904, 4096, LeafNode);
+        CPPUNIT_ASSERT_EQUAL(size_t(9), sink.spans.size());
+        visitor.departFile(queryTestEventFileProperties());
+        CPPUNIT_ASSERT_EQUAL(size_t(11), sink.spans.size());
+        visitor.departFile(queryTestEventFileProperties());
+        CPPUNIT_ASSERT_EQUAL(size_t(11), sink.spans.size());
+        END_TEST
+    }
+
+    void testDelayedEvictionWindow()
+    {
+        START_TEST
+        EventFileProperties properties;
+        for (__uint64 gap : {__uint64(0), __uint64(9999), __uint64(10000), __uint64(10001)})
+        {
+            CCollectingCacheSpanSink sink;
+            CIndexCacheSpanVisitor visitor(sink);
+            visitIndexCacheEvent(visitor, properties, EventIndexCacheMiss, 100000, 1, 4096, LeafNode);
+            visitIndexCacheEvent(visitor, properties, EventIndexEviction, 100000 + gap, 1, 4096, LeafNode);
+            bool ignored = gap <= 10000;
+            CPPUNIT_ASSERT_EQUAL(size_t(ignored ? 0 : 1), sink.spans.size());
+            visitor.departFile(properties);
+            CPPUNIT_ASSERT_EQUAL(size_t(1), sink.spans.size());
+            CPPUNIT_ASSERT((ignored ? CacheSpanState::Missed : spanComplete) == sink.spans[0].state);
+            CPPUNIT_ASSERT_EQUAL(ignored ? __uint64(0) : gap, sink.spans[0].deadElapsed);
+        }
+
+        CCollectingCacheSpanSink sink;
+        CIndexCacheSpanVisitor visitor(sink);
+        visitIndexCacheEvent(visitor, properties, EventIndexCacheMiss, 100000, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, properties, EventIndexCacheMiss, 200000, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, properties, EventIndexEviction, 205000, 2, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, properties, EventIndexEviction, 206000, 1, 8192, LeafNode);
+        CPPUNIT_ASSERT_EQUAL(size_t(2), sink.spans.size());
+        visitIndexCacheEvent(visitor, properties, EventIndexCacheHit, 207000, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, properties, EventIndexEviction, 210000, 1, 4096, LeafNode);
+        CPPUNIT_ASSERT_EQUAL(size_t(2), sink.spans.size());
+        visitIndexCacheEvent(visitor, properties, EventIndexEviction, 210001, 1, 4096, LeafNode);
+        CPPUNIT_ASSERT_EQUAL(size_t(3), sink.spans.size());
+        CPPUNIT_ASSERT_EQUAL(__uint64(3), sink.spans[2].accesses);
+        CPPUNIT_ASSERT_EQUAL(__uint64(3001), sink.spans[2].deadElapsed);
+        END_TEST
+    }
+
+    void testConsecutiveMissesAreContention()
+    {
+        START_TEST
+        CCollectingCacheSpanSink sink;
+        CIndexCacheSpanVisitor visitor(sink);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 0, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 0, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 1000000, 1, 4096, LeafNode);
+        CPPUNIT_ASSERT(sink.spans.empty());
+        visitIndexCacheEvent(visitor, EventIndexEviction, 1000020, 1, 4096, LeafNode);
+        CPPUNIT_ASSERT_EQUAL(size_t(1), sink.spans.size());
+        const auto& span = sink.spans[0];
+        CPPUNIT_ASSERT(spanComplete == span.state);
+        CPPUNIT_ASSERT_EQUAL(__uint64(3), span.accesses);
+        CPPUNIT_ASSERT_EQUAL(__uint64(1000000000), span.liveElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(20000), span.deadElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), span.accessGaps.first);
+        CPPUNIT_ASSERT_EQUAL(__uint64(1000000000), span.accessGaps.second);
+        END_TEST
+    }
+
+    void testLoadsAreIgnored()
+    {
+        START_TEST
+        CCollectingCacheSpanSink sink;
+        CIndexCacheSpanVisitor visitor(sink);
+        visitIndexCacheEvent(visitor, EventIndexLoad, 50, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexLoad, 120, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheHit, 150, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexLoad, 170, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexEviction, 200, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexLoad, 220, 2, 4096, LeafNode);
+        visitor.departFile(queryTestEventFileProperties());
+        CPPUNIT_ASSERT_EQUAL(size_t(1), sink.spans.size());
+        CPPUNIT_ASSERT((spanComplete | CacheSpanState::Hit) == sink.spans[0].state);
+        CPPUNIT_ASSERT_EQUAL(__uint64(2), sink.spans[0].accesses);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), sink.spans[0].liveElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), sink.spans[0].deadElapsed);
+        END_TEST
+    }
+
+    void testRecordingBoundaries()
+    {
+        START_TEST
+        EventFileProperties properties;
+        properties.startTimestamp = 50000;
+        properties.endTimestamp = 300000;
+        CCollectingCacheSpanSink sink;
+        CIndexCacheSpanVisitor visitor(sink);
+        visitor.visitFile(properties);
+        visitIndexCacheEvent(visitor, properties, EventIndexCacheHit, 100000, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, properties, EventIndexEviction, 200000, 2, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, properties, EventIndexCacheMiss, 250000, 3, 4096, LeafNode);
+        visitor.departFile(properties);
+
+        CPPUNIT_ASSERT_EQUAL(size_t(3), sink.spans.size());
+        CacheSpanAccumulator totals = sink.summarize();
+        const auto& evictionStats = totals.states[unsigned(CacheSpanState::Evicted)];
+        CPPUNIT_ASSERT_EQUAL(__uint64(150000), evictionStats.deadElapsed.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(1), evictionStats.deadElapsed.count);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), evictionStats.accessCount.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), evictionStats.liveElapsed.count);
+        CPPUNIT_ASSERT_EQUAL(__uint64(1), totals.allSpans.deadElapsed.count);
+        CPPUNIT_ASSERT_EQUAL(__uint64(2), totals.allSpans.unresolvedElapsed.count);
+        CPPUNIT_ASSERT_EQUAL(__uint64(250000), totals.allSpans.unresolvedElapsed.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), totals.allSpans.liveElapsed.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), totals.allSpans.completeElapsed.count);
+        const auto& hitStats = totals.states[unsigned(CacheSpanState::Hit)];
+        CPPUNIT_ASSERT_EQUAL(__uint64(2), hitStats.accessCount.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(1), hitStats.accessGapCount);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), hitStats.accessGapSum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), hitStats.accessGaps.first);
+        CPPUNIT_ASSERT_EQUAL(__uint64(50000), hitStats.accessGaps.second);
+
+        std::vector<std::vector<std::string>> groupNames;
+        StringBuffer output;
+        Owned<IBufferedSerialOutputStream> stream = createBufferedSerialOutputStream(output);
+        CCacheSpanCsvFormatter formatter(*stream, groupNames);
+        formatter.begin();
+        formatter.outputSummary({}, totals, true, true);
+        stream.clear();
+        CPPUNIT_ASSERT(strstr(output.str(), "\"true\",\"false\",\"false\",1,0,0,0.000,,,,,,,,1,1,1.000,,,,,50000,50000,50000.000\n"));
+        CPPUNIT_ASSERT(strstr(output.str(), ",50000,200000,125000.000\n"));
+
+        EventFileProperties zeroEnd;
+        zeroEnd.startTimestamp = 400000;
+        zeroEnd.endTimestamp = 400000;
+        visitor.visitFile(zeroEnd);
+        visitIndexCacheEvent(visitor, zeroEnd, EventIndexCacheHit, 400000, 1, 4096, LeafNode);
+        visitor.departFile(zeroEnd);
+        CPPUNIT_ASSERT(sink.spans.back().unresolvedElapsed.has_value());
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), *sink.spans.back().unresolvedElapsed);
+        CacheSpanStats zeroStats;
+        zeroStats.accumulate(sink.spans.back());
+        CPPUNIT_ASSERT_EQUAL(__uint64(1), zeroStats.unresolvedElapsed.count);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), zeroStats.deadElapsed.count);
+        CPPUNIT_ASSERT_EQUAL(__uint64(2), zeroStats.accessCount.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(1), zeroStats.accessGapCount);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), zeroStats.accessGaps.first);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), zeroStats.accessGaps.second);
+
+        EventFileProperties noBoundaries;
+        visitor.visitFile(noBoundaries);
+        visitIndexCacheEvent(visitor, noBoundaries, EventIndexCacheHit, 500000, 1, 4096, LeafNode);
+        visitor.departFile(noBoundaries);
+        CPPUNIT_ASSERT(!sink.spans.back().unresolvedElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), sink.spans.back().liveElapsed);
+        END_TEST
+    }
+
+    void testZeroTimestampAccesses()
+    {
+        START_TEST
+        CCollectingCacheSpanSink sink;
+        CIndexCacheSpanVisitor visitor(sink);
+        visitIndexCacheEvent(visitor, EventIndexCacheHit, 0, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheHit, 0, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 0, 1, 4096, LeafNode);
+        CPPUNIT_ASSERT_EQUAL(size_t(1), sink.spans.size());
+        CPPUNIT_ASSERT_EQUAL(__uint64(2), sink.spans[0].accesses);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), sink.spans[0].accessGaps.first);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), sink.spans[0].deadElapsed);
+        visitIndexCacheEvent(visitor, EventIndexEviction, 20, 1, 4096, LeafNode);
+        CPPUNIT_ASSERT_EQUAL(size_t(2), sink.spans.size());
+        CPPUNIT_ASSERT(spanComplete == sink.spans[1].state);
+        END_TEST
+    }
+
+    void testInputFileNameGrouping()
+    {
+        START_TEST
+        CMetaInfoState metaState;
+        std::vector<std::vector<GroupAttribute>> groupAttrs{{GroupAttributeExtractor::parseAttribute("InputFileName")}};
+        CCacheSpanGroupingSink grouping(metaState, groupAttrs, true, true);
+        CIndexCacheSpanVisitor visitor(grouping);
+        EventFileProperties first;
+        first.path.set("/events/first.evt");
+        EventFileProperties second;
+        second.path.set("/events/second.evt");
+        visitor.visitFile(first);
+        visitIndexCacheEvent(visitor, first, EventIndexCacheHit, 100000, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, first, EventIndexCacheMiss, 150000, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, first, EventIndexEviction, 200000, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, first, EventIndexCacheMiss, 250000, 1, 4096, LeafNode);
+        visitor.departFile(first);
+        visitor.visitFile(second);
+        visitIndexCacheEvent(visitor, second, EventIndexEviction, 300000, 1, 4096, LeafNode);
+        visitor.departFile(second);
+        CPPUNIT_ASSERT_EQUAL(size_t(2), grouping.queryRoot().children.size());
+        for (const auto& child : grouping.queryRoot().children)
+        {
+            const auto& group = *child.second;
+            CPPUNIT_ASSERT_EQUAL(size_t(1), group.groupValues.size());
+            if (group.groupValues[0] == "first.evt")
+                CPPUNIT_ASSERT_EQUAL(__uint64(3), group.subTotal.allSpans.spans);
+            else
+            {
+                CPPUNIT_ASSERT_EQUAL(std::string("second.evt"), group.groupValues[0]);
+                CPPUNIT_ASSERT_EQUAL(__uint64(1), group.subTotal.allSpans.spans);
+            }
+        }
+        END_TEST
+    }
+
+    void testRepeatedSpanResets()
+    {
+        START_TEST
+        CCollectingCacheSpanSink sink;
+        CIndexCacheSpanVisitor visitor(sink);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheHit, 120, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheHit, 150, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 200, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheHit, 240, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 300, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 310, 1, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexEviction, 340, 1, 4096, LeafNode);
+        CPPUNIT_ASSERT_EQUAL(size_t(3), sink.spans.size());
+        const auto& middle = sink.spans[1];
+        CPPUNIT_ASSERT((spanComplete | CacheSpanState::Hit) == middle.state);
+        CPPUNIT_ASSERT_EQUAL(__uint64(2), middle.accesses);
+        CPPUNIT_ASSERT_EQUAL(__uint64(40000), middle.liveElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(60000), middle.deadElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(40000), middle.accessGaps.first);
+        CPPUNIT_ASSERT_EQUAL(__uint64(40000), middle.accessGaps.second);
+        const auto& last = sink.spans[2];
+        CPPUNIT_ASSERT(spanComplete == last.state);
+        CPPUNIT_ASSERT_EQUAL(__uint64(2), last.accesses);
+        CPPUNIT_ASSERT_EQUAL(__uint64(10000), last.liveElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(30000), last.deadElapsed);
+        CPPUNIT_ASSERT_EQUAL(__uint64(10000), last.accessGaps.first);
+        CPPUNIT_ASSERT_EQUAL(__uint64(10000), last.accessGaps.second);
+        CPPUNIT_ASSERT_EQUAL(__uint64(300000), last.representative.queryNumericValue(EvAttrEventTimestamp));
+        CPPUNIT_ASSERT(!last.unresolvedElapsed);
+        END_TEST
+    }
+
+    void testNestedCsvOutput()
+    {
+        START_TEST
+        CMetaInfoState metaState;
+        std::vector<std::vector<std::string>> groupNames{{"NodeKind"}, {"FileId", "FileOffset"}};
+        std::vector<std::vector<GroupAttribute>> groupAttrs{
+            {GroupAttributeExtractor::parseAttribute("NodeKind")},
+            {GroupAttributeExtractor::parseAttribute("FileId"), GroupAttributeExtractor::parseAttribute("FileOffset")}};
+        for (bool includeComplete : {false, true})
+        {
+            for (bool includeIncomplete : {false, true})
+            {
+                CCacheSpanGroupingSink grouping(metaState, groupAttrs, includeComplete, includeIncomplete);
+                CIndexCacheSpanVisitor visitor(grouping);
+                StringBuffer emptyOutput;
+                renderGroupedCacheSpans(emptyOutput, grouping, groupNames);
+                CPPUNIT_ASSERT_EQUAL(std::ptrdiff_t(1), std::count(emptyOutput.str(), emptyOutput.str() + emptyOutput.length(), '\n'));
+
+                visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, LeafNode);
+                visitIndexCacheEvent(visitor, EventIndexEviction, 150, 1, 4096, LeafNode);
+                visitIndexCacheEvent(visitor, EventIndexCacheHit, 200, 2, 8192, LeafNode);
+                visitor.departFile(queryTestEventFileProperties());
+                StringBuffer output;
+                renderGroupedCacheSpans(output, grouping, groupNames);
+                const std::string text(output.str());
+                const size_t headerEnd = text.find('\n');
+                const auto columns = std::count(text.begin(), text.begin() + headerEnd, ',');
+                CPPUNIT_ASSERT_EQUAL(std::ptrdiff_t(26), columns);
+                size_t rows = 0;
+                for (size_t start = headerEnd + 1; start < text.size();)
+                {
+                    size_t end = text.find('\n', start);
+                    CPPUNIT_ASSERT(end != std::string::npos);
+                    CPPUNIT_ASSERT_EQUAL(columns, std::count(text.begin() + start, text.begin() + end, ','));
+                    rows++;
+                    start = end + 1;
+                }
+                CPPUNIT_ASSERT_EQUAL(size_t(4 + 3 * unsigned(includeComplete) + 3 * unsigned(includeIncomplete)), rows);
+                CPPUNIT_ASSERT(strstr(output.str(), "\n,,,,,,2,"));
+            }
+        }
+        END_TEST
+    }
+
+    void testCsvWithoutGapsOrDeadTime()
+    {
+        START_TEST
+        CacheSpanRecord span;
+        span.state = spanComplete;
+        span.accesses = 1;
+        span.hasDeadElapsed = true;
+        CacheSpanAccumulator totals;
+        totals.accumulate(span);
+        CPPUNIT_ASSERT_EQUAL(__uint64(1), totals.allSpans.deadElapsed.count);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), totals.allSpans.deadElapsed.sum);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), totals.allSpans.accessGapCount);
+
+        StringBuffer output;
+        Owned<IBufferedSerialOutputStream> stream = createBufferedSerialOutputStream(output);
+        std::vector<std::vector<std::string>> groupNames;
+        CCacheSpanCsvFormatter formatter(*stream, groupNames);
+        formatter.outputSummary({}, totals, true, true);
+        stream.clear();
+        CPPUNIT_ASSERT_EQUAL(std::string(
+            "\"true\",\"false\",\"true\",1,0,0,0.000,0,0,0.000,,0,0,0.000,1,1,1.000,,,,,,,\n"
+            ",,,1,0,0,0.000,0,0,0.000,,0,0,0.000,1,1,1.000,,,,,,,\n"), std::string(output.str()));
+        END_TEST
+    }
+
+    void testGroupsUseDeterministicOrder()
+    {
+        START_TEST
+        CMetaInfoState metaState;
+        std::vector<std::vector<std::string>> groupNames{{"NodeKind"}};
+        std::vector<std::vector<GroupAttribute>> groupAttrs{{GroupAttributeExtractor::parseAttribute("NodeKind")}};
+        CCacheSpanGroupingSink grouping(metaState, groupAttrs, true, false);
+        CIndexCacheSpanVisitor visitor(grouping);
+
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 100, 1, 4096, BranchNode);
+        visitIndexCacheEvent(visitor, EventIndexEviction, 150, 1, 4096, BranchNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheMiss, 200, 2, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexCacheHit, 220, 2, 4096, LeafNode);
+        visitIndexCacheEvent(visitor, EventIndexEviction, 250, 2, 4096, LeafNode);
+
+        StringBuffer output;
+        renderGroupedCacheSpans(output, grouping, groupNames);
+
+        std::vector<std::string> groupOrder;
+        std::string outputText(output.str());
+        size_t rowStart = outputText.find('\n') + 1;
+        while (rowStart < outputText.size())
+        {
+            size_t rowEnd = outputText.find('\n', rowStart);
+            if (rowEnd == std::string::npos)
+                rowEnd = outputText.size();
+            std::string row = outputText.substr(rowStart, rowEnd - rowStart);
+            size_t separator = row.find(',');
+            if (separator != std::string::npos && separator != 0)
+            {
+                std::string groupValue = row.substr(0, separator);
+                if (groupOrder.empty() || groupOrder.back() != groupValue)
+                    groupOrder.push_back(std::move(groupValue));
+            }
+            if (rowEnd == outputText.size())
+                break;
+            rowStart = rowEnd + 1;
+        }
+        CPPUNIT_ASSERT_EQUAL(size_t(2), groupOrder.size());
+        CPPUNIT_ASSERT_EQUAL(std::string("\"branch\""), groupOrder[0]);
+        CPPUNIT_ASSERT_EQUAL(std::string("\"leaf\""), groupOrder[1]);
+        END_TEST
+    }
+
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION(EventIndexCacheSpanTest);

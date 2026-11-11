@@ -51,14 +51,30 @@ public:
 
     virtual const char* getVerboseDescription() const override
     {
-        return R"!!!(Report live and dead index cache spans. A live span begins at IndexLoad or at
-    the first observed IndexCacheHit when no load was recorded, and ends at the
-    last access before IndexEviction. A dead span begins at that last access and
-    ends at IndexEviction. The default output is the all-span summary.
---complete adds classified spans with both IndexLoad and IndexEviction;
---incomplete adds all other classified spans. The options may be combined.
-Incomplete spans can be first observed as IndexCacheHit, remain loaded when
-recording stops, or be first observed as IndexEviction with zero accesses.
+        return R"!!!(Report live and dead index cache spans using IndexCacheMiss, IndexCacheHit,
+    and IndexEviction events in chronological order. IndexLoad is ignored.
+    A live span begins at IndexCacheMiss or at the first observed IndexCacheHit
+    when no miss was recorded, and ends at the last access before IndexEviction.
+    A dead span begins at that last access and ends at IndexEviction.
+    The default output is the all-span summary.
+
+    Any miss after a hit closes the current span using the miss as an eviction
+    proxy and starts a new span. The diagnostic is deferred until the next miss,
+    hit, or eviction for the same node, reporting its eviction date/time or
+    "no eviction". Recording end flushes pending diagnostics with "no eviction".
+    Evictions for the same node within 10 microseconds of its latest miss are
+    ignored as delayed reports. Consecutive misses are treated as contention
+    regardless of their spacing. Every miss and hit counts as an access;
+    when the first observation is a hit and recording start is known, an
+    estimated prior access at recording start is also counted. Loads do not.
+
+    Recording-end gaps are reported as unresolved time, not dead time.
+    For a node first observed at eviction, dead time is estimated from recording
+    start when known; otherwise dead time is unavailable.
+    --complete adds classified spans with a miss and an eviction or eviction proxy;
+    --incomplete adds all other classified spans. The options may be combined.
+    Incomplete spans can be first observed as IndexCacheHit, remain loaded when
+    recording stops, or be first observed as IndexEviction with zero accesses.
 )!!!";
     }
 
@@ -75,8 +91,9 @@ recording stops, or be first observed as IndexEviction with zero accesses.
     virtual void usageOptions(IBufferedSerialOutputStream& out) override
     {
         TEventConsumingCommand<CIndexCacheSpanOp>::usageOptions(out);
-        constexpr const char* usage = R"!!!(    --complete                Include classified spans with both IndexLoad and IndexEviction.
-    --incomplete              Include classified spans missing either IndexLoad or IndexEviction.
+        constexpr const char* usage = R"!!!(    --complete                Include classified spans with a miss and an
+                              eviction or eviction proxy.
+    --incomplete              Include classified spans missing either boundary.
     --group-by <attributes>   Group spans by a comma-separated list of event
                               or derived attributes, such as NodeKind or
                               meta.Path. May be repeated to define nested
