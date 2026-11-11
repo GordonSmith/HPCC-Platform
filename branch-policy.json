@@ -12,20 +12,6 @@
   ],
   "repositories": [
     {
-      "id": "platform",
-      "source": "risk-hsy/hpcc-platform",
-      "destination": "hpcc-systems/HPCC-Platform",
-      "upmerge_enabled": true,
-      "sync_enabled": true
-    },
-    {
-      "id": "ln",
-      "source": "risk-hsy/ln",
-      "destination": "hpcc-systems/ln",
-      "upmerge_enabled": true,
-      "sync_enabled": true
-    },
-    {
       "id": "eclide",
       "source": "risk-hsy/eclide",
       "destination": "hpcc-systems/eclide",
@@ -44,6 +30,20 @@
       "source": "risk-hsy/helm-chart",
       "destination": "hpcc-systems/helm-chart",
       "upmerge_enabled": false,
+      "sync_enabled": true
+    },
+    {
+      "id": "ln",
+      "source": "risk-hsy/ln",
+      "destination": "hpcc-systems/ln",
+      "upmerge_enabled": true,
+      "sync_enabled": true
+    },
+    {
+      "id": "platform",
+      "source": "risk-hsy/hpcc-platform",
+      "destination": "hpcc-systems/HPCC-Platform",
+      "upmerge_enabled": true,
       "sync_enabled": true
     }
   ]
