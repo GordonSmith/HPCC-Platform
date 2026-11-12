@@ -1,12 +1,12 @@
 # Code Submission Guidelines
 
-We welcome submissions to the platform especially in the form of pull requests into the HPCC-Systems github repository.  The following describes some of processes for merging PRs.
+We welcome submissions to the platform especially in the form of pull requests into the HPCC-Platform github repository.  The following describes some of processes for merging PRs.
 
 ## Pull requests
 There are a few things that should be considered when creating a PR to increase the likelihood that they can be accepted quickly.
 
 * Write a good commit message\
-  The format should follow Conventional Commits (e.g., `fix(dfu): ...`). The commit title should not start with an HPCC-XXXXX prefix. The text should make sense in a change log by itself - without reference to the GitHub issue or the contents of the PR. We should aim to increase the information that is included as part of the commit message - not rely on the GitHub issue. We should keep in mind the audience could be developers, testers, and any other users of the system.
+  The format should follow Conventional Commits (e.g., `fix(dfu): ...`). The commit title should not start with an HPCC-XXXXX prefix or contain an issue number; instead the pull request description and first commit message must contain a `Fixes #n` (or `Closes`/`Resolves`/`NoIssue`) line and an `Impacts:` line (see the [CONTRIBUTORS](https://github.com/hpcc-systems/HPCC-Platform/blob/master/CONTRIBUTORS) file). The text should make sense in a change log by itself - without reference to the GitHub issue or the contents of the PR. We should aim to increase the information that is included as part of the commit message - not rely on the GitHub issue. We should keep in mind the audience could be developers, testers, and any other users of the system.
 * Try to keep your top level commit message to max length of 80 characters.
 * If more detail is required, use the extended message section available through the Github UI on a browser or through commandline.
   - You'll be able to provide more details.
@@ -38,7 +38,7 @@ There are a few things that should be considered when creating a PR to increase 
   - New files with the wrong copyright date
 * Check the target branch (see below)
 * Request one or more reviewers.  For relatively simple changes a single reviewer is normally enough.
-* For more suggestions, please refer to https://github.com/hpcc-systems/HPCC-Platform/wiki/Git-commit-message-guidelines 
+* For more suggestions, please refer to the [CONTRIBUTORS](https://github.com/hpcc-systems/HPCC-Platform/blob/master/CONTRIBUTORS) file or https://github.com/hpcc-systems/HPCC-Platform/wiki/Git-commit-message-guidelines
 * examples of Pull Requests that can be improved\
   - fix: Fix some issues with spill stats in smart join activity
     - This could mention affected component (e.g., `fix(thor): ...`).

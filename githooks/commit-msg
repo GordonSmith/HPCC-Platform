@@ -1,33 +1,34 @@
 #!/bin/sh
 #echo Checking git message in $1
 
+# Keep in sync with VALID_TYPES in .github/workflows/pr-metadata-check.yml
+valid_types="build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|deps|release|hotfix|security"
+
 usage="\n
 Please see the guidelines for git commit messages in the CONTRIBUTORS file\n
 Your git commit message should start with a line of the form\n
 \n
-HPCC-XXXX Short description\n
+type(scope): short description\n
 \n
-where XXXX is the Jira issue number that this commit is referencing, and\n
-short description is a brief description of the issue that will appear in\n
-the --oneline version of the generated changelog.\n
+where type is one of:\n
+${valid_types}\n
+scope is optional, and short description is a brief description of the change\n
+that will appear in the --oneline version of the generated changelog.\n
+Do not include an issue number in the first line. Reference the issue in the\n
+body instead (Fixes #n, Closes #n, Resolves #n or NoIssue) and add an\n
+Impacts: line.\n
 \n
 Use git commit -s -t $1 to reopen previous message for editing\n"
 
 
-(head -1 "$1" | grep -E -q "^HPCC-[0-9]+ |^Merge ") || {
-  echo >&2 "\n ERROR: Missing Jira issue on beginning of first line (HPCC-XXXX)"
+(head -1 "$1" | grep -iE -q "^(${valid_types})(\([a-zA-Z0-9_.-]+\))?!?: .+|^Merge ") || {
+  echo >&2 "\n ERROR: First line must follow Conventional Commits: type(scope): description"
   echo >&2 $usage
   exit 1
 }
 
 (head -1 "$1" | grep -E -q "[^.]$") || {
   echo >&2 "\n ERROR: Please don't use . at the end of the short description"
-  echo >&2 $usage
-  exit 1
-}
-
-(head -1 "$1" | grep -E -q "^HPCC-[0-9]+ [^a-z]|^Merge ") || {
-  echo >&2 "\n ERROR: Short description should start with a capital"
   echo >&2 $usage
   exit 1
 }

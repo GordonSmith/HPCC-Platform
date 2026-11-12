@@ -28,28 +28,23 @@
 - [ ] This change alters the query API (existing queries will have to be recompiled)
 
 ## Checklist:
-- [ ] My code follows the code style of this project.
-  - [ ] My code does not create any new warnings from compiler, build system, or lint.
-- [ ] The commit message is properly formatted and free of typos.
-  - [ ] The commit message title makes sense in a changelog, by itself.
-  - [ ] The commit is signed.
+<!-- The title, issue directive, Impacts lines, branch name and commit signing are checked automatically
+     (see devdoc/CodeSubmissions.md and the CONTRIBUTORS file), so they are not listed here. -->
+- [ ] My code follows the code style of this project and does not create any new warnings.
 - [ ] My change requires a change to the documentation.
   - [ ] I have updated the documentation accordingly, or...
   - [ ] I have created a GitHub issue to update the documentation.
   - [ ] Any new interfaces or exported functions are appropriately commented.
-- [ ] I have read the CONTRIBUTORS document.
 - [ ] The change has been fully tested:
   - [ ] I have added tests to cover my changes.
   - [ ] All new and existing tests passed.
   - [ ] I have checked that this change does not introduce memory leaks.
-  - [ ] I have used Valgrind or similar tools to check for potential issues.
 - [ ] I have given due consideration to all of the following potential concerns:
   - [ ] Scalability
   - [ ] Performance
   - [ ] Security
   - [ ] Thread-safety
   - [ ] Cloud-compatibility
-  - [ ] Premature optimization
   - [ ] Existing deployed queries will not be broken
   - [ ] This change fixes the problem, not just the symptom
   - [ ] The target branch of this pull request is appropriate for such a change.
@@ -59,10 +54,6 @@
 - [ ] This is a user interface / front-end modification
   - [ ] I have tested my changes in multiple modern browsers
   - [ ] The component(s) render as expected
-
-## Smoketest:
-- [ ] Send notifications about my Pull Request position in Smoketest queue.
-- [ ] Test my draft Pull Request.
 
 ## Testing:
 <!-- Please describe how this change has been tested.-->
