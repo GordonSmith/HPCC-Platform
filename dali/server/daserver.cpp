@@ -16,6 +16,7 @@
 ############################################################################## */
 
 #include <unordered_map>
+#include <algorithm>
 #include <string>
 
 #include "platform.h"
@@ -57,21 +58,22 @@
 
 Owned<IPropertyTree> serverConfig;
 static IArrayOf<IDaliServer> servers;
-static CriticalSection *stopServerCrit;
+static Owned<IFile> sentinelFile;
 MODULE_INIT(INIT_PRIORITY_DALI_DASERVER)
 {
-    stopServerCrit = new CriticalSection(SYNC_LOCATION);
     return true;
 }
 MODULE_EXIT()
 {
     servers.kill(); // should already be clear when stopped
     serverConfig.clear();
-    delete stopServerCrit;
 }
 
-#define DEFAULT_PERF_REPORT_DELAY 60
-#define DEFAULT_MOUNT_POINT "/mnt/dalimirror/"
+static constexpr unsigned defaultPerfReportDelay = 60;
+static constexpr const char *defaultMountPoint = "/mnt/dalimirror/";
+static constexpr unsigned defaultDrainTimeoutSeconds = 300;
+static constexpr unsigned drainPollIntervalMs = 250;
+static constexpr unsigned drainProgressLogIntervalMs = 5000;
 
 void AddServers(const char *auditdir)
 {
@@ -87,12 +89,61 @@ void AddServers(const char *auditdir)
     // add new coven servers here
 }
 
-static bool serverStopped = false;
-static void stopServer()
+static void waitForClientsToDeregister()
 {
-    CriticalBlock b(*stopServerCrit); // NB: will not protect against abort handler, which will interrupt thread and be on same TID.
-    if (serverStopped) return;
-    serverStopped = true;
+    setDraining();
+
+    unsigned activeClients = querySessionManager().queryClientCount();
+    if (0 == activeClients)
+        return;
+
+    unsigned drainTimeoutSeconds = (unsigned)serverConfig->getPropInt("@drainTimeout", defaultDrainTimeoutSeconds);
+    unsigned remainingMs = drainTimeoutSeconds * 1000;
+    CTimeMon drainDeadline(remainingMs);
+    CTimeMon logTimer(0); // log immediately on first iteration
+
+    // Poll until all clients disconnect, the drain deadline expires, or client counting fails.
+    for (;;)
+    {
+        if (logTimer.timedout())
+        {
+            PROGLOG("%u clients left while draining, %u secs remaining", activeClients, (remainingMs + 999u) / 1000u);
+            logTimer.reset(drainProgressLogIntervalMs);
+        }
+
+        unsigned waitMs = std::min(remainingMs, drainPollIntervalMs);
+        MilliSleep(waitMs);
+
+        activeClients = querySessionManager().queryClientCount();
+        if (activeClients == 0)
+            break;
+
+        if (drainDeadline.timedout(&remainingMs))
+        {
+            StringBuffer connectedClients;
+            querySessionManager().getClientProcessList(connectedClients);
+            PROGLOG("Dali drain deadline reached with %u registered clients still connected:\n%s", activeClients, connectedClients.str());
+            break;
+        }
+    }
+}
+
+static std::atomic<bool> serverStopped{false};
+static void stopServer(bool abortSignal)
+{
+    if (serverStopped.exchange(true))
+        return;
+
+    removeSentinelFile(sentinelFile); // in k8s, will flag the container as not ready (after readinessProbe.periodSeconds * 3), which prevents new clients even trying to connect
+
+    // This is a containerized mechanism only. It will be called with abortSignal=true in response to a SIGTERM
+    // On bare metal, component shutdown is explicitly ordered instead, or stops via dalistop which never drains until dali disconnects
+    if (isContainerized() && abortSignal)
+    {
+        // Wait for clients to deregister before proceeding with shutdown.
+        waitForClientsToDeregister();
+    }
+
     ForEachItemInRev(h,servers)
     {
         IDaliServer &server=servers.item(h);
@@ -117,7 +168,7 @@ static void stopServer()
 
 bool actionOnAbort()
 {
-    stopServer();
+    stopServer(true);
     return true;
 }
 
@@ -462,7 +513,7 @@ int main(int argc, const char* argv[])
         setAllocHook(true);
 
         serverConfig.setown(loadConfiguration(defaultYaml, argv, "dali", "DALI", DALICONF, nullptr));
-        Owned<IFile> sentinelFile = createSentinelTarget();
+        sentinelFile.setown(createSentinelTarget());
         removeSentinelFile(sentinelFile);
         StringBuffer dataPath;
         StringBuffer mirrorPath;
@@ -590,7 +641,7 @@ int main(int argc, const char* argv[])
                             StringBuffer mountPoint;
                             serverConfig->getProp("@mountPoint", mountPoint);
                             if (!mountPoint.length())
-                                mountPoint.append(DEFAULT_MOUNT_POINT);
+                                mountPoint.append(defaultMountPoint);
                             addPathSepChar(mountPoint);
                             recursiveCreateDirectory(mountPoint.str());
                             PROGLOG("Mounting url \"%s\" on mount point \"%s\"", mirrorPath.str(), mountPoint.str());
@@ -726,7 +777,7 @@ int main(int argc, const char* argv[])
         addAbortHandler(actionOnAbort);
 
 #ifndef _CONTAINERIZED
-        startPerformanceMonitor(serverConfig->getPropInt("Coven/@perfReportDelay", DEFAULT_PERF_REPORT_DELAY)*1000);
+        startPerformanceMonitor(serverConfig->getPropInt("Coven/@perfReportDelay", defaultPerfReportDelay)*1000);
 #endif
         StringBuffer absPath;
         makeAbsolutePath(dataPath.str(), absPath);
@@ -749,7 +800,7 @@ int main(int argc, const char* argv[])
         catch (IException *e)
         {
             EXCLOG(e, "Failed whilst starting servers");
-            stopServer();
+            stopServer(false);
 #ifndef _CONTAINERIZED
             stopPerformanceMonitor();
 #endif
@@ -775,7 +826,7 @@ int main(int argc, const char* argv[])
         }
         catch (IException *e) {
             EXCLOG(e, "LDAP initialization error");
-            stopServer();
+            stopServer(false);
 #ifndef _CONTAINERIZED
             stopPerformanceMonitor();
 #endif
@@ -802,13 +853,14 @@ int main(int argc, const char* argv[])
             covenMain();
             removeAbortHandler(actionOnAbort);
         }
-        stopServer();
+        stopServer(false);
 #ifndef _CONTAINERIZED
         stopPerformanceMonitor();
 #endif
     }
     catch (IException *e) {
         EXCLOG(e, "Exception");
+        e->Release();
     }
     UseSysLogForOperatorMessages(false);
     return 0;

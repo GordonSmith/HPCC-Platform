@@ -48,6 +48,10 @@ true
 {{- $env := concat ($.Values.global.env | default list) (.env | default list) -}}
 {{- $daliPlaneIncludeCategories := list "dali" "debug" -}}
 {{- $commonCtx := dict "root" $ "me" $dali "includeCategories" $daliPlaneIncludeCategories "env" $env -}}
+{{- $dali := deepCopy $dali -}}
+{{- if not (hasKey $dali "drainTimeout") -}}
+ {{- $_ := set $dali "drainTimeout" 300 -}}
+{{- end -}}
 {{- $_ := set $commonCtx "lifeCycleCtx" (dict "containers" list) -}}
 {{- $daliSecretsCategories := list "system" "authn" -}}
 {{- $tmpDaliScope := dict "aggregateSashaSecretsCategories" list "aggregatePlaneCategories" $daliPlaneIncludeCategories "aggregateSashaNamedPlanes" list -}}

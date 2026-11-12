@@ -124,7 +124,7 @@ const char *queryRoleName(DaliClientRole role)
 interface ISessionManagerServer: implements IConnectionMonitor
 {
     virtual SessionId registerSession(SecurityToken tok,SessionId parentid) = 0;
-    virtual SessionId registerClientProcess(INode *node,IGroup *&grp, DaliClientRole role) = 0;
+    virtual SessionId tryRegisterClientProcess(INode *node, DaliClientRole role) = 0; // returns 0 if draining
     virtual void addProcessSession(SessionId id, INode *node, DaliClientRole role) = 0;
     virtual void addSession(SessionId id) = 0;
     virtual SessionId lookupProcessSession(INode *node) = 0;
@@ -134,6 +134,7 @@ interface ISessionManagerServer: implements IConnectionMonitor
     virtual void stopSession(SessionId sessid,bool failed) = 0;
     virtual void setClientAuth(IDaliClientAuthConnection *authconn) = 0;
     virtual void setLDAPconnection(IDaliLdapConnection *_ldapconn) = 0;
+    virtual void setDraining() = 0;
     virtual void start() = 0;
     virtual void ready() = 0;
     virtual void stop() = 0;
@@ -546,21 +547,35 @@ public:
                 acceptConnections.wait();
                 acceptConnections.signal();
                 Owned<INode> node(deserializeINode(mb));
-                const SocketEndpoint &peerIP = coven.queryComm().queryChannelPeerEndpoint(mb.getSender());
                 Owned<INode> servernode(deserializeINode(mb));  // hopefully me, but not if forwarded
                 int role=0;
                 if (mb.length()-mb.getPos()>=sizeof(role)) // a capability block present
                     mb.read(role);
-                IGroup *covengrp;
-                id = manager.registerClientProcess(node.get(),covengrp,(DaliClientRole)role);
+
+                IGroup &covenGroup = coven.queryGroup();
+                id = manager.tryRegisterClientProcess(node.get(), (DaliClientRole)role);
                 mb.clear().append(id);
-                if (covengrp->rank(servernode)==RANK_NULL) { // must have been redirected
-                    covengrp->Release(); // no good, so just use one we know about (may use something more sophisticated later)
-                    INode *na = servernode.get();
-                    covengrp = createIGroup(1, &na);
+                if (!id)
+                {
+                    const SocketEndpoint &peerIP = coven.queryComm().queryChannelPeerEndpoint(mb.getSender());
+                    StringBuffer peer;
+                    PROGLOG("Rejecting registration from %s while Dali is draining (role=%s/%d)", peerIP.getEndpointHostText(peer).str(), queryRoleName((DaliClientRole) role), role);
+                    Owned<IException> e = createClientException(DCERR_server_closed, "Dali is draining and is not accepting new client registrations");
+                    covenGroup.serialize(mb);
+                    serializeException(e, mb);
                 }
-                covengrp->serialize(mb);
-                covengrp->Release();
+                else
+                {
+                    if (covenGroup.rank(servernode)==RANK_NULL) // must have been redirected
+                    {
+                        // no good, so just use one we know about (may use something more sophisticated later)
+                        INode *na = servernode.get();
+                        Owned<IGroup> redirectGroup = createIGroup(1, &na);
+                        redirectGroup->serialize(mb);
+                    }
+                    else
+                        covenGroup.serialize(mb);
+                }
                 coven.reply(mb);
             }
             break;
@@ -1226,7 +1241,21 @@ class CCovenSessionManager: public CSessionManagerBase, implements ISessionManag
     Semaphore ldapsig{SYNC_LOCATION};
     std::atomic<unsigned> ldapwaiting{0};
     Semaphore workthreadsem{SYNC_LOCATION};
+    ReadWriteLock clientRegistrationLock{SYNC_LOCATION};
+    bool draining = false;
     bool stopping;
+
+    StringBuffer &appendClientProcessList(StringBuffer &buf, bool drainableOnly)
+    {
+        CHECKEDCRITICALBLOCK(sessmanagersect,60000);
+        CProcessSessionState *s = nullptr;
+        while ((s = processlookup.next(s)) != nullptr)
+        {
+            if (!drainableOnly || s->queryRole() != DCR_DaliStop)
+                s->getDetails(buf).append('\n');
+        }
+        return buf;
+    }
 
     void remoteAddProcessSession(rank_t dst,SessionId id,INode *node, DaliClientRole role)
     {
@@ -1305,6 +1334,12 @@ public:
     {
     }
 
+    void setDraining() override
+    {
+        WriteLockBlock b(clientRegistrationLock);
+        draining = true;
+    }
+
     void addProcessSession(SessionId id,INode *client,DaliClientRole role)
     {
         StringBuffer str;
@@ -1363,10 +1398,12 @@ public:
     }
 
 
-    SessionId registerClientProcess(INode *client, IGroup *& retcoven, DaliClientRole role)
+    SessionId tryRegisterClientProcess(INode *client, DaliClientRole role) override
     {
-        // not in critical block (otherwise possibility of deadlock)
-        retcoven = NULL;
+        ReadLockBlock lock(clientRegistrationLock);
+        if (draining)
+            return 0;
+
         ICoven &coven=queryCoven();
         SessionId id = coven.getUniqueId();
         rank_t myrank = coven.getServerRank();
@@ -1380,7 +1417,6 @@ public:
             if (r!=ownerrank)
                 remoteAddProcessSession(r,id,client,role);
         }
-        retcoven = coven.getGroup();
         return id;
     }
 
@@ -1866,6 +1902,11 @@ void setClientAuth(IDaliClientAuthConnection *authconn)
         SessionManagerServer->setClientAuth(authconn);
 }
 
+void setDraining()
+{
+    assertex(SessionManagerServer);
+    SessionManagerServer->setDraining();
+}
 
 
 #define REG_SLEEP 5000

@@ -1778,6 +1778,12 @@
           "$ref": "#/definitions/terminationGracePeriodSeconds",
           "default": 3600
         },
+        "drainTimeout": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 300,
+          "description": "Maximum time in seconds for Dali to wait for registered clients to deregister during SIGTERM draining before forcing shutdown; 0 skips the deregistration wait"
+        },
         "expert": {
           "$ref": "#/definitions/expert"
         },

@@ -167,6 +167,7 @@ interface IDaliClientAuthConnection;
 extern da_decl IDaliServer *createDaliSessionServer(); // called for coven members
 extern da_decl void setLDAPconnection(IDaliLdapConnection *ldapconn); // called for coven members
 extern da_decl void setClientAuth(IDaliClientAuthConnection *authconn); // called for coven members
+extern da_decl void setDraining();
 extern da_decl const char *queryRoleName(DaliClientRole role);
 extern da_decl DaliClientRole queryRole(const char *roleStr);
 

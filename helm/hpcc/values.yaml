@@ -512,6 +512,7 @@ dali:
 - name: mydali
   #hold: true # (for developers, can be used on any component). Component will enter a hold loop at config load time.
   auth: none
+  drainTimeout: 300 # seconds to wait for registered clients to deregister during SIGTERM draining
   services: # internal house keeping services
     coalescer:
       service:
