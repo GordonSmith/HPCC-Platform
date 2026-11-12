@@ -25,6 +25,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <limits>
 #include <iostream>
 #include <random>
 #include <set>
@@ -97,6 +98,8 @@ public:
         CPPUNIT_TEST(testContextOptionBaseline);
         CPPUNIT_TEST(testMultiBlock);
         CPPUNIT_TEST(testMultiThread);
+        CPPUNIT_TEST(testReservedTimestamps);
+        CPPUNIT_TEST(testImportedTimestamps);
         CPPUNIT_TEST(testBlocked);
         CPPUNIT_TEST(testReadEvents);
         CPPUNIT_TEST(testTaskStartPayloadRoundTrip);
@@ -233,12 +236,25 @@ public:
     using ExpectedCounts = std::initializer_list<std::pair<EventType, __uint64>>;
     void verifyCounts(const char * filename, const ExpectedCounts & expected)
     {
+        verifyCounts(filename, expected, false);
+    }
+
+    void verifyCounts(const char * filename, const ExpectedCounts & expected, bool checkTimestampOrder)
+    {
         class EventCounter final : implements CInterfaceOf<IEventVisitor>
         {
         public:
+            EventCounter(bool _checkTimestampOrder) : checkTimestampOrder(_checkTimestampOrder) {}
+
             virtual bool visitEvent(CEvent& event, [[maybe_unused]] const EventFileProperties& properties) override
             {
                 counts[event.queryType()]++;
+                if (checkTimestampOrder)
+                {
+                    __uint64 timestamp = event.queryNumericValue(EvAttrEventTimestamp);
+                    CPPUNIT_ASSERT(timestamp >= previousTimestamp);
+                    previousTimestamp = timestamp;
+                }
                 return true;
             }
             virtual bool visitFile([[maybe_unused]] const EventFileProperties& properties) override
@@ -250,11 +266,14 @@ public:
             }
         public:
             __uint64 counts[EventMax] = { };
+        private:
+            bool checkTimestampOrder;
+            __uint64 previousTimestamp{0};
         };
 
         try
         {
-            EventCounter counter;
+            EventCounter counter(checkTimestampOrder);
             CPPUNIT_ASSERT(readEvents(filename, counter));
 
             for (auto & [type, expectedCount] : expected)
@@ -301,7 +320,7 @@ public:
             verifyCounts("eventtrace.evt", {
                 { EventIndexCacheMiss, 100'000 },
                 { EventIndexLoad, 100'000 }
-            });
+            }, true);
         }
         catch (IException * e)
         {
@@ -372,7 +391,7 @@ public:
 
             //The counts are only valid if we waited for the threads to finish
             if (!delay)
-                verifyCounts("eventtrace.evt", { { EventIndexCacheMiss, 200'000 }, { EventIndexLoad, 200'000 } });
+                verifyCounts("eventtrace.evt", { { EventIndexCacheMiss, 200'000 }, { EventIndexLoad, 200'000 } }, true);
         }
         catch (IException * e)
         {
@@ -397,6 +416,176 @@ public:
     {
         //Test that the recording is blocked/events are dropped when the buffer is full
         //Add a special event function in the public interface which sleeps for a given time
+    }
+
+    class TimestampTestRecorder : public EventRecorder
+    {
+    public:
+        auto reserveQueryStop()
+        {
+            return reserveEvent(sizeMessageHeaderFooter);
+        }
+
+        auto reserveQueryStop(__uint64 absoluteTimestampNs)
+        {
+            return reserveEvent(sizeMessageHeaderFooter, absoluteTimestampNs);
+        }
+
+        void writeQueryStop(const EventReservation & reservation)
+        {
+            auto pos = reservation.offset;
+            writeEventHeader(EventQueryStop, pos, reservation.timestampOffset);
+            writeEventFooter(pos, sizeMessageHeaderFooter, reservation.offset);
+        }
+
+        __uint64 queryStartTimestamp() const
+        {
+            return startTimestamp.load();
+        }
+
+    };
+
+    void testReservedTimestamps()
+    {
+        START_TEST
+
+        TimestampTestRecorder recorder;
+        constexpr __uint64 firstOffset = 1'000'000'000'000'000ULL;
+        constexpr __uint64 secondOffset = firstOffset + 100;
+        const char * filename = "reservedtimestamps.evt";
+        CPPUNIT_ASSERT(recorder.startRecording("all,compress=0", filename, nullptr, 0, 0, 0, false));
+        __uint64 baseTimestamp = recorder.queryStartTimestamp();
+        auto first = recorder.reserveQueryStop(baseTimestamp + firstOffset);
+        CPPUNIT_ASSERT_EQUAL(firstOffset, first.timestampOffset);
+        auto second = recorder.reserveQueryStop(baseTimestamp + secondOffset);
+        CPPUNIT_ASSERT_EQUAL(secondOffset, second.timestampOffset);
+
+        // Simulate a later reservation completing before an earlier one.
+        recorder.writeQueryStop(second);
+        recorder.writeQueryStop(first);
+
+        auto third = recorder.reserveQueryStop(baseTimestamp + firstOffset);
+        CPPUNIT_ASSERT_EQUAL(firstOffset, third.timestampOffset);
+        recorder.writeQueryStop(third);
+        CPPUNIT_ASSERT(recorder.stopRecording(nullptr, true));
+
+        {
+            Owned<IEventIterator> iterator = createEventFileIterator(filename);
+            CEvent event;
+            for (__uint64 expected : {firstOffset, secondOffset, secondOffset})
+            {
+                CPPUNIT_ASSERT(iterator->nextEvent(event));
+                CPPUNIT_ASSERT_EQUAL(baseTimestamp + expected, event.queryNumericValue(EvAttrEventTimestamp));
+            }
+            CPPUNIT_ASSERT(!iterator->nextEvent(event));
+        }
+
+        CPPUNIT_ASSERT(recorder.startRecording("all,compress=lz4", filename, nullptr, 0, 0, 0, false));
+        baseTimestamp = recorder.queryStartTimestamp();
+        auto restarted = recorder.reserveQueryStop();
+        MilliSleep(1);
+        auto later = recorder.reserveQueryStop();
+        CPPUNIT_ASSERT(later.timestampOffset > restarted.timestampOffset);
+        MilliSleep(1);
+        recorder.writeQueryStop(later);
+        recorder.writeQueryStop(restarted);
+        CPPUNIT_ASSERT(recorder.stopRecording(nullptr, true));
+        {
+            Owned<IEventIterator> iterator = createEventFileIterator(filename);
+            CEvent event;
+            for (__uint64 expected : {restarted.timestampOffset, later.timestampOffset})
+            {
+                CPPUNIT_ASSERT(iterator->nextEvent(event));
+                CPPUNIT_ASSERT_EQUAL(baseTimestamp + expected, event.queryNumericValue(EvAttrEventTimestamp));
+            }
+            CPPUNIT_ASSERT(!iterator->nextEvent(event));
+        }
+        if (cleanup)
+            removeFile(filename);
+
+        END_TEST
+    }
+
+    void testImportedTimestamps()
+    {
+        START_TEST
+
+        TimestampTestRecorder recorder;
+        const char * filename = "importedtimestamps.evt";
+        CPPUNIT_ASSERT(recorder.startRecording("all,compress=lz4", filename, "timestamp-test", 0, 0, 0, false));
+        __uint64 baseTimestamp = recorder.queryStartTimestamp();
+        recorder.writeQueryStop(recorder.reserveQueryStop(baseTimestamp - 200));
+
+        auto generated = recorder.reserveQueryStop(0);
+        recorder.writeQueryStop(generated);
+        __uint64 generatedTimestamp = baseTimestamp + generated.timestampOffset;
+        __uint64 firstImportedTimestamp = generatedTimestamp + 200;
+        __uint64 secondImportedTimestamp = generatedTimestamp + 400;
+
+        CEvent event;
+        event.reset(EventQueryStop);
+        event.setValue(EvAttrEventTimestamp, firstImportedTimestamp);
+        recorder.recordEvent(event);
+
+        auto preBaseline = recorder.reserveQueryStop(baseTimestamp - 100);
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("A -100 ns delta must encode as UINT64_MAX - 99",
+                                     std::numeric_limits<__uint64>::max() - 99, preBaseline.timestampOffset);
+        recorder.writeQueryStop(preBaseline);
+
+        event.setValue(EvAttrEventTimestamp, baseTimestamp - 100);
+        recorder.recordEvent(event);
+
+        auto atBaseline = recorder.reserveQueryStop(baseTimestamp);
+        CPPUNIT_ASSERT_EQUAL(__uint64(0), atBaseline.timestampOffset);
+        recorder.writeQueryStop(atBaseline);
+
+        event.setValue(EvAttrEventTimestamp, secondImportedTimestamp);
+        recorder.recordEvent(event);
+
+        auto laterGenerated = recorder.reserveQueryStop(0);
+        recorder.writeQueryStop(laterGenerated);
+        CPPUNIT_ASSERT(recorder.stopRecording(nullptr, true));
+
+        const std::vector<__uint64> expectedTimestamps{
+            baseTimestamp - 200,
+            generatedTimestamp,
+            firstImportedTimestamp,
+            firstImportedTimestamp, // Pre-baseline reservation is clamped.
+            firstImportedTimestamp, // Pre-baseline recordEvent is clamped.
+            firstImportedTimestamp, // Recording-baseline reservation is clamped.
+            secondImportedTimestamp,
+            std::max(secondImportedTimestamp, baseTimestamp + laterGenerated.timestampOffset)
+        };
+        {
+            Owned<IEventIterator> iterator = createEventFileIterator(filename);
+            for (__uint64 expected : expectedTimestamps)
+            {
+                CPPUNIT_ASSERT(iterator->nextEvent(event));
+                CPPUNIT_ASSERT_EQUAL(expected, event.queryNumericValue(EvAttrEventTimestamp));
+            }
+            CPPUNIT_ASSERT(!iterator->nextEvent(event));
+        }
+        class TimestampVisitor : public CInterfaceOf<IEventVisitor>
+        {
+        public:
+            virtual bool visitFile([[maybe_unused]] const EventFileProperties& properties) override { return true; }
+            virtual bool visitEvent(CEvent& event, [[maybe_unused]] const EventFileProperties& properties) override
+            {
+                timestamps.push_back(event.queryNumericValue(EvAttrEventTimestamp));
+                return true;
+            }
+            virtual void departFile([[maybe_unused]] const EventFileProperties& properties) override {}
+            std::vector<__uint64> timestamps;
+        };
+        TimestampVisitor visitor;
+        CPPUNIT_ASSERT(readEvents(filename, visitor));
+        CPPUNIT_ASSERT_EQUAL(expectedTimestamps.size(), visitor.timestamps.size());
+        for (size_t i = 0; i < visitor.timestamps.size(); i++)
+            CPPUNIT_ASSERT_EQUAL(expectedTimestamps[i], visitor.timestamps[i]);
+        if (cleanup)
+            removeFile(filename);
+
+        END_TEST
     }
 
     void testFailCreate()
@@ -1640,8 +1829,12 @@ attribute: DataSize = 73
 
         // Iterate through all events and mark them as seen
         CEvent event;
+        __uint64 previousTimestamp = 0;
         while (ei->nextEvent(event))
         {
+            __uint64 timestamp = event.queryNumericValue(EvAttrEventTimestamp);
+            CPPUNIT_ASSERT(timestamp >= previousTimestamp);
+            previousTimestamp = timestamp;
             EventType type = event.queryType();
             CPPUNIT_ASSERT_MESSAGE("Event type should be valid", type >= EventNone && type < EventMax);
             CPPUNIT_ASSERT_EQUAL(testChannelId, (unsigned)event.queryAttribute(EvAttrChannelId).queryNumericValue());

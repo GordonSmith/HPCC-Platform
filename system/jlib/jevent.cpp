@@ -388,6 +388,8 @@ bool isSourceAttribute(EventAttr attr)
 //   but introduces potential contention.
 // - Each thread requests memory in the buffer, writes data into the space, and then commits the data
 // - The buffer is broken into multiple blocks, and data is written to disk when a block is complete.
+// - Generated timestamp offsets are assigned with buffer space under cs.
+//   File consumers clamp decoded timestamps to be nondecreasing in file order.
 //
 // How can you tell when it is possible to write data to disk.
 // - You can't commit it when that last byte of data is written to the block - because other threads may
@@ -419,6 +421,8 @@ bool isSourceAttribute(EventAttr attr)
 // events:
 //   eventType:     1 byte - which event from the EventType enumeration
 //   timestamp:     8 bytes - the time (in ns) since the start of recording that this event occured
+//                  Unsigned modulo-2^64 offset: add the recording baseline modulo 2^64 to decode.
+//                  Imported timestamps before the baseline use the modular encoding of a negative delta.
 //   traceId:  opt 16 bytes - the otel trace id for the query that recorded the event
 //   threadId: opt  4 bytes - the id of the thread that recorded the event
 //   attributes:
@@ -722,30 +726,61 @@ bool EventRecorder::pauseRecording(bool pause, bool recordChange)
 }
 
 //See notes above about reseving and committing events
-EventRecorder::offset_type EventRecorder::reserveEvent(size32_t size)
+EventRecorder::EventReservation EventRecorder::reserveEvent(size32_t size)
 {
-    for(;;)
+    for (;;)
+    {
+        {
+            CLeavableCriticalBlock block(cs);
+            offset_type offset;
+            if (tryReserveEvent(size, offset))
+            {
+                cycle_t nowCycles = get_cycles_now();
+                block.ensureLeave();
+                cycle_t baseCycles = startCycles.load(std::memory_order_acquire);
+                __uint64 elapsed = static_cast<__uint64>(cycle_to_nanosec(nowCycles - baseCycles));
+                return {offset, elapsed};
+            }
+        }
+        okToWriteSem.wait();
+    }
+}
+
+EventRecorder::EventReservation EventRecorder::reserveEvent(size32_t size, __uint64 absoluteTimestampNs)
+{
+    if (!absoluteTimestampNs)
+        return reserveEvent(size);
+
+    // Unsigned subtraction also encodes imports before the recording baseline.
+    __uint64 timestampOffsetNs = absoluteTimestampNs - startTimestamp.load(std::memory_order_acquire);
+    for (;;)
     {
         {
             CriticalBlock block(cs);
-            offset_t endOffset = nextOffset + size;
-            offset_type currentNextWriteOffset = nextWriteOffset.load(std::memory_order_relaxed);
-            if (likely(endOffset <= currentNextWriteOffset + OutputBufferSize))
-            {
-                offset_t offset = nextOffset;
-                nextOffset += size;
-                pendingEventCounts[getBlockFromOffset(offset)]++;
-                numEvents++;
-                return offset;
-            }
-
-            //Increment the number of threads waiting for space to add an event
-            writersWaiting++;
+            offset_type offset;
+            if (tryReserveEvent(size, offset))
+                return {offset, timestampOffsetNs};
         }
 
-        //Wait for space to become available
         okToWriteSem.wait();
     }
+}
+
+bool EventRecorder::tryReserveEvent(size32_t size, offset_type& offset)
+{
+    offset_t endOffset = nextOffset + size;
+    offset_type currentNextWriteOffset = nextWriteOffset.load(std::memory_order_relaxed);
+    if (likely(endOffset <= currentNextWriteOffset + OutputBufferSize))
+    {
+        offset = nextOffset;
+        nextOffset = endOffset;
+        pendingEventCounts[getBlockFromOffset(offset)]++;
+        numEvents++;
+        return true;
+    }
+
+    writersWaiting++;
+    return false;
 }
 
 void EventRecorder::commitEvent(offset_type startOffset, size32_t size)
@@ -819,9 +854,9 @@ template <typename... T>
 void EventRecorder::writeEventAttrs(EventType type, EventAttrPair<T>... attrs)
 {
     size32_t requiredSize = sizeMessageHeaderFooter + (getSizeOfAttr(attrs.value) + ...);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(type, pos);
+    writeEventHeader(type, pos, timestampOffset);
     (write(pos, attrs.attr, attrs.value), ...);
     writeEventFooter(pos, requiredSize, writeOffset);
 }
@@ -835,9 +870,9 @@ void EventRecorder::recordRecordingActive(bool enabled)
         TRACEEVENT("{ \"name\": \"RecordingActive\", \"Enabled\": %s }", boolToStr(enabled));
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(enabled);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(EventRecordingActive, pos);
+    writeEventHeader(EventRecordingActive, pos, timestampOffset);
     write(pos, EvAttrEnabled, enabled);
     writeEventFooter(pos, requiredSize, writeOffset);
 }
@@ -851,9 +886,9 @@ void EventRecorder::recordIndexOpen(unsigned fileid, __uint64 openTime)
         TRACEEVENT("{ \"name\": \"IndexOpen\", \"FileId\": %u, \"OpenTime\": %llu }", fileid, openTime);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(fileid, openTime);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(EventIndexOpen, pos);
+    writeEventHeader(EventIndexOpen, pos, timestampOffset);
     write(pos, EvAttrFileId, fileid);
     write(pos, EvAttrOpenTime, openTime);
     writeEventFooter(pos, requiredSize, writeOffset);
@@ -870,9 +905,9 @@ void EventRecorder::recordIndexCacheHit(unsigned fileid, offset_t offset, byte n
         TRACEEVENT("{ \"name\": \"IndexCacheHit\", \"FileId\": %u, \"FileOffset\": %llu, \"NodeKind\": %d, \"SearchFlags\": %u, \"InMemorySize\": %u, \"ExpandTime\": %llu }", fileid, offset, nodeKind, unsigned(searchFlags), size, expandTime);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(fileid, offset, nodeKind, searchFlags, size, expandTime);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(EventIndexCacheHit, pos);
+    writeEventHeader(EventIndexCacheHit, pos, timestampOffset);
     write(pos, EvAttrFileId, fileid);
     write(pos, EvAttrFileOffset, offset);
     write(pos, EvAttrNodeKind, nodeKind);
@@ -891,9 +926,9 @@ void EventRecorder::recordIndexCacheMiss(unsigned fileid, offset_t offset, byte 
         TRACEEVENT("{ \"name\": \"IndexCacheMiss\", \"FileId\": %u, \"FileOffset\": %llu, \"NodeKind\": %d, \"SearchFlags\": %u }", fileid, offset, nodeKind, unsigned(searchFlags));
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(fileid, offset, nodeKind, searchFlags);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(EventIndexCacheMiss, pos);
+    writeEventHeader(EventIndexCacheMiss, pos, timestampOffset);
     write(pos, EvAttrFileId, fileid);
     write(pos, EvAttrFileOffset, offset);
     write(pos, EvAttrNodeKind, nodeKind);
@@ -920,9 +955,9 @@ void EventRecorder::recordIndexLoad(unsigned fileid, offset_t offset, byte nodeK
     }
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(fileid, offset, nodeKind, searchFlags, size, expandTime, readTime);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(EventIndexLoad, pos);
+    writeEventHeader(EventIndexLoad, pos, timestampOffset);
     write(pos, EvAttrFileId, fileid);
     write(pos, EvAttrFileOffset, offset);
     write(pos, EvAttrNodeKind, nodeKind);
@@ -942,9 +977,9 @@ void EventRecorder::recordIndexEviction(unsigned fileid, offset_t offset, byte n
         TRACEEVENT("{ \"name\": \"IndexEviction\", \"FileId\": %u, \"FileOffset\": %llu, \"NodeKind\": %d, \"SearchFlags\": %u, \"InMemorySize\": %u }", fileid, offset, nodeKind, unsigned(searchFlags), size);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(fileid, offset, nodeKind, searchFlags, size);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(EventIndexEviction, pos);
+    writeEventHeader(EventIndexEviction, pos, timestampOffset);
     write(pos, EvAttrFileId, fileid);
     write(pos, EvAttrFileOffset, offset);
     write(pos, EvAttrNodeKind, nodeKind);
@@ -967,9 +1002,9 @@ void EventRecorder::recordIndexPayload(unsigned fileid, offset_t offset, bool fi
         TRACEEVENT("{ \"name\": \"IndexPayload\", \"FileId\": %u, \"FileOffset\": %llu, \"FirstUse\": %s, \"ExpandTime\": %llu }", fileid, offset, boolToStr(firstUse), expandTime);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(fileid, offset, firstUse, expandTime);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(EventIndexPayload, pos);
+    writeEventHeader(EventIndexPayload, pos, timestampOffset);
     write(pos, EvAttrFileId, fileid);
     write(pos, EvAttrFileOffset, offset);
     write(pos, EvAttrFirstUse, firstUse);
@@ -996,9 +1031,9 @@ void EventRecorder::recordDaliEvent(EventType event, const char * path, __int64 
     }
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(path, id, elapsedNs, dataSize);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(event, pos);
+    writeEventHeader(event, pos, timestampOffset);
     write(pos, EvAttrPath, path);
     write(pos, EvAttrConnectId, id);
     write(pos, EvAttrElapsedTime, elapsedNs);
@@ -1023,9 +1058,9 @@ void EventRecorder::recordDaliEvent(EventType event, __int64 id, stat_type elaps
 
     //MORE: Should the time stamp be adjusted by the elapsed time??
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(id, elapsedNs, dataSize);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(event, pos);
+    writeEventHeader(event, pos, timestampOffset);
     write(pos, EvAttrConnectId, id);
     write(pos, EvAttrElapsedTime, elapsedNs);
     write(pos, EvAttrDataSize, dataSize);
@@ -1042,9 +1077,9 @@ void EventRecorder::recordFileInformation(unsigned fileid, const char * filename
         TRACEEVENT("{ \"name\": \"MetaFileInformation\", \"FileId\": %u, \"Path\": \"%s\" }", fileid, filename);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(fileid, filename);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(MetaFileInformation, pos);
+    writeEventHeader(MetaFileInformation, pos, timestampOffset);
     write(pos, EvAttrFileId, fileid);
     write(pos, EvAttrPath, filename);
     writeEventFooter(pos, requiredSize, writeOffset);
@@ -1060,9 +1095,9 @@ void EventRecorder::recordPlaneInformation(const char * plane, const char * path
         TRACEEVENT("{ \"name\": \"MetaPlaneInformation\", \"Plane\": \"%s\", \"Path\": \"%s\", \"IsStriped\": %s }", plane, path, boolToStr(isStriped));
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(plane, path, isStriped);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(MetaPlaneInformation, pos);
+    writeEventHeader(MetaPlaneInformation, pos, timestampOffset);
     write(pos, EvAttrPlane, plane);
     write(pos, EvAttrPath, path);
     write(pos, EvAttrIsStriped, isStriped);
@@ -1078,9 +1113,9 @@ void EventRecorder::recordQueryStart(const char * queryName)
         TRACEEVENT("{ \"name\": \"QueryStart\", \"ServiceName\": \"%s\" }", queryName);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(queryName);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(EventQueryStart, pos);
+    writeEventHeader(EventQueryStart, pos, timestampOffset);
     write(pos, EvAttrServiceName, queryName);
     writeEventFooter(pos, requiredSize, writeOffset);
 }
@@ -1094,9 +1129,9 @@ void EventRecorder::recordQueryStop()
         TRACEEVENT("{ \"name\": \"QueryStop\" }");
 
     size32_t requiredSize = sizeMessageHeaderFooter;
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(EventQueryStop, pos);
+    writeEventHeader(EventQueryStop, pos, timestampOffset);
     writeEventFooter(pos, requiredSize, writeOffset);
 }
 
@@ -1162,9 +1197,9 @@ void EventRecorder::recordLockEvent(EventType event, unsigned lockId)
         TRACEEVENT("{ \"name\": \"%s\", \"LockId\": %u }", queryEventName(event), lockId);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(lockId);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(event, pos);
+    writeEventHeader(event, pos, timestampOffset);
     write(pos, EvAttrLockId, lockId);
     writeEventFooter(pos, requiredSize, writeOffset);
 }
@@ -1228,9 +1263,9 @@ void EventRecorder::recordRequestIdEvent(EventType event, unsigned requestId, un
         TRACEEVENT("{ \"name\": \"%s\", \"RequestId\": %u, \"RequestSeq\": %u }", queryEventName(event), requestId, requestSeq);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(requestId, requestSeq);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(event, pos);
+    writeEventHeader(event, pos, timestampOffset);
     write(pos, EvAttrRequestId, requestId);
     write(pos, EvAttrRequestSeq, requestSeq);
     writeEventFooter(pos, requiredSize, writeOffset);
@@ -1245,9 +1280,9 @@ void EventRecorder::recordResponseEvent(EventType event, unsigned requestId, uns
         TRACEEVENT("{ \"name\": \"%s\", \"RequestId\": %u, \"RequestSeq\": %u, \"ResponseId\": %u, \"ResponseSeq\": %u }", queryEventName(event), requestId, requestSeq, responseId, responseSeq);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(requestId, requestSeq, responseId, responseSeq);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(event, pos);
+    writeEventHeader(event, pos, timestampOffset);
     write(pos, EvAttrRequestId, requestId);
     write(pos, EvAttrRequestSeq, requestSeq);
     write(pos, EvAttrResponseId, responseId);
@@ -1294,9 +1329,9 @@ void EventRecorder::recordMpDataEvent(EventType event, EventAttr attr, unsigned 
         TRACEEVENT("{ \"name\": \"%s\", \"%s\": %u, \"DataSize\": %u }", queryEventName(event), queryEventAttributeName(attr), id, dataSize);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(id, dataSize);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(event, pos);
+    writeEventHeader(event, pos, timestampOffset);
     write(pos, attr, id);
     write(pos, EvAttrDataSize, dataSize);
     writeEventFooter(pos, requiredSize, writeOffset);
@@ -1311,9 +1346,9 @@ void EventRecorder::recordMpIdEvent(EventType event, EventAttr attr, unsigned id
         TRACEEVENT("{ \"name\": \"%s\", \"%s\": %u }", queryEventName(event), queryEventAttributeName(attr), id);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(id);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(event, pos);
+    writeEventHeader(event, pos, timestampOffset);
     write(pos, attr, id);
     writeEventFooter(pos, requiredSize, writeOffset);
 }
@@ -1347,9 +1382,9 @@ void EventRecorder::recordElementEvent(EventType event, __uint64 elementId)
         TRACEEVENT("{ \"name\": \"%s\", \"ElementId\": %llu }", queryEventName(event), elementId);
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(elementId);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(event, pos);
+    writeEventHeader(event, pos, timestampOffset);
     write(pos, EvAttrElementId, elementId);
     writeEventFooter(pos, requiredSize, writeOffset);
 }
@@ -1380,9 +1415,9 @@ void EventRecorder::recordRecordingSource(const char *processDescriptor, byte ch
     }
 
     size32_t requiredSize = sizeMessageHeaderFooter + getSizeOfAttrs(processDescriptor, channelId, replicaId, instanceId);
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize);
     offset_type pos = writeOffset;
-    writeEventHeader(EventRecordingSource, pos);
+    writeEventHeader(EventRecordingSource, pos, timestampOffset);
     write(pos, EvAttrProcessDescriptor, processDescriptor);
     write(pos, EvAttrChannelId, channelId);
     write(pos, EvAttrReplicaId, replicaId);
@@ -1518,11 +1553,11 @@ void EventRecorder::recordEvent(CEvent& event)
             UNIMPLEMENTED;
         }
     }
-    offset_type writeOffset = reserveEvent(requiredSize);
+    auto [writeOffset, timestampOffset] = reserveEvent(requiredSize, event.queryNumericValue(EvAttrEventTimestamp));
     offset_type pos = writeOffset;
 
     // Write the event data. Note the critical assumption that the defined attributes are presented in expected recording order.
-    writeEventHeader(event.queryType(), pos, event.queryNumericValue(EvAttrEventTimestamp), event.queryTextValue(EvAttrEventTraceId), event.queryNumericValue(EvAttrEventThreadId));
+    writeEventHeader(event.queryType(), pos, timestampOffset, event.queryTextValue(EvAttrEventTraceId), event.queryNumericValue(EvAttrEventThreadId));
     for (CEventAttribute& attr : event.assignedAttributes)
     {
         if (isHeaderAttribute(attr.queryId())) // already written
@@ -1556,12 +1591,10 @@ void EventRecorder::recordEvent(CEvent& event)
     writeEventFooter(pos, requiredSize, writeOffset);
 }
 
-void EventRecorder::writeEventHeader(EventType type, offset_type & offset)
+void EventRecorder::writeEventHeader(EventType type, offset_type & offset, __uint64 timestampOffsetNs)
 {
-    __uint64 ts = cycle_to_nanosec(get_cycles_now() - startCycles.load(std::memory_order_acquire)); // nanoseconds relative to the start of the recording
-
     write(offset, type);
-    write(offset, ts);
+    write(offset, timestampOffsetNs);
 
     if (options & ERFtraceid)
         writeTraceId(offset, queryThreadedActiveSpan()->queryTraceId());
@@ -1572,16 +1605,10 @@ void EventRecorder::writeEventHeader(EventType type, offset_type & offset)
     }
 }
 
-void EventRecorder::writeEventHeader(EventType type, offset_type & offset, __uint64 timestamp, const char * traceid, unsigned threadId)
+void EventRecorder::writeEventHeader(EventType type, offset_type & offset, __uint64 timestampOffsetNs, const char * traceid, unsigned threadId)
 {
-    __uint64 ts;
-    if (timestamp)
-        ts = timestamp - startTimestamp.load(std::memory_order_acquire);
-    else
-        ts = cycle_to_nanosec(get_cycles_now() - startCycles.load(std::memory_order_acquire)); // nanoseconds relative to the start of the recording
-
     write(offset, type);
-    write(offset, ts);
+    write(offset, timestampOffsetNs);
 
     if (options & ERFtraceid)
     {
@@ -2112,6 +2139,7 @@ public:
             properties.options.includeStackTraces = EventFileOption::Enabled;
         readToken(properties.startTimestamp);
         properties.endTimestamp = properties.startTimestamp;
+        lastEventTimestamp = 0;
     }
 
     bool readEvent(CEvent& event)
@@ -2334,7 +2362,7 @@ protected:
         readToken(value);
         if (std::is_same<T, bool>::value)
             return event.setValue(attr, bool(value));
-        // normalize event timestamp as a combination of header timestamp and event offset
+        // Unsigned addition modulo 2^64 also decodes pre-baseline imported timestamps.
         if (EvAttrEventTimestamp == attr)
         {
             // The Windows 2022 (at least) compiler is unable to recognize that a Boolean value can
@@ -2350,6 +2378,12 @@ protected:
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
+            // Suppressed source metadata must not constrain the first delivered timestamp.
+            if (event.queryType() == EventRecordingSource)
+                return event.setValue(attr, __uint64(value));
+            // Correct clock regressions in file order for both pushed and pulled events.
+            lastEventTimestamp = std::max(lastEventTimestamp, __uint64(value));
+            return event.setValue(attr, lastEventTimestamp);
         }
         return event.setValue(attr, __uint64(value));
     }
@@ -2385,6 +2419,7 @@ protected:
     Owned<IBufferedSerialInputStream> stream;
     Owned<IFile> file;
     EventFileProperties properties;
+    __uint64 lastEventTimestamp{0};
     bool haveRecordingSource{false};
     StringBuffer scratchText;
     MemoryBuffer scratchBinary;

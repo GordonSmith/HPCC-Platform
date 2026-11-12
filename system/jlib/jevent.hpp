@@ -545,6 +545,10 @@ public:
 
     void recordRecordingSource(const char* processDescriptor, byte channelId, byte replicaId, __uint64 instanceId);
 
+    // Nonzero imported timestamps are preserved; zero/missing timestamps use reservation time.
+    // Recorded timestamps may be non-monotonic in file order. Only readEvents() and
+    // createEventFileIterator() clamp decoded timestamps to be nondecreasing, so returned
+    // timestamps may differ from their originally recorded values.
     void recordEvent(CEvent& event);
 
     //-------------------------- End of the public interface --------------------------
@@ -566,8 +570,8 @@ protected:
     void checkAttrValue(EventAttr attr, size_t size);
     void checkDataWrite(offset_type offset, size_t size);
 
-    void writeEventHeader(EventType type, offset_type & offset);
-    void writeEventHeader(EventType type, offset_type & offset, __uint64 timestamp, const char* traceId, unsigned threadId);
+    void writeEventHeader(EventType type, offset_type & offset, __uint64 timestampOffsetNs);
+    void writeEventHeader(EventType type, offset_type & offset, __uint64 timestampOffsetNs, const char* traceId, unsigned threadId);
     void writeEventFooter(offset_type & offset, size32_t requiredSize, offset_t writeOffset);
 
     template <class T>
@@ -603,7 +607,19 @@ protected:
     void writeByte(offset_type & offset, byte value);
     void writeData(offset_type & offset, size_t size, const void * data);
 
-    offset_type reserveEvent(size32_t size);
+    struct EventReservation
+    {
+        offset_type offset;
+        // Nanoseconds relative to startTimestamp, encoded modulo 2^64 for pre-baseline imports.
+        __uint64 timestampOffset;
+    };
+
+    EventReservation reserveEvent(size32_t size);
+    // Zero generates a timestamp at reservation time. Nonzero values are absolute nanoseconds;
+    // the returned offset decodes as (startTimestamp + timestampOffset) modulo 2^64.
+    EventReservation reserveEvent(size32_t size, __uint64 absoluteTimestampNs);
+    // Caller must hold cs; a failed reservation registers a writer waiting for space.
+    bool tryReserveEvent(size32_t size, offset_type& offset);
     void commitEvent(offset_type startOffset, size32_t size);
 
     void writeBlock(offset_type startOffset, size32_t size);
@@ -789,6 +805,9 @@ interface IEventIterator : extends IInterface
 // infrastructure. The returned iterator exposes a pull-based API via nextEvent(), allowing
 // callers to iterate over events at their own pace. This is functionally equivalent to
 // readEvents(), but gives the caller more control over iteration and lifetime.
+// Decoded timestamps, including imported timestamps, are clamped to the preceding
+// timestamp in file order. Events are not reordered; timestamps may differ from
+// their recorded values. The first timestamp is not clamped to the file baseline.
 //
 // On success, returns a new IEventIterator instance. The caller is responsible for releasing
 // the interface when it is no longer needed, using the standard IInterface reference-counting
@@ -800,6 +819,8 @@ extern jlib_decl IEventIterator* createEventFileIterator(const char* path);
 
 // Opens and parses a single binary event data file. Parsed data is passed to the given visitor
 // until parsing completes or the visitor requests it to stop.
+// As with createEventFileIterator(), decoded timestamps are clamped to be
+// nondecreasing in file order, including imported timestamps.
 //
 // Exceptions are thrown on error. False is returned if parsing was stopped prematurely. True is
 // returned if all data was parsed successfully.
