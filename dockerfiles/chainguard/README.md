@@ -143,7 +143,9 @@ responsibility; no keys are created or installed automatically.
 ### Starting a Native Platform Installation
 
 Non-containerized platform APKs include install/upgrade setup and the runtime
-tools required by the existing Bash init scripts. Setup creates the configured
+tools required by the existing Bash init scripts, plus the util-linux `lsblk`
+package for HPCC's block-device discovery (BusyBox `lsblk` lacks the required
+options). Setup creates the configured
 runtime account, initializes missing `/etc/HPCCSystems` configuration from the
 packaged defaults, prepares runtime directories, and links `hpcc-init` and
 `dafilesrv` into `/etc/init.d`. Existing configuration, accounts, and runtime

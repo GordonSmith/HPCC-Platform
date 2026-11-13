@@ -270,6 +270,9 @@ endif()
             output = self.run_command("sudo", "-n", "chroot", str(rootfs), "/bin/bash", "-c",
                                       f"PATH=/usr/bin:/bin {name} --version")
             self.assertIn("fixture client tool 10.9.0", output)
+        output = self.run_command("sudo", "-n", "chroot", str(rootfs),
+                                  "lsblk", "-o", "TYPE,MAJ:MIN", "--pairs", "--help")
+        self.assertIn("--pairs", output)
         config = rootfs / "etc/HPCCSystems/environment.conf"
         self.run_command("sudo", "-n", "chmod", "0666", str(config))
         contents = config.read_text() + "# administrator change\n"

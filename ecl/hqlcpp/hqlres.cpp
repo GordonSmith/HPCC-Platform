@@ -669,6 +669,13 @@ bool ResourceManager::flush(StringBuffer &filename, const char *basename, bool f
     if (!f)
         throwError1(HQLERR_ResourceCreateFailed, filename.str());
 
+    //Note on targets where the @ character is the start of a comment (eg ARM) then another character is used instead. For example the ARM port uses the % character.
+#if defined(__arm__) || defined(__aarch64__)
+    const char typePrefix = '%';
+#else
+    const char typePrefix = '@';
+#endif
+
     //MORE: This should really use targetCompiler instead
     ForEachItemIn(idx, resources)
     {
@@ -677,13 +684,6 @@ bool ResourceManager::flush(StringBuffer &filename, const char *basename, bool f
         unsigned id = s.id;
         VStringBuffer binfile("%s_%s_%u.bin", filename.str(), type, id);
         VStringBuffer label("%s_%u_txt_start", type, id);
-
-        //Note on targets where the @ character is the start of a comment (eg ARM) then another character is used instead. For example the ARM port uses the % character.
-#if defined(__arm__) || defined(__aarch64__)
-        const char typePrefix = '%';
-#else
-        const char typePrefix = '@';
-#endif
 
         if (compilerType == ClangCppCompiler)
         {
@@ -701,7 +701,6 @@ bool ResourceManager::flush(StringBuffer &filename, const char *basename, bool f
         }
         else
         {
-            fprintf(f, " .section .note.GNU-stack,\"\",%cprogbits\n", typePrefix);   // Prevent the stack from being marked as executable
             fprintf(f, " .section %s_%u,\"a\"\n", type, id);
             fprintf(f, " .global %s\n", label.str());
             fprintf(f, " .type %s,STT_OBJECT\n", label.str());
@@ -719,6 +718,8 @@ bool ResourceManager::flush(StringBuffer &filename, const char *basename, bool f
         if (compilerType != ClangCppCompiler)
             fprintf(f, " .size %s,%u\n", label.str(), (unsigned)s.data.length());
     }
+    if (compilerType != ClangCppCompiler)
+        fprintf(f, " .section .note.GNU-stack,\"\",%cprogbits\n", typePrefix);   // Prevent the stack from being marked as executable
     fclose(f);
 #endif
     if (flushText)

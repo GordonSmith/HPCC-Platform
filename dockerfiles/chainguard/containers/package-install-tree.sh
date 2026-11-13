@@ -373,6 +373,7 @@ if [[ ${APK_HOST_PLATFORM} -eq 1 ]]; then
       - gawk
       - grep
       - cmd:getent
+      - lsblk
       - procps
       - shadow
       - util-linux-login
