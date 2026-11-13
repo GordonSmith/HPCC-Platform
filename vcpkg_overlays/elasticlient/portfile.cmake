@@ -1,0 +1,25 @@
+vcpkg_from_github(
+    OUT_SOURCE_PATH SOURCE_PATH
+    REPO hpcc-systems/elasticlient
+    REF 822af26dd087eff1267fbb8868845a073bf2b1e3
+    SHA512 4f73202b2c289924c97ac85e74c7b63ae2d21c24e8c2932bc346a480f9c61f29e47df72d366f82477cc6235b7861dac64568fead0159514c273625ebf1929cfe
+    HEAD_REF master
+)
+
+vcpkg_cmake_configure(
+    SOURCE_PATH "${SOURCE_PATH}"
+
+    OPTIONS
+    -DBUILD_ELASTICLIENT_TESTS=0
+    -DBUILD_ELASTICLIENT_EXAMPLE=0
+    -DUSE_SYSTEM_JSONCPP=1
+    -DUSE_SYSTEM_CPR=1
+    -DBUILD_SHARED_LIBS=1
+    -DCMAKE_DISABLE_FIND_PACKAGE_jsoncpp=1
+)
+
+vcpkg_cmake_install()
+
+file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
+
+file(INSTALL "${SOURCE_PATH}/LICENSE.txt" DESTINATION "${CURRENT_PACKAGES_DIR}/share/elasticlient" RENAME copyright)

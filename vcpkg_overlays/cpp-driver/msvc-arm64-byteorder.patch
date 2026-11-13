@@ -1,0 +1,20 @@
+--- a/src/dse_serialization.hpp
++++ b/src/dse_serialization.hpp
+@@ -59,7 +59,7 @@
+ 
+ enum WkbByteOrder { WKB_BYTE_ORDER_BIG_ENDIAN = 0, WKB_BYTE_ORDER_LITTLE_ENDIAN = 1 };
+ 
+-#if defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || \
++#if defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64) || defined(_M_ARM) || defined(_M_ARM64) || defined(__i386__) || \
+     defined(__x86_64__) || defined(__amd64__)
+ inline WkbByteOrder native_byte_order() { return WKB_BYTE_ORDER_LITTLE_ENDIAN; }
+ #elif defined(__BYTE_ORDER__)
+@@ -70,7 +70,7 @@
+ #else
+ inline WkbByteOrder native_byte_order() {
+   const uint32_t native_byte_order = 0x01020304;
+-  return reinterpret_cast<const cass_uint8_t*>(&NATIVE_ORDER)[0] == 0x01
++  return reinterpret_cast<const cass_uint8_t*>(&native_byte_order)[0] == 0x01
+              ? WKB_BYTE_ORDER_BIG_ENDIAN
+              : WKB_BYTE_ORDER_LITTLE_ENDIAN;
+ }

@@ -1,0 +1,13 @@
+{
+  "name": "libcouchbase-cxx",
+  "version-semver": "0.0.0",
+  "homepage": "https://github.com/hpcc-systems/libcouchbase-cxx",
+  "description": "This file contains header-only C++ wrappers for libcouchbase. It is a work in progress.",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    "libcouchbase"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "elasticlient",
+  "version-semver": "0.2.2",
+  "port-version": 0,
+  "homepage": "https://github.com/hpcc-systems/elasticlient",
+  "description": "C++ elasticlient library is simple library for simplified work with Elasticsearch in C++. The library is based on C++ Requests: Curl for People.",
+  "supports": "!windows",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    "jsoncpp",
+    "cpr"
+  ]
+}

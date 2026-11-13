@@ -1,0 +1,21 @@
+diff --git a/extra/libedit/libedit-20240808-3.1/src/terminal.c b/extra/libedit/libedit-20240808-3.1/src/terminal.c
+index c9d2478bdb..9ed53bd955 100644
+--- a/extra/libedit/libedit-20240808-3.1/src/terminal.c
++++ b/extra/libedit/libedit-20240808-3.1/src/terminal.c
+@@ -57,6 +57,14 @@
+ #ifdef HAVE_TERMCAP_H
+ #include <termcap.h>
+ #endif
++#if !defined(HAVE_TERMCAP_H) && defined(__has_include)
++#if __has_include(<ncursesw/termcap.h>)
++#include <ncursesw/termcap.h>
++#elif __has_include(<ncurses/termcap.h>)
++#include <ncurses/termcap.h>
++#endif
++#endif
++
+ #ifdef HAVE_CURSES_H
+ #include <curses.h>
+ #elif HAVE_NCURSES_H
+ #include <ncurses.h>
+ #endif

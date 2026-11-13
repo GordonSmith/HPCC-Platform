@@ -1,0 +1,17 @@
+{
+  "name": "cpp-driver",
+  "version-semver": "2.16.2",
+  "port-version": 2,
+  "homepage": "https://github.com/datastax/cpp-driver",
+  "description": "DataStax C/C++ Driver for Apache Cassandra® and DataStax Products.",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    "curl",
+    "libuv",
+    "openssl",
+    "zlib"
+  ]
+}

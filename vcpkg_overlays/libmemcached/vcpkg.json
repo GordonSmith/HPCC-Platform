@@ -1,0 +1,12 @@
+{
+  "name": "libmemcached",
+  "version-semver": "1.0.18",
+  "homepage": "http://docs.libmemcached.org/libmemcached.html",
+  "description": "libMemcached is an open source C/C++ client library and tools for the memcached server (http://memcached.org/). It has been designed to be light on memory usage, thread safe, and provide full access to server side methods.",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    }
+  ]
+}

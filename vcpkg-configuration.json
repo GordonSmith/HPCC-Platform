@@ -6,11 +6,9 @@
   },
   "registries": [],
   "overlay-ports": [
-    "./vcpkg_overlays",
-    "./vcpkg/overlays"
+    "./vcpkg_overlays"
   ],
   "overlay-triplets": [
-    "./vcpkg_overlays",
-    "./vcpkg/overlays"
+    "./vcpkg_overlays"
   ]
 }
