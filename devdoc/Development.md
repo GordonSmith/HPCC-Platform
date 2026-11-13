@@ -120,8 +120,42 @@ make package
 This will first do a make to ensure everything is up to date, then will
 create the appropriate package for your operating system, Currently
 supported package formats are rpm (for RedHat/Centos) and .deb (for
-Debian and Ubuntu). If the operating system is not one of the above, or
+Debian and Ubuntu), plus APK on native Chainguard/Wolfi. If the operating system is not one of the above, or
 is not recognized, make package will create a tarball.
+
+On native Chainguard/Wolfi, the generator-independent command is:
+
+```bash
+cmake --build <build-dir> --target package
+```
+
+This uses CPack's External generator and the existing melange workflow to
+produce one APK and two runtime SPDX SBOMs in the build directory, not a tarball.
+It packages CPack's installed files without running a second installation.
+Ordinary `cmake --install` does not create packages. Other distributions keep
+their existing packaging behavior; this detection does not cover Alpine or
+cross-compilation.
+
+Packaging requires `melange`, `syft`, Python 3, `readelf`, Bash, `tar`, GNU coreutils,
+the Wolfi signing public key at `/etc/apk/keys/wolfi-signing.rsa.pub`, network
+access to the Wolfi repository, and unprivileged user namespaces for melange's
+bubblewrap runner. The configured `${VCPKG_FILES_DIR}/vcpkg_packages` provenance directory must
+be available.
+Configuration and ordinary installation do not require these packaging tools.
+The existing baseline verification and SBOM/provenance checks remain enabled.
+
+APKs are unsigned by default for local development. In a disposable test
+environment only, use `apk add --allow-untrusted ./<package>.apk` to install
+one. For signed packages, configure
+`-DCPACK_APK_SIGNING_KEY=/absolute/path/to/signing-key.rsa`; distribute and
+trust the corresponding public key separately. Packaging does not create keys
+or modify the host's trust store.
+
+See [Chainguard builds](../dockerfiles/chainguard/README.md) for the separate
+container-based multi-format workflow and native APK installation commands.
+Non-containerized platform APKs initialize missing configuration, create the
+runtime account and directories, and install the `/etc/init.d` links without
+starting services. Existing configuration and runtime data are preserved.
 
 The package installation does not start the service on the machine, so
 if you want to give it a go or test it (see below), make sure to start

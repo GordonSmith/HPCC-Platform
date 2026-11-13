@@ -93,6 +93,117 @@ The proxy runs only the requested CMake command. It does not supply HPCC's
 configure flags, build automatically, or create packages. Use
 [build.sh](build.sh) for the complete HPCC build.
 
+## Native CMake APK Packaging
+
+When HPCC is the top-level CMake project on native Chainguard or Wolfi
+(`ID=chainguard` or `ID=wolfi` in `/etc/os-release`), CMake selects CPack's
+External generator:
+
+```bash
+cmake --build <build-dir> --target package
+```
+
+CPack stages the installation once and passes it to
+[package-install-tree.sh](containers/package-install-tree.sh), reusing melange,
+baseline validation, and runtime/vcpkg SBOM generation. It writes one APK and
+two runtime SPDX JSON files directly to the build directory, with no TGZ, DEB,
+or RPM. CPack also writes its External-generator metadata JSON.
+`cpack --config <build-dir>/CPackConfig.cmake -B <output-dir>` changes
+the output directory. Ordinary `cmake --install` never runs packaging.
+
+For example, version `10.9.0` with release `trunk0` produces
+`hpccsystems-platform-10.9.0_alpha0-r0.x86_64.apk` and
+`hpccsystems-platform-10.9.0_alpha0-r0.runtime{,-vcpkg}.spdx.json`.
+The APK filename retains the existing glibc baseline and `_k8s` labels when
+applicable. Client-tools and plugin packages use their configured package names.
+No development subpackages are added.
+
+The packaging environment needs `melange`, `syft`, Python 3, `readelf`, Bash, `tar`,
+GNU coreutils, the Wolfi public key
+`/etc/apk/keys/wolfi-signing.rsa.pub`, and access to
+`https://packages.wolfi.dev/os`. Melange's bubblewrap runner needs unprivileged
+user namespaces. Keep the configured `${VCPKG_FILES_DIR}/vcpkg_packages`
+directory for provenance generation. Missing tools or failed
+checks fail the package target; CMake configuration does not require the tools.
+
+If the build environment has the other prerequisites but lacks the SBOM scanner,
+install it before running the package target:
+
+```bash
+sudo apk add syft
+```
+
+Unsigned development APKs are allowed by default. Only in a disposable test
+environment, install using `apk add --allow-untrusted ./<package>.apk`.
+To sign with an existing key, configure
+`-DCPACK_APK_SIGNING_KEY=/absolute/path/to/signing-key.rsa`.
+Public-key distribution and trust configuration remain the caller's
+responsibility; no keys are created or installed automatically.
+
+### Starting a Native Platform Installation
+
+Non-containerized platform APKs include install/upgrade setup and the runtime
+tools required by the existing Bash init scripts. Setup creates the configured
+runtime account, initializes missing `/etc/HPCCSystems` configuration from the
+packaged defaults, prepares runtime directories, and links `hpcc-init` and
+`dafilesrv` into `/etc/init.d`. Existing configuration, accounts, and runtime
+data are preserved. Installed client tools, including `eclcc`, `ecl`, `dfuplus`,
+and the ECL subcommands, are linked into `/usr/bin` so they work in ordinary
+shells without adding `/opt/HPCCSystems/bin` to `PATH`. Setup never starts HPCC
+or registers it for automatic boot.
+
+After installation, start the platform explicitly:
+
+```bash
+sudo /etc/init.d/hpcc-init start
+```
+
+To replace a previously installed development APK with a rebuilt local APK,
+pass the rebuilt file explicitly:
+
+```bash
+sudo apk add --allow-untrusted --upgrade \
+    <build-dir>/hpccsystems-platform-10.9.0_alpha0-r0.x86_64.apk
+sudo /etc/init.d/hpcc-init start
+```
+
+Use the generated filename for your version, architecture, and package name.
+This also runs upgrade setup when replacing the older payload-only APK.
+The setup helper,
+`/opt/HPCCSystems/sbin/hpcc-apk-setup`, is idempotent and can also be rerun after
+installation. It uses the build's packaged defaults; administrators who change
+runtime accounts or paths in the live configuration must provision those custom
+resources themselves. The supported native layout is `/opt/HPCCSystems` with
+configuration under `/etc/HPCCSystems`.
+
+HPCC setup does not deploy the legacy shared SSH keys or modify sudoers.
+Configure SSH authentication separately for clusters that require remote
+execution. Removing the APK removes its init-script and client-tool links only
+when they still point to this installation, leaving HPCC
+configuration, runtime data, and accounts intact. Stop HPCC before removal.
+Containerized platform packages, client tools, and plugins do not run this
+host-service setup.
+
+This native default does not apply to Alpine, other distributions, or
+cross-compilation. The standalone [build.sh](build.sh) command keeps its
+existing default of APK, DEB, RPM, and SBOM output, with `-f` and `-k` selecting
+formats and signing as before.
+
+Run focused packaging integration tests without building HPCC:
+
+```bash
+python3 dockerfiles/chainguard/tests/test_cpack_apk.py -v
+```
+
+These use fixture tools to check staging, output publication, signing forwarding,
+and failures. With the packaging prerequisites installed, set
+`HPCC_TEST_REAL_APK=1` to also build and verify a real unsigned fixture APK.
+The tests use temporary workspaces and never install packages into the host.
+Set `HPCC_TEST_APK_INSTALL=1` to additionally test fresh installation,
+same-version reinstallation, configuration preservation, and link cleanup in an
+isolated root. That test requires passwordless `sudo` for `apk`, `chroot`, file
+permissions, and cleanup ownership; it does not start HPCC services.
+
 ## Build a Development Image
 
 The build script handles this automatically. To prepare the default image

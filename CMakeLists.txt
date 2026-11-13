@@ -234,6 +234,9 @@ endif()
 ###
 ## CPack install and packaging setup.
 ###
+include(apkPackaging)
+hpcc_detect_apk_distribution(IS_CHAINGUARD "/etc/os-release")
+
 if ( WIN32 )
     set ( CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE )
     if (MSVC_VERSION EQUAL 1930 AND MSVC_TOOLSET_VERSION EQUAL 142)
@@ -332,21 +335,27 @@ if(TOP_LEVEL_PROJECT)
     endif()
     
     if(UNIX AND NOT APPLE)
-        execute_process(
-            COMMAND ${HPCC_SOURCE_DIR}/cmake_modules/distrocheck.sh
-            OUTPUT_VARIABLE packageManagement
-            ERROR_VARIABLE  packageManagement
-            )
-        execute_process(
-            COMMAND ${HPCC_SOURCE_DIR}/cmake_modules/getpackagerevisionarch.sh
-            OUTPUT_VARIABLE packageRevisionArch
-            ERROR_VARIABLE  packageRevisionArch
-            )
-        execute_process(
-            COMMAND ${HPCC_SOURCE_DIR}/cmake_modules/getpackagerevisionarch.sh --noarch
-            OUTPUT_VARIABLE packageRevision
-            ERROR_VARIABLE  packageRevision
-            )
+        if(IS_CHAINGUARD)
+            set(packageManagement "APK")
+            set(packageRevision "wolfi")
+            set(packageRevisionArch "wolfi_${CMAKE_SYSTEM_PROCESSOR}")
+        else()
+            execute_process(
+                COMMAND ${HPCC_SOURCE_DIR}/cmake_modules/distrocheck.sh
+                OUTPUT_VARIABLE packageManagement
+                ERROR_VARIABLE packageManagement
+                )
+            execute_process(
+                COMMAND ${HPCC_SOURCE_DIR}/cmake_modules/getpackagerevisionarch.sh
+                OUTPUT_VARIABLE packageRevisionArch
+                ERROR_VARIABLE packageRevisionArch
+                )
+            execute_process(
+                COMMAND ${HPCC_SOURCE_DIR}/cmake_modules/getpackagerevisionarch.sh --noarch
+                OUTPUT_VARIABLE packageRevision
+                ERROR_VARIABLE packageRevision
+                )
+        endif()
 
         message("-- Auto Detecting Packaging type")
         message("-- distro uses ${packageManagement}, revision is ${packageRevisionArch}")
@@ -425,7 +434,18 @@ endif()
 
 if(TOP_LEVEL_PROJECT)
     if (UNIX AND NOT APPLE)
-        if("${packageManagement}" STREQUAL "DEB")
+        if("${packageManagement}" STREQUAL "APK")
+            set(CPACK_GENERATOR "External")
+            set(CPACK_EXTERNAL_ENABLE_STAGING ON)
+            set(CPACK_MONOLITHIC_INSTALL TRUE)
+            set(CPACK_SET_DESTDIR ON)
+            set(CPACK_APK_BUILD_DIR "${CMAKE_BINARY_DIR}")
+            set(CPACK_APK_SOURCE_DIR "${HPCC_SOURCE_DIR}")
+            set(CPACK_APK_VCPKG_PACKAGES_DIR "${VCPKG_FILES_DIR}/vcpkg_packages")
+            set(CPACK_APK_SIGNING_KEY "" CACHE FILEPATH "Optional signing key for native APK packages")
+            set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${HPCC_SOURCE_DIR}/cmake_modules/package_apk.cmake")
+            message(STATUS "Chainguard/Wolfi detected -- will build APK package with melange")
+        elseif("${packageManagement}" STREQUAL "DEB")
             set(CPACK_GENERATOR "${packageManagement}")
             message("-- Will build DEB package")
             ###

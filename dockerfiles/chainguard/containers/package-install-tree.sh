@@ -3,6 +3,7 @@ set -euo pipefail
 
 usage() {
     echo "Usage: $0 -b <build-dir> [-o <out-dir>] [-s <staging-dir>] [-k <signing-key.rsa>] [-f apk,deb,rpm|all] [--hpcc-source-dir <dir>]" >&2
+    echo "CPack: --stage-root <installed-root> --output-manifest <file> --package-name <name> --package-version <version> --package-release <release> --package-contact <contact> [--vcpkg-packages-dir <dir>]" >&2
 }
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
@@ -12,8 +13,19 @@ STAGING_DIR=""
 SIGNING_KEY=""
 FORMATS=apk
 HPCC_SOURCE_DIR=""
+INPUT_STAGE_ROOT=""
+OUTPUT_MANIFEST=""
+PACKAGE_NAME=""
+PACKAGE_VERSION=""
+PACKAGE_RELEASE=""
+PACKAGE_CONTACT=""
+VCPKG_PACKAGES_DIR=""
 
 while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -b|-o|-s|-k|-f|--hpcc-source-dir|--stage-root|--output-manifest|--package-name|--package-version|--package-release|--package-contact|--vcpkg-packages-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "Missing value for $1" >&2; exit 1; } ;;
+    esac
     case "$1" in
         -b) BUILD_DIR="$2"; shift 2 ;;
         -o) OUT_DIR="$2"; shift 2 ;;
@@ -21,10 +33,38 @@ while [[ $# -gt 0 ]]; do
         -k) SIGNING_KEY="$2"; shift 2 ;;
         -f) FORMATS="$2"; shift 2 ;;
         --hpcc-source-dir) HPCC_SOURCE_DIR="$2"; shift 2 ;;
+        --stage-root) INPUT_STAGE_ROOT="$2"; shift 2 ;;
+        --output-manifest) OUTPUT_MANIFEST="$2"; shift 2 ;;
+        --package-name) PACKAGE_NAME="$2"; shift 2 ;;
+        --package-version) PACKAGE_VERSION="$2"; shift 2 ;;
+        --package-release) PACKAGE_RELEASE="$2"; shift 2 ;;
+        --package-contact) PACKAGE_CONTACT="$2"; shift 2 ;;
+        --vcpkg-packages-dir) VCPKG_PACKAGES_DIR="$2"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) usage; exit 1 ;;
     esac
 done
+
+if [[ -n "${INPUT_STAGE_ROOT}" ]]; then
+    [[ -d "${INPUT_STAGE_ROOT}" && -n "${STAGING_DIR}" && -n "${OUTPUT_MANIFEST}" &&
+       -n "${PACKAGE_NAME}" && -n "${PACKAGE_VERSION}" && -n "${PACKAGE_RELEASE}" && -n "${PACKAGE_CONTACT}" ]] || {
+        echo "Pre-staged packaging requires an installed root, workspace, output manifest, and complete package metadata" >&2
+        exit 1
+    }
+    INPUT_STAGE_ROOT="$(realpath "${INPUT_STAGE_ROOT}")"
+    STAGING_DIR="$(realpath -m "${STAGING_DIR}")"
+    for workspace in "${STAGING_DIR}" "${STAGING_DIR}.melange-work"; do
+        case "${workspace}/" in
+            "${INPUT_STAGE_ROOT}/"*) echo "Workspace must be outside the input root" >&2; exit 1 ;;
+        esac
+        case "${INPUT_STAGE_ROOT}/" in
+            "${workspace}/"*) echo "Workspace must not contain the input root" >&2; exit 1 ;;
+        esac
+    done
+    [[ "${FORMATS}" == apk ]] || { echo "Pre-staged packaging supports APK only" >&2; exit 1; }
+fi
+[[ -z "${OUTPUT_MANIFEST}" ]] || rm -f -- "${OUTPUT_MANIFEST}"
+[[ -z "${SIGNING_KEY}" || -f "${SIGNING_KEY}" ]] || { echo "Signing key must name a regular file" >&2; exit 1; }
 
 [[ -n "${BUILD_DIR}" && -f "${BUILD_DIR}/CMakeCache.txt" ]] || {
     echo "A configured CMake build directory is required" >&2
@@ -56,11 +96,14 @@ done
 
 if [[ ${BUILD_APK} -eq 1 ]]; then
     command -v melange >/dev/null || { echo "melange is required" >&2; exit 1; }
+    command -v tar >/dev/null || { echo "tar is required" >&2; exit 1; }
 fi
 if [[ ${BUILD_DEB} -eq 1 || ${BUILD_RPM} -eq 1 ]]; then
     command -v nfpm >/dev/null || { echo "nfpm is required" >&2; exit 1; }
 fi
-command -v syft >/dev/null || { echo "syft is required" >&2; exit 1; }
+for tool in syft python3 readelf; do
+    command -v "${tool}" >/dev/null || { echo "${tool} is required" >&2; exit 1; }
+done
 
 OUT_DIR="${OUT_DIR:-${BUILD_DIR}}"
 STAGING_DIR="${STAGING_DIR:-${BUILD_DIR}/staging}"
@@ -70,10 +113,10 @@ extract_cpack_var() {
     awk -v key="$1" '$0 ~ "^set\\(" key " " && match($0, /"[^"]+"/) { print substr($0, RSTART + 1, RLENGTH - 2); exit }' "${BUILD_DIR}/CPackConfig.cmake"
 }
 
-PKG_NAME="$(extract_cpack_var CPACK_PACKAGE_NAME || true)"
-PKG_VERSION="$(extract_cpack_var CPACK_RPM_PACKAGE_VERSION || true)"
-PKG_RELEASE="$(extract_cpack_var CPACK_RPM_PACKAGE_RELEASE || true)"
-PKG_MAINTAINER="$(extract_cpack_var CPACK_PACKAGE_CONTACT || true)"
+PKG_NAME="${PACKAGE_NAME:-$(extract_cpack_var CPACK_PACKAGE_NAME)}"
+PKG_VERSION="${PACKAGE_VERSION:-$(extract_cpack_var CPACK_RPM_PACKAGE_VERSION)}"
+PKG_RELEASE="${PACKAGE_RELEASE:-$(extract_cpack_var CPACK_RPM_PACKAGE_RELEASE)}"
+PKG_MAINTAINER="${PACKAGE_CONTACT:-$(extract_cpack_var CPACK_PACKAGE_CONTACT)}"
 PKG_NAME="${PKG_NAME:-hpccsystems-platform}"
 PKG_VERSION="${PKG_VERSION:-0.0.0}"
 PKG_VERSION="${PKG_VERSION//_/.}"
@@ -116,7 +159,11 @@ mkdir -p "${STAGE_ROOT}" "${WORK_DIR}"
 CPACK_STRIP_FILES="$(sed -n 's/^CPACK_STRIP_FILES:[^=]*=//p' "${BUILD_DIR}/CMakeCache.txt")"
 INSTALL_ARGS=()
 [[ "${CPACK_STRIP_FILES}" =~ ^(ON|TRUE|1)$ ]] && INSTALL_ARGS+=(--strip)
-DESTDIR="${STAGE_ROOT}" cmake --install "${BUILD_DIR}" ${INSTALL_ARGS[@]+"${INSTALL_ARGS[@]}"}
+if [[ -n "${INPUT_STAGE_ROOT}" ]]; then
+    cp -a "${INPUT_STAGE_ROOT}/." "${STAGE_ROOT}/"
+else
+    DESTDIR="${STAGE_ROOT}" cmake --install "${BUILD_DIR}" ${INSTALL_ARGS[@]+"${INSTALL_ARGS[@]}"}
+fi
 if [[ -f "${HPCC_SYSROOT:-}/hpcc-baseline" ]]; then
     mkdir -p "${STAGE_ROOT}/var/lib/HPCCSystems"
     cp "${HPCC_SYSROOT}/hpcc-baseline" "${STAGE_ROOT}/var/lib/HPCCSystems/"
@@ -129,10 +176,19 @@ while IFS= read -r -d '' library; do
     [[ -n "${soname}" && "$(basename "${library}")" != "${soname}" ]] && printf '%s %s\n' "${soname}" "$(basename "${library}")" >> "${SONAME_LINKS}"
 done < <(find "${STAGE_ROOT}/opt/HPCCSystems" -type f -name '*.so*' -print0)
 
+APK_HOST_PLATFORM=0
+if [[ ${BUILD_APK} -eq 1 && -f "${STAGE_ROOT}/opt/HPCCSystems/etc/init.d/hpcc-init" ]] &&
+   ! grep -qE '^CONTAINERIZED:BOOL=(ON|TRUE|1)$' "${BUILD_DIR}/CMakeCache.txt"; then
+    APK_HOST_PLATFORM=1
+    install -m 0755 "${SCRIPT_DIR}/hpcc-apk-setup.sh" "${STAGE_ROOT}/opt/HPCCSystems/sbin/hpcc-apk-setup"
+fi
+
 RUNTIME_SBOM="${OUT_DIR}/${PKG_NAME}-${APK_FULL_VERSION}.runtime.spdx.json"
 syft scan "dir:${STAGE_ROOT}" --source-name "${PKG_NAME}" --source-version "${APK_FULL_VERSION}" --output spdx-json > "${RUNTIME_SBOM}"
-VCPKG_PACKAGES_DIR="${BUILD_DIR}/vcpkg-files/vcpkg_packages"
-[[ -d "${VCPKG_PACKAGES_DIR}" ]] || VCPKG_PACKAGES_DIR="${BUILD_DIR}/vcpkg_packages"
+if [[ -z "${VCPKG_PACKAGES_DIR}" ]]; then
+    VCPKG_PACKAGES_DIR="${BUILD_DIR}/vcpkg-files/vcpkg_packages"
+    [[ -d "${VCPKG_PACKAGES_DIR}" ]] || VCPKG_PACKAGES_DIR="${BUILD_DIR}/vcpkg_packages"
+fi
 [[ -d "${VCPKG_PACKAGES_DIR}" ]] || { echo "vcpkg package provenance directory not found" >&2; exit 1; }
 RUNTIME_VCPKG_SBOM="${OUT_DIR}/${PKG_NAME}-${APK_FULL_VERSION}.runtime-vcpkg.spdx.json"
 python3 "${SCRIPT_DIR}/generate-vcpkg-sbom.py" --stage-root "${STAGE_ROOT}" --vcpkg-packages-dir "${VCPKG_PACKAGES_DIR}" --hpcc-package-name "${PKG_NAME}" --hpcc-package-version "${APK_FULL_VERSION}" --output "${RUNTIME_VCPKG_SBOM}"
@@ -292,6 +348,11 @@ fi
 
 [[ ${BUILD_APK} -eq 1 ]] || exit 0
 
+# Melange copies only regular source files; an archive preserves links and directories.
+MELANGE_SOURCE_DIR="${STAGING_DIR}/melange-source"
+mkdir -p "${MELANGE_SOURCE_DIR}"
+tar -cf "${MELANGE_SOURCE_DIR}/stage-rootfs.tar" -C "${STAGE_ROOT}" .
+
 cat > "${MELANGE_CONFIG}" <<EOF
 package:
   name: ${PKG_NAME}
@@ -300,6 +361,39 @@ package:
   description: HPCC Systems platform package built from local CMake artifacts
   copyright:
     - license: Apache-2.0
+EOF
+if [[ ${APK_HOST_PLATFORM} -eq 1 ]]; then
+    cat >> "${MELANGE_CONFIG}" <<'EOF'
+  dependencies:
+    runtime:
+      - bash
+      - bash-binsh
+      - busybox
+      - coreutils
+      - gawk
+      - grep
+      - cmd:getent
+      - procps
+      - shadow
+      - util-linux-login
+      - util-linux-misc
+      - psmisc
+      - openssh-client
+      - openssh-server
+      - rsync
+  scriptlets:
+    post-install: |
+      #!/bin/sh
+      exec /opt/HPCCSystems/sbin/hpcc-apk-setup
+    post-upgrade: |
+      #!/bin/sh
+      exec /opt/HPCCSystems/sbin/hpcc-apk-setup
+    pre-deinstall: |
+      #!/bin/sh
+      exec /opt/HPCCSystems/sbin/hpcc-apk-setup remove
+EOF
+fi
+cat >> "${MELANGE_CONFIG}" <<EOF
 environment:
   contents:
     repositories:
@@ -309,15 +403,18 @@ environment:
 pipeline:
   - runs: |
       mkdir -p "\${{targets.destdir}}"
-      cp -a stage-rootfs/. "\${{targets.destdir}}"/
+      tar -xpf stage-rootfs.tar -C "\${{targets.destdir}}"
 update:
   enabled: false
 EOF
 
 mkdir -p "${XDG_CACHE_HOME:-${HOME}/.cache}"
 APK_REPO="${STAGING_DIR}/apk-repo"
-MELANGE_ARGS=(build "${MELANGE_CONFIG}" --arch "${APK_ARCH}" --source-dir "${STAGING_DIR}" --out-dir "${APK_REPO}" --workspace-dir "${WORK_DIR}" --keyring-append "${MELANGE_KEYRING}")
+MELANGE_ARGS=(build "${MELANGE_CONFIG}" --arch "${APK_ARCH}" --source-dir "${MELANGE_SOURCE_DIR}" --out-dir "${APK_REPO}" --workspace-dir "${WORK_DIR}" --keyring-append "${MELANGE_KEYRING}")
 [[ -n "${SIGNING_KEY}" ]] && MELANGE_ARGS+=(--signing-key "${SIGNING_KEY}")
 melange "${MELANGE_ARGS[@]}"
-cp "${APK_REPO}/${APK_ARCH}/${PKG_NAME}-${APK_FULL_VERSION}.apk" \
-    "${OUT_DIR}/${PKG_NAME}-${APK_FULL_VERSION}${PKG_LABEL:+.${PKG_LABEL}}.${APK_ARCH}.apk"
+APK_OUTPUT="${OUT_DIR}/${PKG_NAME}-${APK_FULL_VERSION}${PKG_LABEL:+.${PKG_LABEL}}.${APK_ARCH}.apk"
+cp "${APK_REPO}/${APK_ARCH}/${PKG_NAME}-${APK_FULL_VERSION}.apk" "${APK_OUTPUT}"
+if [[ -n "${OUTPUT_MANIFEST}" ]]; then
+    printf '%s\n' "${APK_OUTPUT}" "${RUNTIME_SBOM}" "${RUNTIME_VCPKG_SBOM}" > "${OUTPUT_MANIFEST}"
+fi
