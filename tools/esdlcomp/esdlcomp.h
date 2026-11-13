@@ -508,11 +508,13 @@ public:
         if (xmlTag) {
             if (*xmlTag == '"' || *xmlTag == '\'')
                 xmlTag++;
-            int len = strlen(xmlTag);
-            if (*(xmlTag+len-1)=='"' || *(xmlTag+len-1)=='\'')
+            size_t len = strlen(xmlTag);
+            if (len && (xmlTag[len-1]=='"' || xmlTag[len-1]=='\''))
                 len--;
-            strncpy(buffer, xmlTag, len);
-            buffer[len] = 0;
+            if (len >= sizeof(buffer))
+                len = sizeof(buffer) - 1;
+            memcpy(buffer, xmlTag, len);
+            buffer[len] = '\0';
         }
         else
             strcpy(buffer,name);

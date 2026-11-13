@@ -1,0 +1,10 @@
+diff --git a/libmemcached/csl/scanner.l b/libmemcached/csl/scanner.l
+index 7083034..8578892 100644
+--- a/libmemcached/csl/scanner.l
++++ b/libmemcached/csl/scanner.l
+@@ -235,5 +235,4 @@
+ void Context::destroy_scanner()
+ {
+-  (void)yy_fatal_error; // Removes warning about unused yy_fatal_error()
+   yylex_destroy(scanner);
+ }

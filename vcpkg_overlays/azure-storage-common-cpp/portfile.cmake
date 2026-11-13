@@ -5,7 +5,7 @@ vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO Azure/azure-sdk-for-cpp
     REF "azure-storage-common_${VERSION}"
-    SHA512 23c8e1b3b03907afe7487f09d1e97beb9379562ab4745ab275a95062fcda707e26b475136665c5a61379a08df1399e81f031659369fead54e3b70d23e089ec23
+    SHA512 355d32981b1dfe99c4d55946ce0178782d1ae5bf649130950e006b632f2dccd18caf67805bf8e2337b9c2963df6e02cec5c9bc1d9b23b8d0e2ccabd01efe2bf7
     HEAD_REF main
 )
 
@@ -27,12 +27,6 @@ if(EXISTS "${SOURCE_PATH}/sdk/storage/azure-storage-common")
   file(RENAME "${SOURCE_PATH}/sdk/storage" "${SOURCE_PATH}/sdk/_")
   file(RENAME "${SOURCE_PATH}/sdk" "${SOURCE_PATH}/_")
 endif()
-
-vcpkg_replace_string(
-    "${SOURCE_PATH}/_/_/_/inc/azure/storage/common/internal/structured_message_helper.hpp"
-    "#include <memory>"
-    "#include <memory>\n#include <cstdint>"
-)
 
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}/_/_/_"

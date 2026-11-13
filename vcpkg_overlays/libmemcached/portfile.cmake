@@ -1,9 +1,9 @@
 set(VERSION 1.0.18)
 
 vcpkg_download_distfile(ARCHIVE
-    URLS "https://launchpad.net/libmemcached/1.0/${VERSION}/+download/libmemcached-${VERSION}.tar.gz"
+    URLS "https://github.com/awesomized/libmemcached/archive/refs/tags/${VERSION}.tar.gz"
     FILENAME "libmemcached-${VERSION}.tar.gz"
-    SHA512 2d95fea63b8b6dc7ded42c3a88a54aad74d5a1d417af1247144dae4a88c3b639a3aabc0c2b66661ff69a7609a314efaaae236e10971af9c428a4bca0a0101585
+    SHA512 d3ce92de12b6042f7756f06b09baaeb620ecfcd175d412aa1ff88e5d64f52a95d9e528736c9b769ba98a6af05c980ab7564a0e398f41a42a37f4a8223aa29353
 )
 
 vcpkg_extract_source_archive_ex(
@@ -11,6 +11,8 @@ vcpkg_extract_source_archive_ex(
     ARCHIVE "${ARCHIVE}"
     PATCHES 
         "permissive.patch"
+        "flex-2.6.5.patch"
+        "no-man-install.patch"
 )
 
 vcpkg_configure_make(

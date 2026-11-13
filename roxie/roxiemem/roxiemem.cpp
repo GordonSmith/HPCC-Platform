@@ -2499,7 +2499,7 @@ public:
         return HEAPLET_DATA_AREA_OFFSET(HugeHeaplet);
     }
 
-    void operator delete(void * p)
+    void operator delete(void * p) __attribute__((noinline))
     {
         // MORE: Depending on the members/methods of an Object in the delete operator 
         //      is not a good idea, specially if another class derives from it.

@@ -552,8 +552,9 @@ public:
     CGraphElementIterator(const CGraphElementTable &table) : iter(table) { }
     virtual bool first() { return iter.first(); }
     virtual bool next() { return iter.next(); }
-    virtual bool isValid() { return iter.isValid(); }
-    virtual CGraphElementBase & query() { return iter.query(); }
+    // Keep these wrappers out of line to avoid GCC 16's false-positive bounds warning through the type-erased iterator.
+    virtual bool isValid() __attribute__((noinline)) { return iter.isValid(); }
+    virtual CGraphElementBase & query() __attribute__((noinline)) { return iter.query(); }
             CGraphElementBase & get() { CGraphElementBase &c = query(); c.Link(); return c; }
 };
 

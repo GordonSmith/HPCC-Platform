@@ -1,0 +1,16 @@
+diff --git a/Makefile.am b/Makefile.am
+index 5ecf1b3..b5cfd22 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -57,8 +57,7 @@
+ include libmemcachedutil-1.0/include.am
+ 
+ include clients/include.am
+ include docs/include.am
+-include man/include.am
+ 
+ if BUILD_LIBMEMCACHED_PROTOCOL
+ include example/include.am
+ 
+ install-dvi: install-dvi-am
+ 

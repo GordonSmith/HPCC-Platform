@@ -770,8 +770,12 @@ public:
 
           for (int idx=0; idx<stag.getLength(); idx++)
           {
-              buffer.appendf(" %s=\"", stag.getRawName(idx));
-              buffer.append(stag.getValue(idx));
+              const char *name = stag.getRawName(idx);
+              const char *value = stag.getValue(idx);
+              if (!name || !value)
+                  throwStringExceptionV(0, "Invalid XML attribute at index %d", idx);
+              buffer.appendf(" %s=\"", name);
+              buffer.append(value);
               buffer.append('\"');
           }
 
