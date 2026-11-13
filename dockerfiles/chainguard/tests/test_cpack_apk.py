@@ -61,6 +61,7 @@ set(CPACK_RPM_PACKAGE_VERSION 10.9.0)
 set(CPACK_RPM_PACKAGE_RELEASE trunk0)
 set(CPACK_PACKAGE_CONTACT "HPCC Test <test@example.invalid>")
 set(CPACK_GENERATOR External)
+set(CPACK_PACKAGE_DIRECTORY "${{CMAKE_BINARY_DIR}}")
 set(CPACK_EXTERNAL_ENABLE_STAGING ON)
 set(CPACK_MONOLITHIC_INSTALL TRUE)
 set(CPACK_SET_DESTDIR ON)
@@ -83,7 +84,7 @@ include(CPack)
 
     def run_command(self, *args, success=True, env=None):
         result = subprocess.run(args, env=env or self.env, text=True,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                                cwd=self.root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         if success:
             self.assertEqual(result.returncode, 0, result.stdout)
         else:
@@ -142,6 +143,12 @@ install(DIRECTORY defaults/ DESTINATION /opt/HPCCSystems/etc/HPCCSystems/rpmnew)
         del self.env["APK_TEST_FAIL"]
         self.env["APK_TEST_NO_OUTPUT"] = "1"
         self.assertIn("APK packaging failed", self.package(success=False))
+
+    def test_cpack_from_source_uses_build_directory(self):
+        self.run_command("cpack", "--config", str(self.build / "CPackConfig.cmake"))
+        self.assertFalse((self.root / "_CPack_Packages").exists())
+        self.assertTrue((self.build / "_CPack_Packages").is_dir())
+        self.assertEqual(len(list(self.build.glob("fixture-*.apk"))), 1)
 
     def test_current_cpack_metadata_signing_and_output_directory(self):
         key = self.root / "development key.rsa"

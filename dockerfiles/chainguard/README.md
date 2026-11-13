@@ -109,7 +109,10 @@ baseline validation, and runtime/vcpkg SBOM generation. It writes one APK and
 two runtime SPDX JSON files directly to the build directory, with no TGZ, DEB,
 or RPM. CPack also writes its External-generator metadata JSON.
 `cpack --config <build-dir>/CPackConfig.cmake -B <output-dir>` changes
-the output directory. Ordinary `cmake --install` never runs packaging.
+the output directory. Packaging outputs and `_CPack_Packages` staging default
+to the build directory, including when `cpack --config <build-dir>/CPackConfig.cmake`
+is run from another directory. Use `cpack -B <output-dir>` to override this.
+Ordinary `cmake --install` never runs packaging.
 
 For example, version `10.9.0` with release `trunk0` produces
 `hpccsystems-platform-10.9.0_alpha0-r0.x86_64.apk` and
